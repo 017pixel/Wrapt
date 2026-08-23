@@ -4,9 +4,11 @@ import { persist } from "zustand/middleware";
 interface PreviewHubState {
   openProjectIds: string[];
   activeProjectId: string | null;
+  projectAliases: Record<string, string>;
   openProject: (projectId: string) => void;
   activateProject: (projectId: string) => void;
   closeProject: (projectId: string) => void;
+  renameProjectTab: (projectId: string, name: string) => void;
   reconcileProjects: (availableProjectIds: string[], fallbackProjectId: string | null) => void;
 }
 
@@ -26,6 +28,7 @@ export const usePreviewHubStore = create<PreviewHubState>()(
     (set) => ({
       openProjectIds: [],
       activeProjectId: null,
+      projectAliases: {},
       openProject: (projectId) => set((state) => {
         const alreadyOpen = state.openProjectIds.includes(projectId);
         if (alreadyOpen && state.activeProjectId === projectId) return state;
@@ -45,6 +48,7 @@ export const usePreviewHubStore = create<PreviewHubState>()(
         if (state.activeProjectId !== projectId) return { openProjectIds };
         return { openProjectIds, activeProjectId: openProjectIds[Math.min(index, openProjectIds.length - 1)] ?? null };
       }),
+      renameProjectTab: (projectId, name) => set((state) => ({ projectAliases: { ...state.projectAliases, [projectId]: name.trim() } })),
       reconcileProjects: (availableProjectIds, fallbackProjectId) => set((state) => {
         const available = new Set(availableProjectIds);
         const openProjectIds = state.openProjectIds.filter((id) => available.has(id));
@@ -59,12 +63,13 @@ export const usePreviewHubStore = create<PreviewHubState>()(
     }),
     {
       name: PREVIEW_HUB_STORAGE_KEY,
-      partialize: (state) => ({ openProjectIds: state.openProjectIds, activeProjectId: state.activeProjectId }),
+      partialize: (state) => ({ openProjectIds: state.openProjectIds, activeProjectId: state.activeProjectId, projectAliases: state.projectAliases }),
       merge: (persisted, current) => {
-        const raw = persisted as { openProjectIds?: unknown; activeProjectId?: unknown } | undefined;
+        const raw = persisted as { openProjectIds?: unknown; activeProjectId?: unknown; projectAliases?: unknown } | undefined;
         const openProjectIds = validIds(raw?.openProjectIds);
         const activeProjectId = typeof raw?.activeProjectId === "string" && openProjectIds.includes(raw.activeProjectId) ? raw.activeProjectId : (openProjectIds[0] ?? null);
-        return { ...current, openProjectIds, activeProjectId };
+        const projectAliases = raw?.projectAliases && typeof raw.projectAliases === "object" ? raw.projectAliases as Record<string, string> : {};
+        return { ...current, openProjectIds, activeProjectId, projectAliases };
       },
     },
   ),

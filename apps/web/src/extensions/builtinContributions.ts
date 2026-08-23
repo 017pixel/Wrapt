@@ -7,6 +7,7 @@ import { bootstrapLegacyPageRoutes } from "./legacyPageRoutes";
 import { bootstrapLegacySettingsCards } from "./legacySettingsCards";
 import { bootstrapLegacyStatusBar } from "./legacyStatusBar";
 import { bootstrapLegacyTopbar } from "./legacyTopbar";
+import { bootstrapHostContextMenus } from "./hostContextMenus";
 
 /**
  * Temporary compatibility boundary for first-party product surfaces that are
@@ -25,6 +26,7 @@ export function bootstrapBuiltinContributions(): void {
   bootstrapLegacyStatusBar();
   bootstrapLegacyTopbar();
   bootstrapLegacyContextMenus();
+  bootstrapHostContextMenus();
   bootstrapLegacyDashboardSections();
   bootstrapLegacySettingsCards();
   bootstrapLegacyOrbitPalette();

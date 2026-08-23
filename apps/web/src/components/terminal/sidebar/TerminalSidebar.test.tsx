@@ -4,6 +4,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TerminalWorkspaceV2 } from "@wrapt/contracts";
 import { useTerminalWorkspaceStore } from "../../../stores/terminalWorkspace";
 import { TerminalSidebar } from "./TerminalSidebar";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MemoryRouter } from "react-router";
+import { defaultContextMenuConfig } from "@wrapt/contracts";
+import { ContextMenuProvider } from "../../context-menu/ContextMenuProvider";
+import { registerHostContextMenus } from "../../../extensions/hostContextMenus";
 
 afterEach(() => {
   cleanup();
@@ -37,8 +42,11 @@ function renderSidebar(value = workspace()) {
     onHoverEnd: vi.fn(),
   };
   useTerminalWorkspaceStore.getState().replaceRemote(value, 0);
+  registerHostContextMenus();
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(["system", "context-menu"], { contextMenu: defaultContextMenuConfig });
   render(
-    <TerminalSidebar
+    <QueryClientProvider client={client}><MemoryRouter><ContextMenuProvider><TerminalSidebar
       areaId="standalone"
       kind="shell"
       meta={{}}
@@ -51,7 +59,7 @@ function renderSidebar(value = workspace()) {
       hasActivePane={false}
       sessionPicker={<span>Sessions</span>}
       {...callbacks}
-    />,
+    /></ContextMenuProvider></MemoryRouter></QueryClientProvider>,
   );
   return callbacks;
 }

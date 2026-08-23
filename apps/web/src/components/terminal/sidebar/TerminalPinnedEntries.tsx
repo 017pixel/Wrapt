@@ -30,7 +30,7 @@ export function TerminalPinnedEntries({ entries, meta, sessions, createRowHandle
                 data-dnd={`entry:${entry.id}`}
                 className="terminal-tree-row is-entry is-pinned-row"
                 {...createRowHandlers("entry", entry.id, entry.name)}
-                onContextMenu={(event) => { event.preventDefault(); onContextMenu(event, entry.id); }}
+                onContextMenu={(event) => onContextMenu(event, entry.id)}
                 onMouseEnter={(event) => onHoverStart(entry.id, event.currentTarget)}
                 onMouseLeave={() => onHoverEnd(entry.id)}
                 onClick={() => entry.runtimeId && onOpenEntry(entry.runtimeId)}

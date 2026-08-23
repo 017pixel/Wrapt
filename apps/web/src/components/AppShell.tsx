@@ -24,6 +24,8 @@ import { ToolActionMenu } from "./ToolActionMenu";
 import { NotificationCenter } from "./NotificationCenter";
 import { WraptNotice } from "./WraptNotice";
 import { useViewPresence } from "../lib/useViewPresence";
+import { ContextMenuProvider } from "./context-menu/ContextMenuProvider";
+import { recordToolUsage } from "../stores/toolUsage";
 
 function ContextProjectPicker() {
   const location = useLocation();
@@ -194,6 +196,7 @@ export function AppShell() {
   const navigationTriggerRef = useRef<HTMLButtonElement>(null);
   const mainRef = useRef<HTMLElement>(null);
   const previousPathRef = useRef(location.pathname);
+  const lastUsagePathRef = useRef<string | null>(null);
   const navigationSwipeStart = useRef<{ x: number; y: number } | null>(null);
   const sidebar = useSidebarLayout();
   const responsive = useResponsiveShell();
@@ -237,6 +240,15 @@ export function AppShell() {
   }, [location.pathname]);
 
   useEffect(() => {
+    const item = navigation.items.find((candidate) => candidate.value.route.path === location.pathname);
+    if (!item) return;
+    const usageKey = `${item.contributionId}:${location.pathname}`;
+    if (lastUsagePathRef.current === usageKey) return;
+    lastUsagePathRef.current = usageKey;
+    recordToolUsage(item.contributionId);
+  }, [location.pathname, navigation]);
+
+  useEffect(() => {
     if (!isTerminalRoute && terminalFocus) setTerminalFocus(false);
   }, [isTerminalRoute, terminalFocus]);
 
@@ -250,7 +262,7 @@ export function AppShell() {
   }, [terminalFocus]);
 
   return (
-    <div
+    <ContextMenuProvider><div
       className={`app-shell ${isOrbit ? "is-orbit" : ""}`}
       data-shell-mode={responsive.mode}
       data-input-mode={responsive.inputMode}
@@ -320,6 +332,6 @@ export function AppShell() {
       </div>
       {terminalFocus ? <button type="button" className="terminal-focus-exit" onClick={() => setTerminalFocus(false)} aria-label="Vollbild verlassen" title="Vollbild verlassen"><RestoreIcon className="h-4 w-4" /></button> : null}
       <MobileNav open={mobileNavigationOpen} onClose={closeMobileNavigation} triggerRef={navigationTriggerRef} />
-    </div>
+    </div></ContextMenuProvider>
   );
 }

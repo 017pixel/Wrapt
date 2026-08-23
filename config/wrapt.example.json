@@ -113,6 +113,21 @@
       "enabled": false
     }
   },
+  "contextMenu": {
+    "enabled": true,
+    "quickActions": {
+      "mode": "auto",
+      "manual": []
+    },
+    "surfaces": {},
+    "statusBar": {
+      "fontSizePx": 12,
+      "alwaysShowLimits": false
+    }
+  },
+  "plugins": {
+    "creatorSkillPath": "/home/your-user/.codex/skills/.system/plugin-creator/SKILL.md"
+  },
   "hermes": {
     "enabled": true,
     "host": "127.0.0.1",

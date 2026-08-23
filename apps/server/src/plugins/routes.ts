@@ -4,15 +4,17 @@ import {
   pluginExamplesResponseSchema,
   pluginPublishResponseSchema,
   pluginActivationResponseSchema,
+  pluginCreatorSkillResponseSchema,
   pluginValidationResponseSchema,
 } from "@wrapt/contracts";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { PluginAuthoringService } from "./authoring.js";
+import { readPluginCreatorSkill } from "./creator-skill.js";
 
 const idParams = z.object({ id: z.string().min(1).max(64) });
 
-export async function registerPluginRoutes(app: FastifyInstance, options: { authoring: PluginAuthoringService }) {
+export async function registerPluginRoutes(app: FastifyInstance, options: { authoring: PluginAuthoringService; creatorSkillPath: string }) {
   const authoring = options.authoring;
   await authoring.initialize();
 
@@ -22,6 +24,8 @@ export async function registerPluginRoutes(app: FastifyInstance, options: { auth
   });
 
   app.get("/plugins/drafts", async () => pluginDraftsResponseSchema.parse({ drafts: await authoring.listDrafts() }));
+
+  app.get("/plugins/creator-skill", async () => pluginCreatorSkillResponseSchema.parse(await readPluginCreatorSkill(options.creatorSkillPath)));
 
   app.get("/plugins/drafts/:id", async (request) => {
     const { id } = idParams.parse(request.params);

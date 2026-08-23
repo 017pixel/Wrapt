@@ -11,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   catalog: vi.fn(),
   registry: vi.fn(),
   dispatch: vi.fn(),
+  restartSystem: vi.fn(),
+  restartStatus: vi.fn(),
 }));
 
 vi.mock("../../lib/apiClient", () => ({
@@ -19,6 +21,8 @@ vi.mock("../../lib/apiClient", () => ({
     extensionCatalog: mocks.catalog,
     extensionRegistry: mocks.registry,
     dispatchExtensionOperation: mocks.dispatch,
+    restartSystem: mocks.restartSystem,
+    restartStatus: mocks.restartStatus,
   },
 }));
 
@@ -55,12 +59,14 @@ describe("PluginStore", () => {
     mocks.catalog.mockResolvedValue({ providerId: "wrapt-catalog", revision: "sha256:catalog", entries: [entry] });
     mocks.registry.mockResolvedValue({ revision: 0, generatedAt: new Date().toISOString(), extensions: [] });
     mocks.dispatch.mockResolvedValue({});
+    mocks.restartSystem.mockReturnValue(new Promise(() => undefined));
+    mocks.restartStatus.mockResolvedValue(null);
   });
 
   it("zeigt für ein Beispiel nur Installieren", async () => {
     renderStore();
     expect(await screen.findByText("Fokus-Timer")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Installieren" })).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Installieren" })).toBeTruthy();
     expect(screen.getByText("/plugins/tool/focus-timer", { exact: true })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Eigenes Plugin" })).toBeNull();
   });
@@ -86,7 +92,32 @@ describe("PluginStore", () => {
         enableAfterInstall: true,
       });
     });
-    expect(screen.getByRole("link", { name: "Wrapt neu starten" }).getAttribute("href")).toBe("/settings#einstellungen:system");
+    const restartButton = screen.getByRole("button", { name: "Wrapt neu starten" });
+    expect(screen.queryByRole("link", { name: "Wrapt neu starten" })).toBeNull();
+    fireEvent.click(restartButton);
+    expect(mocks.restartSystem).toHaveBeenCalledWith("both");
+    expect(screen.getByText("Neustart wird angestoßen …")).toBeTruthy();
+  });
+
+  it("lässt Installationshinweise schließen", async () => {
+    renderStore();
+    const installButton = await screen.findByRole("button", { name: "Installieren" });
+    await waitFor(() => expect((installButton as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(installButton);
+    expect(await screen.findByText("„Fokus-Timer“ wurde hinzugefügt.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Hinweis schließen" }));
+    expect(screen.queryByText("„Fokus-Timer“ wurde hinzugefügt.")).toBeNull();
+  });
+
+  it("zeigt einen fehlgeschlagenen Neustart im selben Plugin-Banner", async () => {
+    mocks.restartSystem.mockRejectedValue(new Error("Start fehlgeschlagen"));
+    renderStore();
+    const installButton = await screen.findByRole("button", { name: "Installieren" });
+    await waitFor(() => expect((installButton as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(installButton);
+    fireEvent.click(await screen.findByRole("button", { name: "Wrapt neu starten" }));
+    expect(await screen.findByText("Der Neustart konnte nicht ausgelöst werden.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Erneut versuchen" })).toBeTruthy();
   });
 
   it("deinstalliert ein installiertes Plugin mit explizitem Datenentscheid", async () => {
@@ -119,5 +150,23 @@ describe("PluginStore", () => {
 
     expect(await screen.findByRole("button", { name: "Installieren" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Deinstallieren" })).toBeNull();
+  });
+
+  it("bleibt bei fehlendem Catalog-Paket fail-closed", async () => {
+    mocks.catalog.mockResolvedValue({ providerId: "wrapt-catalog", revision: "sha256:catalog", entries: [] });
+    renderStore();
+    const button = await screen.findByRole("button", { name: "Paket fehlt" });
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+    expect(await screen.findByText("Paket fehlt im lokalen Catalog")).toBeTruthy();
+    expect(mocks.dispatch).not.toHaveBeenCalled();
+  });
+
+  it("meldet einen unvollständig geladenen Store und bietet einen Retry", async () => {
+    mocks.registry.mockRejectedValue(new Error("Registry nicht erreichbar"));
+    renderStore();
+    expect(await screen.findByText("Der Plugin-Store konnte nicht vollständig geladen werden.")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Status fehlt" }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Hinweis schließen" }));
+    expect(screen.queryByText("Der Plugin-Store konnte nicht vollständig geladen werden.")).toBeNull();
   });
 });

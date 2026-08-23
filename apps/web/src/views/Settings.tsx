@@ -1,15 +1,14 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { CopyIcon, DeviceRotateIcon, DownloadIcon, ExtensionsIcon, EyeIcon, GitBranchIcon, InboxIcon, InfoIcon, LayersIcon, LoaderIcon, NutzungIcon, RefreshIcon, RocketIcon, ServerIcon, ShieldIcon, TrashIcon, UploadIcon, WarningIcon } from "../components/icons";
+import { DownloadIcon, ExtensionsIcon, EyeIcon, GitBranchIcon, InboxIcon, InfoIcon, LayersIcon, LoaderIcon, NutzungIcon, RefreshIcon, RocketIcon, ShieldIcon, TrashIcon, UploadIcon, WarningIcon } from "../components/icons";
 import { wraptQueries } from "../lib/queryOptions";
 import { apiClient, ApiClientError } from "../lib/apiClient";
-import { writeClipboardText } from "../lib/clipboard";
 import { usePwaInstall } from "../lib/usePwaInstall";
 import { useWorkspaceStore, WORKSPACE_STORAGE_KEY } from "../stores/workspace";
 import { Card } from "../components/Card";
 import { Badge } from "../components/primitives";
 import { ExtensionSettings } from "../components/extensions/ExtensionSettings";
-import { WRAPT_LIMITS, type DashboardConfig, type NotificationPreferences, type NotificationSource, type RestartTarget, type T3Channel, type UsageMonitoring, type UsageProviderId } from "@wrapt/contracts";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { WRAPT_LIMITS, type DashboardConfig, type NotificationPreferences, type NotificationSource, type T3Channel, type UsageMonitoring, type UsageProviderId } from "@wrapt/contracts";
+import { useMemo, useRef, useState } from "react";
 import { ConfirmDialog } from "../components/ModalDialog";
 import { useHashTab } from "../lib/hashTabs";
 import { allPageRoutes, isPageVisibleIn, useSidebarPreferences, type OrbitPaletteItem, type PageRouteId } from "../stores/sidebarPreferences";
@@ -21,12 +20,15 @@ import { useWebPushDevice } from "../lib/useWebPushDevice";
 import type { WebPushDeviceStatus } from "../lib/webPushDevice";
 import { AppearanceSettings } from "../components/AppearanceSettings";
 import "../components/appearance.css";
+import { SystemRestartControls } from "../components/SystemRestartControls";
+import { ContextMenuSettings } from "../components/context-menu/ContextMenuSettings";
 
-type SettingsTabId = "allgemein" | "oberflaeche" | "benachrichtigungen" | "system" | "erweiterungen" | "werkzeuge" | "workspace";
+type SettingsTabId = "allgemein" | "oberflaeche" | "rechtsklick" | "benachrichtigungen" | "system" | "erweiterungen" | "werkzeuge" | "workspace";
 
 const settingsTabs: { id: SettingsTabId; label: string }[] = [
   { id: "allgemein", label: "Allgemein" },
   { id: "oberflaeche", label: "Oberfläche" },
+  { id: "rechtsklick", label: "Rechtsklick" },
   { id: "benachrichtigungen", label: "Benachrichtigungen" },
   { id: "system", label: "System" },
   { id: "erweiterungen", label: "Erweiterungen" },
@@ -145,6 +147,8 @@ export function Settings() {
           </>
         ) : null}
 
+        {tab === "rechtsklick" ? <ContextMenuSettings /> : null}
+
         {tab === "benachrichtigungen" ? (
           <Card title="Benachrichtigungen" subtitle="Toasts und System-Benachrichtigungen pro Quelle" action={<InboxIcon className="h-4 w-4 text-faint" />}>
             <NotificationSettings />
@@ -155,7 +159,7 @@ export function Settings() {
           <>
             <div ref={restartCardRef} id="restart-controls" className={restartHighlighted ? "settings-jump-target is-active" : "settings-jump-target"}>
               <Card title="Dienst neu starten" subtitle="Nach Code-Änderungen neu bauen und laden – ohne Datenverlust" action={<RefreshIcon className="h-4 w-4 text-faint" />}>
-                <RestartControls />
+                <SystemRestartControls />
               </Card>
             </div>
 
@@ -428,168 +432,6 @@ function DashboardSectionToggles({ config }: { config: DashboardConfig | undefin
           </button>
         );
       })}
-    </div>
-  );
-}
-
-const restartButtons: { target: RestartTarget; label: string; hint: string; icon: typeof ServerIcon }[] = [
-  { target: "frontend", label: "Frontend", hint: "Nur die Oberfläche neu bauen", icon: DeviceRotateIcon },
-  { target: "backend", label: "Backend", hint: "Server neu bauen & neu starten", icon: ServerIcon },
-  { target: "both", label: "Beides", hint: "Frontend & Backend zusammen", icon: RefreshIcon },
-];
-
-const restartWorkingLabel: Record<RestartTarget, string> = {
-  frontend: "Frontend wird neu gebaut …",
-  backend: "Backend wird neu gebaut und neu gestartet …",
-  both: "Frontend und Backend werden neu gebaut …",
-};
-
-type RestartUiPhase =
-  | { status: "idle" }
-  | { status: "working"; target: RestartTarget; step: string }
-  | { status: "error"; target: RestartTarget; message: string; logTail: string };
-
-const sleep = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
-
-const RESTART_DEADLINE_MS = 300_000;
-
-function RestartControls() {
-  const [phase, setPhase] = useState<RestartUiPhase>({ status: "idle" });
-  const [logOpen, setLogOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
-  const cancelledRef = useRef(false);
-
-  useEffect(() => () => { cancelledRef.current = true; }, []);
-
-  // Pollt den echten Skript-Status. Bricht der Build ab, steht die Ursache sofort da,
-  // statt dass die Oberfläche fünf Minuten lang ins Leere wartet.
-  async function waitForResult(
-    target: RestartTarget,
-    baseline: { bootId: string; webBuildId: number | null },
-  ): Promise<{ ok: true } | { ok: false; message: string; logTail: string }> {
-    const deadline = Date.now() + RESTART_DEADLINE_MS;
-    let lastLogTail = "";
-    let scriptFinished = false;
-    while (Date.now() < deadline) {
-      await sleep(1_500);
-      if (cancelledRef.current) return { ok: true };
-      try {
-        const status = await apiClient.restartStatus();
-        if (!status) continue;
-        lastLogTail = status.logTail || lastLogTail;
-        if (status.phase === "failed") {
-          return { ok: false, message: status.message || "Der Neustart ist fehlgeschlagen.", logTail: status.logTail };
-        }
-        if (status.phase === "running" && status.step) {
-          setPhase({ status: "working", target, step: status.step });
-        }
-        scriptFinished = status.phase === "succeeded";
-        // Der Marker zählt, nicht das Skriptende: "backend"/"both" melden Erfolg schon,
-        // bevor der Dienst wirklich neu gestartet ist.
-        const backendRestarted = status.bootId !== baseline.bootId;
-        const frontendRebuilt = status.webBuildId !== null && status.webBuildId !== baseline.webBuildId;
-        if (scriptFinished && (target === "frontend" ? frontendRebuilt : backendRestarted)) return { ok: true };
-      } catch {
-        // Während des Backend-Neustarts ist der Server kurz nicht erreichbar — weiter pollen.
-      }
-    }
-    return {
-      ok: false,
-      message: scriptFinished
-        ? "Der Build lief durch, aber der Dienst meldet sich nicht zurück. Prüfe: systemctl --user status wrapt.service"
-        : "Zeitüberschreitung — der Neustart hat zu lange gebraucht.",
-      logTail: lastLogTail,
-    };
-  }
-
-  async function handleRestart(target: RestartTarget) {
-    cancelledRef.current = false;
-    setLogOpen(false);
-    setCopied(false);
-    setPhase({ status: "working", target, step: "Neustart wird angestoßen …" });
-    try {
-      const response = await apiClient.restartSystem(target);
-      if (!response) throw new Error("Keine Antwort vom Server erhalten.");
-      const result = await waitForResult(target, { bootId: response.bootId, webBuildId: response.webBuildId });
-      if (cancelledRef.current) return;
-      if (result.ok) {
-        window.location.reload();
-        return;
-      }
-      setPhase({ status: "error", target, message: result.message, logTail: result.logTail });
-    } catch (error) {
-      if (cancelledRef.current) return;
-      const message = error instanceof ApiClientError ? error.message : "Der Neustart konnte nicht ausgelöst werden.";
-      // Auch wenn das Auslösen scheitert: Der letzte Log-Ausschnitt hilft bei der Ursachensuche.
-      const status = await apiClient.restartStatus().catch(() => null);
-      setPhase({ status: "error", target, message, logTail: status?.logTail ?? "" });
-    }
-  }
-
-  const working = phase.status === "working";
-
-  return (
-    <div className="space-y-3">
-      <div className="flex flex-wrap gap-2">
-        {restartButtons.map(({ target, label, hint, icon: Icon }) => {
-          const isActive = working && phase.target === target;
-          return (
-            <button
-              key={target}
-              type="button"
-              disabled={working}
-              onClick={() => void handleRestart(target)}
-              className={`quiet-button grow basis-40 flex-col items-start gap-1 py-2.5 ${target === "both" ? "border-accent-line" : ""}`}
-              title={hint}
-            >
-              <span className="flex items-center gap-2 font-medium text-text">
-                {isActive ? <LoaderIcon className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}
-                {label}
-              </span>
-              <span className="text-[11px] text-faint">{hint}</span>
-            </button>
-          );
-        })}
-      </div>
-      {phase.status === "working" ? (
-        <div className="space-y-1" role="status">
-          <p className="flex items-center gap-2 text-[12px] text-muted">
-            <LoaderIcon className="h-3.5 w-3.5 shrink-0 animate-spin" /> {restartWorkingLabel[phase.target]} Die Seite lädt automatisch neu, sobald es fertig ist.
-          </p>
-          <p className="pl-[22px] text-[11px] text-faint">{phase.step}</p>
-        </div>
-      ) : phase.status === "error" ? (
-        <div className="space-y-2" role="alert">
-          <p className="flex items-start gap-2 text-[12px] text-bad">
-            <WarningIcon className="h-3.5 w-3.5 shrink-0" /> <span>{phase.message}</span>
-          </p>
-          {phase.logTail ? (
-            <div className="space-y-2">
-              <div className="flex flex-wrap gap-2">
-                <button type="button" className="quiet-button" onClick={() => setLogOpen((open) => !open)}>
-                  {logOpen ? "Log ausblenden" : "Log anzeigen"}
-                </button>
-                <button
-                  type="button"
-                  className="quiet-button"
-                  onClick={() => {
-                    void writeClipboardText(`Neustart (${phase.target}) fehlgeschlagen: ${phase.message}\n\n${phase.logTail}`)
-                      .then(() => setCopied(true))
-                      .catch(() => setCopied(false));
-                  }}
-                >
-                  <CopyIcon className="h-3.5 w-3.5" /> {copied ? "Kopiert" : "Log kopieren"}
-                </button>
-              </div>
-              {logOpen ? <pre className="restart-log">{phase.logTail}</pre> : null}
-            </div>
-          ) : null}
-        </div>
-      ) : (
-        <p className="text-[12px] text-faint">
-          Geöffnete Panels, Arbeitsflächen und Galerie-Daten bleiben erhalten. Nur laufende Terminals werden beim Backend-Neustart unterbrochen.
-        </p>
-      )}
     </div>
   );
 }

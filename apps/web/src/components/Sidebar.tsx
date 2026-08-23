@@ -1,6 +1,6 @@
-import { NavLink, useLocation } from "react-router";
+import { NavLink, useLocation, useNavigate } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 import type { CSSProperties, DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from "react";
 import type { OrbitNode } from "@wrapt/contracts";
 import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, EyeIcon, FolderCodeIcon, FolderSearchIcon, WraptIcon } from "./icons";
@@ -17,6 +17,10 @@ import { previewSessionKeysWithNode, previewSlotsReleasedWithNode, releasePrevie
 import { openPreviewGroupWindow } from "../lib/previewWindow";
 import { requestOrbitNode, type OrbitPalettePayload } from "../lib/orbitPalette";
 import { navigationUsesExactMatch } from "./sidebarNavigation";
+import { openGlobalContextMenu } from "./context-menu/contextMenuEvents";
+import { hostContextMenuId } from "../extensions/hostContextMenus";
+import { useSidebarNavigationReorder } from "./sidebar/useSidebarNavigationReorder";
+import { orderNavigation } from "./sidebar/navigationOrdering";
 
 function isNavigationItemVisible(item: OwnedNavigationItem, hiddenPages: ReadonlySet<string>): boolean {
   const visibilityKey = item.value.runtime.legacyVisibilityKey;
@@ -59,21 +63,54 @@ function useSectionCollapsed(sectionKey: SidebarSectionKey) {
 // der Text steckt weiterhin in aria-label/title — deshalb genau eine Variante statt zwei Zweigen.
 function SidebarNavLink({ item, collapsed, badge = 0 }: { item: OwnedNavigationItem; collapsed: boolean; badge?: number }) {
   const client = useQueryClient();
+  const navigate = useNavigate();
+  const togglePage = useSidebarPreferences((state) => state.togglePage);
+  const reorderEnabled = useSidebarPreferences((state) => state.navigationReorderEnabled);
+  const toggleReorder = useSidebarPreferences((state) => state.toggleNavigationReorder);
+  const moveBefore = useSidebarPreferences((state) => state.moveNavigationBefore);
+  const navigation = useNavigationRegistry();
   const { label, icon: Icon } = { label: item.value.contribution.label, icon: item.value.runtime.icon };
   const to = item.value.route.path;
+  const visibilityKey = item.value.runtime.legacyVisibilityKey as PageRouteId | undefined;
   const prefetch = () => prefetchRouteTarget(client, to);
+  const availableIds = navigation.items.map((entry) => entry.contributionId);
+  const touchReorder = useSidebarNavigationReorder({ enabled: reorderEnabled, itemId: item.contributionId, availableIds, moveBefore });
   return (
     <NavLink
       to={to}
       end={navigationUsesExactMatch(to)}
-      className="sidebar-item"
+      className={`sidebar-item ${touchReorder.active ? "is-touch-reordering" : ""}`}
+      data-navigation-id={item.contributionId}
       onPointerEnter={prefetch}
       // Touch kennt kein Überfahren: `pointerdown` feuert vor dem Klick und
       // verschafft Bündel und Daten den entscheidenden Vorsprung.
-      onPointerDown={prefetch}
+      onPointerDown={(event) => { prefetch(); touchReorder.onPointerDown(event); }}
+      onPointerMove={touchReorder.onPointerMove}
+      onPointerUp={touchReorder.onPointerUp}
+      onPointerCancel={touchReorder.onPointerCancel}
+      onClick={touchReorder.onClick}
       onFocus={prefetch}
+      onContextMenu={(event) => {
+        if (touchReorder.suppressContextMenu()) { event.preventDefault(); event.stopPropagation(); return; }
+        openGlobalContextMenu(event, {
+        surface: "host.context-menu.tool",
+        title: label,
+        quickActionToolId: item.contributionId,
+        actions: [
+          { id: hostContextMenuId("tool.open"), icon: Icon ? <Icon className="h-4 w-4" /> : undefined, onSelect: () => navigate(to) },
+          { id: hostContextMenuId("tool.new-tab"), onSelect: () => window.open(to, "_blank", "noopener,noreferrer") },
+          ...(visibilityKey && visibilityKey !== "settings" ? [{ id: hostContextMenuId("tool.hide"), onSelect: () => togglePage(visibilityKey) }] : []),
+          { id: hostContextMenuId("tool.pin"), label: "An erste Stelle anheften", checked: useSidebarPreferences.getState().navigationOrder[0] === item.contributionId, onSelect: () => moveBefore(item.contributionId, navigation.items[0]?.contributionId ?? item.contributionId, availableIds) },
+          { id: hostContextMenuId("tool.reorder"), label: reorderEnabled ? "Reihenfolge sperren" : "Reihenfolge ändern", checked: reorderEnabled, onSelect: toggleReorder },
+          { id: hostContextMenuId("tool.settings"), onSelect: () => navigate("/settings#einstellungen:rechtsklick") },
+        ],
+      });}}
       aria-label={label}
       title={label}
+      draggable={reorderEnabled}
+      onDragStart={(event) => { event.dataTransfer.setData("application/x-wrapt-navigation", item.contributionId); event.dataTransfer.effectAllowed = "move"; }}
+      onDragOver={(event) => { if (reorderEnabled) event.preventDefault(); }}
+      onDrop={(event) => { const dragId = event.dataTransfer.getData("application/x-wrapt-navigation"); if (dragId) { event.preventDefault(); moveBefore(dragId, item.contributionId, availableIds); } }}
     >
       {Icon ? <Icon className="h-4 w-4 shrink-0" /> : null}
       {!collapsed ? label : null}
@@ -112,31 +149,16 @@ function OrbitPreviewSection({ collapsed }: { collapsed: boolean }) {  const isC
   const duplicateNode = useOrbitStore((state) => state.duplicateNode);
   const removeNode = useOrbitStore((state) => state.removeNode);
   const updateNode = useOrbitStore((state) => state.updateNode);
-  const [menuId, setMenuId] = useState<string | null>(null);
   const [renameGroup, setRenameGroup] = useState<OrbitNode | null>(null);
   const board = document.boards.find((candidate) => candidate.id === document.activeBoardId);
   const savedGroups = [...(board?.nodes.filter((node) => node.type === "previewGroup" && node.previewReferenceId === null) ?? [])]
     .sort((left, right) => (right.previewLastUsedAt ?? "").localeCompare(left.previewLastUsedAt ?? ""));
-  useEffect(() => {
-    if (!menuId) return;
-    const close = (event: MouseEvent) => {
-      if (!(event.target as Element | null)?.closest(".sidebar-preview-saved")) setMenuId(null);
-    };
-    const escape = (event: KeyboardEvent) => { if (event.key === "Escape") setMenuId(null); };
-    globalThis.document.addEventListener("mousedown", close);
-    globalThis.document.addEventListener("keydown", escape);
-    return () => {
-      globalThis.document.removeEventListener("mousedown", close);
-      globalThis.document.removeEventListener("keydown", escape);
-    };
-  }, [menuId]);
   const deleteGroup = (group: OrbitNode) => {
     if (board) {
       void releasePreviewSlots(previewSlotsReleasedWithNode(board, group.id));
       void releasePreviewSessions(previewSessionKeysWithNode(board, group.id));
     }
     removeNode(group.id);
-    setMenuId(null);
   };
   return (
     <div className="sidebar-section orbit-preview-section">
@@ -148,17 +170,21 @@ function OrbitPreviewSection({ collapsed }: { collapsed: boolean }) {  const isC
         {savedGroups.length ? <span className="sidebar-preview-divider" /> : null}
         {savedGroups.map((group) => {
           const count = Number(group.previewLayout ?? "1");
-          return <div className="sidebar-preview-saved" key={group.id} onContextMenu={(event) => { event.preventDefault(); setMenuId(group.id); }}>
+          return <div className="sidebar-preview-saved" key={group.id} onContextMenu={(event) => openGlobalContextMenu(event, {
+            surface: "host.context-menu.preview",
+            title: group.title,
+            actions: [
+              { id: hostContextMenuId("preview.open"), icon: <EyeIcon className="h-4 w-4" />, onSelect: () => requestOrbitNode({ type: "previewGroup", title: group.title, layout: group.previewLayout ?? "1", referenceId: group.id }) },
+              { id: hostContextMenuId("preview.rename"), onSelect: () => setRenameGroup(group) },
+              { id: hostContextMenuId("preview.duplicate"), onSelect: () => duplicateNode(group.id) },
+              { id: hostContextMenuId("preview.window"), onSelect: () => openPreviewGroupWindow(group.id) },
+              { id: hostContextMenuId("preview.close"), label: "Löschen", danger: true, onSelect: () => deleteGroup(group) },
+            ],
+          })}>
             <button type="button" className="sidebar-item orbit-palette-item" draggable onDragStart={(event) => beginOrbitDrag(event, { type: "previewGroup", title: group.title, layout: group.previewLayout ?? "1", referenceId: group.id })} onClick={() => requestOrbitNode({ type: "previewGroup", title: group.title, layout: group.previewLayout ?? "1", referenceId: group.id })} title={collapsed ? `${group.title} · ${count} Slots` : "Gespeicherte Gruppe einsetzen"}>
               <EyeIcon className="h-4 w-4 shrink-0" />
               {!collapsed ? <><span>{group.title}</span><small>{count} Slots</small></> : null}
             </button>
-            {menuId === group.id ? <div className="sidebar-preview-menu">
-              <button type="button" onClick={() => { setRenameGroup(group); setMenuId(null); }}>Umbenennen</button>
-              <button type="button" onClick={() => { duplicateNode(group.id); setMenuId(null); }}>Duplizieren</button>
-              <button type="button" onClick={() => { openPreviewGroupWindow(group.id); setMenuId(null); }}>In eigenem Fenster öffnen</button>
-              <button type="button" className="is-danger" onClick={() => deleteGroup(group)}>Löschen</button>
-            </div> : null}
           </div>;
         })}
       </> : null}
@@ -205,15 +231,22 @@ export function Sidebar({ collapsed, width, onToggle, onResize }: SidebarProps) 
   // Das Set abonnieren, nicht die (stabile) Methode: sonst rechnen die Memos unten
   // beim Umschalten der Seiten-Sichtbarkeit nie neu.
   const hiddenPages = useSidebarPreferences((s) => s.hiddenPages);
+  const navigationOrder = useSidebarPreferences((s) => s.navigationOrder);
   const navigation = useNavigationRegistry();
+  const orbitDocument = useOrbitStore((state) => state.document);
+  const duplicateOrbitNode = useOrbitStore((state) => state.duplicateNode);
+  const updateOrbitNode = useOrbitStore((state) => state.updateNode);
+  const removeOrbitNode = useOrbitStore((state) => state.removeNode);
+  const focusOrbitNode = useOrbitStore((state) => state.focusNode);
+  const [renameProjectNode, setRenameProjectNode] = useState<OrbitNode | null>(null);
   // Alle Sektions-Hooks bedingungslos und ganz oben: früher standen sie hinter `!collapsed &&`
   // im JSX, wodurch beim Ein-/Ausklappen die Hook-Anzahl sprang und React die Seite abbrach.
   const workspaceSectionCollapsed = useSectionCollapsed("workspace");
   const orbitProjectsSectionCollapsed = useSectionCollapsed("orbit-projects");
   const footerSectionCollapsed = useSectionCollapsed("footer");
-  const visiblePrimaryNavItems = useMemo(() => navigation.byGroup.workspace.filter((item) => isNavigationItemVisible(item, hiddenPages)), [navigation, hiddenPages]);
-  const visibleToolRouteItems = useMemo(() => navigation.byGroup.tools.filter((item) => isNavigationItemVisible(item, hiddenPages)), [navigation, hiddenPages]);
-  const visibleFooterNavItems = useMemo(() => navigation.byGroup.account.filter((item) => isNavigationItemVisible(item, hiddenPages)), [navigation, hiddenPages]);
+  const visiblePrimaryNavItems = useMemo(() => orderNavigation(navigation.byGroup.workspace.filter((item) => isNavigationItemVisible(item, hiddenPages)), navigationOrder), [navigation, hiddenPages, navigationOrder]);
+  const visibleToolRouteItems = useMemo(() => orderNavigation(navigation.byGroup.tools.filter((item) => isNavigationItemVisible(item, hiddenPages)), navigationOrder), [navigation, hiddenPages, navigationOrder]);
+  const visibleFooterNavItems = useMemo(() => orderNavigation(navigation.byGroup.account.filter((item) => isNavigationItemVisible(item, hiddenPages)), navigationOrder), [navigation, hiddenPages, navigationOrder]);
   const availableProjects = useMemo(
     () => (projects.data?.projects ?? []).filter((project) => project.availability === "available"),
     [projects.data?.projects],
@@ -275,7 +308,10 @@ export function Sidebar({ collapsed, width, onToggle, onResize }: SidebarProps) 
           </div>
           <div className="sidebar-section">
             <SectionHeader label={orbitMode ? "Orbit-Projekte" : "Werkzeuge"} sectionKey="orbit-projects" collapsed={collapsed} />
-            {!orbitProjectsSectionCollapsed ? (orbitMode ? (<>{recentProjects.map((project) => (
+            {!orbitProjectsSectionCollapsed ? (orbitMode ? (<>{recentProjects.map((project) => {
+            const orbitBoard = orbitDocument.boards.find((board) => board.id === orbitDocument.activeBoardId);
+            const projectNode = orbitBoard?.nodes.find((node) => node.type === "project" && node.projectId === project.id);
+            return (
             <button
               key={project.id}
               type="button"
@@ -283,13 +319,23 @@ export function Sidebar({ collapsed, width, onToggle, onResize }: SidebarProps) 
               draggable
               onDragStart={(event) => beginOrbitDrag(event, { type: "project", title: project.name, projectId: project.id })}
               onClick={() => requestOrbitNode({ type: "project", title: project.name, projectId: project.id })}
+              onContextMenu={(event) => openGlobalContextMenu(event, {
+                surface: "host.context-menu.project",
+                title: project.name,
+                actions: [
+                  { id: hostContextMenuId("project.open"), icon: <FolderCodeIcon className="h-4 w-4" />, onSelect: () => projectNode ? focusOrbitNode(projectNode.id) : requestOrbitNode({ type: "project", title: project.name, projectId: project.id }) },
+                  { id: hostContextMenuId("project.rename"), disabled: !projectNode, onSelect: () => { if (projectNode) setRenameProjectNode(projectNode); } },
+                  { id: hostContextMenuId("project.duplicate"), disabled: !projectNode, onSelect: () => { if (projectNode) duplicateOrbitNode(projectNode.id); } },
+                  { id: hostContextMenuId("project.delete"), disabled: !projectNode, danger: true, onSelect: () => { if (projectNode) removeOrbitNode(projectNode.id); } },
+                ],
+              })}
               aria-label={`${project.name} ziehen`}
               title={collapsed ? project.name : "Klicken oder auf den Orbit ziehen"}
             >
               <FolderCodeIcon className="h-4 w-4 shrink-0" />
               {!collapsed ? <><span className="truncate">{project.name}</span><small>ziehen</small></> : null}
             </button>
-          ))}
+          );})}
             <button type="button" className="sidebar-item orbit-palette-item" onClick={requestOrbitProjectBrowser} aria-label="Alle Projekte auswählen" title="Serverordner durchsuchen">
               <FolderSearchIcon className="h-4 w-4 shrink-0" />
               {!collapsed ? <><span className="truncate">Alle Projekte</span><small>{availableProjects.length}</small></> : null}
@@ -316,6 +362,7 @@ export function Sidebar({ collapsed, width, onToggle, onResize }: SidebarProps) 
       {!collapsed ? (
         <div className="sidebar-resize-handle" role="separator" aria-orientation="vertical" onPointerDown={startResize} />
       ) : null}
+      <PromptDialog open={renameProjectNode !== null} title="Projektfläche umbenennen" label="Name" initialValue={renameProjectNode?.title ?? ""} confirmLabel="Umbenennen" onConfirm={(name) => { if (renameProjectNode) updateOrbitNode(renameProjectNode.id, { title: name.trim() || renameProjectNode.title }); setRenameProjectNode(null); }} onClose={() => setRenameProjectNode(null)} />
     </div>
   );
 }

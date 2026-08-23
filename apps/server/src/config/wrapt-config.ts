@@ -1,8 +1,9 @@
-import { chmodSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { ensureWraptLocalConfig, migrateLegacyConfigValue, migrateLegacyPersistentData, WRAPT_EXAMPLE_CONFIG, WRAPT_LOCAL_CONFIG } from "./legacy-migration.js";
 import { join } from "node:path";
-import { appearanceThemeSchema, codexResetHistorySettingsSchema, dashboardConfigSchema, defaultAppearanceTheme, notificationPreferencesSchema, t3ChannelSchema, usageMonitoringSchema, type AppearanceTheme, type CodexResetHistorySettings, type NotificationPreferences, type T3Channel, type UsageMonitoring } from "@wrapt/contracts";
+import { appearanceThemeSchema, codexResetHistorySettingsSchema, contextMenuConfigSchema, dashboardConfigSchema, defaultAppearanceTheme, notificationPreferencesSchema, t3ChannelSchema, usageMonitoringSchema, type AppearanceTheme, type CodexResetHistorySettings, type ContextMenuConfig, type NotificationPreferences, type T3Channel, type UsageMonitoring } from "@wrapt/contracts";
 import { z } from "zod";
+import { persistLocalConfig } from "./config-persistence.js";
 
 const absolutePath = z.string().startsWith("/");
 
@@ -82,6 +83,14 @@ export const wraptConfigSchema = z.object({
   usage: z.object({
     monitoring: usageMonitoringSchema.prefault({}),
     codexResetHistory: codexResetHistorySettingsSchema.prefault({}),
+  }).prefault({}),
+  // Globale Rechtsklick-Einstellungen. Fehlende Werte werden vollständig mit
+  // sicheren Defaults ergänzt, damit bestehende lokale Configs gültig bleiben.
+  contextMenu: contextMenuConfigSchema,
+  // Plugin-spezifische, lokale Dateiquellen. Persönliche Pfade bleiben in
+  // wrapt.local.json; ohne Wert wird der Codex-System-Skill verwendet.
+  plugins: z.object({
+    creatorSkillPath: absolutePath.optional(),
   }).prefault({}),
   hermes: z.object({
     enabled: z.boolean().default(true),
@@ -258,9 +267,6 @@ export function loadWraptConfig(configDirectory: string): WraptConfig {
   throw lastError ?? new Error("Wrapt-Konfiguration fehlt (config/wrapt.local.json oder config/wrapt.example.json).");
 }
 
-const localConfigName = WRAPT_LOCAL_CONFIG;
-const exampleConfigName = WRAPT_EXAMPLE_CONFIG;
-
 /**
  * Liest den eingestellten T3-Kanal frisch von der Platte. Bewusst nicht aus `settings`,
  * denn der Wert kann sich zur Laufzeit ändern (Einstellungen → T3 Code Kanal), während
@@ -277,42 +283,17 @@ export function readConfiguredT3Channel(configDirectory: string): T3Channel {
  * und `rename`, damit ein Abbruch keine halbe Konfiguration hinterlässt.
  */
 export function persistT3Channel(configDirectory: string, channel: T3Channel): void {
-  const localPath = join(configDirectory, localConfigName);
-  let base: Record<string, unknown>;
-  try {
-    base = migrateLegacyConfigValue(JSON.parse(readFileSync(localPath, "utf8")) as Record<string, unknown>) as Record<string, unknown>;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    base = JSON.parse(readFileSync(join(configDirectory, exampleConfigName), "utf8")) as Record<string, unknown>;
-  }
-
-  const previousT3 = (base.t3 ?? {}) as Record<string, unknown>;
-  const next = { ...base, t3: { ...previousT3, channel } };
-  // Erst prüfen, dann schreiben: eine ungültige Datei würde den nächsten Serverstart verhindern.
-  wraptConfigSchema.parse(next);
-
-  const temporaryPath = `${localPath}.tmp`;
-  writeFileSync(temporaryPath, `${JSON.stringify(next, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
-  renameSync(temporaryPath, localPath);
-  chmodSync(localPath, 0o600);
+  persistLocalConfig(configDirectory, (base) => ({
+    ...base,
+    t3: { ...((base.t3 ?? {}) as Record<string, unknown>), channel },
+  }), (value) => wraptConfigSchema.parse(value));
 }
 
 export function persistNotificationPreferences(configDirectory: string, preferences: NotificationPreferences): void {
-  const localPath = join(configDirectory, localConfigName);
-  let base: Record<string, unknown>;
-  try {
-    base = migrateLegacyConfigValue(JSON.parse(readFileSync(localPath, "utf8")) as Record<string, unknown>) as Record<string, unknown>;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    base = JSON.parse(readFileSync(join(configDirectory, exampleConfigName), "utf8")) as Record<string, unknown>;
-  }
-  const previous = (base.notifications ?? {}) as Record<string, unknown>;
-  const next = { ...base, notifications: { ...previous, preferences } };
-  wraptConfigSchema.parse(next);
-  const temporaryPath = `${localPath}.tmp`;
-  writeFileSync(temporaryPath, `${JSON.stringify(next, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
-  renameSync(temporaryPath, localPath);
-  chmodSync(localPath, 0o600);
+  persistLocalConfig(configDirectory, (base) => ({
+    ...base,
+    notifications: { ...((base.notifications ?? {}) as Record<string, unknown>), preferences },
+  }), (value) => wraptConfigSchema.parse(value));
 }
 
 /**
@@ -331,22 +312,19 @@ export function readUsageMonitoring(configDirectory: string): UsageMonitoring {
  * und `rename`, damit ein Abbruch keine halbe Konfiguration hinterlässt.
  */
 export function persistUsageMonitoring(configDirectory: string, monitoring: UsageMonitoring): void {
-  const localPath = join(configDirectory, localConfigName);
-  let base: Record<string, unknown>;
-  try {
-    base = migrateLegacyConfigValue(JSON.parse(readFileSync(localPath, "utf8")) as Record<string, unknown>) as Record<string, unknown>;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    base = JSON.parse(readFileSync(join(configDirectory, exampleConfigName), "utf8")) as Record<string, unknown>;
-  }
-  const previousUsage = (base.usage ?? {}) as Record<string, unknown>;
-  const next = { ...base, usage: { ...previousUsage, monitoring } };
-  // Erst prüfen, dann schreiben: eine ungültige Datei würde den nächsten Serverstart verhindern.
-  wraptConfigSchema.parse(next);
-  const temporaryPath = `${localPath}.tmp`;
-  writeFileSync(temporaryPath, `${JSON.stringify(next, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
-  renameSync(temporaryPath, localPath);
-  chmodSync(localPath, 0o600);
+  persistLocalConfig(configDirectory, (base) => ({
+    ...base,
+    usage: { ...((base.usage ?? {}) as Record<string, unknown>), monitoring },
+  }), (value) => wraptConfigSchema.parse(value));
+}
+
+export function readContextMenuConfig(configDirectory: string): ContextMenuConfig {
+  return loadWraptConfig(configDirectory).contextMenu;
+}
+
+export function persistContextMenuConfig(configDirectory: string, contextMenu: ContextMenuConfig): void {
+  const parsed = contextMenuConfigSchema.parse(contextMenu);
+  persistLocalConfig(configDirectory, (base) => ({ ...base, contextMenu: parsed }), (value) => wraptConfigSchema.parse(value));
 }
 
 export function readCodexResetHistorySettings(configDirectory: string): CodexResetHistorySettings {
@@ -354,21 +332,10 @@ export function readCodexResetHistorySettings(configDirectory: string): CodexRes
 }
 
 export function persistCodexResetHistorySettings(configDirectory: string, settings: CodexResetHistorySettings): void {
-  const localPath = join(configDirectory, localConfigName);
-  let base: Record<string, unknown>;
-  try {
-    base = migrateLegacyConfigValue(JSON.parse(readFileSync(localPath, "utf8")) as Record<string, unknown>) as Record<string, unknown>;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    base = JSON.parse(readFileSync(join(configDirectory, exampleConfigName), "utf8")) as Record<string, unknown>;
-  }
-  const previousUsage = (base.usage ?? {}) as Record<string, unknown>;
-  const next = { ...base, usage: { ...previousUsage, codexResetHistory: codexResetHistorySettingsSchema.parse(settings) } };
-  wraptConfigSchema.parse(next);
-  const temporaryPath = `${localPath}.tmp`;
-  writeFileSync(temporaryPath, `${JSON.stringify(next, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
-  renameSync(temporaryPath, localPath);
-  chmodSync(localPath, 0o600);
+  persistLocalConfig(configDirectory, (base) => ({
+    ...base,
+    usage: { ...((base.usage ?? {}) as Record<string, unknown>), codexResetHistory: codexResetHistorySettingsSchema.parse(settings) },
+  }), (value) => wraptConfigSchema.parse(value));
 }
 
 export function readAppearanceTheme(configDirectory: string): AppearanceTheme {
@@ -377,18 +344,5 @@ export function readAppearanceTheme(configDirectory: string): AppearanceTheme {
 
 export function persistAppearanceTheme(configDirectory: string, theme: AppearanceTheme): void {
   const parsedTheme = appearanceThemeSchema.parse(theme);
-  const localPath = join(configDirectory, localConfigName);
-  let base: Record<string, unknown>;
-  try {
-    base = migrateLegacyConfigValue(JSON.parse(readFileSync(localPath, "utf8")) as Record<string, unknown>) as Record<string, unknown>;
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    base = JSON.parse(readFileSync(join(configDirectory, exampleConfigName), "utf8")) as Record<string, unknown>;
-  }
-  const next = { ...base, appearance: parsedTheme };
-  wraptConfigSchema.parse(next);
-  const temporaryPath = `${localPath}.tmp`;
-  writeFileSync(temporaryPath, `${JSON.stringify(next, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
-  renameSync(temporaryPath, localPath);
-  chmodSync(localPath, 0o600);
+  persistLocalConfig(configDirectory, (base) => ({ ...base, appearance: parsedTheme }), (value) => wraptConfigSchema.parse(value));
 }

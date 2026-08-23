@@ -20,6 +20,8 @@ import { normalizePreviewTarget } from "../lib/previewTargets";
 import { useRouteActivity } from "../lib/routeActivity";
 import { t3ThreadIdFromPath } from "../lib/t3Thread";
 import { usePanelPresenceStore } from "../stores/panelPresence";
+import { openGlobalContextMenu } from "./context-menu/contextMenuEvents";
+import { hostContextMenuId } from "../extensions/hostContextMenus";
 
 function opencodeSessionIdFromPath(path: string): string | null {
   const query = new URLSearchParams(path.split("?")[1] ?? "");
@@ -167,6 +169,7 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
     } catch { return null; }
   });
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const surfaceRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     if (panel.type !== "t3-code" && panel.type !== "opencode") return;
@@ -263,6 +266,14 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
   }, [effectiveReloadKey, panelSource]);
 
   useEffect(() => {
+    const frame = iframeRef.current;
+    if (panel.type !== "code-server" || !frame) return;
+    const suppressBrowserMenu = (event: MouseEvent) => event.preventDefault();
+    frame.addEventListener("contextmenu", suppressBrowserMenu, { passive: false });
+    return () => frame.removeEventListener("contextmenu", suppressBrowserMenu);
+  }, [effectiveReloadKey, panel.type, panelSource]);
+
+  useEffect(() => {
     if (actionPlacement !== "topbar" || !routeActive) { setTopbarTarget(null); return; }
     setTopbarTarget(document.getElementById("topbar-tool-actions"));
   }, [actionPlacement, routeActive]);
@@ -310,8 +321,23 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
     if (onClose) onClose();
     else closePanel(panel.id);
   };
+  const openPanelMenu = (event: React.MouseEvent) => {
+    const externalUrl = resolved?.proxyUrl ?? resolved?.url ?? null;
+    openGlobalContextMenu(event, {
+      surface: "host.context-menu.tool",
+      title: `${panelTitles[panel.type]}${project ? ` · ${project.name}` : ""}`,
+      actions: [
+        { id: hostContextMenuId("tool.reload"), icon: <RefreshIcon className="h-4 w-4" />, onSelect: reload },
+        { id: hostContextMenuId("tool.new-tab"), icon: <ExternalLinkIcon className="h-4 w-4" />, disabled: !externalUrl, onSelect: () => { if (externalUrl) window.open(externalUrl, "_blank", "noopener,noreferrer"); } },
+        { id: hostContextMenuId("tool.fullscreen"), icon: <FullscreenIcon className="h-4 w-4" />, onSelect: () => void surfaceRef.current?.requestFullscreen?.() },
+        { id: hostContextMenuId("tool.maximize"), label: isMaximized ? "Wiederherstellen" : "Maximieren", icon: isMaximized ? <RestoreIcon className="h-4 w-4" /> : <FullscreenIcon className="h-4 w-4" />, checked: isMaximized, onSelect: () => onMaximizedChange ? onMaximizedChange(!isMaximized) : standalone ? setStandaloneMaximized(!isMaximized) : isMaximized ? restorePanels() : maximizePanel(panel.id) },
+        { id: hostContextMenuId("tool.settings"), onSelect: () => window.location.assign("/settings#einstellungen:rechtsklick") },
+        ...(!standalone ? [{ id: hostContextMenuId("tool.close"), icon: <CloseIcon className="h-4 w-4" />, danger: true, onSelect: close }] : []),
+      ],
+    });
+  };
   const panelActions = resolved !== null && !minimal && actionPlacement !== "hidden" && standalone ? (
-    <>
+    <div className="panel-standalone-actions" onContextMenu={openPanelMenu}>
       {isMaximized ? (
         <button
           type="button"
@@ -328,9 +354,9 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
         onFullscreen={() => onMaximizedChange ? onMaximizedChange(!isMaximized) : standalone ? setStandaloneMaximized(!isMaximized) : restorePanels()}
         onReload={reload}
       />
-    </>
+    </div>
   ) : resolved !== null && !minimal && actionPlacement !== "hidden" ? (
-    <div className={`panel-island ${actionPlacement === "topbar" && !isMaximized ? "is-topbar" : ""} ${actionPlacement === "topbar" && panel.type === "code-server" ? "is-flat-toolbar" : ""} ${isMaximized ? "is-maximized-actions" : ""}`}>
+    <div className={`panel-island ${actionPlacement === "topbar" && !isMaximized ? "is-topbar" : ""} ${actionPlacement === "topbar" && panel.type === "code-server" ? "is-flat-toolbar" : ""} ${isMaximized ? "is-maximized-actions" : ""}`} onContextMenu={openPanelMenu}>
       {panel.type === "preview" ? <DevicePickerButton deviceId={deviceId} onChange={setDeviceId} /> : null}
       {panel.type === "preview" && deviceId !== "responsive" ? <button type="button" title="Ausrichtung drehen" aria-label="Ausrichtung drehen" onClick={() => setOrientation((current) => current === "portrait" ? "landscape" : "portrait")} className="icon-button"><DeviceRotateIcon className="h-4 w-4" /></button> : null}
       {panel.type === "preview" && resolved?.targetPort ? <span className="preview-slot-badge">{previewSlotId ? `SLOT ${previewSlotId}` : "SLOT"}</span> : null}
@@ -343,6 +369,7 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
 
   return (
     <section
+      ref={surfaceRef}
       data-panel-type={panel.type}
       className={`tool-surface group flex h-full min-h-0 flex-col ${standalone ? "tool-surface-standalone" : ""} ${isMaximized ? "tool-surface-maximized" : ""} ${
         isFocused ? "border-ink-600" : "border-line"
@@ -355,7 +382,7 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
       }}
       onWheel={(event) => event.stopPropagation()}
     >
-      {!minimal && !standalone ? <header className="flex h-11 shrink-0 items-center gap-2 border-b border-line bg-ink-900 px-3">
+      {!minimal && !standalone ? <header className="flex h-11 shrink-0 items-center gap-2 border-b border-line bg-ink-900 px-3" onContextMenu={openPanelMenu}>
         <span
           className={`flex h-6 w-6 items-center justify-center rounded ${
             isFocused ? "bg-ink-800 text-text" : "text-muted"
@@ -459,7 +486,6 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
                   event.currentTarget.focus();
                   event.currentTarget.contentWindow?.focus();
                 }}
-                onContextMenu={(event) => event.preventDefault()}
                 className="h-full w-full border-0 bg-white"
                 allowFullScreen
                 referrerPolicy="same-origin"

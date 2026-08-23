@@ -463,7 +463,6 @@ export function LocalPreviewRuntime({
               event.currentTarget.focus();
               event.currentTarget.contentWindow?.focus();
             }}
-            onContextMenu={(event) => event.preventDefault()}
             className="h-full w-full border-0 bg-white"
             allowFullScreen
             referrerPolicy="same-origin"

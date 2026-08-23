@@ -22,6 +22,8 @@ const configDirectory = join(temporaryRoot, "config");
 const dataDirectory = join(temporaryRoot, "data");
 const e2eIdentity = process.env.WRAPT_E2E_USER?.trim() || "user@example.com";
 await Promise.all([mkdir(configDirectory, { recursive: true }), mkdir(dataDirectory, { recursive: true })]);
+const creatorSkillPath = join(dataDirectory, "plugin-creator-SKILL.md");
+await writeFile(creatorSkillPath, "# Plugin Creator\n\nIsolierte Anleitung für den Plugin-Creator-Test.\n", { mode: 0o600 });
 
 const config = JSON.parse(await readFile(join(repositoryRoot, "config/wrapt.example.json"), "utf8"));
 config.system = { user: "e2e", homeDirectory: temporaryRoot };
@@ -64,6 +66,7 @@ config.paths = {
 };
 config.codexbar.configPath = join(dataDirectory, "codexbar.json");
 config.codexbar.oauthProfileHomes = [];
+config.plugins = { creatorSkillPath };
 config.previews = {
   ...config.previews,
   gatewayV2Enabled: true,

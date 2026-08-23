@@ -16,7 +16,7 @@ export interface TerminalTreeCallbacks {
   onRenameFolder(folderId: string): void;
   onToggleCollapse(folderId: string): void;
   onDeleteFolder(folderId: string): void;
-  onContextMenu(event: { clientX: number; clientY: number }, kind: "entry" | "folder", id: string): void;
+  onContextMenu(event: { clientX: number; clientY: number; preventDefault?: () => void; stopPropagation?: () => void }, kind: "entry" | "folder", id: string): void;
   onMoveEntry(entryId: string, targetFolderId: string | null, targetIndex: number): void;
   onMoveFolder(folderId: string, targetParentId: string | null, targetIndex: number): void;
   onResync(runtimeId: string): void;
@@ -97,7 +97,7 @@ export function TerminalTree({ document, folderId, depth, areaId, meta, cwds, se
           className={`terminal-tree-row is-entry ${isOpen ? "is-open" : ""} ${isFocused ? "is-focused" : ""} ${isDropBefore || isDropAfter ? "is-drop-sibling" : ""}`}
           style={{ paddingLeft: level * 14 + 22 }}
           {...rowHandlers}
-          onContextMenu={(event) => { event.preventDefault(); callbacks.onContextMenu(event, "entry", entry.id); }}
+          onContextMenu={(event) => callbacks.onContextMenu(event, "entry", entry.id)}
           onMouseEnter={(event) => callbacks.onHoverStart(entry.id, event.currentTarget)}
           onMouseLeave={() => callbacks.onHoverEnd(entry.id)}
           onClick={() => { if (entry.runtimeId) callbacks.onOpenEntry(entry.runtimeId); }}
@@ -151,7 +151,7 @@ export function TerminalTree({ document, folderId, depth, areaId, meta, cwds, se
           className={`terminal-tree-row is-folder ${isCollapsed ? "is-collapsed" : ""} ${isDropInside ? "is-drop-inside" : isDropBefore || isDropAfter ? "is-drop-sibling" : ""}`}
           style={{ paddingLeft: level * 14 }}
           {...rowHandlers}
-          onContextMenu={(event) => { event.preventDefault(); callbacks.onContextMenu(event, "folder", folder.id); }}
+          onContextMenu={(event) => callbacks.onContextMenu(event, "folder", folder.id)}
         >
           <button
             type="button"

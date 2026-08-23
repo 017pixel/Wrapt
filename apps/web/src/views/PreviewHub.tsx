@@ -31,6 +31,9 @@ import { useRouteActivity } from "../lib/routeActivity";
 import { withPreviewSlotRecovery, type PreviewSlotRecoveryPhase } from "../lib/previewSlotRecovery";
 import { usePreviewHubStore } from "../stores/previewHub";
 import { useWorkspaceStore } from "../stores/workspace";
+import { openGlobalContextMenu } from "../components/context-menu/contextMenuEvents";
+import { hostContextMenuId } from "../extensions/hostContextMenus";
+import { PromptDialog } from "../components/ModalDialog";
 
 type LogFilter = "all" | PreviewRuntimeLogLevel;
 type DirectOpenMode = "tab" | "window";
@@ -87,15 +90,18 @@ export function PreviewHub() {
   const selectProject = useWorkspaceStore((state) => state.selectProject);
   const openProjectIds = usePreviewHubStore((state) => state.openProjectIds);
   const activeProjectId = usePreviewHubStore((state) => state.activeProjectId);
+  const projectAliases = usePreviewHubStore((state) => state.projectAliases);
   const openProject = usePreviewHubStore((state) => state.openProject);
   const activateProject = usePreviewHubStore((state) => state.activateProject);
   const closeProject = usePreviewHubStore((state) => state.closeProject);
+  const renameProjectTab = usePreviewHubStore((state) => state.renameProjectTab);
   const reconcileProjects = usePreviewHubStore((state) => state.reconcileProjects);
   const [searchParams, setSearchParams] = useSearchParams();
   const [projectManagerOpen, setProjectManagerOpen] = useState(false);
   const [projectSearch, setProjectSearch] = useState("");
   const [bulkMessage, setBulkMessage] = useState<string | null>(null);
   const [confirmStopAll, setConfirmStopAll] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<Project | null>(null);
   const initialized = useRef(false);
   const synchronizedProjectId = useRef<string | null>(selectedProjectId);
   const projectsQuery = useQuery({ ...wraptQueries.projects(), enabled: routeActive });
@@ -103,8 +109,8 @@ export function PreviewHub() {
   const projects = useMemo(() => (projectsQuery.data?.projects ?? []).filter((item) => item.availability === "available"), [projectsQuery.data?.projects]);
   const openProjects = useMemo(() => openProjectIds.flatMap((id) => {
     const project = projects.find((candidate) => candidate.id === id);
-    return project ? [project] : [];
-  }), [openProjectIds, projects]);
+    return project ? [{ ...project, name: projectAliases[project.id] || project.name }] : [];
+  }), [openProjectIds, projectAliases, projects]);
   const activeProject = projects.find((project) => project.id === activeProjectId) ?? null;
   const tabStatusQueries = useQueries({
     queries: openProjects.map((project) => ({
@@ -248,7 +254,18 @@ export function PreviewHub() {
             const query = tabStatusQueries[index];
             const status = statusByProjectId.get(project.id);
             const state = statusState(status, Boolean(query?.isError));
-            return <div className={`preview-hub-tab ${project.id === activeProjectId ? "is-active" : ""}`} key={project.id} data-state={state}>
+            return <div className={`preview-hub-tab ${project.id === activeProjectId ? "is-active" : ""}`} key={project.id} data-state={state} onContextMenu={(event) => openGlobalContextMenu(event, {
+              surface: "host.context-menu.preview",
+              title: project.name,
+              actions: [
+                { id: hostContextMenuId("preview.open"), icon: <FolderCodeIcon />, onSelect: () => chooseProject(project.id) },
+                { id: hostContextMenuId("preview.rename"), onSelect: () => setRenameTarget(project) },
+                { id: hostContextMenuId("preview.duplicate"), icon: <CopyIcon />, onSelect: () => window.open(`/previews?project=${encodeURIComponent(project.id)}`, "_blank", "noopener,noreferrer") },
+                { id: hostContextMenuId("preview.window"), icon: <ExternalLinkIcon />, onSelect: () => window.open(`/previews?project=${encodeURIComponent(project.id)}`, `preview-${project.id}`, "popup=yes,width=1280,height=800") },
+                { id: hostContextMenuId("preview.device"), disabled: !status?.mainPort, onSelect: () => { if (status?.mainPort) openPreviewLiveWindow({ projectId: project.id, port: status.mainPort, title: project.name, mode: "tab" }); } },
+                { id: hostContextMenuId("preview.close"), icon: <CloseIcon />, danger: true, onSelect: () => closeProjectTab(project.id) },
+              ],
+            })}>
               <button type="button" role="tab" aria-selected={project.id === activeProjectId} onClick={() => chooseProject(project.id)}>
                 <span className="preview-hub-tab-state" />
                 <span>{project.name}</span>
@@ -307,6 +324,7 @@ export function PreviewHub() {
           </section>
         </div>, document.body,
       ) : null}
+      <PromptDialog open={renameTarget !== null} title="Preview-Tab umbenennen" label="Name" initialValue={renameTarget?.name ?? ""} confirmLabel="Umbenennen" onConfirm={(name) => { if (renameTarget) renameProjectTab(renameTarget.id, name); setRenameTarget(null); }} onClose={() => setRenameTarget(null)} />
     </main>
   );
 }

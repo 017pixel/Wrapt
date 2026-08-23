@@ -20,12 +20,8 @@ import { FmTree } from "./FmTree";
 import { FilePreview, QuickLook } from "./QuickLook";
 import { wraptQueries } from "../../lib/queryOptions";
 import { useRouteActivity } from "../../lib/routeActivity";
-
-interface FmContextMenuState {
-  x: number;
-  y: number;
-  entry: FilesystemEntry;
-}
+import { openGlobalContextMenu } from "../context-menu/contextMenuEvents";
+import { hostContextMenuId } from "../../extensions/hostContextMenus";
 
 function projectForPath(projects: Project[] | undefined, path: string): Project | null {
   let best: Project | null = null;
@@ -66,7 +62,6 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
   const openPanel = useWorkspaceStore((state) => state.openPanel);
   const projects = useQuery({ ...wraptQueries.projects(), enabled: routeActive });
 
-  const [contextMenu, setContextMenu] = useState<FmContextMenuState | null>(null);
   const tree = useQuery({
     queryKey: ["filesystem", "tree", currentPath],
     queryFn: ({ signal }) => apiClient.filesystemTreeAll(currentPath, signal),
@@ -90,7 +85,6 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
 
   const isCompact = responsive.mode === "compact";
   const isTablet = responsive.mode === "tablet";
-  const touch = responsive.inputMode === "touch";
   const treePane = usePaneWidth({ storageKey: "wrapt.files.tree-width.v1", initial: 240, min: 180, max: 420 });
 
   const entries = useMemo(() => sortEntries(tree.data?.entries ?? [], sortKey, sortDirection), [sortKey, sortDirection, tree.data?.entries]);
@@ -255,15 +249,37 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
     }
   }, [currentPath, invalidate]);
 
-  const handleContext = useCallback((event: { preventDefault: () => void; clientX?: number; clientY?: number }, entry: FilesystemEntry) => {
-    event.preventDefault();
-    const x = typeof event.clientX === "number" ? event.clientX : 0;
-    const y = typeof event.clientY === "number" ? event.clientY : 0;
+  const handleContext = (event: { preventDefault?: () => void; stopPropagation?: () => void; clientX?: number; clientY?: number }, entry: FilesystemEntry) => {
     select(entry.path);
-    setContextMenu({ x, y, entry });
-  }, [select]);
+    const directory = entry.kind === "directory";
+    const prefix = directory ? "directory" : "file";
+    const favorite = favorites.includes(entry.path);
+    openGlobalContextMenu({
+      clientX: event.clientX ?? 0,
+      clientY: event.clientY ?? 0,
+      preventDefault: () => event.preventDefault?.(),
+      stopPropagation: () => event.stopPropagation?.(),
+    }, {
+      surface: directory ? "host.context-menu.directory" : "host.context-menu.file",
+      title: entry.name,
+      actions: [
+        { id: hostContextMenuId(`${prefix}.open`), icon: <FolderOpenIcon className="h-4 w-4" />, disabled: directory && !entry.readable, onSelect: () => openEntry(entry) },
+        ...(!directory ? [
+          { id: hostContextMenuId("file.preview"), icon: <SearchIcon className="h-4 w-4" />, onSelect: () => quickLookFor(entry) },
+          { id: hostContextMenuId("file.download"), icon: <DownloadIcon className="h-4 w-4" />, onSelect: () => downloadEntry(entry) },
+          { id: hostContextMenuId("file.editor"), icon: <FolderCodeIcon className="h-4 w-4" />, onSelect: () => openInEditor(entry) },
+        ] : []),
+        { id: hostContextMenuId(`${prefix}.terminal`), icon: <TerminalIcon className="h-4 w-4" />, onSelect: () => openInTerminal(entry) },
+        ...(directory ? [{ id: hostContextMenuId("directory.register"), icon: <FolderSearchIcon className="h-4 w-4" />, disabled: !entry.readable, onSelect: () => registerAsProject(entry.path) }] : []),
+        { id: hostContextMenuId(`${prefix}.favorite`), label: favorite ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen", icon: <BookmarkIcon className={`h-4 w-4 ${favorite ? "fill-current" : ""}`} />, checked: favorite, onSelect: () => toggleFavorite(entry.path) },
+        { id: hostContextMenuId(`${prefix}.rename`), icon: <EditIcon className="h-4 w-4" />, onSelect: () => setRenameTarget(entry) },
+        { id: hostContextMenuId(`${prefix}.move`), icon: <FolderOpenIcon className="h-4 w-4" />, onSelect: () => setMoveTarget(entry) },
+        { id: hostContextMenuId(`${prefix}.delete`), icon: <TrashIcon className="h-4 w-4" />, danger: true, onSelect: () => setDeleteTarget(entry) },
+      ],
+    });
+  };
 
-  const onRowPointerDown = useCallback((event: React.PointerEvent, entry: FilesystemEntry) => {
+  const onRowPointerDown = (event: React.PointerEvent, entry: FilesystemEntry) => {
     if (event.pointerType !== "touch") return;
     const startX = event.clientX;
     const startY = event.clientY;
@@ -272,11 +288,10 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
       if (longPressRef.current.timer === null) return;
       longPressRef.current.timer = null;
       longPressRef.current.suppressClick = true;
-      select(entry.path);
-      setContextMenu({ x: startX, y: startY, entry });
+      handleContext({ clientX: startX, clientY: startY }, entry);
     }, 500);
     longPressRef.current.timer = timer;
-  }, [select]);
+  };
 
   const onRowPointerMove = useCallback((event: React.PointerEvent) => {
     const state = longPressRef.current;
@@ -302,40 +317,6 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
   useEffect(() => () => {
     if (longPressRef.current.timer !== null) window.clearTimeout(longPressRef.current.timer);
   }, []);
-
-  useEffect(() => {
-    if (!contextMenu) return;
-    const close = () => setContextMenu(null);
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") close(); };
-    window.addEventListener("pointerdown", close);
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("resize", close);
-    return () => {
-      window.removeEventListener("pointerdown", close);
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("resize", close);
-    };
-  }, [contextMenu]);
-
-  const menuEntry = contextMenu?.entry ?? null;
-
-  const contextActions = (entry: FilesystemEntry | null, close: () => void) => {
-    if (!entry) return null;
-    const isFavorite = favorites.includes(entry.path);
-    const isDirectory = entry.kind === "directory";
-    return <>
-      {isDirectory && entry.readable ? <button type="button" onClick={() => { goTo(entry.path); close(); }}><FolderOpenIcon className="h-4 w-4" />Öffnen</button> : null}
-      {!isDirectory ? <button type="button" onClick={() => { quickLookFor(entry); close(); }}><SearchIcon className="h-4 w-4" />Vorschau</button> : null}
-      {!isDirectory ? <button type="button" onClick={() => { downloadEntry(entry); close(); }}><DownloadIcon className="h-4 w-4" />Herunterladen</button> : null}
-      {!isDirectory ? <button type="button" onClick={() => { openInEditor(entry); close(); }}><FolderCodeIcon className="h-4 w-4" />Im Editor öffnen</button> : null}
-      <button type="button" onClick={() => { openInTerminal(entry); close(); }}><TerminalIcon className="h-4 w-4" />Im Terminal öffnen</button>
-      {isDirectory && entry.readable ? <button type="button" onClick={() => { registerAsProject(entry.path); close(); }}><FolderSearchIcon className="h-4 w-4" />Als Projekt registrieren</button> : null}
-      <button type="button" onClick={() => { toggleFavorite(entry.path); close(); }}><BookmarkIcon className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} />{isFavorite ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"}</button>
-      {!isDirectory ? <button type="button" onClick={() => { setRenameTarget(entry); close(); }}><EditIcon className="h-4 w-4" />Umbenennen</button> : null}
-      <button type="button" onClick={() => { setMoveTarget(entry); close(); }}><FolderOpenIcon className="h-4 w-4" />Verschieben</button>
-      <button type="button" className="is-danger" onClick={() => { setDeleteTarget(entry); close(); }}><TrashIcon className="h-4 w-4" />Löschen</button>
-    </>;
-  };
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
     const target = event.target;
@@ -669,21 +650,6 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
             {refreshButton}
           </div>
         </div>
-      ) : null}
-
-      {/* Kontextmenü — im Portal, damit es auch in der Nähe der Topbar
-          klickbar bleibt. */}
-      {contextMenu ? createPortal(
-        <div
-          className={`file-manager-context-menu ${touch ? "is-sheet" : ""}`}
-          style={touch ? undefined : { left: Math.min(contextMenu.x, window.innerWidth - 240), top: Math.min(contextMenu.y, window.innerHeight - 360) }}
-          role="menu"
-          onPointerDown={(event) => event.stopPropagation()}
-        >
-          <strong className="file-manager-context-title truncate">{menuEntry?.name}</strong>
-          {contextActions(menuEntry, () => setContextMenu(null))}
-        </div>,
-        document.body,
       ) : null}
 
       {/* Dialoge */}

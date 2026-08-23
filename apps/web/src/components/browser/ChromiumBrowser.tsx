@@ -4,8 +4,9 @@ import type { LocalPort } from "@wrapt/contracts";
 import { LocalPorts } from "./LocalPorts";
 import { browserClipboardAction, utf8ByteLength, writeClipboardText } from "../../lib/clipboard";
 import { normalizePreviewTarget } from "../../lib/previewTargets";
-import { useMenuFocus } from "../../lib/useMenuFocus";
 import { useModalFocus } from "../../lib/useModalFocus";
+import { openGlobalContextMenu } from "../context-menu/contextMenuEvents";
+import { hostContextMenuId } from "../../extensions/hostContextMenus";
 
 export interface ChromiumBrowserState {
   url: string;
@@ -87,7 +88,6 @@ export function ChromiumBrowser({
 }) {
   const storageKey = `wrapt-browser-session:${instanceId}`;
   const viewportRef = useRef<HTMLDivElement>(null);
-  const contextMenuElementRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const addressRef = useRef<HTMLInputElement>(null);
   const socketRef = useRef<WebSocket | null>(null);
@@ -118,7 +118,6 @@ export function ChromiumBrowser({
   const [address, setAddress] = useState("");
   const [state, setState] = useState({ url: "about:blank", title: "Neuer Tab", loading: false, canGoBack: false, canGoForward: false });
   const [frameReady, setFrameReady] = useState(false);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null);
   const pressedPointerRef = useRef<{ x: number; y: number; button: "left" | "middle" | "right" | "none" } | null>(null);
   const [devtoolsOpen, setDevtoolsOpen] = useState(false);
   const [devtoolsSessionId, setDevtoolsSessionId] = useState<string | null>(null);
@@ -126,7 +125,6 @@ export function ChromiumBrowser({
   const [touchMode, setTouchMode] = useState<"interact" | "scroll">("scroll");
   const [clipboardStatus, setClipboardStatus] = useState("");
   const lastFrameRef = useRef<{ data: string; width: number; height: number } | null>(null);
-  useMenuFocus(contextMenuElementRef, contextMenu !== null, () => setContextMenu(null));
   const onStateChangeRef = useRef(onStateChange);
   onStateChangeRef.current = onStateChange;
 
@@ -512,21 +510,24 @@ export function ChromiumBrowser({
     send({ type: "browser.wheel", sessionId, ...point, deltaX: event.deltaX, deltaY: event.deltaY });
   };
 
-  const openBrowserMenu = (event: React.MouseEvent | React.PointerEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const bounds = viewportRef.current?.getBoundingClientRect();
-    if (!bounds) return;
-    setContextMenu({
-      x: Math.max(0, Math.min(bounds.width - 222, Math.max(8, event.clientX - bounds.left))),
-      y: Math.max(0, Math.min(bounds.height - 270, Math.max(8, event.clientY - bounds.top))),
+  const openBrowserMenu = (event: { clientX: number; clientY: number; preventDefault?: () => void; stopPropagation?: () => void }) => {
+    openGlobalContextMenu(event, {
+      surface: "host.context-menu.browser",
+      title: state.title || "Chromium Browser",
+      actions: [
+        { id: hostContextMenuId("browser.back"), icon: <ArrowLeftIcon className="h-4 w-4" />, disabled: !state.canGoBack, onSelect: () => simpleAction("browser.back") },
+        { id: hostContextMenuId("browser.forward"), icon: <ArrowRightIcon className="h-4 w-4" />, disabled: !state.canGoForward, onSelect: () => simpleAction("browser.forward") },
+        { id: hostContextMenuId("browser.reload"), icon: <RefreshIcon className="h-4 w-4" />, onSelect: () => simpleAction("browser.reload") },
+        { id: hostContextMenuId("browser.source"), icon: <BracesIcon className="h-4 w-4" />, disabled: blank, onSelect: () => sessionAction("browser.source") },
+        { id: hostContextMenuId("browser.screenshot"), icon: <CameraIcon className="h-4 w-4" />, disabled: blank, onSelect: () => sessionAction("browser.screenshot") },
+        { id: hostContextMenuId("browser.inspect"), icon: <DevtoolsIcon className="h-4 w-4" />, disabled: !devtoolsUrl, onSelect: () => setDevtoolsOpen(true) },
+      ],
     });
   };
 
   const sessionAction = (type: "browser.screenshot" | "browser.source") => {
     const sessionId = sessionRef.current;
     if (sessionId) send({ type, sessionId });
-    setContextMenu(null);
   };
 
   const devtoolsUrl = devtoolsSessionId
@@ -537,10 +538,13 @@ export function ChromiumBrowser({
     if (event.key === "ContextMenu" || (event.shiftKey && event.key === "F10")) {
       event.preventDefault();
       const viewport = viewportRef.current;
-      setContextMenu(viewport ? {
-        x: Math.max(8, Math.min(viewport.clientWidth - 222, viewport.clientWidth / 2 - 111)),
-        y: Math.max(8, Math.min(viewport.clientHeight - 270, viewport.clientHeight / 2 - 135)),
-      } : { x: 8, y: 8 });
+      const bounds = viewport?.getBoundingClientRect();
+      openBrowserMenu({
+        clientX: bounds ? bounds.left + bounds.width / 2 : 8,
+        clientY: bounds ? bounds.top + bounds.height / 2 : 8,
+        preventDefault: () => event.preventDefault(),
+        stopPropagation: () => event.stopPropagation(),
+      });
       return;
     }
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "l") { event.preventDefault(); addressRef.current?.focus(); addressRef.current?.select(); return; }
@@ -587,7 +591,7 @@ export function ChromiumBrowser({
         </form>
         <button type="button" onClick={() => navigate("about:blank")} aria-label="Neuer Tab" title="Lokale Dienste öffnen"><PlusIcon className="h-4 w-4" /></button>
         <button type="button" className="browser-touch-mode" onClick={() => setTouchMode((current) => current === "scroll" ? "interact" : "scroll")} aria-label={touchMode === "scroll" ? "Browsermodus: Scrollen. Zu Interagieren wechseln" : "Browsermodus: Interagieren. Zu Scrollen wechseln"} aria-pressed={touchMode === "interact"}>{touchMode === "scroll" ? <HandIcon className="h-4 w-4" /> : <PointerIcon className="h-4 w-4" />}</button>
-        <button type="button" className="browser-more-button" onClick={() => { const viewport = viewportRef.current; setContextMenu(viewport ? { x: Math.max(0, viewport.clientWidth - 222), y: 8 } : { x: 8, y: 8 }); }} aria-label="Weitere Browseraktionen" aria-expanded={contextMenu !== null}><MoreIcon className="h-4 w-4" /></button>
+        <button type="button" className="browser-more-button" onClick={(event) => { const bounds = viewportRef.current?.getBoundingClientRect(); openBrowserMenu({ clientX: bounds ? bounds.right - 12 : event.clientX, clientY: bounds ? bounds.top + 12 : event.clientY }); }} aria-label="Weitere Browseraktionen"><MoreIcon className="h-4 w-4" /></button>
         {/^https?:/.test(state.url) ? <a href={state.url} target="_blank" rel="noopener noreferrer" aria-label="Seite in neuem Tab öffnen"><ExternalLinkIcon className="h-4 w-4" /></a> : null}
         {extraToolbarActions}
         <span className={`browser-connection is-${status}`} title={error ?? state.title} />
@@ -597,7 +601,7 @@ export function ChromiumBrowser({
         className="browser-viewport"
         tabIndex={0}
         onPointerMove={(event) => pointer("move", event)}
-        onPointerDown={(event) => { claimControl(); if (event.button === 2) openBrowserMenu(event); else { setContextMenu(null); pointer("down", event); } }}
+        onPointerDown={(event) => { claimControl(); if (event.button !== 2) pointer("down", event); }}
         onPointerUp={(event) => pointer("up", event)}
         onPointerCancel={cancelPointer}
         onWheel={wheel}
@@ -622,15 +626,6 @@ export function ChromiumBrowser({
         {!blank && !frameReady && !error ? <div className="browser-loading"><LoaderIcon className="h-5 w-5 animate-spin" /><span>Chromium lädt die Seite</span></div> : null}
         {error ? <div className="browser-error"><BrowserIcon className="h-5 w-5" /><strong>Browser nicht verfügbar</strong><span>{error}</span><div><button type="button" className="quiet-button-primary" onClick={() => window.location.reload()}>Wiederverbinden</button><button type="button" className="quiet-button" onClick={() => navigate("about:blank")}>Lokale Dienste</button></div></div> : null}
         {clipboardStatus ? <p className="browser-clipboard-status" role="status">{clipboardStatus}</p> : null}
-        {contextMenu ? <div ref={contextMenuElementRef} className="browser-context-menu" style={{ left: contextMenu.x, top: contextMenu.y }} role="menu" aria-label="Browseraktionen" onPointerDown={(event) => event.stopPropagation()}>
-          <button type="button" role="menuitem" disabled={!state.canGoBack} onClick={() => { simpleAction("browser.back"); setContextMenu(null); }}><ArrowLeftIcon className="h-4 w-4" /> Zurück</button>
-          <button type="button" role="menuitem" disabled={!state.canGoForward} onClick={() => { simpleAction("browser.forward"); setContextMenu(null); }}><ArrowRightIcon className="h-4 w-4" /> Vorwärts</button>
-          <button type="button" role="menuitem" onClick={() => { simpleAction("browser.reload"); setContextMenu(null); }}><RefreshIcon className="h-4 w-4" /> Neu laden</button>
-          <span />
-          <button type="button" role="menuitem" disabled={blank} onClick={() => sessionAction("browser.source")}><BracesIcon className="h-4 w-4" /> Seitenquelltext</button>
-          <button type="button" role="menuitem" disabled={blank} onClick={() => sessionAction("browser.screenshot")}><CameraIcon className="h-4 w-4" /> Screenshot aufnehmen</button>
-          <button type="button" role="menuitem" disabled={!devtoolsUrl} onClick={() => { setDevtoolsOpen(true); setContextMenu(null); }}><DevtoolsIcon className="h-4 w-4" /> Untersuchen</button>
-        </div> : null}
       </div>
       {devtoolsOpen && devtoolsUrl ? <section className="browser-devtools" aria-label="Entwicklertools"><header><div><span>Chromium</span><strong>Developer Tools</strong></div><button type="button" onClick={() => setDevtoolsOpen(false)} aria-label="Developer Tools schließen"><CloseIcon className="h-4 w-4" /></button></header><iframe src={devtoolsUrl} title="Chromium Developer Tools" /></section> : null}
       <BrowserSourceDialog sourceView={sourceView} onClose={() => setSourceView(null)} />

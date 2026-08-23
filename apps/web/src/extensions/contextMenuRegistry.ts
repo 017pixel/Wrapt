@@ -23,6 +23,8 @@ import {
 
 export interface ContextMenuRuntimeBinding {
   readonly icon?: ComponentType<{ className?: string }>;
+  /** Built-ins beziehen ihre zielabhängige Aktion vom öffnenden Host-Element. */
+  readonly requiresHostAction?: boolean;
 }
 
 export interface ContextMenuRegistryValue {
@@ -155,7 +157,8 @@ export class ContextMenuRegistry {
       if (
         typeof runtime !== "object" ||
         runtime === null ||
-        (runtime.icon !== undefined && typeof runtime.icon !== "function")
+        (runtime.icon !== undefined && typeof runtime.icon !== "function") ||
+        (runtime.requiresHostAction !== undefined && typeof runtime.requiresHostAction !== "boolean")
       ) {
         throw new ContextMenuRegistryError(
           "invalid-context-menu-runtime",

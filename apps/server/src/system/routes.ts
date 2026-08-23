@@ -2,6 +2,7 @@ import {
   appearanceResponseSchema,
   codexResetHistoryResponseSchema,
   codexResetHistorySettingsResponseSchema,
+  contextMenuConfigResponseSchema,
   dashboardConfigSchema,
   healthResponseSchema,
   localPortsResponseSchema,
@@ -16,7 +17,7 @@ import {
 } from "@wrapt/contracts";
 import type { FastifyInstance } from "fastify";
 import { settings } from "../config/settings.js";
-import { persistAppearanceTheme, readAppearanceTheme } from "../config/wrapt-config.js";
+import { persistAppearanceTheme, persistContextMenuConfig, readAppearanceTheme, readContextMenuConfig } from "../config/wrapt-config.js";
 import type { RouteServices } from "../api/services.js";
 import { systemService } from "../services/systemService.js";
 import { t3ChannelService } from "../services/t3ChannelService.js";
@@ -35,6 +36,14 @@ export async function registerSystemRoutes(app: FastifyInstance, services: Route
     const { theme } = appearanceResponseSchema.parse({ theme: request.body, source: "project" });
     persistAppearanceTheme(settings.configDirectory, theme);
     return appearanceResponseSchema.parse({ theme, source: "project" });
+  });
+  app.get("/system/context-menu", async () => contextMenuConfigResponseSchema.parse({
+    contextMenu: readContextMenuConfig(settings.configDirectory),
+  }));
+  app.put("/system/context-menu", async (request) => {
+    const { contextMenu } = contextMenuConfigResponseSchema.parse(request.body);
+    persistContextMenuConfig(settings.configDirectory, contextMenu);
+    return contextMenuConfigResponseSchema.parse({ contextMenu });
   });
   app.get("/system/codex-reset-history/settings", async () => codexResetHistorySettingsResponseSchema.parse({ settings: codexResetHistoryService.getSettings() }));
   app.put("/system/codex-reset-history/settings", async (request) => {

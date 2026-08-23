@@ -12,7 +12,6 @@ import {
   moveFolderOps,
   pinnedEntries,
 } from "../workspace/terminalWorkspaceModel";
-import { TerminalContextMenu, openContextMenuAt, type ContextMenuState } from "./TerminalContextMenu";
 import { TerminalToolbar } from "../terminal-toolbar";
 import { TerminalTree, type TerminalTreeCallbacks } from "./TerminalTree";
 import { useTerminalDnd, type DndDragState, type DndDropTarget } from "./useTerminalDnd";
@@ -20,6 +19,8 @@ import { TerminalHoverPreview } from "../TerminalHoverPreview";
 import { closeNormalTerminalEntries, normalTerminalEntries } from "./terminalBulkClose";
 import { useTerminalHoverPreview } from "./useTerminalHoverPreview";
 import { TerminalPinnedEntries } from "./TerminalPinnedEntries";
+import { openGlobalContextMenu, type GlobalContextMenuAction } from "../../context-menu/contextMenuEvents";
+import { hostContextMenuId } from "../../../extensions/hostContextMenus";
 
 export interface TerminalSidebarProps {
   areaId: string;
@@ -56,7 +57,6 @@ export interface TerminalSidebarProps {
 export function TerminalSidebar({ areaId, kind, meta, sessions, cwds, isMobile, open, onClose, onNewTerminal, onNewTerminalInFolder, onOpenEntry, onOpenInSplit, onResync, onRestart, onToggleSidebar, activeRuntimeId, hasSplit, hasActivePane, onCreateSplit, onClearSplit, onClear, onClosePane, sessionPicker, sidebarWidth = 256, onResizeStart = () => undefined, onResizeKeyboard = () => undefined, onReload = () => undefined, onFullscreen = () => undefined, onDragStateChange }: TerminalSidebarProps) {
   const document = useTerminalWorkspaceStore((state) => state.document);
   const queueOps = useTerminalWorkspaceStore((state) => state.queueOps);
-  const [menu, setMenu] = useState<ContextMenuState | null>(null);
   const [editing, setEditing] = useState<{ kind: "entry" | "folder"; id: string } | null>(null);
   const [editingValue, setEditingValue] = useState("");
   const [confirmDelete, setConfirmDelete] = useState<{ kind: "entry" | "folder" | "bulk"; id: string; name: string } | null>(null);
@@ -173,7 +173,7 @@ export function TerminalSidebar({ areaId, kind, meta, sessions, cwds, isMobile, 
       if (!folder) return;
       setConfirmDelete({ kind: "folder", id: folderId, name: folder.name });
     },
-    onContextMenu: (event, kind, id) => setMenu(openContextMenuAt(event, buildMenu(kind, id))),
+    onContextMenu: (event, kind, id) => openTerminalMenu(event, kind === "entry" ? "Terminal" : "Terminal-Ordner", buildMenu(kind, id)),
     onMoveEntry: (entryId, folderId, index) => {
       if (document) queueOps(moveEntryOps(document, entryId, folderId, index));
     },
@@ -192,11 +192,14 @@ export function TerminalSidebar({ areaId, kind, meta, sessions, cwds, isMobile, 
     pendingNewFolderRef.current = null;
   };
 
-  const buildRootMenu = () => [
-    { label: "Neues Terminal", icon: <PlusIcon className="h-4 w-4" />, onSelect: onNewTerminal },
-    { label: "Neuer Ordner", icon: <FolderTreeIcon className="h-4 w-4" />, onSelect: createRootFolder },
-    { separator: true },
-    { label: "Alle normalen Terminals schließen", icon: <CloseIcon className="h-4 w-4" />, danger: true, disabled: normalTerminalEntries(document?.entries ?? []).length === 0, onSelect: () => {
+  const openTerminalMenu = (event: { clientX: number; clientY: number; preventDefault?: () => void; stopPropagation?: () => void }, title: string, actions: GlobalContextMenuAction[]) => {
+    openGlobalContextMenu(event, { surface: "host.context-menu.terminal", title, actions });
+  };
+
+  const buildRootMenu = (): GlobalContextMenuAction[] => [
+    { id: hostContextMenuId("terminal.new"), icon: <PlusIcon className="h-4 w-4" />, onSelect: onNewTerminal },
+    { id: hostContextMenuId("terminal.new-folder"), icon: <FolderTreeIcon className="h-4 w-4" />, onSelect: createRootFolder },
+    { id: hostContextMenuId("terminal.close-all"), icon: <CloseIcon className="h-4 w-4" />, danger: true, disabled: normalTerminalEntries(document?.entries ?? []).length === 0, onSelect: () => {
       const count = normalTerminalEntries(document?.entries ?? []).length;
       if (count > 0) setConfirmDelete({ kind: "bulk", id: "bulk", name: String(count) });
     } },
@@ -207,28 +210,24 @@ export function TerminalSidebar({ areaId, kind, meta, sessions, cwds, isMobile, 
     const folder = kind === "folder" ? document?.folders.find((candidate) => candidate.id === id) : undefined;
     if (kind === "entry" && entry) {
       return [
-        { label: "Öffnen", icon: <TerminalIcon className="h-4 w-4" />, disabled: !entry.runtimeId, onSelect: () => entry.runtimeId && onOpenEntry(entry.runtimeId) },
-        { label: "In Split öffnen", icon: <ColumnsIcon className="h-4 w-4" />, disabled: !entry.runtimeId, onSelect: () => entry.runtimeId && onOpenInSplit(entry.runtimeId) },
-        { label: "Umbenennen", icon: <FolderTreeIcon className="h-4 w-4" />, onSelect: () => callbacks.onRenameEntry(id) },
-        { separator: true },
-        { label: entry.pinned ? "Pin lösen" : "Pinnen", icon: <PinIcon className="h-4 w-4" />, onSelect: () => callbacks.onTogglePin(id) },
-        { label: entry.persistent ? "Persistence entfernen" : "Persistent machen", onSelect: () => callbacks.onTogglePersistent(id) },
-        { separator: true },
-        { label: "Neu verbinden", disabled: !entry.runtimeId, onSelect: () => entry.runtimeId && onResync(entry.runtimeId) },
-        { label: "Terminal neu starten", disabled: !entry.runtimeId, onSelect: () => entry.runtimeId && onRestart(entry.runtimeId) },
-        { separator: true },
-        { label: "Terminal beenden", icon: <PinIcon className="h-4 w-4" />, danger: true, onSelect: () => callbacks.onDeleteEntry(id) },
+        { id: hostContextMenuId("terminal.open"), icon: <TerminalIcon className="h-4 w-4" />, disabled: !entry.runtimeId, onSelect: () => { if (entry.runtimeId) onOpenEntry(entry.runtimeId); } },
+        { id: hostContextMenuId("terminal.split"), icon: <ColumnsIcon className="h-4 w-4" />, disabled: !entry.runtimeId, onSelect: () => { if (entry.runtimeId) onOpenInSplit(entry.runtimeId); } },
+        { id: hostContextMenuId("terminal.rename"), icon: <FolderTreeIcon className="h-4 w-4" />, onSelect: () => callbacks.onRenameEntry(id) },
+        { id: hostContextMenuId("terminal.pin"), label: entry.pinned ? "Pin lösen" : "Pinnen", icon: <PinIcon className="h-4 w-4" />, checked: entry.pinned, onSelect: () => callbacks.onTogglePin(id) },
+        { id: hostContextMenuId("terminal.persistent"), label: entry.persistent ? "Persistenz entfernen" : "Persistent machen", checked: entry.persistent, onSelect: () => callbacks.onTogglePersistent(id) },
+        { id: hostContextMenuId("terminal.reconnect"), disabled: !entry.runtimeId, onSelect: () => { if (entry.runtimeId) onResync(entry.runtimeId); } },
+        { id: hostContextMenuId("terminal.restart"), disabled: !entry.runtimeId, onSelect: () => { if (entry.runtimeId) onRestart(entry.runtimeId); } },
+        { id: hostContextMenuId("terminal.end"), icon: <CloseIcon className="h-4 w-4" />, danger: true, onSelect: () => callbacks.onDeleteEntry(id) },
       ];
     }
     if (kind === "folder" && folder) {
       return [
-        { label: "Neues Terminal hier", icon: <PlusIcon className="h-4 w-4" />, onSelect: () => onNewTerminalInFolder(id) },
-        { label: "Neuer Unterordner", icon: <FolderTreeIcon className="h-4 w-4" />, onSelect: () => callbacks.onNewFolder(id) },
-        { label: "Umbenennen", onSelect: () => callbacks.onRenameFolder(id) },
-        { label: "Alle aufklappen", onSelect: () => setAllCollapsed(id, false) },
-        { label: "Alle zuklappen", onSelect: () => setAllCollapsed(id, true) },
-        { separator: true },
-        { label: "Ordner löschen", danger: true, onSelect: () => callbacks.onDeleteFolder(id) },
+        { id: hostContextMenuId("terminal.new"), label: "Neues Terminal hier", icon: <PlusIcon className="h-4 w-4" />, onSelect: () => onNewTerminalInFolder(id) },
+        { id: hostContextMenuId("terminal.new-folder"), label: "Neuer Unterordner", icon: <FolderTreeIcon className="h-4 w-4" />, onSelect: () => callbacks.onNewFolder(id) },
+        { id: hostContextMenuId("terminal.rename"), onSelect: () => callbacks.onRenameFolder(id) },
+        { id: hostContextMenuId("terminal.expand"), onSelect: () => setAllCollapsed(id, false) },
+        { id: hostContextMenuId("terminal.collapse"), onSelect: () => setAllCollapsed(id, true) },
+        { id: hostContextMenuId("terminal.delete-folder"), danger: true, onSelect: () => callbacks.onDeleteFolder(id) },
       ];
     }
     return [];
@@ -297,8 +296,7 @@ export function TerminalSidebar({ areaId, kind, meta, sessions, cwds, isMobile, 
         aria-label="Terminal-Sidebar"
         onContextMenu={(event) => {
           if ((event.target as Element).closest("[data-dnd]")) return;
-          event.preventDefault();
-          setMenu(openContextMenuAt(event, buildRootMenu()));
+          openTerminalMenu(event, "Terminals", buildRootMenu());
         }}
       >
         <div className="terminal-sidebar-header">
@@ -337,7 +335,7 @@ export function TerminalSidebar({ areaId, kind, meta, sessions, cwds, isMobile, 
           {searchTerm ? <button type="button" onClick={() => setSearchTerm("")} aria-label="Terminal-Suche löschen"><CloseIcon className="h-3.5 w-3.5" /></button> : null}
         </label>
         <div className="terminal-sidebar-body" {...containerHandlers}>
-          {pins.length > 0 ? <TerminalPinnedEntries entries={pins} meta={meta} sessions={sessions} createRowHandlers={(kind, id, label) => createRowHandlers({ kind, id, label })} cwdForEntry={cwdForEntry} onContextMenu={(event, id) => setMenu(openContextMenuAt(event, buildMenu("entry", id)))} onOpenEntry={onOpenEntry} onHoverStart={hoverPreview.start} onHoverEnd={hoverPreview.end} /> : null}
+          {pins.length > 0 ? <TerminalPinnedEntries entries={pins} meta={meta} sessions={sessions} createRowHandlers={(kind, id, label) => createRowHandlers({ kind, id, label })} cwdForEntry={cwdForEntry} onContextMenu={(event, id) => openTerminalMenu(event, "Terminal", buildMenu("entry", id))} onOpenEntry={onOpenEntry} onHoverStart={hoverPreview.start} onHoverEnd={hoverPreview.end} /> : null}
           <div className="terminal-sidebar-section">
             <div className="terminal-sidebar-heading">Ordner</div>
             {document ? <TerminalTree
@@ -365,7 +363,6 @@ export function TerminalSidebar({ areaId, kind, meta, sessions, cwds, isMobile, 
         {drag ? <div className="terminal-dnd-overlay" style={{ left: drag.x, top: drag.y }}><TerminalIcon className="h-4 w-4" />{drag.label}</div> : null}
       </aside>
       {isMobile && open ? <button type="button" className="terminal-sidebar-backdrop" aria-label="Sidebar schließen" onClick={onClose} /> : null}
-      {menu ? <TerminalContextMenu menu={menu} onClose={() => setMenu(null)} /> : null}
       {confirmDelete ? (
         <div className="terminal-confirm-backdrop" role="dialog" aria-modal="true" onClick={() => !bulkClosing && setConfirmDelete(null)}>
           <div className="terminal-confirm" onClick={(event) => event.stopPropagation()}>

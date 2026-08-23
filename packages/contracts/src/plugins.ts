@@ -244,6 +244,12 @@ export const pluginActivationResponseSchema = z.strictObject({
   draft: pluginDraftSchema,
   extensionId: z.string().min(1),
 });
+export const pluginCreatorSkillResponseSchema = z.strictObject({
+  fileName: z.literal("SKILL.md"),
+  content: z.string().max(262_144),
+  modifiedAt: z.iso.datetime(),
+  sizeBytes: z.number().int().nonnegative().max(262_144),
+});
 
 export type PluginBlock = z.infer<typeof pluginBlockSchema>;
 export type PluginFunction = z.infer<typeof pluginFunctionSchema>;
@@ -259,3 +265,4 @@ export type PluginDraftContent = z.infer<typeof pluginDraftContentSchema>;
 export type PluginDraft = z.infer<typeof pluginDraftSchema>;
 export type PluginExample = z.infer<typeof pluginExampleSchema>;
 export type PluginValidationIssue = z.infer<typeof pluginValidationIssueSchema>;
+export type PluginCreatorSkillResponse = z.infer<typeof pluginCreatorSkillResponseSchema>;

@@ -34,15 +34,19 @@ interface SidebarPreferencesState {
   hiddenOrbitItems: Set<string>;
   hiddenPages: Set<string>;
   explicitlyVisibleDefaultPages: Set<string>;
+  navigationOrder: string[];
+  navigationReorderEnabled: boolean;
   toggleSection: (section: SidebarSectionKey) => void;
   toggleOrbitItem: (item: OrbitPaletteItem) => void;
   togglePage: (page: PageRouteId) => void;
+  toggleNavigationReorder: () => void;
+  moveNavigationBefore: (dragId: string, targetId: string, availableIds: string[]) => void;
   isOrbitItemVisible: (item: OrbitPaletteItem) => boolean;
   isPageVisible: (page: PageRouteId) => boolean;
 }
 
 const STORAGE_KEY = "wrapt.sidebar-preferences.v1";
-const PERSIST_VERSION = 2;
+const PERSIST_VERSION = 3;
 const DEFAULT_COLLAPSED_SECTIONS: Record<SidebarSectionKey, boolean> = {
   workspace: false,
   "orbit-projects": false,
@@ -88,6 +92,8 @@ export const useSidebarPreferences = create<SidebarPreferencesState>()(
       hiddenOrbitItems: new Set<string>(),
       hiddenPages: defaultHiddenPages(),
       explicitlyVisibleDefaultPages: new Set<string>(),
+      navigationOrder: [],
+      navigationReorderEnabled: false,
       toggleSection: (section) => set((state) => ({
         collapsedSections: { ...state.collapsedSections, [section]: !state.collapsedSections[section] },
       })),
@@ -109,6 +115,16 @@ export const useSidebarPreferences = create<SidebarPreferencesState>()(
         }
         return { hiddenPages: next, explicitlyVisibleDefaultPages: explicitlyVisible };
       }),
+      toggleNavigationReorder: () => set((state) => ({ navigationReorderEnabled: !state.navigationReorderEnabled })),
+      moveNavigationBefore: (dragId, targetId, availableIds) => set((state) => {
+        if (dragId === targetId) return state;
+        const available = new Set(availableIds);
+        const ordered = [...state.navigationOrder.filter((id) => available.has(id)), ...availableIds.filter((id) => !state.navigationOrder.includes(id))];
+        const withoutDrag = ordered.filter((id) => id !== dragId);
+        const targetIndex = withoutDrag.indexOf(targetId);
+        withoutDrag.splice(targetIndex < 0 ? withoutDrag.length : targetIndex, 0, dragId);
+        return { navigationOrder: withoutDrag };
+      }),
       isOrbitItemVisible: (item) => !get().hiddenOrbitItems.has(item),
       isPageVisible: (page) => ALWAYS_VISIBLE_PAGES.has(page) || !get().hiddenPages.has(page),
     }),
@@ -119,6 +135,8 @@ export const useSidebarPreferences = create<SidebarPreferencesState>()(
         hiddenOrbitItems: [...state.hiddenOrbitItems],
         hiddenPages: [...state.hiddenPages],
         explicitlyVisibleDefaultPages: [...state.explicitlyVisibleDefaultPages],
+        navigationOrder: state.navigationOrder,
+        navigationReorderEnabled: state.navigationReorderEnabled,
       }),
       version: PERSIST_VERSION,
       migrate: (persisted) => {
@@ -126,22 +144,26 @@ export const useSidebarPreferences = create<SidebarPreferencesState>()(
         // standardmäßig ausgeblendeter Eintrag bewusst eingeblendet wurde.
         // Die alten Auswahlwerte bleiben erhalten, die neuen Defaults greifen
         // einmalig für bestehende Browserstände.
-        const raw = persisted as Partial<{ collapsedSections: Record<SidebarSectionKey, boolean>; hiddenOrbitItems: string[]; hiddenPages: string[] }> | undefined;
+        const raw = persisted as Partial<{ collapsedSections: Record<SidebarSectionKey, boolean>; hiddenOrbitItems: string[]; hiddenPages: string[]; explicitlyVisibleDefaultPages: string[]; navigationOrder: string[]; navigationReorderEnabled: boolean }> | undefined;
         return {
           collapsedSections: { ...DEFAULT_COLLAPSED_SECTIONS, ...(raw?.collapsedSections ?? {}) },
           hiddenOrbitItems: raw?.hiddenOrbitItems ?? [],
           hiddenPages: raw?.hiddenPages ?? [],
-          explicitlyVisibleDefaultPages: [],
+          explicitlyVisibleDefaultPages: raw?.explicitlyVisibleDefaultPages ?? [],
+          navigationOrder: raw?.navigationOrder ?? [],
+          navigationReorderEnabled: raw?.navigationReorderEnabled ?? false,
         };
       },
       merge: (persisted, current) => {
-        const raw = persisted as Partial<{ collapsedSections: Record<SidebarSectionKey, boolean>; hiddenOrbitItems: string[]; hiddenPages: string[]; explicitlyVisibleDefaultPages: string[] }> | undefined;
+        const raw = persisted as Partial<{ collapsedSections: Record<SidebarSectionKey, boolean>; hiddenOrbitItems: string[]; hiddenPages: string[]; explicitlyVisibleDefaultPages: string[]; navigationOrder: string[]; navigationReorderEnabled: boolean }> | undefined;
         return {
           ...current,
           collapsedSections: { ...current.collapsedSections, ...(raw?.collapsedSections ?? {}) },
           hiddenOrbitItems: persistedHiddenOrbitItems(raw?.hiddenOrbitItems),
           hiddenPages: mergedHiddenPages(raw),
           explicitlyVisibleDefaultPages: new Set(raw?.explicitlyVisibleDefaultPages ?? []),
+          navigationOrder: raw?.navigationOrder ?? [],
+          navigationReorderEnabled: raw?.navigationReorderEnabled ?? false,
         };
       },
     },

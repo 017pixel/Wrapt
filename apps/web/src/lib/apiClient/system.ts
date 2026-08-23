@@ -3,6 +3,7 @@ import {
   appearanceResponseSchema,
   codexResetHistoryResponseSchema,
   codexResetHistorySettingsResponseSchema,
+  contextMenuConfigResponseSchema,
   healthResponseSchema,
   localPortsResponseSchema,
   operationalMetricsSchema,
@@ -18,6 +19,7 @@ import {
   type T3Channel,
   type UsageMonitoring,
   type AppearanceTheme,
+  type ContextMenuConfig,
 } from "@wrapt/contracts";
 import { mutate, request } from "./transport.js";
 
@@ -26,6 +28,8 @@ export const systemApi = {
   dashboardConfig: (signal?: AbortSignal) => request("/system/dashboard-config", dashboardConfigSchema, signal),
   appearance: (signal?: AbortSignal) => request("/system/appearance", appearanceResponseSchema, signal),
   saveAppearance: (theme: AppearanceTheme) => mutate("/system/appearance", "PUT", appearanceResponseSchema, theme),
+  getContextMenu: (signal?: AbortSignal) => request("/system/context-menu", contextMenuConfigResponseSchema, signal),
+  saveContextMenu: (contextMenu: ContextMenuConfig) => mutate("/system/context-menu", "PUT", contextMenuConfigResponseSchema, { contextMenu }),
   codexResetHistory: (signal?: AbortSignal) => request("/system/codex-reset-history", codexResetHistoryResponseSchema, signal),
   codexResetHistorySettings: (signal?: AbortSignal) => request("/system/codex-reset-history/settings", codexResetHistorySettingsResponseSchema, signal),
   saveCodexResetHistorySettings: (settings: { enabled: boolean }) => mutate("/system/codex-reset-history/settings", "PUT", codexResetHistorySettingsResponseSchema, settings),

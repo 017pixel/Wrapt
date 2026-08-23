@@ -5,6 +5,7 @@ import dotenv from "dotenv";
 import { z } from "zod";
 import { loadWraptConfig } from "./wrapt-config.js";
 import { canonicalizeWraptEnvironment } from "./environment.js";
+import { resolveAgentHomeSettings } from "./agent-home-settings.js";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const environmentFile = resolve(projectRoot, ".env");
@@ -56,7 +57,7 @@ const settingsSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   HOST: z.string().default("127.0.0.1"),
   PORT: integerFromEnvironment(3010),
-  APP_VERSION: z.string().regex(/^\d+\.\d+\.\d+$/).default("0.99.0"),
+  APP_VERSION: z.string().regex(/^\d+\.\d+\.\d+$/).default("0.99.5"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   CONFIG_DIR: z.string().default("./config"),
   WEB_DIST_DIR: z.string().default("./apps/web/dist"),
@@ -239,6 +240,11 @@ export const settings = Object.freeze({
   notifications: wb.notifications,
   systemUser: wb.system.user,
   systemHomeDirectory: wb.system.homeDirectory,
+  ...resolveAgentHomeSettings({
+    codex: environment.CODEX_SHARED_HOME,
+    claude: environment.CLAUDE_SHARED_HOME,
+    opencode: environment.OPENCODE_SHARED_HOME,
+  }, wb.plugins),
   tailscaleHostname: wb.tailscale.hostname,
   tailscaleIp: wb.tailscale.ip,
   tailscaleHttpsPort: wb.tailscale.httpsPort,
@@ -351,12 +357,6 @@ export const settings = Object.freeze({
   newsAiConcurrency: environment.NEWS_AI_CONCURRENCY,
   wraptProfilesRoot: resolve(environment.WRAPT_PROFILES_ROOT),
   codexbarConfigPath: resolve(environment.CODEXBAR_CONFIG_PATH),
-  // Gemeinsames Home und Name der Anmeldedatei je Werkzeug.
-  sharedHomes: {
-    codex: { sharedHome: resolve(environment.CODEX_SHARED_HOME), authFileName: "auth.json" },
-    claude: { sharedHome: resolve(environment.CLAUDE_SHARED_HOME), authFileName: ".credentials.json" },
-    opencode: { sharedHome: resolve(environment.OPENCODE_SHARED_HOME), authFileName: "auth.json" },
-  },
   t3CliPath: resolve(environment.T3_CLI_PATH),
   t3NpmPackage: environment.T3_NPM_PACKAGE,
   t3Host: environment.T3_HOST,

@@ -10,6 +10,7 @@ import { draftFromExample, emptyPluginDraft } from "../components/plugins/plugin
 import { PluginMaker } from "../components/plugins/PluginMaker";
 import { PluginOverview, pluginTabs, type PluginTabId } from "../components/plugins/PluginOverview";
 import { PluginCreationChooser } from "../components/plugins/PluginCreationChooser";
+import { PluginNotice } from "../components/plugins/PluginNotice";
 import { ConfirmDialog } from "../components/ModalDialog";
 import { useHashTab } from "../lib/hashTabs";
 
@@ -22,7 +23,7 @@ export function Plugins() {
   const drafts = useQuery(wraptQueries.pluginDrafts());
   const catalog = useQuery(wraptQueries.extensionCatalog());
   const registry = useQuery(wraptQueries.extensionRegistry());
-  const [message, setMessage] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ text: string; tone: "info" | "bad" } | null>(null);
   const [chooserOpen, setChooserOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<{ id: string; name: string } | null>(null);
   const [uninstallTarget, setUninstallTarget] = useState<ExtensionRegistrySummary | null>(null);
@@ -35,40 +36,40 @@ export function Plugins() {
       await client.invalidateQueries({ queryKey: ["plugins"] });
       navigate(`/plugins/maker?draft=${encodeURIComponent(response.draft.id)}&mode=${mode}`);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Der Plugin-Draft konnte nicht angelegt werden.");
+      setNotice({ text: error instanceof Error ? error.message : "Der Plugin-Draft konnte nicht angelegt werden.", tone: "bad" });
     }
   };
 
   const deactivateDraft = async (id: string) => {
     try {
       await apiClient.deactivatePluginDraft(id);
-      setMessage("Plugin wurde deaktiviert und bleibt als Draft erhalten.");
+      setNotice({ text: "Plugin wurde deaktiviert und bleibt als Draft erhalten.", tone: "info" });
       await client.invalidateQueries({ queryKey: ["plugins"] });
       await client.invalidateQueries({ queryKey: ["extensions"] });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Das Plugin konnte nicht deaktiviert werden.");
+      setNotice({ text: error instanceof Error ? error.message : "Das Plugin konnte nicht deaktiviert werden.", tone: "bad" });
     }
   };
 
   const activateDraft = async (id: string) => {
     try {
       await apiClient.activatePluginDraft(id);
-      setMessage("Plugin wurde aktiviert.");
+      setNotice({ text: "Plugin wurde aktiviert.", tone: "info" });
       await client.invalidateQueries({ queryKey: ["plugins"] });
       await client.invalidateQueries({ queryKey: ["extensions"] });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Das Plugin konnte nicht aktiviert werden.");
+      setNotice({ text: error instanceof Error ? error.message : "Das Plugin konnte nicht aktiviert werden.", tone: "bad" });
     }
   };
 
   const deleteDraft = async (id: string) => {
     try {
       await apiClient.deletePluginDraft(id);
-      setMessage("Plugin-Draft wurde gelöscht.");
+      setNotice({ text: "Plugin-Draft wurde gelöscht.", tone: "info" });
       await client.invalidateQueries({ queryKey: ["plugins"] });
       await client.invalidateQueries({ queryKey: ["extensions"] });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Der Plugin-Draft konnte nicht gelöscht werden.");
+      setNotice({ text: error instanceof Error ? error.message : "Der Plugin-Draft konnte nicht gelöscht werden.", tone: "bad" });
     }
   };
 
@@ -80,11 +81,11 @@ export function Plugins() {
       } else {
         await apiClient.dispatchExtensionOperation({ operation, extensionId: plugin.id, expectedRevision: registry.data.revision });
       }
-      setMessage(operation === "uninstall" ? `„${plugin.name}“ wurde deinstalliert.` : `„${plugin.name}“ wurde ${operation === "enable" ? "aktiviert" : "deaktiviert"}.`);
+      setNotice({ text: operation === "uninstall" ? `„${plugin.name}“ wurde deinstalliert.` : `„${plugin.name}“ wurde ${operation === "enable" ? "aktiviert" : "deaktiviert"}.`, tone: "info" });
       await client.invalidateQueries({ queryKey: ["extensions"] });
       await client.invalidateQueries({ queryKey: ["plugins"] });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Die Plugin-Verwaltung ist fehlgeschlagen.");
+      setNotice({ text: error instanceof Error ? error.message : "Die Plugin-Verwaltung ist fehlgeschlagen.", tone: "bad" });
     }
   };
 
@@ -97,7 +98,7 @@ export function Plugins() {
     }
     const example = examples.data?.examples.find((item) => item.slug === slug);
     if (!example) {
-      setMessage("Für dieses installierte Plugin ist keine bearbeitbare Inhaltsquelle verfügbar.");
+      setNotice({ text: "Für dieses installierte Plugin ist keine bearbeitbare Inhaltsquelle verfügbar.", tone: "bad" });
       return;
     }
     try {
@@ -105,9 +106,9 @@ export function Plugins() {
       if (!response?.draft) throw new Error("Die bearbeitbare Plugin-Kopie konnte nicht angelegt werden.");
       await client.invalidateQueries({ queryKey: ["plugins"] });
       setEditTarget({ id: response.draft.id, name: response.draft.name });
-      setMessage(`Eine bearbeitbare Kopie von „${plugin.name}“ wurde angelegt.`);
+      setNotice({ text: `Eine bearbeitbare Kopie von „${plugin.name}“ wurde angelegt.`, tone: "info" });
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Das Plugin konnte nicht zur Bearbeitung vorbereitet werden.");
+      setNotice({ text: error instanceof Error ? error.message : "Das Plugin konnte nicht zur Bearbeitung vorbereitet werden.", tone: "bad" });
     }
   };
 
@@ -123,7 +124,7 @@ export function Plugins() {
   };
   const pluginInstalled = registry.data?.extensions.filter((item) => item.lifecycle !== "available" && (item.id.startsWith("wrapt.example.") || item.id.startsWith("wrapt.local."))) ?? [];
   return <div className="page-scroll"><div className="page-frame plugins-page">
-    {message ? <div className="plugins-message" role="alert">{message}</div> : null}
+    {notice ? <PluginNotice tone={notice.tone} onClose={() => setNotice(null)}><span>{notice.text}</span></PluginNotice> : null}
     <PluginOverview activeTab={tab as PluginTabId} examples={examples.data?.examples ?? []} drafts={drafts.data?.drafts ?? []} catalogEntries={catalog.data?.entries ?? []} installed={pluginInstalled} onCreate={() => setChooserOpen(true)} onTabChange={setTab} onDeleteDraft={(id) => void deleteDraft(id)} onActivateDraft={(id) => void activateDraft(id)} onDeactivateDraft={(id) => void deactivateDraft(id)} onEditInstalled={(plugin) => void editInstalled(plugin)} onToggleInstalled={(plugin) => void runInstalledOperation(plugin, plugin.lifecycle === "active" ? "disable" : "enable")} onUninstallInstalled={setUninstallTarget} />
     <PluginCreationChooser open={chooserOpen || editTarget !== null} purpose={editTarget ? "edit" : "create"} {...(editTarget ? { pluginName: editTarget.name } : {})} onClose={() => { setChooserOpen(false); setEditTarget(null); }} onSelect={editTarget ? onSelectEditMode : onSelectCreationMode} />
     <ConfirmDialog open={uninstallTarget !== null} title={`„${uninstallTarget?.name ?? "Plugin"}“ deinstallieren?`} description="Das Plugin wird aus Wrapt entfernt. Ein eigener Draft bleibt erhalten und kann später erneut aktiviert werden." confirmLabel="Deinstallieren" danger onConfirm={() => { if (uninstallTarget) void runInstalledOperation(uninstallTarget, "uninstall"); setUninstallTarget(null); }} onClose={() => setUninstallTarget(null)} />

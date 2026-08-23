@@ -27,6 +27,11 @@ describe("Context Menu Contributions V1", () => {
     },
   );
 
+  it("enthält die Statusleisten- und Extension-Surfaces", () => {
+    expect(hostContextMenuSurfaces).toContain("host.context-menu.statusbar");
+    expect(hostContextMenuSurfaces).toContain("host.context-menu.extensions");
+  });
+
   it("erlaubt extensioneigene Surfaces und strikt typisierte Context Expressions", () => {
     expect(
       contextMenuContributionSchema.safeParse({

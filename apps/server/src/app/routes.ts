@@ -103,7 +103,7 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
   await app.register(registerNotificationRoutes, { prefix: "/api/v1", database: deps.notificationDatabase, push: deps.notificationPush, configDirectory: settings.configDirectory, identity: deps.identityOptions });
   await app.register(registerEditorOpenRoutes, { prefix: "/api/v1", secrets: deps.editorOpenSecrets });
   await app.register(registerExtensionRoutes, { prefix: "/api/v1", manager: deps.extensionManager, catalog: deps.extensionCatalog });
-  await app.register(registerPluginRoutes, { prefix: "/api/v1", authoring: deps.pluginAuthoring });
+  await app.register(registerPluginRoutes, { prefix: "/api/v1", authoring: deps.pluginAuthoring, creatorSkillPath: settings.pluginCreatorSkillPath });
   await app.register(registerTerminalRoutes, {
     prefix: "/api/v1",
     manager: deps.terminals,

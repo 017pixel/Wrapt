@@ -124,6 +124,7 @@ describe("PluginOverview", () => {
     );
 
     expect(screen.getByRole("link", { name: /bearbeiten/i })).toBeTruthy();
+    expect(document.querySelector(".plugin-draft-row.plugins-installed-row")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: /aktivieren/i }));
     expect(onActivateDraft).toHaveBeenCalledWith(draft.id);
     expect(screen.queryByRole("link", { name: "Seite öffnen" })).toBeNull();
@@ -245,5 +246,32 @@ describe("PluginOverview", () => {
     expect(onEdit).toHaveBeenCalledWith(installed[0]);
     expect(onToggle).toHaveBeenCalledWith(installed[0]);
     expect(onUninstall).toHaveBeenCalledWith(installed[0]);
+  });
+
+  it("übersetzt fehlerhafte Lifecycle-Zustände und bietet keine ungültige Aktivierung an", () => {
+    const installed = [{
+      id: "wrapt.example.focus-timer",
+      name: "Fokus-Timer",
+      lifecycle: "incompatible",
+      desiredEnablement: "disabled",
+    }] as unknown as ExtensionRegistrySummary[];
+    render(
+      <MemoryRouter>
+        <PluginOverview
+          activeTab="installiert"
+          examples={[example]}
+          drafts={[]}
+          catalogEntries={[]}
+          installed={installed}
+          onCreate={vi.fn()}
+          onTabChange={vi.fn()}
+          onDeleteDraft={vi.fn()}
+          onDeactivateDraft={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText("Nicht kompatibel")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /aktivieren/i })).toBeNull();
+    expect(screen.getByRole("button", { name: "Fokus-Timer deinstallieren" })).toBeTruthy();
   });
 });

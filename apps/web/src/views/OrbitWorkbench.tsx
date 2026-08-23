@@ -44,7 +44,6 @@ import { nearestEdgeSides, orbitEdgeColor } from "../lib/orbitAppearance";
 import { OrbitColorPicker } from "../components/orbit/OrbitColorPicker";
 import { compactedOrbitBounds, expandedOrbitBounds, orbitBoundsEqual } from "../lib/orbitTerritory";
 import { orbitNodeWorldRectangle, orbitSnapPreview, type OrbitSnapPreview } from "../lib/orbitSnap";
-import { useMenuFocus } from "../lib/useMenuFocus";
 import { useRouteActivity } from "../lib/routeActivity";
 import { serializeOrbitTodo } from "../lib/orbitTodo";
 import { elementContainsEventTarget } from "../lib/domEvents";
@@ -52,6 +51,9 @@ import { getActiveOrbitBoard, orbitDefaultNodeSize, previewGroupSize, previewSlo
 import { useWorkspaceStore } from "../stores/workspace";
 import { createOrbitBoardIndex, type OrbitBoardIndex } from "../lib/orbitBoardIndex";
 import { openPreviewGroupWindow } from "../lib/previewWindow";
+import { openGlobalContextMenu } from "../components/context-menu/contextMenuEvents";
+import { hostContextMenuId } from "../extensions/hostContextMenus";
+import { PromptDialog } from "../components/ModalDialog";
 
 const nodeTypes = { orbit: OrbitNodeView };
 const edgeTypes = { orbit: OrbitEdgeView };
@@ -404,6 +406,7 @@ function OrbitInspector({ projects, expanded, onExpand, onCollapse }: { projects
         {node.type === "snippet" ? <label><span>Sprache</span><input value={node.language ?? ""} onChange={(event) => updateNode(node.id, { language: event.target.value })} /></label> : null}
         <p className="orbit-inspector-hint">Größe und Position direkt am Knoten verändern.</p>
         <label className="orbit-inspector-check"><input type="checkbox" checked={node.locked} onChange={(event) => updateNode(node.id, { locked: event.target.checked })} /><span>Position sperren</span></label>
+        <div className="orbit-inspector-color"><span>Farbe</span><OrbitColorPicker value={node.color} onSelect={(color) => updateNode(node.id, { color })} /></div>
         <section><h3>Verbindungen</h3>{relatedEdges.map((edge) => <div className="orbit-edge-editor" key={edge.id}><input aria-label="Verbindungsbezeichnung" value={edge.label ?? ""} placeholder={edge.kind} onChange={(event) => updateEdge(edge.id, { label: event.target.value || null })} /><button type="button" onClick={() => removeEdge(edge.id)} aria-label="Verbindung entfernen"><TrashIcon className="h-3.5 w-3.5" /></button></div>)}<div className="orbit-edge-create"><select aria-label="Zielknoten" value={targetId} onChange={(event) => setTargetId(event.target.value)}><option value="">Mit Knoten verbinden…</option>{board.nodes.filter((candidate) => candidate.id !== node.id).map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.title}</option>)}</select><button type="button" aria-label="Verbindung erstellen" disabled={!targetId} onClick={() => { if (targetId) { addEdgeToStore({ source: node.id, target: targetId, kind: "manual", label: "verbunden mit" }); setTargetId(""); } }}><PlusIcon className="h-4 w-4" /></button></div></section>
       </div>
     </aside>
@@ -487,8 +490,7 @@ function OrbitCanvas() {
   const [edgeMenu, setEdgeMenu] = useState<{ edgeId: string; x: number; y: number } | null>(null);
   const [edgeEditing, setEdgeEditing] = useState(false);
   const [edgeLabelDraft, setEdgeLabelDraft] = useState("");
-  const [contextMenu, setContextMenu] = useState<{ kind: "pane" | "node"; x: number; y: number; flowPosition: { x: number; y: number }; nodeId?: string } | null>(null);
-  const [contextRename, setContextRename] = useState(false);
+  const [renameNodeId, setRenameNodeId] = useState<string | null>(null);
   const [contextName, setContextName] = useState("");
   const [syncOpen, setSyncOpen] = useState(false);
   const [workspaceEditing, setWorkspaceEditing] = useState(false);
@@ -510,9 +512,6 @@ function OrbitCanvas() {
   const canvasInteractionRef = useRef<CanvasInteraction | null>(null);
   const [historyVersion, setHistoryVersion] = useState(0);
   const connectionRef = useRef<{ sourceId: string | null; completed: boolean }>({ sourceId: null, completed: false });
-  const contextMenuRef = useRef(contextMenu);
-  const contextMenuElementRef = useRef<HTMLDivElement>(null);
-  const suppressContextMenuRef = useRef(false);
   const toolbarRef = useRef<HTMLElement>(null);
   const prevFocusedNodeIdRef = useRef<string | null>(document.focusedNodeId);
   const nodeGeometryKey = useMemo(
@@ -521,11 +520,6 @@ function OrbitCanvas() {
   );
 
   const canvasInteractive = !isMobile || mobileCanvasMode === "interact";
-  contextMenuRef.current = contextMenu;
-  useMenuFocus(contextMenuElementRef, contextMenu !== null && !contextRename, () => {
-    setContextMenu(null);
-    setContextRename(false);
-  });
 
   const beginCanvasInteraction = useCallback((interaction: CanvasInteraction) => {
     canvasInteractionRef.current = interaction;
@@ -563,7 +557,6 @@ function OrbitCanvas() {
   useEffect(() => { setFlowEdges(board.edges.map((edge) => flowEdge(edge, nodesById))); }, [board.edges, nodesById]);
   useEffect(() => {
     setEdgeMenu(null);
-    setContextMenu(null);
     setDraggingNodeId(null);
     canvasInteractionRef.current = null;
     setCanvasInteraction(null);
@@ -598,30 +591,6 @@ function OrbitCanvas() {
       globalThis.document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [endCanvasInteraction]);
-
-  useEffect(() => {
-    const handlePointerDown = (event: PointerEvent) => {
-      if (!contextMenuRef.current) return;
-      const target = event.target instanceof globalThis.Element ? event.target : null;
-      if (target?.closest(".orbit-context-menu")) return;
-      setContextMenu(null);
-      setContextRename(false);
-    };
-    const handleContextMenu = (event: MouseEvent) => {
-      if (!contextMenuRef.current) return;
-      event.preventDefault();
-      setContextMenu(null);
-      setContextRename(false);
-      const target = event.target instanceof globalThis.Element ? event.target : null;
-      if (target?.closest(".react-flow")) suppressContextMenuRef.current = true;
-    };
-    globalThis.document.addEventListener("pointerdown", handlePointerDown, true);
-    globalThis.document.addEventListener("contextmenu", handleContextMenu, true);
-    return () => {
-      globalThis.document.removeEventListener("pointerdown", handlePointerDown, true);
-      globalThis.document.removeEventListener("contextmenu", handleContextMenu, true);
-    };
-  }, []);
 
   useEffect(() => {
     const wrapper = wrapperRef.current;
@@ -933,7 +902,7 @@ function OrbitCanvas() {
       if (target?.matches("input, textarea, select, [contenteditable=true]")) return;
       if (event.key === "/") { event.preventDefault(); setCommandOpen(true); setCommandQuery(""); }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setCommandOpen(true); setCommandQuery(""); }
-      if (event.key === "Escape") { setCommandOpen(false); setContextMenu(null); setEdgeMenu(null); }
+      if (event.key === "Escape") { setCommandOpen(false); setEdgeMenu(null); }
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
@@ -1191,32 +1160,41 @@ function OrbitCanvas() {
       return classes ? { ...node, className: classes } : node;
     }), [activeNodeIds, flowNodes, resizingNodeId, snapPreview]);
   const activeFlowEdges = useMemo(() => flowEdges.filter((edge) => activeNodeIds.has(edge.source) && activeNodeIds.has(edge.target)), [activeNodeIds, flowEdges]);
-  const contextNode = contextMenu?.nodeId ? board.nodes.find((node) => node.id === contextMenu.nodeId) : undefined;
   const snapTarget = snapPreview ? board.nodes.find((node) => node.id === snapPreview.targetGroupId) : undefined;
   const snapSlot = snapPreview?.targetSlotId ? board.nodes.find((node) => node.id === snapPreview.targetSlotId) : undefined;
 
   const openContextMenu = (event: MouseEvent | React.MouseEvent, kind: "pane" | "node", nodeId?: string) => {
-    event.preventDefault();
-    if (suppressContextMenuRef.current) {
-      suppressContextMenuRef.current = false;
-      return;
-    }
-    const bounds = wrapperRef.current?.getBoundingClientRect();
     const instance = instanceRef.current;
-    if (!bounds || !instance) return;
-    const x = Math.min(bounds.width - 246, Math.max(8, event.clientX - bounds.left));
-    const y = Math.min(bounds.height - 300, Math.max(8, event.clientY - bounds.top));
-    setContextMenu({ kind, ...(nodeId ? { nodeId } : {}), x, y, flowPosition: instance.screenToFlowPosition({ x: event.clientX, y: event.clientY }) });
-    setContextRename(false);
-    setContextName(nodeId ? board.nodes.find((node) => node.id === nodeId)?.title ?? "" : "");
+    if (!instance) return;
+    const position = instance.screenToFlowPosition({ x: event.clientX, y: event.clientY });
+    const node = nodeId ? board.nodes.find((candidate) => candidate.id === nodeId) : undefined;
     setEdgeMenu(null);
-    if (nodeId) focusNode(nodeId);
-  };
-
-  const addFromContext = (payload: OrbitPalettePayload) => {
-    if (!contextMenu) return;
-    addPayload(payload, contextMenu.flowPosition);
-    setContextMenu(null);
+    if (node) focusNode(node.id);
+    openGlobalContextMenu(event, kind === "node" && node ? {
+      surface: "host.context-menu.orbit-node",
+      title: node.title,
+      actions: [
+        { id: hostContextMenuId("orbit-node.properties"), icon: <EditIcon className="h-4 w-4" />, onSelect: () => { focusNode(node.id); setInspectorOpen(true); } },
+        { id: hostContextMenuId("orbit-node.rename"), icon: <EditIcon className="h-4 w-4" />, onSelect: () => { setContextName(node.title); setRenameNodeId(node.id); } },
+        { id: hostContextMenuId("orbit-node.duplicate"), icon: <CopyIcon className="h-4 w-4" />, onSelect: () => duplicateNode(node.id) },
+        { id: hostContextMenuId("orbit-node.lock"), label: node.locked ? "Position entsperren" : "Position sperren", icon: <LockIcon className="h-4 w-4" />, checked: node.locked, onSelect: () => updateNode(node.id, { locked: !node.locked }) },
+        { id: hostContextMenuId("orbit-node.color"), onSelect: () => { focusNode(node.id); setInspectorOpen(true); } },
+        { id: hostContextMenuId("orbit-node.delete"), icon: <TrashIcon className="h-4 w-4" />, danger: true, onSelect: () => removeNodeAndReleaseSlots(node.id) },
+      ],
+    } : {
+      surface: "host.context-menu.orbit-pane",
+      title: "Neue Fläche",
+      actions: [
+        { id: hostContextMenuId("orbit-pane.note"), icon: <NoteIcon className="h-4 w-4" />, onSelect: () => addPayload({ type: "note", title: "Neue Textfläche" }, position) },
+        { id: hostContextMenuId("orbit-pane.todo"), icon: <TodoIcon className="h-4 w-4" />, onSelect: () => addPayload({ type: "todo", title: "To-do-Liste" }, position) },
+        { id: hostContextMenuId("orbit-pane.terminal"), icon: <CommandIcon className="h-4 w-4" />, onSelect: () => addPayload({ type: "tool", title: "Terminal", toolType: "terminal" }, position) },
+        { id: hostContextMenuId("orbit-pane.codex"), icon: <CommandIcon className="h-4 w-4" />, onSelect: () => addPayload({ type: "tool", title: "Codex", toolType: "codex" }, position) },
+        { id: hostContextMenuId("orbit-pane.opencode"), icon: <CommandIcon className="h-4 w-4" />, onSelect: () => addPayload({ type: "tool", title: "OpenCode", toolType: "opencode" }, position) },
+        { id: hostContextMenuId("orbit-pane.preview"), icon: <PreviewsIcon className="h-4 w-4" />, onSelect: () => addPayload({ type: "previewGroup", title: "Einzel-Preview", layout: "1" }, position) },
+        { id: hostContextMenuId("orbit-pane.files"), icon: <FinderIcon className="h-4 w-4" />, onSelect: () => navigate("/files") },
+        { id: hostContextMenuId("orbit-pane.all-actions"), icon: <SearchIcon className="h-4 w-4" />, onSelect: () => setCommandOpen(true) },
+      ],
+    });
   };
 
   if (!hydrated) return <div className="orbit-loading" role="status" aria-label="Orbit wird vom Server geladen"><span /><span /><span /><span /><strong className="sr-only">Orbit wird vom Server geladen</strong></div>;
@@ -1306,10 +1284,9 @@ function OrbitCanvas() {
             setEdgeMenu({ edgeId: edge.id, x: event.clientX - bounds.left, y: event.clientY - bounds.top });
             setEdgeEditing(false);
             setEdgeLabelDraft(stored?.label ?? "");
-            setContextMenu(null);
           }
         }}
-        onPaneClick={(event) => { pastePositionRef.current = instanceRef.current?.screenToFlowPosition({ x: event.clientX, y: event.clientY }) ?? null; wrapperRef.current?.focus(); focusNode(null); setEdgeMenu(null); setContextMenu(null); }}
+        onPaneClick={(event) => { pastePositionRef.current = instanceRef.current?.screenToFlowPosition({ x: event.clientX, y: event.clientY }) ?? null; wrapperRef.current?.focus(); focusNode(null); setEdgeMenu(null); }}
         onDrop={drop}
         onDragEnter={(event) => { event.preventDefault(); setDragActive(true); }}
         onDragLeave={(event) => { if (!elementContainsEventTarget(event.currentTarget, event.relatedTarget)) setDragActive(false); }}
@@ -1357,34 +1334,8 @@ function OrbitCanvas() {
       {edgeMenu ? <div className={`orbit-edge-menu ${edgeEditing ? "is-editing" : ""}`} style={{ left: edgeMenu.x, top: edgeMenu.y }} role="dialog" aria-label="Verbindung bearbeiten" onPointerDown={(event) => event.stopPropagation()}>
         {edgeEditing ? <form onSubmit={(event) => { event.preventDefault(); updateEdge(edgeMenu.edgeId, { label: edgeLabelDraft.trim() || null }); setEdgeEditing(false); }}><input autoFocus aria-label="Verbindungstext" value={edgeLabelDraft} maxLength={80} onChange={(event) => setEdgeLabelDraft(event.target.value)} /><button type="submit"><SaveIcon className="h-3.5 w-3.5" /> Speichern</button></form> : <><span>Verbindung</span><div><button type="button" className="is-edit" onClick={() => setEdgeEditing(true)}><EditIcon className="h-3.5 w-3.5" /> Bearbeiten</button><button type="button" className="is-delete" onClick={() => { removeEdge(edgeMenu.edgeId); setEdgeMenu(null); }}><TrashIcon className="h-3.5 w-3.5" /> Löschen</button></div></>}
       </div> : null}
-      {contextMenu ? <div ref={contextMenuElementRef} className="orbit-context-menu nodrag nowheel" style={{ left: contextMenu.x, top: contextMenu.y }} role="menu" aria-label={contextMenu.kind === "node" ? "Knotenaktionen" : "Schnellaktionen"} onPointerDown={(event) => event.stopPropagation()}>
-        <header><span>{contextMenu.kind === "node" ? typeLabels[contextNode?.type ?? "note"] : "Neue Fläche"}</span><strong>{contextNode?.title ?? "Schnell hinzufügen"}</strong></header>
-        {contextRename && contextNode ? <form onSubmit={(event) => { event.preventDefault(); updateNode(contextNode.id, { title: contextName.trim() || "Unbenannt" }); setContextMenu(null); }}><input autoFocus value={contextName} maxLength={120} aria-label="Neuer Name" onChange={(event) => setContextName(event.target.value)} /><button type="submit"><SaveIcon className="h-4 w-4" /> Speichern</button></form> : contextMenu.kind === "node" && contextNode ? <div className="orbit-context-actions">
-          <button type="button" role="menuitem" onClick={() => { setInspectorOpen(true); setContextMenu(null); }}><EditIcon className="h-4 w-4" /><span>Eigenschaften bearbeiten</span></button>
-          <button type="button" role="menuitem" onClick={() => setContextRename(true)}><EditIcon className="h-4 w-4" /><span>Name ändern</span></button>
-          <button type="button" role="menuitem" onClick={() => { duplicateNode(contextNode.id); setContextMenu(null); }}><CopyIcon className="h-4 w-4" /><span>Duplizieren</span></button>
-          <button type="button" role="menuitem" onClick={() => { updateNode(contextNode.id, { locked: !contextNode.locked }); setContextMenu(null); }}><LockIcon className="h-4 w-4" /><span>{contextNode.locked ? "Position entsperren" : "Position sperren"}</span></button>
-          {/* Farbe des Knotens. Die von ihm ausgehenden Verbindungen ziehen mit
-              (siehe orbitEdgeColor) — deshalb steht das direkt im Kontextmenü. */}
-          <OrbitColorPicker
-            value={contextNode.color}
-            onSelect={(color) => { updateNode(contextNode.id, { color }); setContextMenu(null); }}
-          />
-          <button type="button" role="menuitem" className="is-danger" onClick={() => { removeNodeAndReleaseSlots(contextNode.id); setContextMenu(null); }}><TrashIcon className="h-4 w-4" /><span>Komplett löschen</span></button>
-        </div> : <div className="orbit-context-actions">
-          <button type="button" role="menuitem" onClick={() => addFromContext({ type: "note", title: "Neue Textfläche" })}><NoteIcon className="h-4 w-4" /><span>Neue Textfläche</span></button>
-          <button type="button" role="menuitem" onClick={() => addFromContext({ type: "todo", title: "To-do-Liste" })}><TodoIcon className="h-4 w-4" /><span>Neue To-do-Liste</span></button>
-          <button type="button" role="menuitem" onClick={() => addFromContext({ type: "tool", title: "Terminal", toolType: "terminal" })}><CommandIcon className="h-4 w-4" /><span>Neues Terminal</span></button>
-          <button type="button" role="menuitem" onClick={() => addFromContext({ type: "tool", title: "Codex", toolType: "codex" })}><CommandIcon className="h-4 w-4" /><span>Codex öffnen</span></button>
-          <button type="button" role="menuitem" onClick={() => addFromContext({ type: "tool", title: "OpenCode", toolType: "opencode" })}><CommandIcon className="h-4 w-4" /><span>OpenCode öffnen</span></button>
-          <button type="button" role="menuitem" onClick={() => addFromContext({ type: "frame", title: "Neuer Bereich" })}><FrameIcon className="h-4 w-4" /><span>Neuer Bereich</span></button>
-          <button type="button" role="menuitem" onClick={() => addFromContext({ type: "previewGroup", title: "Einzel-Preview", layout: "1" })}><FrameIcon className="h-4 w-4" /><span>Einzel-Preview</span></button>
-          <button type="button" role="menuitem" onClick={() => addFromContext({ type: "previewGroup", title: "3er-Preview-Gruppe", layout: "3" })}><FrameIcon className="h-4 w-4" /><span>3er-Preview-Gruppe</span></button>
-          <button type="button" role="menuitem" onClick={() => { setContextMenu(null); navigate("/files"); }}><FinderIcon className="h-4 w-4" /><span>Dateimanager öffnen</span></button>
-          <button type="button" role="menuitem" onClick={() => { setContextMenu(null); setCommandOpen(true); }}><SearchIcon className="h-4 w-4" /><span>Alle Aktionen</span></button>
-        </div>}
-      </div> : null}
       <OrbitInspector projects={projects} expanded={inspectorOpen} onExpand={() => setInspectorOpen(true)} onCollapse={() => setInspectorOpen(false)} />
+      <PromptDialog open={renameNodeId !== null} title="Knoten umbenennen" label="Name" initialValue={contextName} confirmLabel="Umbenennen" onConfirm={(name) => { if (renameNodeId) updateNode(renameNodeId, { title: name.trim() || "Unbenannt" }); setRenameNodeId(null); }} onClose={() => setRenameNodeId(null)} />
 
       {commandOpen ? <div className="orbit-command-backdrop" onPointerDown={() => setCommandOpen(false)}><div className="orbit-command" role="dialog" aria-modal="true" aria-label="Orbit-Befehl" onPointerDown={(event) => event.stopPropagation()}><div className="orbit-command-mobile-head"><div><span>Orbit-Palette</span><strong>Knoten hinzufügen</strong></div><button type="button" onClick={() => setCommandOpen(false)} aria-label="Palette schließen"><CloseIcon className="h-5 w-5" /></button></div><label><SearchIcon className="h-4 w-4" /><input autoFocus value={commandQuery} onChange={(event) => setCommandQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && commands[0]) { addPayload(commands[0].payload); setCommandOpen(false); } }} placeholder="Terminal, Notiz oder Projekt…" /><kbd>Esc</kbd></label><div className="orbit-command-results"><button type="button" className="orbit-command-project-browser" onClick={() => { setCommandOpen(false); setProjectBrowserOpen(true); }}><span>Server</span><strong><FolderSearchIcon className="h-4 w-4" /> Projektordner durchsuchen</strong></button>{commands.map((item, index) => <button type="button" key={`${item.payload.type}-${item.payload.title}`} className={index === 0 ? "is-active" : ""} onClick={() => { addPayload(item.payload); setCommandOpen(false); }}><span>{item.payload.type === "tool" ? item.payload.toolType : typeLabels[item.payload.type]}</span><strong>{item.payload.title}</strong>{index === 0 ? <kbd>Enter</kbd> : null}</button>)}{commands.length === 0 ? <p>Kein passender Knoten gefunden.</p> : null}</div></div></div> : null}
       <OrbitProjectBrowserDialog open={projectBrowserOpen} onClose={() => setProjectBrowserOpen(false)} />

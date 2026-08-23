@@ -1772,17 +1772,6 @@ a:hover .app-icon,
   .orbit-edge-label { position: absolute; z-index: 4; border: 1px solid var(--color-line); border-radius: 5px; background: rgb(29 29 29 / .96); padding: 4px 6px; color: var(--color-muted); font-size: 10px; line-height: 1; white-space: nowrap; pointer-events: none; }
   .orbit-edge-waypoint { position: absolute; z-index: 6; width: 12px; height: 12px; border: 2px solid var(--color-ink-900); border-radius: 4px; background: var(--color-muted); box-shadow: 0 2px 7px rgb(0 0 0 / .38); cursor: move; }
   .orbit-edge-waypoint:hover { background: var(--color-muted); transform-origin: center; }
-  .orbit-context-menu { position: absolute; z-index: 58; width: 268px; overflow: hidden; border: 1px solid var(--color-ink-600); border-radius: 10px; background: var(--color-ink-850); box-shadow: 0 18px 44px rgb(0 0 0 / .46); }
-  .orbit-context-menu header { display: grid; gap: 2px; border-bottom: 1px solid var(--color-line); padding: 10px 11px; }
-  .orbit-context-menu header span { color: var(--color-faint); font-size: 8px; letter-spacing: .07em; text-transform: uppercase; }
-  .orbit-context-menu header strong { overflow: hidden; color: var(--color-text); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-  .orbit-context-actions { display: grid; padding: 5px; }
-  .orbit-context-actions button { display: flex; min-height: 36px; align-items: center; gap: 9px; border: 0; border-radius: 6px; background: transparent; padding: 0 9px; color: var(--color-muted); font-size: 11px; text-align: left; }
-  .orbit-context-actions button:hover { background: var(--color-ink-700); color: var(--color-text); }
-  .orbit-context-actions button.is-danger { color: var(--color-bad); }
-  .orbit-context-menu form { display: grid; gap: 6px; padding: 8px; }
-  .orbit-context-menu form input { height: 36px; border: 1px solid var(--color-accent-line); border-radius: 6px; outline: 0; background: var(--color-ink-950); padding: 0 9px; color: var(--color-text); }
-  .orbit-context-menu form button { display: inline-flex; min-height: 34px; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: 6px; background: var(--color-accent-soft); color: var(--color-accent); }
   .orbit-territory-readout { position: absolute; z-index: 18; right: 14px; bottom: 10px; width: 128px; color: var(--color-faint); font-family: var(--font-mono); font-size: 8px; line-height: 14px; text-align: center; pointer-events: none; }
   .orbit-minimap { position: absolute; z-index: 18; right: 14px; bottom: 30px; width: 144px; height: 94px; overflow: hidden; border: 1px solid var(--color-ink-600); border-radius: 9px; outline: 0; background: var(--color-ink-900); box-shadow: 0 8px 22px rgb(0 0 0 / .24); cursor: crosshair; touch-action: none; }
   .orbit-minimap:focus-visible { border-color: var(--color-accent-line); box-shadow: 0 0 0 2px rgb(127 159 197 / .16), 0 8px 22px rgb(0 0 0 / .24); }
@@ -1927,8 +1916,6 @@ a:hover .app-icon,
   .orbit-flow .react-flow__resize-control.orbit-resize-corner.top.right { top: 0 !important; right: auto !important; left: 100% !important; }
   .orbit-flow .react-flow__resize-control.orbit-resize-corner.bottom.left { top: 100% !important; bottom: auto !important; left: 0 !important; }
   .orbit-flow .react-flow__resize-control.orbit-resize-corner.bottom.right { top: 100% !important; right: auto !important; bottom: auto !important; left: 100% !important; }
-  .orbit-context-menu { width: min(280px, calc(100% - 16px)); }
-  .orbit-context-actions button { min-height: 44px; font-size: 13px; }
   .orbit-handle::after { position: absolute; inset: -16px; content: ""; }
   .react-flow__node:not(.selected) .orbit-handle { opacity: 0; pointer-events: none; }
   .react-flow__node.selected .orbit-handle { opacity: 1; }
@@ -2008,6 +1995,8 @@ a:hover .app-icon,
   .sidebar-section:first-child .sidebar-section-divider { margin-top: 2px; }
   .sidebar-item { position: relative; display: flex; align-items: center; gap: 10px; margin: 1px 8px; padding: 8px; border-radius: var(--radius-sm); color: var(--color-muted); font-size: 14px; line-height: 20px; transition: background var(--duration-base) var(--ease-standard), color var(--duration-base) var(--ease-standard); }
   .sidebar-item:hover { background: var(--color-ink-800); color: var(--color-text); }
+  .sidebar-item.is-touch-reordering { background: var(--color-ink-700); box-shadow: inset 0 0 0 1px var(--color-accent); color: var(--color-text); touch-action: none; }
+  .mobile-navigation-item.is-touch-reordering { background: var(--color-ink-700); box-shadow: inset 0 0 0 1px var(--color-accent); touch-action: none; }
   /* Aktiver Eintrag: umlaufender 2-px-Rahmen. Der frühere Farbstrich links war
      eine reine Verzierung und sagte weniger klar, welche Fläche gemeint ist. */
   .sidebar-item[aria-current="page"] { background: var(--color-ink-800); box-shadow: inset 0 0 0 1px var(--color-accent); color: var(--color-text); }
@@ -2067,7 +2056,7 @@ a:hover .app-icon,
   .status-bar-item { display: inline-flex; min-width: 0; align-items: center; gap: 7px; white-space: nowrap; }
   .status-bar-value { color: var(--color-text); font-weight: 500; }
   .status-bar-divider { width: 1px; height: 16px; flex: none; background: var(--color-line); }
-  .status-limits { display: inline-flex; min-width: 0; max-width: 64%; align-items: center; gap: 12px; margin-left: auto; border-radius: var(--radius-sm); padding: 6px 8px; color: var(--color-muted); font-family: var(--font-mono); font-size: var(--text-sm); transition: background var(--duration-base) var(--ease-standard), color var(--duration-base) var(--ease-standard); }
+  .status-limits { display: inline-flex; min-width: 0; max-width: 64%; align-items: center; gap: 12px; margin-left: auto; border-radius: var(--radius-sm); padding: 6px 8px; color: var(--color-muted); font-family: var(--font-mono); font-size: var(--status-limit-font-size, 12px); transition: background var(--duration-base) var(--ease-standard), color var(--duration-base) var(--ease-standard); }
   .status-limits > span:not(.status-bar-divider) { min-width: 0; max-width: 44vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .status-limits:hover { background: var(--color-ink-800); color: var(--color-text); }
   .status-limits strong { color: var(--color-text); font-weight: 600; }
@@ -2250,11 +2239,6 @@ a:hover .app-icon,
   .browser-error { color: var(--color-bad); }
   .browser-error strong { color: var(--color-text); font-size: 13px; }
   .browser-error span { color: var(--color-muted); }
-  .browser-context-menu { position: absolute; z-index: 18; width: 214px; display: grid; border: 1px solid var(--color-faint); border-radius: var(--radius-sm); background: var(--color-ink-850); padding: 5px; box-shadow: 0 16px 38px rgb(0 0 0 / .42); }
-  .browser-context-menu button { display: flex; min-height: 34px; align-items: center; gap: 9px; border: 0; border-radius: var(--radius-sm); background: transparent; padding: 0 9px; color: var(--color-text); font-size: 11px; text-align: left; }
-  .browser-context-menu button:hover:not(:disabled) { background: var(--color-ink-700); color: var(--color-text); }
-  .browser-context-menu button:disabled { opacity: .34; }
-  .browser-context-menu > span { height: 1px; margin: 4px; background: var(--color-ink-600); }
   .browser-devtools { min-height: 220px; flex: 1 1 50%; display: flex; flex-direction: column; overflow: hidden; border-top: 1px solid var(--color-ink-600); background: var(--color-ink-850); }
   .browser-devtools > header { display: flex; min-height: 34px; flex: none; align-items: center; border-bottom: 1px solid var(--color-ink-600); padding: 3px 5px 3px 9px; }
   .browser-devtools > header > div { min-width: 0; display: flex; align-items: baseline; gap: 7px; }
@@ -3250,24 +3234,6 @@ a:hover .app-icon,
     transform: translate(-50%, -130%);
   }
   .terminal-sidebar-backdrop { position: fixed; z-index: 13; inset: 0; border: 0; background: rgb(0 0 0 / .5); }
-  .terminal-context-menu {
-    position: fixed; z-index: 300; display: flex; min-width: 200px; max-width: 260px; flex-direction: column; gap: 2px;
-    border: 1px solid var(--color-line); border-radius: var(--radius-sm);
-    background: rgb(17 17 17 / .98); padding: 5px; box-shadow: var(--shadow-overlay);
-  }
-  .terminal-context-item {
-    display: flex; min-height: 34px; align-items: center; gap: 8px;
-    border: 0; border-radius: var(--terminal-radius, 2px); background: transparent;
-    padding: 0 10px; color: var(--color-muted); font-size: var(--text-sm); text-align: left;
-  }
-  .terminal-context-item:hover, .terminal-context-item:focus-visible { background: var(--color-ink-800); color: var(--color-text); }
-  .terminal-context-item:disabled { opacity: .35; }
-  .terminal-context-item.is-danger { color: var(--color-bad); }
-  .terminal-context-item.is-danger:hover { background: var(--color-bad-soft); }
-  .terminal-context-icon { display: grid; width: 18px; flex: none; place-items: center; color: var(--color-faint); }
-  .terminal-context-item.is-danger .terminal-context-icon { color: var(--color-bad); }
-  .terminal-context-label { min-width: 0; flex: 1; }
-  .terminal-context-separator { height: 1px; margin: 3px 4px; background: var(--color-line); }
   .terminal-hover-preview {
     position: fixed; z-index: 260; display: flex; width: min(360px, calc(100vw - 24px)); height: 220px; flex-direction: column;
     overflow: hidden; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-ink-900);
@@ -3450,13 +3416,6 @@ a:hover .app-icon,
   .app-shell[data-shell-mode="tablet"] .terminal-keybar-switch button { min-height: 44px; }
   .app-shell[data-shell-mode="compact"] .terminal-tree-row,
   .app-shell[data-shell-mode="tablet"] .terminal-tree-row { touch-action: manipulation; }
-  .app-shell[data-shell-mode="compact"] .terminal-context-menu,
-  .app-shell[data-shell-mode="tablet"] .terminal-context-menu {
-    min-width: min(300px, calc(100vw - 16px)); max-width: calc(100vw - 16px);
-    max-height: min(72dvh, 620px); overflow-y: auto; padding: 6px;
-  }
-  .app-shell[data-shell-mode="compact"] .terminal-context-item,
-  .app-shell[data-shell-mode="tablet"] .terminal-context-item { min-height: 44px; }
   .app-shell[data-shell-mode="compact"] .terminal-session-picker-actions button,
   .app-shell[data-shell-mode="tablet"] .terminal-session-picker-actions button { width: 44px; height: 44px; }
   .app-shell[data-shell-mode="compact"] .terminal-sidebar.is-drawer,
@@ -3671,10 +3630,6 @@ a:hover .app-icon,
   .app-shell[data-shell-mode="compact"] .browser-more-button,
   .app-shell[data-shell-mode="tablet"] .browser-touch-mode,
   .app-shell[data-shell-mode="tablet"] .browser-more-button { display: grid !important; }
-  .app-shell[data-shell-mode="compact"] .browser-context-menu,
-  .app-shell[data-shell-mode="tablet"] .browser-context-menu { position: fixed; z-index: 115; top: auto !important; right: max(8px, env(safe-area-inset-right)); bottom: max(8px, env(safe-area-inset-bottom)); left: max(8px, env(safe-area-inset-left)) !important; width: auto; border-radius: var(--radius-sm); padding: 7px; }
-  .app-shell[data-shell-mode="compact"] .browser-context-menu button,
-  .app-shell[data-shell-mode="tablet"] .browser-context-menu button { min-height: 48px; border-radius: var(--radius-sm); font-size: 13px; }
   .connection-banner { min-height: 42px; display: flex; flex: none; align-items: center; gap: 10px; border-bottom: 1px solid var(--color-warn); background: var(--color-warn-soft); padding: 8px 16px; color: var(--color-muted); font-size: 12px; }
   .connection-banner span { color: var(--color-warn); font-weight: 650; }
   .connection-banner strong { font-weight: 450; }
@@ -4382,10 +4337,6 @@ a:hover .app-icon,
   .orbit-preview-empty .local-port-grid button { min-height: 40px; }
   .sidebar-preview-divider { display: block; height: 1px; margin: 6px 10px; background: var(--color-line); }
   .sidebar-preview-saved { position: relative; }
-  .sidebar-preview-menu { position: absolute; z-index: 90; top: 100%; right: 6px; display: grid; width: 150px; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-ink-850); padding: 4px; box-shadow: var(--shadow-popover); }
-  .sidebar-preview-menu button, .sidebar-preview-menu a { min-height: 34px; border: 0; border-radius: var(--radius-sm); background: transparent; padding: 8px; color: var(--color-muted); font-size: 11px; text-align: left; }
-  .sidebar-preview-menu button:hover, .sidebar-preview-menu a:hover { background: var(--color-ink-800); color: var(--color-text); }
-  .sidebar-preview-menu .is-danger { color: var(--color-bad); }
 
   .preview-group-page { display: flex; min-height: 100%; flex-direction: column; gap: var(--space-3); background: var(--color-ink-950); padding: var(--space-4); }
   .preview-group-page > header { display: flex; min-height: 56px; align-items: center; justify-content: space-between; gap: var(--space-4); }
@@ -5032,57 +4983,6 @@ a:hover .app-icon,
 .file-manager-empty strong { color: var(--color-text); font-size: 15px; }
 .file-manager-empty p { font-size: 12.5px; max-width: 300px; }
 .file-manager-empty-actions { display: flex; gap: 8px; margin-top: 4px; }
-
-.file-manager-context-menu {
-  position: fixed;
-  z-index: 260;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  width: 232px;
-  max-height: 360px;
-  overflow-y: auto;
-  padding: 6px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-sm);
-  background: var(--color-ink-900);
-  box-shadow: var(--shadow-popover);
-}
-.file-manager-context-title {
-  padding: 6px 10px 8px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-muted);
-  border-bottom: 1px solid var(--color-line-soft);
-  margin-bottom: 4px;
-}
-.file-manager-context-menu button {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 40px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: var(--radius-sm);
-  background: transparent;
-  color: var(--color-muted);
-  font-size: 13px;
-  text-align: left;
-  cursor: pointer;
-}
-.file-manager-context-menu button:hover { background: var(--color-ink-700); color: var(--color-text); }
-.file-manager-context-menu button.is-danger { color: var(--color-bad); }
-.file-manager-context-menu button.is-danger:hover { background: var(--color-bad-soft); }
-.file-manager-context-menu.is-sheet {
-  position: fixed;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
-  width: auto;
-  max-height: 70dvh;
-  border-radius: 0;
-  padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
-}
 
 /* Drawer und Backdrop liegen im Body-Portal und müssen über der Topbar
    (z 40) liegen, aber unter Dialogen (220) und Quick Look (250), damit

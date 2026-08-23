@@ -38,7 +38,7 @@ export function canonicalizeWraptEnvironment(input: NodeJS.ProcessEnv): NodeJS.P
   }
   // Die lokale Vorlage vor dem Rename kann noch den unmittelbar vorherigen
   // Produktstand enthalten. Der neue Paket-/Config-Stand ist maßgeblich.
-  if (["0.95.0", "0.96.0", "0.96.1", "0.97.0", "0.98.0"].includes(result.APP_VERSION ?? "")) result.APP_VERSION = "0.99.0";
+  if (["0.95.0", "0.96.0", "0.96.1", "0.97.0", "0.98.0", "0.99.0"].includes(result.APP_VERSION ?? "")) result.APP_VERSION = "0.99.5";
   return result;
 }
 
