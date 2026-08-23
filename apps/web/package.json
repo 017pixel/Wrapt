@@ -1,6 +1,6 @@
 {
   "name": "@wrapt/web",
-  "version": "0.99.0",
+  "version": "0.99.5",
   "private": true,
   "type": "module",
   "scripts": {

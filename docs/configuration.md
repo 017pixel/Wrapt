@@ -15,6 +15,8 @@ Konfigurationsquelle für alles Umgebungsspezifische:
 - `codexbar` — Pfad zur CodexBar-`config.json` und optionale OAuth-Profil-Homes.
 - `dashboard` — serverseitige Sichtbarkeitsdefaults für Dashboard-Bereiche und Polling-Intervalle. Die lokale Oberfläche kann diese Bereiche zusätzlich pro Browser ausblenden.
 - `appearance` — projektweite Akzent-, Hintergrund-, Sidebar-, Topbar- und Bottom-Bar-Farben. Lokale Plugins lesen dieselben semantischen Theme-Tokens.
+- `contextMenu` — globale Rechtsklick-Menüs, Schnellaktionen, Surface-Schalter und Statusleisten-Darstellung.
+- `plugins` — optionale lokale Dateiquellen für Plugin-Werkzeuge, insbesondere `creatorSkillPath` für die in der Oberfläche lesbare und herunterladbare `$plugin-creator`-Anleitung.
 - `notifications` — Aufbewahrung, Erkennungsschwellen sowie Toast- und Push-Regeln pro Quelle.
 - `previews` — interne Loopback-Listener, zugehörige öffentliche Tailscale-HTTPS-Ports und die Feature-Flags der Preview-Laufzeit (siehe unten).
 - `hermes` — Loopback-Dashboard, ACP-Chat, User-Units, Updatezeit und serverseitige Betriebsgrenzen.
@@ -24,6 +26,11 @@ Der Server (`apps/server/src/config/settings.ts`) und der Vite-Build (`apps/web/
 lesen diese Datei beim Start; fehlt sie, wird auf `config/wrapt.example.json` zurückgegriffen.
 Die Werte aus dieser Config bilden die **Defaults**; eine gesetzte Umgebungsvariable in `.env`
 überschreibt den jeweiligen Einzelwert.
+
+`plugins.creatorSkillPath` muss ein absoluter Pfad auf eine UTF-8-Textdatei sein. Ohne Angabe
+verwendet Wrapt `<paths.codexSharedHome>/skills/.system/plugin-creator/SKILL.md` beziehungsweise
+`<system.homeDirectory>/.codex/skills/.system/plugin-creator/SKILL.md`. Die API liefert nur diese
+explizit konfigurierte Datei und erlaubt kein freies Lesen anderer lokaler Pfade.
 
 ## Hermes Agent
 
@@ -199,6 +206,18 @@ aktiviert, lädt Wrapt ausschließlich die öffentliche, schreibgeschützte API 
 Codex-Zugangsdaten werden dabei nicht übertragen. Die Antwort wird serverseitig kurzzeitig
 gecached; bei einem temporären Fehler bleibt der letzte erfolgreiche Stand als „Letzter Stand“
 sichtbar. Die Community-Historie ist keine Bestätigung für den persönlichen Codex-Account.
+
+## Rechtsklick-Menüs
+
+`contextMenu.enabled` schaltet die Host-Menüs global. Unter `surfaces` kann jede Host-Surface
+separat deaktiviert werden; fehlende Einträge sind aktiviert. `quickActions.mode` wählt zwischen
+der ausschließlich im Browser gezählten automatischen Top 3 und bis zu drei manuellen
+Navigation-IDs. `statusBar.fontSizePx` erlaubt 10 bis 20 Pixel, `alwaysShowLimits` blendet die
+Limitdetails dauerhaft ein. Änderungen über Einstellungen → Rechtsklick werden atomar in
+`config/wrapt.local.json` gespeichert und wirken ohne Neustart.
+
+Eingebettete Anwendungen wie T3 Code, Hermes, Code-Server, Preview-Runtime und Plugin-Frames
+bleiben ausgenommen und verwenden ihr eigenes Kontextmenü.
 
 ## Appearance und lokale Plugins
 

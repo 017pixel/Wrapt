@@ -72,7 +72,7 @@ Persönliche Drafts liegen unter `<dataDirectory>/plugin-drafts`, aktivierte Pak
 
 Der KI-Prompt beschreibt Ziel, Host-Flächen, Contributions, Permissions, Orbit, Theme-Tokens, Tests und Neustart-Verhalten. Kleine Erweiterungen gehören in kontrollierte Slots wie Topbar, Bottom-Bar, Dashboard, Orbit, Kontextmenü, Overlay, Bottom Sheet oder rechte Seitenleiste. Freie Änderungen am Host-DOM sind nicht erlaubt.
 
-Alternativ kann ein Coding-Agent den lokalen Skill `$plugin-creator` verwenden. Er fragt dieselben Angaben wie der Setup-Wizard ab, prüft vorhandene Drafts und Slugs vor dem Schreiben und aktualisiert persönliche Plugins über die Authoring-API. Für ein vorhandenes Plugin muss der Agent dessen Draft-ID weiterverwenden, statt ein gleichnamiges Duplikat anzulegen.
+Alternativ kann ein Coding-Agent den lokalen Skill `$plugin-creator` verwenden. Er fragt dieselben Angaben wie der Setup-Wizard ab, prüft vorhandene Drafts und Slugs vor dem Schreiben und aktualisiert persönliche Plugins über die Authoring-API. Für ein vorhandenes Plugin muss der Agent dessen Draft-ID weiterverwenden, statt ein gleichnamiges Duplikat anzulegen. Unter Plugins → Allgemein lässt sich die verwendete Skill-Anleitung direkt lesen oder als `plugin-creator-SKILL.md` herunterladen. Die Quelle wird über `plugins.creatorSkillPath` konfiguriert und bleibt auf genau diese lokale Textdatei begrenzt.
 
 ### Werkzeugseiten in der linken Sidebar
 
@@ -82,7 +82,7 @@ Für mobile Geräte muss dieselbe Route über die mobile Navigation erreichbar s
 
 ### Neustarts und Agenten
 
-Ein Plugin-Agent darf Frontend oder Backend nicht eigenständig neu starten. Der KI-Prompt verlangt zuerst Tests und weist auf die Freigabe durch den Benutzer hin. Nach Store- oder Draft-Änderungen zeigt Wrapt einen Link zu Einstellungen → System, wo der passende Neustart kontrolliert ausgelöst werden kann. So bleibt ein laufendes Agententerminal erhalten und der Nutzer entscheidet selbst über den Zeitpunkt.
+Ein Plugin-Agent darf Frontend oder Backend nicht eigenständig neu starten. Der KI-Prompt verlangt zuerst Tests und weist auf die Freigabe durch den Benutzer hin. Nach Store- oder Draft-Änderungen zeigt Wrapt auf der Plugin-Seite einen schließbaren Hinweis. Erst der Benutzer startet dort Frontend und Backend gemeinsam neu und sieht Build, Backend, T3-Kanal sowie Fehler direkt im selben Flow. Laufende Panels, Arbeitsflächen, Terminals und persistierte Daten bleiben erhalten.
 
 ### Abgleich mit aktuellen Agenten-Systemen
 
