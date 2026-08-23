@@ -1,0 +1,46 @@
+{
+  "slug": "mein-plugin",
+  "name": "Mein erstes Plugin",
+  "description": "Eine erste eigene Wrapt-Seite.",
+  "publisher": "wrapt",
+  "category": "productivity",
+  "version": "0.1.0",
+  "creationMode": "ai",
+  "icon": "folder",
+  "routePath": "/plugins/view/mein-plugin",
+  "pageMode": "html",
+  "iframeUrl": null,
+  "html": "<section><h2>Hallo Wrapt</h2><p>Deine erste eigene Seite ist live – als bereinigtes HTML, ohne freie Scripts und direkt in deiner Workbench.</p></section><section><h3>Gut zu wissen</h3><ul><li>Route: <code>/plugins/tool/mein-plugin</code></li><li>Modus: bereinigtes HTML statt freiem Code</li><li>Aktionen: nur über die Host-Broker-Schicht</li></ul></section>",
+  "blocks": [
+    { "id": "intro", "type": "heading", "title": "Deine Seite", "content": "Hier beginnt dein Plugin.", "actionId": null }
+  ],
+  "functions": [
+    { "id": "begruessung-kopieren", "label": "Begrüßung kopieren", "action": "copy-text", "value": "Hallo Wrapt!" }
+  ],
+  "orbit": { "enabled": false, "title": "Mein erstes Plugin", "description": "", "placement": "both", "nodeType": "note", "accent": "accent" },
+  "wizard": {
+    "goal": "Einen Hello-World-Text als eigene, schöne Wrapt-Seite anzeigen.",
+    "audience": "Nur ich.",
+    "design": "kompakt",
+    "layout": "einspaltig",
+    "tone": "direkt",
+    "includeHtml": true,
+    "includeIframe": false,
+    "includeOrbit": false,
+    "additionalDescription": "",
+    "wishes": "",
+    "editRequest": "",
+    "additionalRequirements": "Schönes Design im bestehenden Wrapt-Look, responsive und mobil bedienbar.",
+    "iconDescription": "",
+    "restartBehavior": "never",
+    "agent": "opencode",
+    "permissions": [],
+    "surfaces": ["page", "sidebar"],
+    "dataNeeds": [],
+    "interactions": ["Begrüßung kopieren"],
+    "mobileBehavior": "responsive"
+  },
+  "sourceExampleId": "mein-plugin",
+  "status": "draft",
+  "surfaces": ["page", "sidebar"]
+}

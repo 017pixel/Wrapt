@@ -1,0 +1,23 @@
+{
+  "slug": "orbit-notes",
+  "name": "Orbit-Notizen",
+  "description": "Eine sofort nutzbare Notizseite mit Schreibfläche, lokalem Speichern und Kopieren aus dem Orbit.",
+  "publisher": "wrapt",
+  "category": "orbit",
+  "version": "1.0.0",
+  "icon": "note",
+  "routePath": "/plugins/view/orbit-notes",
+  "pageMode": "html",
+  "iframeUrl": null,
+  "html": "<article><h2>Heute im Orbit</h2><p>Halte Entscheidungen, offene Fragen und nächste Schritte an einem Ort fest.</p><label>Titel<input placeholder=\"Worum geht es?\"></label><label>Notiz<textarea placeholder=\"Gedanken, Entscheidungen oder nächste Schritte\"></textarea></label></article>",
+  "blocks": [],
+  "functions": [
+    { "id": "save-note", "label": "Notiz lokal speichern", "action": "save-state", "value": "orbit-notes" },
+    { "id": "copy-template", "label": "Notizvorlage kopieren", "action": "copy-text", "value": "Titel:\nEntscheidung:\nNächster Schritt:" }
+  ],
+  "orbit": { "enabled": true, "title": "Notiz öffnen", "description": "Eine freie Notizfläche für den Orbit.", "placement": "orbit", "nodeType": "note", "accent": "ok" },
+  "wizard": { "goal": "Schnelle Notizen aus dem Orbit heraus öffnen, ausfüllen und lokal sichern.", "audience": "Orbit-Nutzerinnen und Orbit-Nutzer.", "design": "kompakt", "layout": "einspaltig", "tone": "direkt", "includeHtml": true, "includeIframe": false, "includeOrbit": true, "additionalDescription": "Die Seite soll sofort editierbar wirken und eine wiederverwendbare Vorlage kopierbar machen.", "wishes": "Wenig Chrome, viel Schreibfläche sowie klare Speichern- und Kopieren-Aktionen.", "iconDescription": "Schlichte Notizseite für Gedanken und Entscheidungen.", "additionalRequirements": "HTML wird bereinigt. Freie Scripts und fremde Host-DOM-Zugriffe sind nicht erlaubt.", "restartBehavior": "never", "agent": "codex", "permissions": [], "surfaces": ["page", "orbit"], "dataNeeds": ["lokale Notiz"], "interactions": ["Notiz speichern", "Vorlage kopieren"], "mobileBehavior": "responsive" },
+  "sourceExampleId": "orbit-notes",
+  "status": "draft",
+  "surfaces": ["page", "orbit"]
+}

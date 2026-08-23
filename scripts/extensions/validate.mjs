@@ -18,7 +18,7 @@ const build = spawnSync(
 if (build.status !== 0) process.exit(build.status ?? 1);
 
 const contractsUrl = new URL("../../packages/extension-contracts/dist/index.js", import.meta.url);
-const { extensionManifestSchema } = await import(contractsUrl.href);
+const { extensionManifestV1Schema } = await import(contractsUrl.href);
 
 async function collectManifestFiles(path) {
   const absolute = resolve(root, path);
@@ -48,7 +48,7 @@ for (const file of files) {
   const label = relative(root, file);
   try {
     const raw = JSON.parse(await readFile(file, "utf8"));
-    const result = extensionManifestSchema.safeParse(raw);
+    const result = extensionManifestV1Schema.safeParse(raw);
     if (result.success) {
       console.log(`OK  ${label}`);
       continue;

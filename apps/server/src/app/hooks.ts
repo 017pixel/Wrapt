@@ -41,6 +41,18 @@ export function registerCoreHooks(app: FastifyInstance, deps: AppDependencies) {
         apiErrorSchema.parse({ error: { code: "RATE_LIMITED", message: "Zu viele Anfragen. Bitte kurz warten.", details: null, requestId: request.id, retryable: true } }),
       );
     }
+    if (
+      typeof error === "object"
+      && error !== null
+      && "statusCode" in error
+      && typeof error.statusCode === "number"
+      && error.statusCode >= 400
+      && error.statusCode < 500
+    ) {
+      return reply.status(error.statusCode).send(
+        apiErrorSchema.parse({ error: { code: "VALIDATION_ERROR", message: "Die Anfrage ist ungültig.", details: null, requestId: request.id, retryable: false } }),
+      );
+    }
     app.log.error({ err: error }, "Unbehandelter Serverfehler");
     return reply.status(500).send(
       apiErrorSchema.parse({ error: { code: "INTERNAL_ERROR", message: "Die Anfrage konnte nicht verarbeitet werden.", details: null, requestId: request.id, retryable: true } }),

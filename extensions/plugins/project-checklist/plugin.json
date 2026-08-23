@@ -1,0 +1,29 @@
+{
+  "slug": "project-checklist",
+  "name": "Projekt-Checkliste",
+  "description": "Eine interaktive Projekt-Checkliste mit vier konkreten Startschritten und lokalem Speichern.",
+  "publisher": "wrapt",
+  "category": "workflow",
+  "version": "1.0.0",
+  "icon": "checklist",
+  "routePath": "/plugins/view/project-checklist",
+  "pageMode": "blocks",
+  "iframeUrl": null,
+  "html": "",
+  "blocks": [
+    { "id": "header", "type": "heading", "title": "Projektstart", "content": "Die vier wichtigsten Schritte.", "actionId": null },
+    { "id": "goal", "type": "checkbox", "title": "Ziel festhalten", "content": "", "actionId": null },
+    { "id": "workspace", "type": "checkbox", "title": "Arbeitsbereich öffnen", "content": "", "actionId": null },
+    { "id": "milestone", "type": "checkbox", "title": "Ersten Meilenstein definieren", "content": "", "actionId": null },
+    { "id": "review", "type": "checkbox", "title": "Review einplanen", "content": "", "actionId": null },
+    { "id": "save", "type": "button", "title": "Fortschritt speichern", "content": "", "actionId": "save-checklist" }
+  ],
+  "functions": [
+    { "id": "save-checklist", "label": "Fortschritt speichern", "action": "save-state", "value": "project-checklist" }
+  ],
+  "orbit": { "enabled": true, "title": "Checkliste", "description": "Projektstart ohne vergessene Basics.", "placement": "both", "nodeType": "todo", "accent": "ok" },
+  "wizard": { "goal": "Projektstarts mit einer festen Reihenfolge unterstützen und den Fortschritt speichern.", "audience": "Teams mit wiederkehrenden Projektabläufen.", "design": "klar", "layout": "einspaltig", "tone": "fokussiert", "includeHtml": false, "includeIframe": false, "includeOrbit": true, "additionalDescription": "Jeder Schritt soll direkt abhakbar sein und der aktuelle Stand lokal speicherbar bleiben.", "wishes": "Kurze Schritte ohne Zusatztexte und eine deutliche Speicheraktion.", "iconDescription": "Abgehakte Checkliste für einen strukturierten Projektstart.", "additionalRequirements": "Die Checkboxen müssen auf Touch-Geräten gut bedienbar sein. Keine Rechte außer dem lokalen Plugin-Zustand.", "restartBehavior": "never", "agent": "opencode", "permissions": [], "surfaces": ["page", "orbit"], "dataNeeds": ["Checklistenstatus"], "interactions": ["Schritte abhaken", "Fortschritt speichern"], "mobileBehavior": "responsive" },
+  "sourceExampleId": "project-checklist",
+  "status": "draft",
+  "surfaces": ["page", "orbit"]
+}

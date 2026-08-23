@@ -11,6 +11,7 @@ import {
   CodexIcon,
   DashboardIcon,
   EinstellungenIcon,
+  ExtensionsIcon,
   FinderIcon,
   HermesIcon,
   InboxIcon,
@@ -61,6 +62,7 @@ const definitions: readonly BuiltinNavigationDefinition[] = Object.freeze([
   { extensionId: "wrapt.files", routeId: "wrapt.files.route.main", label: "Dateien", description: "Server-Dateien verwalten und durchsuchen", icon: FinderIcon, group: "tools", order: 90, visibleByDefault: true, preferenceKey: "files" },
   { extensionId: "wrapt.browser", routeId: "wrapt.browser.route.main", label: "Browser", description: "Chromium für Recherche und lokale Apps", icon: BrowserIcon, group: "tools", order: 100, visibleByDefault: true, preferenceKey: "browser" },
   { extensionId: "wrapt.skills", routeId: "wrapt.skills.route.main", label: "KI-Skills", description: "Globale Skills und Agenten-Regeln bearbeiten", icon: SkillsIcon, group: "tools", order: 110, visibleByDefault: true, preferenceKey: "ki-skills" },
+  { extensionId: "wrapt.plugins", routeId: "wrapt.plugins.route.main", label: "Plugins", description: "Lokale Plugins erstellen und verwalten", icon: ExtensionsIcon, group: "account", order: 5, visibleByDefault: true, preferenceKey: "plugins" },
   { extensionId: "wrapt.usage", routeId: "wrapt.usage.route.main", label: "Nutzung", description: "Codex und OpenCode Go", icon: NutzungIcon, group: "account", order: 10, visibleByDefault: true, preferenceKey: "usage" },
   { extensionId: "wrapt.settings", routeId: "wrapt.settings.route.main", label: "Einstellungen", description: "Lokaler Workspace und Sicherheit", icon: EinstellungenIcon, group: "account", order: 20, visibleByDefault: true, preferenceKey: "settings" },
 ]);

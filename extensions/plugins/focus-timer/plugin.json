@@ -1,0 +1,29 @@
+{
+  "slug": "focus-timer",
+  "name": "Fokus-Timer",
+  "description": "Ein echter Fokus-Timer mit Start, Pause und Zurücksetzen für konzentrierte Arbeitsblöcke.",
+  "publisher": "wrapt",
+  "category": "productivity",
+  "version": "1.0.0",
+  "icon": "clock",
+  "routePath": "/plugins/tool/focus-timer",
+  "pageMode": "blocks",
+  "iframeUrl": null,
+  "html": "",
+  "blocks": [
+    { "id": "title", "type": "heading", "title": "Fokus-Zeit", "content": "25 Minuten für eine Sache.", "actionId": null },
+    { "id": "time", "type": "timer", "title": "Fokus-Block", "content": "1500", "actionId": "start-timer" },
+    { "id": "pause", "type": "button", "title": "Timer pausieren", "content": "", "actionId": "stop-timer" },
+    { "id": "reset", "type": "button", "title": "Timer zurücksetzen", "content": "", "actionId": "reset-timer" }
+  ],
+  "functions": [
+    { "id": "start-timer", "label": "Timer starten", "action": "start-timer", "value": "1500" },
+    { "id": "stop-timer", "label": "Timer pausieren", "action": "stop-timer", "value": "" },
+    { "id": "reset-timer", "label": "Timer zurücksetzen", "action": "reset-timer", "value": "" }
+  ],
+  "orbit": { "enabled": true, "title": "Fokus-Timer", "description": "Startet einen konzentrierten Arbeitsblock.", "placement": "both", "nodeType": "note", "accent": "accent" },
+  "wizard": { "goal": "Eine fokussierte Arbeitsphase starten.", "audience": "Menschen, die im Orbit arbeiten.", "design": "klar", "layout": "einspaltig", "tone": "ruhig", "includeHtml": false, "includeIframe": false, "includeOrbit": true, "additionalDescription": "Der Timer soll ohne Ablenkung funktionieren und den verbleibenden Zeitraum sichtbar herunterzählen.", "wishes": "Große Zeitangabe, klare Startaktion sowie Pause und Zurücksetzen.", "iconDescription": "Ruhige, gut erkennbare Uhr für einen Fokus-Block.", "additionalRequirements": "Die Werkzeugseite muss über die linke Sidebar und mobil erreichbar sein. Der Countdown muss wirklich jede Sekunde herunterzählen und bei null stoppen.", "restartBehavior": "ask", "agent": "codex", "permissions": [], "surfaces": ["page", "sidebar"], "dataNeeds": [], "interactions": ["Timer starten", "Timer pausieren", "Timer zurücksetzen"], "mobileBehavior": "responsive" },
+  "sourceExampleId": "focus-timer",
+  "status": "draft",
+  "surfaces": ["page", "sidebar"]
+}

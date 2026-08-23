@@ -16,6 +16,7 @@ import { PromptDialog } from "./ModalDialog";
 import { previewSessionKeysWithNode, previewSlotsReleasedWithNode, releasePreviewSessions, releasePreviewSlots } from "../lib/previewSlotLifecycle";
 import { openPreviewGroupWindow } from "../lib/previewWindow";
 import { requestOrbitNode, type OrbitPalettePayload } from "../lib/orbitPalette";
+import { navigationUsesExactMatch } from "./sidebarNavigation";
 
 function isNavigationItemVisible(item: OwnedNavigationItem, hiddenPages: ReadonlySet<string>): boolean {
   const visibilityKey = item.value.runtime.legacyVisibilityKey;
@@ -64,7 +65,7 @@ function SidebarNavLink({ item, collapsed, badge = 0 }: { item: OwnedNavigationI
   return (
     <NavLink
       to={to}
-      end={to === "/"}
+      end={navigationUsesExactMatch(to)}
       className="sidebar-item"
       onPointerEnter={prefetch}
       // Touch kennt kein Überfahren: `pointerdown` feuert vor dem Klick und

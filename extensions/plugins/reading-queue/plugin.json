@@ -1,0 +1,29 @@
+{
+  "slug": "reading-queue",
+  "name": "Lese-Warteschlange",
+  "description": "Eine praktische Lese-Warteschlange mit URL-, Notiz- und lokaler Speicheraktion für Recherche.",
+  "publisher": "wrapt",
+  "category": "research",
+  "version": "1.0.0",
+  "icon": "link",
+  "routePath": "/plugins/view/reading-queue",
+  "pageMode": "blocks",
+  "iframeUrl": null,
+  "html": "",
+  "blocks": [
+    { "id": "intro", "type": "heading", "title": "Später lesen", "content": "Links sammeln, dann konzentriert bearbeiten.", "actionId": null },
+    { "id": "url", "type": "input", "title": "Neue Quelle", "content": "https://…", "actionId": null },
+    { "id": "note", "type": "input", "title": "Kurze Notiz", "content": "Warum ist die Quelle wichtig?", "actionId": null },
+    { "id": "queue", "type": "list", "title": "Nächste Schritte", "content": "Quelle prüfen\nNotiz ergänzen\nSpäter konzentriert lesen", "actionId": null },
+    { "id": "save", "type": "button", "title": "Quelle lokal merken", "content": "", "actionId": "save-queue" }
+  ],
+  "functions": [
+    { "id": "copy-link", "label": "Beispiellink kopieren", "action": "copy-text", "value": "https://example.com" },
+    { "id": "save-queue", "label": "Quelle lokal merken", "action": "save-state", "value": "reading-queue" }
+  ],
+  "orbit": { "enabled": false, "title": "Lese-Warteschlange", "description": "", "placement": "dashboard", "nodeType": "note", "accent": "neutral" },
+  "wizard": { "goal": "Recherche-Links sammeln, mit einer Notiz versehen und später bearbeiten.", "audience": "Menschen mit vielen offenen Quellen.", "design": "editorial", "layout": "zweispaltig", "tone": "ruhig", "includeHtml": false, "includeIframe": false, "includeOrbit": false, "additionalDescription": "Die Liste soll bewusst unfertig bleiben dürfen und Eingaben lokal merken können.", "wishes": "Ein klarer Platz für URL, kurze Notiz und eine sichtbare Speicheraktion.", "iconDescription": "Link für eine Sammlung offener Recherchequellen.", "additionalRequirements": "Der Beispiel-Link darf nur ein sicherer Kopiervorgang sein. Keine Netzwerkabfrage ohne deklarierte Berechtigung.", "restartBehavior": "never", "agent": "claude", "permissions": [], "surfaces": ["page"], "dataNeeds": ["lokale Leseliste"], "interactions": ["Quelle eintragen", "Notiz eintragen", "Quelle speichern"], "mobileBehavior": "responsive" },
+  "sourceExampleId": "reading-queue",
+  "status": "draft",
+  "surfaces": ["page"]
+}

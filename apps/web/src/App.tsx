@@ -7,6 +7,8 @@ import { pagePreferenceAliases } from "./extensions/builtins/pageRoutes";
 import { useAppPreferences } from "./stores/appPreferences";
 import { isPageVisibleIn, useSidebarPreferences } from "./stores/sidebarPreferences";
 import { EditorOpenBridge } from "./components/EditorOpenBridge";
+import { ThemeRuntimeSync } from "./components/ThemeRuntimeSync";
+import { PluginRuntimeSync } from "./extensions/pluginRuntimeSync";
 
 /**
  * Der statische Router ist durch den Route Host ersetzt: Pages und Routes
@@ -26,6 +28,8 @@ export function App() {
       <BrowserRouter basename={basename}>
         {/* Global, außerhalb der Routen: gilt auch auf Standalone-Werkzeugseiten. */}
         <EditorOpenBridge />
+        <ThemeRuntimeSync />
+        <PluginRuntimeSync />
         <HomeRedirect />
         <Routes>{routes}</Routes>
       </BrowserRouter>

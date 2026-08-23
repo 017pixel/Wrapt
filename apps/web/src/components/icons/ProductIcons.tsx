@@ -105,5 +105,5 @@ export function ClaudeCodeIcon(props: ProductIconProps) {
 }
 
 export function ExtensionsIcon(props: ProductIconProps) {
-  return <IconShell {...props}><path d="M8 3h3v5H6V5a2 2 0 0 1 2-2ZM16 3a2 2 0 0 1 2 2v3h-5V3h3ZM18 16v3a2 2 0 0 1-2 2h-3v-5h5ZM11 16v5H8a2 2 0 0 1-2-2v-3h5ZM3 10h18v4H3z"/></IconShell>;
+  return <IconShell strokeWidth="1.45" {...props}><rect x="4" y="4" width="6" height="6" rx="1.5"/><rect x="14" y="4" width="6" height="6" rx="1.5"/><rect x="4" y="14" width="6" height="6" rx="1.5"/><rect x="14" y="14" width="6" height="6" rx="1.5"/><path d="M10 7h4M7 10v4M17 10v4M10 17h4"/></IconShell>;
 }

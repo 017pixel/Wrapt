@@ -1,0 +1,88 @@
+import type { PluginDraftContent, PluginExample, PluginWizardAnswers } from "@wrapt/contracts";
+
+export const defaultWizardAnswers: PluginWizardAnswers = {
+  goal: "",
+  audience: "",
+  design: "klar",
+  layout: "einspaltig",
+  tone: "direkt",
+  includeHtml: false,
+  includeIframe: false,
+  includeOrbit: false,
+  additionalDescription: "",
+  wishes: "",
+  editRequest: "",
+  additionalRequirements: "",
+  iconDescription: "",
+  restartBehavior: "ask",
+  agent: "codex",
+  permissions: [],
+  surfaces: ["page", "sidebar"],
+  dataNeeds: [],
+  interactions: [],
+  mobileBehavior: "responsive",
+};
+
+export function emptyPluginDraft(slug = "mein-plugin"): PluginDraftContent {
+  return {
+    formatVersion: 2,
+    creationMode: "visual",
+    slug,
+    name: "Mein Plugin",
+    description: "Eine eigene Wrapt-Seite.",
+    icon: "extensions",
+    publisher: "local",
+    category: "productivity",
+    version: "0.1.0",
+    routePath: `/plugins/view/${slug}`,
+    pageMode: "blocks",
+    iframeUrl: null,
+    html: "",
+    blocks: [{ id: "intro", type: "heading", title: "Deine Seite", content: "Hier beginnt dein Plugin.", actionId: null }],
+    functions: [],
+    orbit: { enabled: false, title: "Mein Plugin", description: "", placement: "both", nodeType: "note", accent: "accent" },
+    wizard: { ...defaultWizardAnswers },
+    sourceExampleId: null,
+    status: "draft",
+    capabilities: [],
+    surfaces: ["page", "sidebar"],
+    surfaceContributions: [],
+    activationStatus: "draft",
+    revision: 0,
+    packageFiles: [
+      { path: "extension.json", content: "{}\n" },
+      { path: "README.md", content: "# Mein Plugin\n" },
+    ],
+  };
+}
+
+export function draftFromExample(example: PluginExample): PluginDraftContent {
+  const slug = `${example.slug}-copy`.slice(0, 48).replace(/-$/, "");
+  return {
+    formatVersion: 2,
+    creationMode: "visual",
+    slug,
+    name: `${example.name} Kopie`,
+    description: example.description,
+    icon: example.icon,
+    publisher: example.publisher,
+    category: example.category,
+    version: example.version,
+    routePath: `/plugins/view/${slug}`,
+    pageMode: example.pageMode,
+    iframeUrl: example.iframeUrl,
+    html: example.html,
+    blocks: example.blocks,
+    functions: example.functions,
+    orbit: example.orbit,
+    wizard: example.wizard,
+    sourceExampleId: example.exampleId,
+    status: "draft",
+    capabilities: example.capabilities,
+    surfaces: example.surfaces,
+    surfaceContributions: example.surfaceContributions,
+    activationStatus: "draft",
+    revision: 0,
+    packageFiles: example.packageFiles,
+  };
+}

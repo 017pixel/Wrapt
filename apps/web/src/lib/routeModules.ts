@@ -51,6 +51,7 @@ const routeLoaders = {
   projectDetail: () => import("../views/ProjectDetail"),
   settings: () => import("../views/Settings"),
   usage: () => import("../views/Usage"),
+  plugins: () => import("../views/Plugins"),
   toolRoute: () => import("../views/ToolRoute"),
   hermes: () => import("../views/HermesRoute"),
   terminal: () => import("../views/Terminal"),
@@ -68,6 +69,7 @@ export const loadProjects = routeLoaders.projects;
 export const loadProjectDetail = routeLoaders.projectDetail;
 export const loadSettings = routeLoaders.settings;
 export const loadUsage = routeLoaders.usage;
+export const loadPlugins = routeLoaders.plugins;
 export const loadToolRoute = routeLoaders.toolRoute;
 export const loadHermes = routeLoaders.hermes;
 export const loadTerminal = routeLoaders.terminal;
@@ -88,6 +90,7 @@ const pathLoaders: Array<[prefix: string, load: () => Promise<unknown>]> = [
   ["/ki-skills", loadSkillEditor],
   ["/settings", loadSettings],
   ["/usage", loadUsage],
+  ["/plugins", loadPlugins],
   ["/terminal", loadTerminal],
   ["/codex", loadCliTerminal],
   ["/opencode", loadToolRoute],

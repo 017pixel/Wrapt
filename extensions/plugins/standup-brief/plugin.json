@@ -1,0 +1,28 @@
+{
+  "slug": "standup-brief",
+  "name": "Stand-up-Brief",
+  "description": "Ein kompakter, ausfüllbarer Stand-up-Brief mit drei Fragen und lokaler Speicheraktion.",
+  "publisher": "wrapt",
+  "category": "team",
+  "version": "1.0.0",
+  "icon": "calendar",
+  "routePath": "/plugins/view/standup-brief",
+  "pageMode": "blocks",
+  "iframeUrl": null,
+  "html": "",
+  "blocks": [
+    { "id": "question", "type": "heading", "title": "Stand-up", "content": "Was ist heute wichtig?", "actionId": null },
+    { "id": "yesterday", "type": "input", "title": "Gestern", "content": "Was wurde abgeschlossen?", "actionId": null },
+    { "id": "today", "type": "input", "title": "Heute", "content": "Was ist der nächste Schritt?", "actionId": null },
+    { "id": "blocker", "type": "input", "title": "Blocker", "content": "Was braucht Unterstützung?", "actionId": null },
+    { "id": "save", "type": "button", "title": "Stand-up speichern", "content": "", "actionId": "save-standup" }
+  ],
+  "functions": [
+    { "id": "save-standup", "label": "Stand-up speichern", "action": "save-state", "value": "standup-brief" }
+  ],
+  "orbit": { "enabled": true, "title": "Stand-up", "description": "Der tägliche Team-Check-in.", "placement": "orbit", "nodeType": "note", "accent": "accent" },
+  "wizard": { "goal": "Den täglichen Team-Check-in strukturieren und lokal festhalten.", "audience": "Kleine Produktteams.", "design": "kompakt", "layout": "einspaltig", "tone": "freundlich", "includeHtml": false, "includeIframe": false, "includeOrbit": true, "additionalDescription": "Drei Fragen sollen reichen und direkt ausfüllbar sein.", "wishes": "Leere Flächen zum schnellen Ausfüllen und eine eindeutige Speicheraktion.", "iconDescription": "Kalender für den täglichen Team-Check-in.", "additionalRequirements": "Die Felder müssen auf Mobilgeräten gut lesbar und mindestens 44 Pixel hoch bedienbar sein.", "restartBehavior": "never", "agent": "codex", "permissions": [], "surfaces": ["page", "orbit"], "dataNeeds": ["lokaler Stand-up-Text"], "interactions": ["Antworten eintragen", "Stand-up speichern"], "mobileBehavior": "responsive" },
+  "sourceExampleId": "standup-brief",
+  "status": "draft",
+  "surfaces": ["page", "orbit"]
+}

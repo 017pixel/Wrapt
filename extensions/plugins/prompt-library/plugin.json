@@ -1,0 +1,23 @@
+{
+  "slug": "prompt-library",
+  "name": "Prompt-Bibliothek",
+  "description": "Eine kopierbare Prompt-Bibliothek mit klarer Struktur für wiederkehrende Agentenaufgaben.",
+  "publisher": "wrapt",
+  "category": "agents",
+  "version": "1.0.0",
+  "icon": "sparkles",
+  "routePath": "/plugins/view/prompt-library",
+  "pageMode": "html",
+  "iframeUrl": null,
+  "html": "<section><h2>Prompt-Bibliothek</h2><p>Ein Prompt pro Karte, eine klare Aufgabe pro Durchlauf.</p><h3>Minimalvorlage</h3><ol><li>Kontext</li><li>Ziel</li><li>Akzeptanzkriterien</li></ol><p>Ergänze konkrete Grenzen und prüfe das Ergebnis nach jedem Agentenlauf.</p></section>",
+  "blocks": [],
+  "functions": [
+    { "id": "copy-template", "label": "Vorlage kopieren", "action": "copy-text", "value": "Ziel:\nKontext:\nAkzeptanzkriterien:" },
+    { "id": "save-template", "label": "Vorlage lokal merken", "action": "save-state", "value": "prompt-library" }
+  ],
+  "orbit": { "enabled": true, "title": "Prompt-Bibliothek", "description": "Agentenaufgaben vorbereitet formulieren.", "placement": "orbit", "nodeType": "note", "accent": "accent" },
+  "wizard": { "goal": "Wiederverwendbare Prompts strukturiert ablegen, kopieren und lokal merken.", "audience": "Teams, die regelmäßig mit Agenten arbeiten.", "design": "editorial", "layout": "zweispaltig", "tone": "direkt", "includeHtml": true, "includeIframe": false, "includeOrbit": true, "additionalDescription": "Ein Prompt soll schnell kopierbar und dennoch vollständig sein. Die Beispielstruktur zeigt die kleinste sinnvolle Vorlage.", "wishes": "Vorlagen mit klaren Abschnitten sowie einer sichtbaren Kopier- und Speicheraktion.", "iconDescription": "Funken für Ideen und Agenten-Prompts.", "additionalRequirements": "Nur bereinigtes HTML verwenden und keine freien Scripts einbetten.", "restartBehavior": "never", "agent": "anderer", "permissions": [], "surfaces": ["page", "orbit"], "dataNeeds": ["lokale Promptvorlage"], "interactions": ["Vorlage kopieren", "Vorlage lokal merken"], "mobileBehavior": "responsive" },
+  "sourceExampleId": "prompt-library",
+  "status": "draft",
+  "surfaces": ["page", "orbit"]
+}

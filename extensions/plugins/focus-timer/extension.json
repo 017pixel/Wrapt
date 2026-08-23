@@ -1,0 +1,20 @@
+{
+  "manifestVersion": 1,
+  "id": "wrapt.example.focus-timer",
+  "name": "Fokus-Timer",
+  "version": "1.0.0",
+  "publisher": "wrapt",
+  "description": "Ein ruhiger Fokus-Timer als Einstieg in den visuellen Plugin Maker.",
+  "license": "MIT",
+  "category": "productivity",
+  "engines": { "wrapt": ">=0.98.0", "extensionApi": ">=1.0.0" },
+  "trust": "catalog-first-party",
+  "entrypoints": { "ui": "./index.js" },
+  "permissions": [],
+  "activationEvents": [],
+  "contributes": {
+    "pages": [{ "id": "wrapt.example.focus-timer.page.main", "title": "Fokus-Timer", "description": "Ein ruhiger Fokus-Timer als Werkzeugseite." }],
+    "routes": [{ "id": "wrapt.example.focus-timer.route.main", "pageId": "wrapt.example.focus-timer.page.main", "path": "/plugins/tool/focus-timer", "shell": "standard", "persistent": true, "prefetch": "idle", "projectContext": false, "topbar": true, "breadcrumbs": true, "standaloneActions": false, "mobileNavigation": true }],
+    "navigation": [{ "id": "wrapt.example.focus-timer.navigation.main", "routeId": "wrapt.example.focus-timer.route.main", "label": "Fokus-Timer", "description": "Fokus-Block starten", "group": "tools", "order": 500, "visibleByDefault": true }]
+  }
+}

@@ -88,6 +88,10 @@ export class LocalExtensionCatalog {
     this.scanned = false;
   }
 
+  refresh(): void {
+    this.scanned = false;
+  }
+
   scan(): void {
     if (this.scanned) return;
     const nextEntries = new Map<string, CatalogEntry>();

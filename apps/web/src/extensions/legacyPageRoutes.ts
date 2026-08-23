@@ -13,6 +13,7 @@ import {
   loadPreviewLive,
   loadProjectDetail,
   loadProjects,
+  loadPlugins,
   loadRouteWithRecovery,
   loadSettings,
   loadSkillEditor,
@@ -364,6 +365,52 @@ export const legacyPageRouteOwners: readonly LegacyPageRouteOwner[] =
         routeRuntime: routeRuntime("/settings"),
       },
     ]),
+    owner("wrapt.plugins", [
+      {
+        page: {
+          id: "wrapt.plugins.page.main",
+          title: "Plugins",
+          description: "Lokale Plugins erstellen und verwalten",
+        },
+        route: standardRoute(
+          "wrapt.plugins.route.main",
+          "wrapt.plugins.page.main",
+          "/plugins",
+          { mobileNavigation: true },
+        ),
+        pageRuntime: lazyPageRuntime("plugins", "Plugins", loadPlugins),
+        routeRuntime: routeRuntime("/plugins"),
+      },
+      {
+        page: {
+          id: "wrapt.plugins.page.maker",
+          title: "Plugin Maker",
+          description: "Eigene Plugin-Seiten gestalten",
+        },
+        route: standardRoute(
+          "wrapt.plugins.route.maker",
+          "wrapt.plugins.page.maker",
+          "/plugins/maker",
+        ),
+        pageRuntime: lazyPageRuntime("plugins", "PluginMaker", loadPlugins),
+        routeRuntime: routeRuntime("/plugins/maker"),
+      },
+      {
+        page: {
+          id: "wrapt.plugins.page.runtime",
+          title: "Plugin",
+          description: "Lokale Plugin-Seite",
+        },
+        route: standardRoute(
+          "wrapt.plugins.route.runtime",
+          "wrapt.plugins.page.runtime",
+          "/plugins/view/:pluginSlug",
+          { aliases: ["/plugins/tool/:pluginSlug"] },
+        ),
+        pageRuntime: lazyPageRuntime("plugins", "PluginRuntime", loadPlugins),
+        routeRuntime: routeRuntime("/plugins/view/"),
+      },
+    ]),
     owner("wrapt.usage", [
       {
         page: {
@@ -659,6 +706,7 @@ export const legacyPageAliases = Object.freeze({
   terminal: "wrapt.terminal.page.main",
   files: "wrapt.files.page.main",
   "ki-skills": "wrapt.skills.page.main",
+  plugins: "wrapt.plugins.page.main",
   usage: "wrapt.usage.page.main",
   settings: "wrapt.settings.page.main",
 });

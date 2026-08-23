@@ -19,6 +19,10 @@ const expectedPublicPatterns = [
   "/inbox",
   "/ki-skills",
   "/opencode",
+  "/plugins",
+  "/plugins/maker",
+  "/plugins/tool/:pluginSlug",
+  "/plugins/view/:pluginSlug",
   "/previews",
   "/previews/fenster/:groupId",
   "/previews/gruppe/:groupId",
@@ -41,17 +45,17 @@ function createRegistry(): PageRouteRegistry {
 }
 
 describe("Legacy Page-/Route-Built-ins", () => {
-  it("registriert 18 Owner, 23 Pages und 23 Routes", () => {
+  it("registriert 19 Owner, 26 Pages und 26 Routes", () => {
     const registry = createRegistry();
     const snapshot = registry.getSnapshot();
 
-    expect(legacyPageRouteOwners).toHaveLength(18);
-    expect(snapshot.pages).toHaveLength(23);
-    expect(snapshot.routes).toHaveLength(23);
-    expect(new Set(snapshot.pages.map((page) => page.ownerId)).size).toBe(18);
+    expect(legacyPageRouteOwners).toHaveLength(19);
+    expect(snapshot.pages).toHaveLength(26);
+    expect(snapshot.routes).toHaveLength(26);
+    expect(new Set(snapshot.pages.map((page) => page.ownerId)).size).toBe(19);
   });
 
-  it("bildet alle 24 öffentlichen URL-Muster ohne Host-Wildcard ab", () => {
+  it("bildet alle 25 öffentlichen URL-Muster ohne Host-Wildcard ab", () => {
     const registry = createRegistry();
     const patterns = registry
       .getSnapshot()
@@ -69,6 +73,10 @@ describe("Legacy Page-/Route-Built-ins", () => {
     expect(
       registry.matchRoute("/gallery")?.route.value.runtime.aliasBehavior,
     ).toBe("redirect-to-canonical");
+    expect(registry.matchRoute("/plugins/tool/mein-plugin")).toMatchObject({
+      alias: true,
+      route: { contributionId: "wrapt.plugins.route.runtime" },
+    });
   });
 
   it("hält App Shell und 404 als zwei explizite Host-Routen", () => {
@@ -86,10 +94,10 @@ describe("Legacy Page-/Route-Built-ins", () => {
         boundary: "deferred-route",
       },
     ]);
-    expect(23 + legacyHostRoutes.length).toBe(25);
+    expect(26 + legacyHostRoutes.length).toBe(28);
   });
 
-  it("bewahrt Eager-Dashboard, 15 Lazy-Chunks und Stale-Chunk-Recovery", () => {
+  it("bewahrt Eager-Dashboard, 16 Lazy-Chunks und Stale-Chunk-Recovery", () => {
     const pages = createRegistry().getSnapshot().pages;
     const eager = pages.filter((page) => page.value.runtime.loading === "eager");
     const lazy = pages.filter((page) => page.value.runtime.loading === "lazy");
@@ -98,7 +106,7 @@ describe("Legacy Page-/Route-Built-ins", () => {
     expect(eager.map((page) => page.contributionId)).toEqual([
       "wrapt.dashboard.page.main",
     ]);
-    expect(lazy).toHaveLength(22);
+    expect(lazy).toHaveLength(25);
     expect(lazyChunks).toEqual(
       new Set([
         "cli-terminal",
@@ -109,6 +117,7 @@ describe("Legacy Page-/Route-Built-ins", () => {
         "preview-live",
         "project-detail",
         "projects",
+        "plugins",
         "settings",
         "skill-editor",
         "tech-tldrs",
@@ -131,8 +140,8 @@ describe("Legacy Page-/Route-Built-ins", () => {
           : [route.value.runtime.prefetchPathPrefix],
       );
 
-    expect(new Set(prefixes).size).toBe(21);
-    expect(prefixes).toHaveLength(22);
+    expect(new Set(prefixes).size).toBe(24);
+    expect(prefixes).toHaveLength(25);
     expect(prefixes.filter((prefix) => prefix === "/terminal")).toHaveLength(2);
   });
 
@@ -162,13 +171,13 @@ describe("Legacy Page-/Route-Built-ins", () => {
     ).toBe(true);
     expect(
       routes.filter((route) => route.value.contribution.mobileNavigation),
-    ).toHaveLength(18);
+    ).toHaveLength(19);
   });
 
-  it("hält alle 18 bisherigen Preference-IDs als stabile Aliase", () => {
+  it("hält alle 19 Preference-IDs als stabile Aliase", () => {
     const registry = createRegistry();
 
-    expect(Object.keys(legacyPageAliases)).toHaveLength(18);
+    expect(Object.keys(legacyPageAliases)).toHaveLength(19);
     for (const pageId of Object.values(legacyPageAliases)) {
       expect(registry.getPage(pageId)).toBeDefined();
     }

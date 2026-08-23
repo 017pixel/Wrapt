@@ -9,6 +9,7 @@ import { registerExtensionRoutes } from "../extensions/routes.js";
 import { registerHermesRoutes } from "../hermes/routes.js";
 import { registerNewsRoutes } from "../news/routes.js";
 import { registerNotificationRoutes } from "../notifications/routes.js";
+import { registerPluginRoutes } from "../plugins/routes.js";
 import { registerPreviewRoutes } from "../previews/routes.js";
 import { registerEditorOpenRoutes } from "../services/editorOpen.js";
 import { createCommandService } from "../services/commandService.js";
@@ -102,6 +103,7 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
   await app.register(registerNotificationRoutes, { prefix: "/api/v1", database: deps.notificationDatabase, push: deps.notificationPush, configDirectory: settings.configDirectory, identity: deps.identityOptions });
   await app.register(registerEditorOpenRoutes, { prefix: "/api/v1", secrets: deps.editorOpenSecrets });
   await app.register(registerExtensionRoutes, { prefix: "/api/v1", manager: deps.extensionManager, catalog: deps.extensionCatalog });
+  await app.register(registerPluginRoutes, { prefix: "/api/v1", authoring: deps.pluginAuthoring });
   await app.register(registerTerminalRoutes, {
     prefix: "/api/v1",
     manager: deps.terminals,

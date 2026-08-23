@@ -1,0 +1,16 @@
+{
+  "manifestVersion": 1,
+  "id": "wrapt.example.html-status",
+  "name": "HTML-Status",
+  "version": "1.0.0",
+  "publisher": "wrapt",
+  "description": "Ein bewusst kleines HTML-Rendering-Beispiel mit Statuskarten.",
+  "license": "MIT",
+  "category": "design",
+  "engines": { "wrapt": ">=0.98.0", "extensionApi": ">=1.0.0" },
+  "trust": "catalog-first-party",
+  "entrypoints": { "ui": "./index.js" },
+  "permissions": [],
+  "activationEvents": [],
+  "contributes": {}
+}

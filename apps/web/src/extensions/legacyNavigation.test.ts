@@ -33,7 +33,7 @@ const expectedGroups: ReadonlyArray<{
   },
   {
     group: "account",
-    labels: ["Nutzung", "Einstellungen"],
+    labels: ["Plugins", "Nutzung", "Einstellungen"],
   },
 ];
 
@@ -66,7 +66,7 @@ function buildIsolatedRegistry(): { registry: NavigationRegistry; routes: PageRo
 
 describe("legacyNavigation", () => {
   it("registriert genau einen Built-in pro bisheriger Navigationsfläche", () => {
-    expect(legacyNavigationOwners).toHaveLength(18);
+    expect(legacyNavigationOwners).toHaveLength(19);
   });
 
   it("bildet Gruppen, Reihenfolge und Labels der bisherigen Navigation exakt ab", () => {
@@ -103,7 +103,7 @@ describe("legacyNavigation", () => {
     registerLegacyNavigation(registry);
     const snapshot = registry.getSnapshot();
 
-    expect(snapshot.items).toHaveLength(18);
+    expect(snapshot.items).toHaveLength(19);
     for (const item of snapshot.items) {
       expect(item.value.contribution.id).toBe(`${item.ownerId}.navigation.main`);
       expect(item.value.runtime.icon).toBeTypeOf("function");

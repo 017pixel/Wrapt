@@ -1,0 +1,46 @@
+{
+  "manifestVersion": 1,
+  "id": "wrapt.example.mein-plugin",
+  "name": "Mein erstes Plugin",
+  "version": "0.1.0",
+  "publisher": "wrapt",
+  "description": "Eine erste eigene Wrapt-Seite.",
+  "license": "MIT",
+  "category": "productivity",
+  "engines": { "wrapt": ">=0.98.0", "extensionApi": ">=1.0.0" },
+  "trust": "catalog-first-party",
+  "entrypoints": { "ui": "./index.js" },
+  "permissions": [],
+  "activationEvents": [],
+  "contributes": {
+    "pages": [
+      { "id": "wrapt.example.mein-plugin.page.main", "title": "Mein erstes Plugin", "description": "Eine erste eigene Wrapt-Seite." }
+    ],
+    "routes": [
+      {
+        "id": "wrapt.example.mein-plugin.route.main",
+        "pageId": "wrapt.example.mein-plugin.page.main",
+        "path": "/plugins/tool/mein-plugin",
+        "shell": "standard",
+        "persistent": true,
+        "prefetch": "idle",
+        "projectContext": false,
+        "topbar": true,
+        "breadcrumbs": true,
+        "standaloneActions": false,
+        "mobileNavigation": true
+      }
+    ],
+    "navigation": [
+      {
+        "id": "wrapt.example.mein-plugin.navigation.main",
+        "routeId": "wrapt.example.mein-plugin.route.main",
+        "label": "Mein erstes Plugin",
+        "description": "Eine erste eigene Wrapt-Seite.",
+        "group": "tools",
+        "order": 500,
+        "visibleByDefault": true
+      }
+    ]
+  }
+}

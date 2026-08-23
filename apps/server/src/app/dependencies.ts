@@ -55,6 +55,7 @@ import { UsageDatabase } from "../usage/database.js";
 import { UsageTimelineService } from "../usage/timeline-service.js";
 import { UsageAnalyticsService } from "../usage/usage-service.js";
 import { AppError } from "../utils/errors.js";
+import { createPluginAuthoring } from "../plugins/dependencies.js";
 
 export async function createAppDependencies(app: FastifyInstance) {
   const [projectsConfig, servicesConfig, commandsConfig] = await Promise.all([
@@ -169,8 +170,8 @@ export async function createAppDependencies(app: FastifyInstance) {
   const extensionDatabase = new ExtensionDatabase(join(settings.dataDirectory, "extensions.sqlite"));
   const extensionManager = new ExtensionManager(extensionDatabase);
   const extensionCatalog = new LocalExtensionCatalog(defaultCatalogProviderId(), app.log);
-  extensionCatalog.addSourceDirectory(join(settings.dataDirectory, "extension-catalog"));
   extensionManager.attachCatalog(extensionCatalog);
+  const pluginAuthoring = createPluginAuthoring(extensionCatalog);
   const notificationPush = new NotificationPushService({
     databasePath: settings.databasePath,
     dataDirectory: settings.dataDirectory,
@@ -335,7 +336,6 @@ export async function createAppDependencies(app: FastifyInstance) {
     allowNoSandbox: settings.browserAllowNoSandbox,
   });
   const editorOpenSecrets = new EditorOpenSecrets(settings.dataDirectory);
-
   return {
     projectsConfig,
     servicesConfig,
@@ -365,6 +365,7 @@ export async function createAppDependencies(app: FastifyInstance) {
     extensionDatabase,
     extensionManager,
     extensionCatalog,
+    pluginAuthoring,
     notificationPush,
     t3StatusSync,
     terminalStatusSync,

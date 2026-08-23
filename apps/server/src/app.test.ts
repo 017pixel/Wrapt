@@ -39,6 +39,22 @@ describe("Wrapt API", () => {
     expect(health.webBuildId === null || Number.isInteger(health.webBuildId)).toBe(true);
   });
 
+  it("meldet einen leeren JSON-Body als typisierten Clientfehler", async () => {
+    const app = await buildApp({ startBackgroundServices: false });
+    apps.push(app);
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/v1/plugins/drafts/11111111-1111-4111-8111-111111111111/validate",
+      headers: { ...authenticatedHeaders, "content-type": "application/json" },
+      payload: "",
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({
+      error: { code: "VALIDATION_ERROR", retryable: false },
+    });
+  });
+
   it("liefert die zentral konfigurierten Preview-Slots nur mit gültiger Identität", async () => {
     const app = await buildApp({ startBackgroundServices: false });
     apps.push(app);

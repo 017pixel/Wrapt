@@ -1,0 +1,31 @@
+{
+  "slug": "release-board",
+  "name": "Release-Board",
+  "description": "Ein interaktives Release-Board mit Fortschrittsanzeige, Checklisten und klaren nächsten Aktionen.",
+  "publisher": "wrapt",
+  "category": "workflow",
+  "version": "1.0.0",
+  "icon": "rocket",
+  "routePath": "/plugins/view/release-board",
+  "pageMode": "blocks",
+  "iframeUrl": null,
+  "html": "",
+  "blocks": [
+    { "id": "status", "type": "heading", "title": "Release 0.98.0", "content": "Vorbereitung", "actionId": null },
+    { "id": "progress", "type": "progress", "title": "Fortschritt", "content": "66", "actionId": null },
+    { "id": "changelog", "type": "checkbox", "title": "Changelog prüfen", "content": "", "actionId": null },
+    { "id": "smoke", "type": "checkbox", "title": "Smoke-Test ausführen", "content": "", "actionId": null },
+    { "id": "announce", "type": "checkbox", "title": "Veröffentlichung ankündigen", "content": "", "actionId": null },
+    { "id": "done", "type": "button", "title": "Release-Schritt markieren", "content": "", "actionId": "mark-done" },
+    { "id": "publish", "type": "button", "title": "Bereit für Veröffentlichung", "content": "", "actionId": "publish-ready" }
+  ],
+  "functions": [
+    { "id": "mark-done", "label": "Schritt markieren", "action": "toggle-panel", "value": "done" },
+    { "id": "publish-ready", "label": "Veröffentlichung vorbereiten", "action": "notify", "value": "Release als bereit markiert. Prüfe Changelog und Smoke-Test vor dem Push." }
+  ],
+  "orbit": { "enabled": true, "title": "Release-Board", "description": "Release-Fortschritt im Orbit im Blick behalten.", "placement": "both", "nodeType": "todo", "accent": "warn" },
+  "wizard": { "goal": "Release-Aufgaben sichtbar, abhakbar und für die Veröffentlichung prüfbar machen.", "audience": "Produkt- und Engineering-Teams.", "design": "technisch", "layout": "dashboard", "tone": "direkt", "includeHtml": false, "includeIframe": false, "includeOrbit": true, "additionalDescription": "Status muss auf einen Blick erkennbar sein. Die drei Checklistenpunkte bilden die Mindestabnahme.", "wishes": "Eine Fortschrittsanzeige, klare nächste Schritte und eine deutliche Bereit-Aktion.", "iconDescription": "Rakete für einen kontrollierten Release.", "additionalRequirements": "Keine automatische Veröffentlichung und keine Neustarts. Der Agent darf nur lokale Zustände und Hinweise vorbereiten.", "restartBehavior": "never", "agent": "claude", "permissions": [], "surfaces": ["page", "orbit"], "dataNeeds": ["Release-Fortschritt"], "interactions": ["Schritte abhaken", "Release als bereit markieren"], "mobileBehavior": "responsive" },
+  "sourceExampleId": "release-board",
+  "status": "draft",
+  "surfaces": ["page", "orbit"]
+}

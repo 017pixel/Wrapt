@@ -5,6 +5,9 @@ playwright-report/
 test-results/
 .env
 data/
+/plugin-drafts/
+/extension-catalog/
+/extensions/personal-plugins/
 .env.local
 .env.*.local
 config/*.local.json

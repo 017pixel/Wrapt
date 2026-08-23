@@ -14,7 +14,7 @@ export type SidebarSectionKey = "workspace" | "orbit-projects" | "tools" | "prev
 export type PageRouteId =
   | "dashboard" | "inbox" | "workbench" | "tech-tldrs" | "projects"
   | "t3-code" | "hermes-agent" | "codex" | "opencode" | "claude" | "code-editor" | "previews" | "browser" | "terminal" | "files" | "ki-skills"
-  | "usage" | "settings";
+  | "plugins" | "usage" | "settings";
 
 const allOrbitPaletteItems: OrbitPaletteItem[] = [
   "tool:terminal", "tool:t3-code", "tool:preview", "tool:browser", "tool:code-server", "tool:codex", "tool:opencode", "tool:files", "tool:hermes",
@@ -26,7 +26,7 @@ const allOrbitPaletteItems: OrbitPaletteItem[] = [
 const allPageRoutes: PageRouteId[] = [
   "dashboard", "inbox", "workbench", "tech-tldrs", "projects",
   "t3-code", "hermes-agent", "codex", "opencode", "claude", "code-editor", "previews", "browser", "terminal", "files", "ki-skills",
-  "usage", "settings",
+  "plugins", "usage", "settings",
 ];
 
 interface SidebarPreferencesState {

@@ -36,7 +36,22 @@ describe("Extension API", () => {
       headers: authenticatedHeaders,
     });
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ providerId: "wrapt-catalog", entries: [] });
+    const body = response.json() as { providerId: string; entries: Array<{ manifest: { id: string } }> };
+    expect(body.providerId).toBe("wrapt-catalog");
+    expect(body.entries).toHaveLength(11);
+    expect(body.entries.map((entry) => entry.manifest.id)).toEqual([
+      "wrapt.example.focus-timer",
+      "wrapt.example.html-status",
+      "wrapt.example.mein-plugin",
+      "wrapt.example.orbit-notes",
+      "wrapt.example.project-checklist",
+      "wrapt.example.prompt-library",
+      "wrapt.example.reading-queue",
+      "wrapt.example.release-board",
+      "wrapt.example.service-pulse",
+      "wrapt.example.standup-brief",
+      "wrapt.example.url-launcher",
+    ]);
   });
 
   it("validiert Mutations-Requests vor der Ausführung", async () => {

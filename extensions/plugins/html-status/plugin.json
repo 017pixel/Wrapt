@@ -1,0 +1,23 @@
+{
+  "slug": "html-status",
+  "name": "HTML-Status",
+  "description": "Eine bereinigte Statusseite mit klaren Kennzahlen und Aktionen zum Prüfen der lokalen Workbench.",
+  "publisher": "wrapt",
+  "category": "design",
+  "version": "1.0.0",
+  "icon": "chart",
+  "routePath": "/plugins/view/html-status",
+  "pageMode": "html",
+  "iframeUrl": null,
+  "html": "<section><h2>Systemstatus</h2><p>Alle Kernbereiche melden sich erwartungsgemäß. Die Statusseite bleibt bewusst ohne freie Scripts.</p><ul><li>API · Bereit</li><li>Preview · Bereit</li><li>Agent · Wartet</li></ul><h3>Heute prüfen</h3><p>Öffne nach der Aktualisierung das Dashboard und kontrolliere offene Warnungen.</p></section>",
+  "blocks": [],
+  "functions": [
+    { "id": "refresh-status", "label": "Status aktualisieren", "action": "refresh-data", "value": "workbench-status" },
+    { "id": "open-dashboard", "label": "Dashboard öffnen", "action": "open-route", "value": "/dashboard" }
+  ],
+  "orbit": { "enabled": false, "title": "HTML-Status", "description": "", "placement": "dashboard", "nodeType": "frame", "accent": "ok" },
+  "wizard": { "goal": "Einen einfachen Status als HTML gestalten und über sichere Host-Aktionen prüfen.", "audience": "Menschen, die eigene HTML-Seiten bauen.", "design": "eigen", "layout": "zweispaltig", "tone": "ruhig", "includeHtml": true, "includeIframe": false, "includeOrbit": false, "additionalDescription": "HTML soll direkt gerendert und sicher bereinigt werden. Aktualisieren und Dashboard öffnen bleiben deklarierte Host-Aktionen.", "wishes": "Eine klare Liste für Statuswerte und ein verständlicher Status der Aktionen.", "iconDescription": "Klares Diagramm für eine Statusübersicht.", "additionalRequirements": "Keine freien Scripts, keine externen CDNs und keine unkontrollierten DOM-Änderungen.", "restartBehavior": "never", "agent": "anderer", "permissions": [], "surfaces": ["page", "dashboard"], "dataNeeds": ["lokaler Status"], "interactions": ["Status aktualisieren", "Dashboard öffnen"], "mobileBehavior": "responsive" },
+  "sourceExampleId": "html-status",
+  "status": "draft",
+  "surfaces": ["page", "dashboard"]
+}

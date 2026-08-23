@@ -1,0 +1,28 @@
+{
+  "slug": "service-pulse",
+  "name": "Service-Pulse",
+  "description": "Ein prüfbares Status-Panel für lokale Dienste und Previews mit Aktualisieren- und Dashboard-Aktion.",
+  "publisher": "wrapt",
+  "category": "monitoring",
+  "version": "1.0.0",
+  "icon": "dashboard",
+  "routePath": "/plugins/view/service-pulse",
+  "pageMode": "blocks",
+  "iframeUrl": null,
+  "html": "",
+  "blocks": [
+    { "id": "title", "type": "heading", "title": "Service-Pulse", "content": "Lokale Laufzeiten im Überblick.", "actionId": null },
+    { "id": "api", "type": "stat", "title": "Bereit", "content": "API", "actionId": null },
+    { "id": "preview", "type": "stat", "title": "2", "content": "Previews aktiv", "actionId": null },
+    { "id": "refresh", "type": "button", "title": "Status aktualisieren", "content": "", "actionId": "refresh-services" }
+  ],
+  "functions": [
+    { "id": "open-services", "label": "Dienste öffnen", "action": "open-route", "value": "/dashboard" },
+    { "id": "refresh-services", "label": "Status aktualisieren", "action": "refresh-data", "value": "services-and-previews" }
+  ],
+  "orbit": { "enabled": true, "title": "Service-Pulse", "description": "Lokale Laufzeiten auf einen Blick.", "placement": "both", "nodeType": "frame", "accent": "ok" },
+  "wizard": { "goal": "Wichtige lokale Laufzeiten schnell prüfen und bei Bedarf das Dashboard öffnen.", "audience": "Entwicklerinnen und Entwickler.", "design": "technisch", "layout": "dashboard", "tone": "fokussiert", "includeHtml": false, "includeIframe": false, "includeOrbit": true, "additionalDescription": "Statuswerte sollen ruhig und eindeutig erscheinen. Aktualisieren ist eine sichtbare, deklarierte Aktion.", "wishes": "Kleine Kennzahlen, große Orientierung und eine echte Aktualisierungsaktion.", "iconDescription": "Dashboard für mehrere lokale Laufzeiten.", "additionalRequirements": "Nur lesenden Service-Zugriff anfordern. Kein automatischer Neustart und keine Schreibaktion auf Dienste.", "restartBehavior": "never", "agent": "codex", "permissions": ["system.services.read"], "surfaces": ["page", "orbit"], "dataNeeds": ["Dienste", "Previews"], "interactions": ["Status aktualisieren", "Dienste öffnen"], "mobileBehavior": "responsive" },
+  "sourceExampleId": "service-pulse",
+  "status": "draft",
+  "surfaces": ["page", "orbit"]
+}

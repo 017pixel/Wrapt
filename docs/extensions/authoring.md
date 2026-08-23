@@ -64,6 +64,30 @@ Die Server-Runtime verwendet ihren konfigurierten `dataDirectory` und darunter `
 
 Der Build-/Installationsschritt darf beide Orte nicht verwechseln. Erst validieren, dann das fertige Paket kontrolliert in den Runtime-Catalog übernehmen und über die bestehende Extension-Verwaltung installieren oder aktualisieren.
 
+## Lokaler Plugin-Maker
+
+Für persönliche Plugins ist der Bereich Plugins der zentrale Einstieg. „Neues Plugin erstellen“ bietet drei Wege: den empfohlenen KI-Prompt, den visuellen Editor und den Code-Modus. Drafts liegen lokal im Wrapt-Datenverzeichnis und können geprüft, aktiviert, deaktiviert und weiterbearbeitet werden. Veröffentlichen bleibt ein nachgelagerter Export-Schritt.
+
+Persönliche Drafts liegen unter `<dataDirectory>/plugin-drafts`, aktivierte Pakete unter `<dataDirectory>/extension-catalog`. Beide Orte befinden sich standardmäßig außerhalb des Repositorys. Auch bei einer abweichenden lokalen Konfiguration schützen `.gitignore`-Regeln die entsprechenden Root-Ordner. `extensions/plugins` enthält ausschließlich bewusst versionierte Beispiele und darf nicht als Ablage für persönliche Plugins verwendet werden.
+
+Der KI-Prompt beschreibt Ziel, Host-Flächen, Contributions, Permissions, Orbit, Theme-Tokens, Tests und Neustart-Verhalten. Kleine Erweiterungen gehören in kontrollierte Slots wie Topbar, Bottom-Bar, Dashboard, Orbit, Kontextmenü, Overlay, Bottom Sheet oder rechte Seitenleiste. Freie Änderungen am Host-DOM sind nicht erlaubt.
+
+Alternativ kann ein Coding-Agent den lokalen Skill `$plugin-creator` verwenden. Er fragt dieselben Angaben wie der Setup-Wizard ab, prüft vorhandene Drafts und Slugs vor dem Schreiben und aktualisiert persönliche Plugins über die Authoring-API. Für ein vorhandenes Plugin muss der Agent dessen Draft-ID weiterverwenden, statt ein gleichnamiges Duplikat anzulegen.
+
+### Werkzeugseiten in der linken Sidebar
+
+Ein Plugin kann `page` und `sidebar` gleichzeitig deklarieren. Dann registriert die Frontend-Runtime eine eigene Route unter `/plugins/tool/<slug>` und einen Eintrag in der Gruppe „Werkzeuge“. Die Werkzeugseite darf deklarativ Blöcke und Funktionen, bereinigtes HTML oder einen sandboxed Iframe enthalten. Aktivierte Inhalte werden erst nach erfolgreicher Lifecycle-Prüfung registriert; Deaktivieren oder Deinstallieren entfernt Route und Navigation wieder.
+
+Für mobile Geräte muss dieselbe Route über die mobile Navigation erreichbar sein. Jede Funktion gehört in eine deklarierte Host-Aktion; direkte DOM-Manipulation, fremde Host-Flächen und unkontrollierte Iframe-Rechte sind nicht zulässig.
+
+### Neustarts und Agenten
+
+Ein Plugin-Agent darf Frontend oder Backend nicht eigenständig neu starten. Der KI-Prompt verlangt zuerst Tests und weist auf die Freigabe durch den Benutzer hin. Nach Store- oder Draft-Änderungen zeigt Wrapt einen Link zu Einstellungen → System, wo der passende Neustart kontrolliert ausgelöst werden kann. So bleibt ein laufendes Agententerminal erhalten und der Nutzer entscheidet selbst über den Zeitpunkt.
+
+### Abgleich mit aktuellen Agenten-Systemen
+
+[OpenCode 2](https://opencode.ai/v2/docs/build/plugins) setzt auf stabile Plugin-IDs, typisierte Host-Kontexte, geordnete Aktivierung und das Prüfen des tatsächlich geladenen Plugins. [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/framework/service.md) trennt Funktionen über Services und Lifecycle-Abhängigkeiten und behandelt Hot Reload als kontrollierten Zustandswechsel. Der deklarative `contributes`-Ansatz orientiert sich außerdem an [VS Code](https://code.visualstudio.com/api/references/extension-manifest). Wrapt übernimmt daraus klare Contribution-Grenzen, explizite Aktivierung, atomare Paketwechsel und Tests gegen das installierte Artefakt. Der lokale Catalog bleibt dabei bewusst einfach: Least Privilege, lokale Quelle und nachvollziehbare Neustart-Freigabe.
+
 ## Definition of Done
 
 Eine Extension ist fertig, wenn:

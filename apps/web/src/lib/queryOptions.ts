@@ -4,6 +4,12 @@ import { apiClient } from "./apiClient";
 export const wraptQueries = {
   dashboardConfig: () =>
     queryOptions({ queryKey: ["system", "dashboard-config"], queryFn: ({ signal }) => apiClient.dashboardConfig(signal), staleTime: Infinity }),
+  appearance: () =>
+    queryOptions({ queryKey: ["system", "appearance"], queryFn: ({ signal }) => apiClient.appearance(signal), staleTime: Infinity }),
+  codexResetHistory: () =>
+    queryOptions({ queryKey: ["system", "codex-reset-history"], queryFn: ({ signal }) => apiClient.codexResetHistory(signal), staleTime: 60_000 }),
+  codexResetHistorySettings: () =>
+    queryOptions({ queryKey: ["system", "codex-reset-history", "settings"], queryFn: ({ signal }) => apiClient.codexResetHistorySettings(signal), staleTime: 15_000 }),
   health: (refetchInterval = 5_000) =>
     queryOptions({ queryKey: ["health"], queryFn: ({ signal }) => apiClient.health(signal), refetchInterval }),
   readiness: (refetchInterval = 30_000) =>
@@ -20,6 +26,12 @@ export const wraptQueries = {
     queryOptions({ queryKey: ["extensions", "registry"], queryFn: ({ signal }) => apiClient.extensionRegistry(signal), staleTime: 10_000 }),
   extensionDetail: (id: string) =>
     queryOptions({ queryKey: ["extensions", "detail", id], queryFn: ({ signal }) => apiClient.extensionDetail(id, signal), staleTime: 5_000 }),
+  pluginExamples: () =>
+    queryOptions({ queryKey: ["plugins", "examples"], queryFn: ({ signal }) => apiClient.pluginExamples(signal), staleTime: 30_000 }),
+  pluginDrafts: () =>
+    queryOptions({ queryKey: ["plugins", "drafts"], queryFn: ({ signal }) => apiClient.pluginDrafts(signal), staleTime: 5_000 }),
+  pluginDraft: (id: string) =>
+    queryOptions({ queryKey: ["plugins", "draft", id], queryFn: ({ signal }) => apiClient.pluginDraft(id, signal), staleTime: 1_000 }),
   hermesStatus: () => queryOptions({ queryKey: ["hermes", "status"], queryFn: ({ signal }) => apiClient.hermesStatus(signal), refetchInterval: 30_000, staleTime: 10_000 }),
   hermesTasks: () => queryOptions({ queryKey: ["hermes", "tasks"], queryFn: ({ signal }) => apiClient.hermesTasks(signal), refetchInterval: 6_000, staleTime: 2_000, refetchIntervalInBackground: false }),
   hermesCron: () => queryOptions({ queryKey: ["hermes", "cron"], queryFn: ({ signal }) => apiClient.hermesCron(signal), refetchInterval: 60_000, staleTime: 15_000, refetchIntervalInBackground: false }),
