@@ -1,4 +1,7 @@
 import {
+  appearanceResponseSchema,
+  codexResetHistoryResponseSchema,
+  codexResetHistorySettingsResponseSchema,
   dashboardConfigSchema,
   healthResponseSchema,
   localPortsResponseSchema,
@@ -13,10 +16,12 @@ import {
 } from "@wrapt/contracts";
 import type { FastifyInstance } from "fastify";
 import { settings } from "../config/settings.js";
+import { persistAppearanceTheme, readAppearanceTheme } from "../config/wrapt-config.js";
 import type { RouteServices } from "../api/services.js";
 import { systemService } from "../services/systemService.js";
 import { t3ChannelService } from "../services/t3ChannelService.js";
 import { usageMonitoringService } from "../services/usageMonitoringService.js";
+import { codexResetHistoryService } from "../services/codexResetHistoryService.js";
 import { bootId, readRestartStatus, RestartError, triggerRestart, webBuildId } from "./restart.js";
 import { AppError } from "../utils/errors.js";
 
@@ -25,6 +30,18 @@ export async function registerSystemRoutes(app: FastifyInstance, services: Route
     healthResponseSchema.parse({ status: "ok", version: settings.appVersion, appName: settings.appName, timestamp: new Date().toISOString(), bootId, webBuildId: webBuildId() }),
   );
   app.get("/system/dashboard-config", async () => dashboardConfigSchema.parse(settings.dashboard));
+  app.get("/system/appearance", async () => appearanceResponseSchema.parse({ theme: readAppearanceTheme(settings.configDirectory), source: "project" }));
+  app.put("/system/appearance", async (request) => {
+    const { theme } = appearanceResponseSchema.parse({ theme: request.body, source: "project" });
+    persistAppearanceTheme(settings.configDirectory, theme);
+    return appearanceResponseSchema.parse({ theme, source: "project" });
+  });
+  app.get("/system/codex-reset-history/settings", async () => codexResetHistorySettingsResponseSchema.parse({ settings: codexResetHistoryService.getSettings() }));
+  app.put("/system/codex-reset-history/settings", async (request) => {
+    const { settings: next } = codexResetHistorySettingsResponseSchema.parse({ settings: request.body });
+    return codexResetHistorySettingsResponseSchema.parse({ settings: codexResetHistoryService.updateSettings(next) });
+  });
+  app.get("/system/codex-reset-history", async () => codexResetHistoryResponseSchema.parse(await codexResetHistoryService.get()));
   app.post("/system/restart", { config: { rateLimit: { max: 3, timeWindow: "1 minute" } } }, async (request, reply) => {
     const { target } = restartRequestSchema.parse(request.body);
     try {

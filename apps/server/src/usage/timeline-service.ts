@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { ManagedAccount, UsageTimelineLane, UsageTimelineResponse, UsageWindow } from "@wrapt/contracts";
+import type { ManagedAccount, ResetCredit, UsageTimelineLane, UsageTimelineResponse, UsageWindow } from "@wrapt/contracts";
 import type { CodexbarClient, ClaudeProfileUsage } from "../adapters/codexbar/codexbar-client.js";
 import type { CodexbarPayload } from "../adapters/codexbar/codexbar-schemas.js";
 import type { CodexbarUsageService } from "../adapters/codexbar/codexbar-cache.js";
@@ -60,6 +60,12 @@ function payloadEmail(payload: CodexbarPayload | undefined): string | null {
   return email ?? null;
 }
 
+function creditsForAccount(byAccount: Record<string, ResetCredit[]>, email: string | null, accountCount: number): ResetCredit[] {
+  if (email && byAccount[email]) return byAccount[email]!;
+  const candidates = Object.values(byAccount);
+  return !email && accountCount === 1 && candidates.length === 1 ? candidates[0]! : [];
+}
+
 interface LaneInput {
   provider: WorkbenchProvider;
   managed: ManagedAccount | undefined;
@@ -71,6 +77,7 @@ interface LaneInput {
   /** Registrierter Account ist bewusst deaktiviert („nicht überwacht"). */
   accountDisabled: boolean | undefined;
   error: { code: string; message: string } | undefined;
+  resetCredits?: ResetCredit[];
   now: number;
 }
 
@@ -116,7 +123,7 @@ export function buildTimelineLane(input: LaneInput): UsageTimelineLane {
     plan: managed?.plan ?? payload?.usage?.loginMethod ?? payload?.usage?.identity?.loginMethod ?? null,
     active: managed?.active ?? false,
     windows,
-    resetCredits: [],
+    resetCredits: input.resetCredits ?? [],
     status,
     error,
     updatedAt: payload?.usage?.updatedAt ?? input.updatedAt ?? null,
@@ -216,6 +223,7 @@ export class UsageTimelineService {
   private codexLanes(live: UsageTimelineLive, managedByEmail: Map<string, ManagedAccount>, now: number): UsageTimelineLane[] {
     const provider = live.providers.find((item) => item.providerId === "codex");
     if (!provider) return [];
+    const creditsByAccount = this.options.database.resetCredits();
     if (provider.status === "disabled") {
       return [...managedByEmail.values()].filter((item) => item.provider === "codex")
         .map((account) => buildTimelineLane({ provider: "codex", managed: account, windows: undefined, payload: undefined, updatedAt: undefined, accountDisabled: undefined, error: undefined, monitoringDisabled: true, now }));
@@ -232,6 +240,7 @@ export class UsageTimelineService {
         monitoringDisabled: undefined,
         accountDisabled: undefined,
         error: undefined,
+        resetCredits: creditsForAccount(creditsByAccount, account.email, provider.accounts.length),
         now,
       }));
     }

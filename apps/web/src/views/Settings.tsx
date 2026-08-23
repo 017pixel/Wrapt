@@ -19,6 +19,8 @@ import { useDashboardPreferences, useDashboardSections } from "../stores/dashboa
 import { useRouteActivity } from "../lib/routeActivity";
 import { useWebPushDevice } from "../lib/useWebPushDevice";
 import type { WebPushDeviceStatus } from "../lib/webPushDevice";
+import { AppearanceSettings } from "../components/AppearanceSettings";
+import "../components/appearance.css";
 
 type SettingsTabId = "allgemein" | "oberflaeche" | "benachrichtigungen" | "system" | "erweiterungen" | "werkzeuge" | "workspace";
 
@@ -125,6 +127,9 @@ export function Settings() {
 
         {tab === "oberflaeche" ? (
           <>
+            <Card title="Farben und Theme" subtitle="Projektweite Farben für Wrapt und lokale Plugins" action={<EyeIcon className="h-4 w-4 text-faint" />}>
+              <AppearanceSettings />
+            </Card>
             <Card title="Dashboard" subtitle="Bereiche lokal ein- und ausblenden" action={<EyeIcon className="h-4 w-4 text-faint" />}>
               <p className="mb-4 text-[12px] text-muted">Die zentrale Config legt Defaults und verfügbare Bereiche fest. Deine Auswahl wird nur in diesem Browser gespeichert. Bereiche, die in der Config deaktiviert sind, bleiben hier gesperrt.</p>
               <DashboardSectionToggles config={dashboardConfig.data} />
@@ -342,9 +347,12 @@ const usageMonitoringOrder: UsageProviderId[] = ["opencode", "codex", "claude"];
 function UsageMonitoringSettings() {
   const queryClient = useQueryClient();
   const monitoring = useQuery(wraptQueries.usageMonitoring());
+  const resetHistory = useQuery(wraptQueries.codexResetHistorySettings());
   const [saving, setSaving] = useState(false);
+  const [resetHistorySaving, setResetHistorySaving] = useState(false);
   const [message, setMessage] = useState("");
   const current = monitoring.data?.monitoring;
+  const resetHistoryEnabled = resetHistory.data?.settings.enabled ?? false;
 
   const save = async (next: UsageMonitoring) => {
     setSaving(true); setMessage("");
@@ -361,7 +369,21 @@ function UsageMonitoringSettings() {
     }
   };
 
-  if (!current) return <div className="settings-notification-skeleton"><span /><span /><span /></div>;
+  const saveResetHistory = async (enabled: boolean) => {
+    setResetHistorySaving(true); setMessage("");
+    try {
+      const response = await apiClient.saveCodexResetHistorySettings({ enabled });
+      if (response) queryClient.setQueryData(wraptQueries.codexResetHistorySettings().queryKey, response);
+      void queryClient.invalidateQueries({ queryKey: ["system", "codex-reset-history"] });
+      setMessage("Die Codex-Reset-Historie wurde gespeichert.");
+    } catch {
+      setMessage("Die Codex-Reset-Historie konnte nicht gespeichert werden.");
+    } finally {
+      setResetHistorySaving(false);
+    }
+  };
+
+  if (!current || !resetHistory.data) return <div className="settings-notification-skeleton"><span /><span /><span /></div>;
   return (
     <div className="notification-settings">
       <p className="mb-2 text-[12px] text-muted">Ausgeschaltete Werkzeuge werden nicht mehr auf ihre Limits abgefragt. Die Nutzungshistorie (Tokens und Kosten) bleibt davon unberührt.</p>
@@ -373,6 +395,15 @@ function UsageMonitoringSettings() {
           </span>
         </button>
       ))}
+      <div className="mt-3 border-t border-ink-700 pt-3">
+        <p className="mb-2 text-[12px] text-muted">Optionale globale Reset-Ankündigungen von codex-resets.com. Es werden keine Codex-Zugangsdaten übertragen.</p>
+        <button type="button" className="settings-toggle-row" disabled={saving || resetHistorySaving} onClick={() => void saveResetHistory(!resetHistoryEnabled)}>
+          <span><strong>Tibo-Reset-Historie</strong><small>Letzte globale Codex-Resets in der Nutzungsübersicht anzeigen</small></span>
+          <span className={`settings-toggle-switch ${resetHistoryEnabled ? "is-on" : ""}`} role="switch" aria-checked={resetHistoryEnabled} aria-label="Tibo-Reset-Historie">
+            <span className="settings-toggle-thumb" />
+          </span>
+        </button>
+      </div>
       {message ? <p className="text-[12px] text-muted" role="status">{message}</p> : null}
     </div>
   );

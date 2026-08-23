@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { UsageTimelineResponse } from "@wrapt/contracts";
+import type { CodexResetHistoryResponse, UsageTimelineResponse } from "@wrapt/contracts";
 import { UsageOverview } from "./UsageOverview";
 import { useUsagePreferences, defaultUsagePreferences } from "../../stores/usagePreferences";
 
@@ -31,7 +31,7 @@ function timelineData(over: Partial<UsageTimelineResponse> = {}): UsageTimelineR
           { id: "primary", label: "5-Stunden-Limit", usedPercent: 18, remainingPercent: 82, windowMinutes: 300, resetsAt: "2026-07-29T17:00:00Z" },
           { id: "secondary", label: "Wochenlimit", usedPercent: 74, remainingPercent: 26, windowMinutes: 10_080, resetsAt: "2026-08-01T20:00:00Z" },
         ],
-        resetCredits: [],
+        resetCredits: [{ id: "credit-1", title: "Full reset", description: "A free reset of your Codex limits", status: "available", grantedAt: "2026-07-13T18:29:31Z", expiresAt: "2026-08-20T18:29:31Z" }],
         status: "available",
         error: null,
         updatedAt: "2026-07-29T10:00:00Z",
@@ -100,6 +100,34 @@ describe("UsageOverview", () => {
     expect(within(table).getByText("Alice")).toBeTruthy();
     expect(within(table).getByText("82 %")).toBeTruthy();
     expect(within(table).getByText("26 %")).toBeTruthy();
+  });
+
+  it("zeigt persönliche Banked Resets mit Status und Ablaufdatum", () => {
+    render(<UsageOverview timeline={timelineData()} now={now} />);
+    const panel = screen.getByRole("region", { name: "Banked Resets" });
+    expect(within(panel).getByText("Vollständiger Limit-Reset")).toBeTruthy();
+    expect(within(panel).getByText("1 verfügbar")).toBeTruthy();
+    expect(within(panel).getByText(/Gültig bis/)).toBeTruthy();
+    expect(within(panel).getByText(/Kostenloser Reset deiner Codex-Limits/)).toBeTruthy();
+  });
+
+  it("zeigt eine stale Tibo-Historie mit Quelle und Community-Hinweis", () => {
+    const history: CodexResetHistoryResponse = {
+      enabled: true,
+      status: "stale",
+      resets: [{ id: "reset-1", resetType: "banked", announcedAt: "2026-08-21T11:43:19Z", text: "Banked reset announced", sourceUrl: "https://x.com/thsottiaux/status/123" }],
+      stats: { total: 1, lastResetAt: "2026-08-21T11:43:19Z", daysSinceLast: 0.5, averageIntervalDays: 7.7 },
+      fetchedAt: "2026-08-21T12:00:00Z",
+      lastSuccessfulFetchAt: "2026-08-21T12:00:00Z",
+      error: "Verbindung unterbrochen",
+    };
+    render(<UsageOverview timeline={timelineData()} codexResetHistory={{ data: history, isPending: false, isError: false }} now={now} />);
+    const panel = screen.getByRole("region", { name: "Tibo-Reset-Historie" });
+    expect(within(panel).getByText("Letzter Stand")).toBeTruthy();
+    expect(within(panel).getByText("Banked")).toBeTruthy();
+    expect(within(panel).getByText("Verbindung unterbrochen")).toBeTruthy();
+    expect(within(panel).getByRole("link", { name: /Quelle auf X/ }).getAttribute("href")).toBe(history.resets[0]!.sourceUrl);
+    expect(within(panel).getByText(/keine Bestätigung für deinen persönlichen Account/)).toBeTruthy();
   });
 
   it("markiert den aktiven Account in der Liste", () => {

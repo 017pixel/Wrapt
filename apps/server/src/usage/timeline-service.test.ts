@@ -94,6 +94,18 @@ describe("UsageTimelineService", () => {
           }],
         })),
       } as unknown as CodexbarUsageService,
+      database: {
+        resetCredits: () => ({
+          "privat@example.com": [{
+            id: "credit-1",
+            title: "Full reset",
+            description: "A free reset of your Codex limits",
+            status: "available",
+            grantedAt: "2026-07-13T18:29:31Z",
+            expiresAt: "2026-08-20T18:29:31Z",
+          }],
+        }),
+      },
     });
 
     const result = await service.get();
@@ -102,6 +114,8 @@ describe("UsageTimelineService", () => {
     const arbeit = result.lanes.find((lane) => lane.accountId === "a2");
     expect(privat).toMatchObject({ providerId: "codex", accountLabel: "Privat", email: "privat@example.com", active: true, status: "available" });
     expect(privat?.windows).toEqual([expect.objectContaining({ remainingPercent: 40 })]);
+    expect(privat?.resetCredits).toEqual([expect.objectContaining({ id: "credit-1", expiresAt: "2026-08-20T18:29:31Z" })]);
+    expect(arbeit?.resetCredits).toEqual([]);
     expect(arbeit).toMatchObject({ accountLabel: "Arbeit", active: false, status: "available" });
   });
 

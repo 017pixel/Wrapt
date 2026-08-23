@@ -69,6 +69,16 @@
       "newsMilliseconds": 60000
     }
   },
+  "appearance": {
+    "preset": "wrapt-standard",
+    "colors": {
+      "accent": "#3666c2",
+      "background": "#0a0a0a",
+      "sidebar": "#111111",
+      "topbar": "#0a0a0a",
+      "bottomBar": "#111111"
+    }
+  },
   "notifications": {
     "preferences": {
       "toastsEnabled": true,
@@ -98,6 +108,9 @@
       "codex": true,
       "opencode": true,
       "claude": true
+    },
+    "codexResetHistory": {
+      "enabled": false
     }
   },
   "hermes": {

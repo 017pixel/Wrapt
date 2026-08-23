@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
-import { loadWraptConfig, persistUsageMonitoring, readUsageMonitoring, wraptConfigSchema, type WraptConfig } from "./wrapt-config.js";
+import { loadWraptConfig, persistCodexResetHistorySettings, persistUsageMonitoring, readCodexResetHistorySettings, readUsageMonitoring, wraptConfigSchema, type WraptConfig } from "./wrapt-config.js";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 
@@ -109,5 +109,17 @@ describe("Limitüberwachung in der Config", () => {
     persistUsageMonitoring(directory, { codex: false, opencode: true, claude: true });
     expect(readUsageMonitoring(directory)).toEqual({ codex: false, opencode: true, claude: true });
     expect(loadWraptConfig(directory).paths.projectsRoot).toBe(exampleConfig().paths.projectsRoot);
+  });
+
+  it("deaktiviert die optionale Tibo-Historie standardmäßig", () => {
+    expect(readCodexResetHistorySettings(createConfigDirectory(baseConfig()))).toEqual({ enabled: false });
+  });
+
+  it("liest und schreibt die Tibo-Historie getrennt von der Limitüberwachung", () => {
+    const directory = createConfigDirectory({ ...baseConfig(), usage: { monitoring: { codex: false, opencode: true, claude: true }, codexResetHistory: { enabled: true } } });
+    expect(readCodexResetHistorySettings(directory)).toEqual({ enabled: true });
+    persistCodexResetHistorySettings(directory, { enabled: false });
+    expect(readCodexResetHistorySettings(directory)).toEqual({ enabled: false });
+    expect(readUsageMonitoring(directory)).toEqual({ codex: false, opencode: true, claude: true });
   });
 });

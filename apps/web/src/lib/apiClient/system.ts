@@ -1,5 +1,8 @@
 import {
   dashboardConfigSchema,
+  appearanceResponseSchema,
+  codexResetHistoryResponseSchema,
+  codexResetHistorySettingsResponseSchema,
   healthResponseSchema,
   localPortsResponseSchema,
   operationalMetricsSchema,
@@ -14,12 +17,18 @@ import {
   type RestartTarget,
   type T3Channel,
   type UsageMonitoring,
+  type AppearanceTheme,
 } from "@wrapt/contracts";
 import { mutate, request } from "./transport.js";
 
 export const systemApi = {
   health: (signal?: AbortSignal) => request("/health", healthResponseSchema, signal),
   dashboardConfig: (signal?: AbortSignal) => request("/system/dashboard-config", dashboardConfigSchema, signal),
+  appearance: (signal?: AbortSignal) => request("/system/appearance", appearanceResponseSchema, signal),
+  saveAppearance: (theme: AppearanceTheme) => mutate("/system/appearance", "PUT", appearanceResponseSchema, theme),
+  codexResetHistory: (signal?: AbortSignal) => request("/system/codex-reset-history", codexResetHistoryResponseSchema, signal),
+  codexResetHistorySettings: (signal?: AbortSignal) => request("/system/codex-reset-history/settings", codexResetHistorySettingsResponseSchema, signal),
+  saveCodexResetHistorySettings: (settings: { enabled: boolean }) => mutate("/system/codex-reset-history/settings", "PUT", codexResetHistorySettingsResponseSchema, settings),
   readiness: (signal?: AbortSignal) => request("/health/readiness", readinessResponseSchema, signal),
   operationalMetrics: (signal?: AbortSignal) => request("/system/operational-metrics", operationalMetricsSchema, signal),
   restartSystem: (target: RestartTarget) => mutate("/system/restart", "POST", restartResponseSchema, { target }),

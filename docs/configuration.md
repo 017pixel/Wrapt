@@ -14,6 +14,7 @@ Konfigurationsquelle für alles Umgebungsspezifische:
 - `cli` — Pfade zu `codexbar`, `codex`, `opencode`, `claude`, `tmux`, `chromium`.
 - `codexbar` — Pfad zur CodexBar-`config.json` und optionale OAuth-Profil-Homes.
 - `dashboard` — serverseitige Sichtbarkeitsdefaults für Dashboard-Bereiche und Polling-Intervalle. Die lokale Oberfläche kann diese Bereiche zusätzlich pro Browser ausblenden.
+- `appearance` — projektweite Akzent-, Hintergrund-, Sidebar-, Topbar- und Bottom-Bar-Farben. Lokale Plugins lesen dieselben semantischen Theme-Tokens.
 - `notifications` — Aufbewahrung, Erkennungsschwellen sowie Toast- und Push-Regeln pro Quelle.
 - `previews` — interne Loopback-Listener, zugehörige öffentliche Tailscale-HTTPS-Ports und die Feature-Flags der Preview-Laufzeit (siehe unten).
 - `hermes` — Loopback-Dashboard, ACP-Chat, User-Units, Updatezeit und serverseitige Betriebsgrenzen.
@@ -185,6 +186,38 @@ Qualitätsstufe 4 hält Buildzeit und Dateigröße in einem guten Verhältnis. D
 Der Abschnitt `dashboard` in `config/wrapt.local.json` steuert, welche Bereiche der Server an die Oberfläche freigibt und wie oft die Live-Daten abgefragt werden. Die Schlüssel unter `sections` sind `quickActions`, `server`, `metrics`, `services`, `runtime`, `diagnostics`, `usage`, `news` und `commands`. Die Intervalle unter `refresh` werden in Millisekunden angegeben und serverseitig begrenzt.
 
 Die Schalter unter Einstellungen → Dashboard gelten nur für den aktuellen Browser und werden in `localStorage` gespeichert. Ein Bereich, der in `dashboard.sections` auf `false` steht, bleibt auch dort gesperrt. Nach Änderungen an der zentralen Config ist ein Backend-Neustart erforderlich.
+
+## Nutzungsübersicht und Codex-Reset-Historie
+
+Unter `usage.monitoring` werden die serverseitigen Limitabfragen pro Werkzeug aktiviert oder
+deaktiviert. Die persönliche Reset-Guthabenliste der Codex-Accounts kommt aus dem lokalen
+CodexBar-Abruf und enthält, sofern vorhanden, Vergabe- und Ablaufdaten.
+
+Die optionale Einstellung `usage.codexResetHistory.enabled` ist standardmäßig `false`. Wird sie
+aktiviert, lädt Wrapt ausschließlich die öffentliche, schreibgeschützte API von
+`codex-resets.com` und zeigt deren globale Tibo-Reset-Ankündigungen in der Nutzungsübersicht.
+Codex-Zugangsdaten werden dabei nicht übertragen. Die Antwort wird serverseitig kurzzeitig
+gecached; bei einem temporären Fehler bleibt der letzte erfolgreiche Stand als „Letzter Stand“
+sichtbar. Die Community-Historie ist keine Bestätigung für den persönlichen Codex-Account.
+
+## Appearance und lokale Plugins
+
+Der Abschnitt `appearance` kann als Preset oder mit eigenen sechsstelligen Hex-Farben gesetzt werden:
+
+```json
+{
+  "preset": "wrapt-standard",
+  "colors": {
+    "accent": "#3666c2",
+    "background": "#0a0a0a",
+    "sidebar": "#111111",
+    "topbar": "#0a0a0a",
+    "bottomBar": "#111111"
+  }
+}
+```
+
+Die Oberfläche unter Einstellungen → Oberfläche schreibt diese Werte in `wrapt.local.json`. Plugins verwenden für eigene Flächen die semantischen Rollen `--surface-base`, `--surface-raised`, `--surface-overlay`, `--color-accent`, `--color-text` und `--color-muted`, damit sie bei einem Presetwechsel nicht wie Fremdkörper wirken.
 
 ```dotenv
 API_RATE_LIMIT_MAX=180

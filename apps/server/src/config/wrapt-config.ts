@@ -1,7 +1,7 @@
 import { chmodSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { ensureWraptLocalConfig, migrateLegacyConfigValue, migrateLegacyPersistentData, WRAPT_EXAMPLE_CONFIG, WRAPT_LOCAL_CONFIG } from "./legacy-migration.js";
 import { join } from "node:path";
-import { dashboardConfigSchema, notificationPreferencesSchema, t3ChannelSchema, usageMonitoringSchema, type NotificationPreferences, type T3Channel, type UsageMonitoring } from "@wrapt/contracts";
+import { appearanceThemeSchema, codexResetHistorySettingsSchema, dashboardConfigSchema, defaultAppearanceTheme, notificationPreferencesSchema, t3ChannelSchema, usageMonitoringSchema, type AppearanceTheme, type CodexResetHistorySettings, type NotificationPreferences, type T3Channel, type UsageMonitoring } from "@wrapt/contracts";
 import { z } from "zod";
 
 const absolutePath = z.string().startsWith("/");
@@ -56,6 +56,7 @@ export const wraptConfigSchema = z.object({
   // Workbench-Konfiguration. Die Oberfläche kann einzelne Bereiche lokal
   // ausblenden, diese Werte definieren die serverseitigen Defaults und Grenzen.
   dashboard: dashboardConfigSchema,
+  appearance: appearanceThemeSchema.default(defaultAppearanceTheme),
   notifications: z.object({
     preferences: notificationPreferencesSchema.prefault({}),
     pollSeconds: z.number().int().min(2).max(300).default(5),
@@ -80,6 +81,7 @@ export const wraptConfigSchema = z.object({
   // gesetzt und gespeichert; die Feld-Defaults greifen, wenn der Abschnitt fehlt.
   usage: z.object({
     monitoring: usageMonitoringSchema.prefault({}),
+    codexResetHistory: codexResetHistorySettingsSchema.prefault({}),
   }).prefault({}),
   hermes: z.object({
     enabled: z.boolean().default(true),
@@ -340,6 +342,50 @@ export function persistUsageMonitoring(configDirectory: string, monitoring: Usag
   const previousUsage = (base.usage ?? {}) as Record<string, unknown>;
   const next = { ...base, usage: { ...previousUsage, monitoring } };
   // Erst prüfen, dann schreiben: eine ungültige Datei würde den nächsten Serverstart verhindern.
+  wraptConfigSchema.parse(next);
+  const temporaryPath = `${localPath}.tmp`;
+  writeFileSync(temporaryPath, `${JSON.stringify(next, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  renameSync(temporaryPath, localPath);
+  chmodSync(localPath, 0o600);
+}
+
+export function readCodexResetHistorySettings(configDirectory: string): CodexResetHistorySettings {
+  return loadWraptConfig(configDirectory).usage.codexResetHistory;
+}
+
+export function persistCodexResetHistorySettings(configDirectory: string, settings: CodexResetHistorySettings): void {
+  const localPath = join(configDirectory, localConfigName);
+  let base: Record<string, unknown>;
+  try {
+    base = migrateLegacyConfigValue(JSON.parse(readFileSync(localPath, "utf8")) as Record<string, unknown>) as Record<string, unknown>;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    base = JSON.parse(readFileSync(join(configDirectory, exampleConfigName), "utf8")) as Record<string, unknown>;
+  }
+  const previousUsage = (base.usage ?? {}) as Record<string, unknown>;
+  const next = { ...base, usage: { ...previousUsage, codexResetHistory: codexResetHistorySettingsSchema.parse(settings) } };
+  wraptConfigSchema.parse(next);
+  const temporaryPath = `${localPath}.tmp`;
+  writeFileSync(temporaryPath, `${JSON.stringify(next, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+  renameSync(temporaryPath, localPath);
+  chmodSync(localPath, 0o600);
+}
+
+export function readAppearanceTheme(configDirectory: string): AppearanceTheme {
+  return loadWraptConfig(configDirectory).appearance;
+}
+
+export function persistAppearanceTheme(configDirectory: string, theme: AppearanceTheme): void {
+  const parsedTheme = appearanceThemeSchema.parse(theme);
+  const localPath = join(configDirectory, localConfigName);
+  let base: Record<string, unknown>;
+  try {
+    base = migrateLegacyConfigValue(JSON.parse(readFileSync(localPath, "utf8")) as Record<string, unknown>) as Record<string, unknown>;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    base = JSON.parse(readFileSync(join(configDirectory, exampleConfigName), "utf8")) as Record<string, unknown>;
+  }
+  const next = { ...base, appearance: parsedTheme };
   wraptConfigSchema.parse(next);
   const temporaryPath = `${localPath}.tmp`;
   writeFileSync(temporaryPath, `${JSON.stringify(next, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });

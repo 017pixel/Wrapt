@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import type { UsageTimelineResponse } from "@wrapt/contracts";
+import type { CodexResetHistoryResponse, UsageTimelineResponse } from "@wrapt/contracts";
 import { useUsagePreferences } from "../../stores/usagePreferences";
 import { buildTimelineLane } from "../../lib/quotaTimeline";
 import {
@@ -18,6 +18,7 @@ import { formatRelativeTime } from "../../lib/format";
 import { UsageAccountTable } from "./UsageAccountTable";
 import { UsageFilters } from "./UsageFilters";
 import { UsageViewSettings } from "./UsageViewSettings";
+import { CodexResetCreditsPanel, CodexResetHistoryPanel } from "./CodexResetPanels";
 import { WarningIcon } from "../icons";
 
 const providerName: Record<"codex" | "claude" | "opencode", string> = {
@@ -28,6 +29,7 @@ const providerName: Record<"codex" | "claude" | "opencode", string> = {
 
 export interface UsageOverviewProps {
   timeline: UsageTimelineResponse;
+  codexResetHistory?: { data: CodexResetHistoryResponse | undefined; isPending: boolean; isError: boolean };
   now?: number;
 }
 
@@ -78,7 +80,7 @@ function NoAccounts({ hasActiveFilters, onReset }: { hasActiveFilters: boolean; 
   );
 }
 
-export function UsageOverview({ timeline, now: nowProp }: UsageOverviewProps) {
+export function UsageOverview({ timeline, codexResetHistory, now: nowProp }: UsageOverviewProps) {
   const prefs = useUsagePreferences();
   const tick = useNow();
   const now = nowProp ?? tick;
@@ -165,7 +167,8 @@ export function UsageOverview({ timeline, now: nowProp }: UsageOverviewProps) {
           )}
         </section>
       ) : null}
-
+      <CodexResetCreditsPanel lanes={sortedApiLanes} visible={prefs.showResetCredits} now={now} />
+      {codexResetHistory && (prefs.providerFilter === "all" || prefs.providerFilter === "codex") ? <CodexResetHistoryPanel {...codexResetHistory} /> : null}
     </div>
   );
 }

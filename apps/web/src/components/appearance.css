@@ -1,0 +1,25 @@
+@layer components {
+  .appearance-settings { display: grid; gap: 18px; }
+  .appearance-preset-row { display: flex; align-items: end; justify-content: space-between; gap: 16px; }
+  .appearance-preset-row label { display: grid; flex: 1; gap: 6px; color: var(--color-muted); font-size: 11px; }
+  .appearance-preset-row select { min-height: 42px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-ink-850); padding: 9px 10px; color: var(--color-text); font: inherit; }
+  .appearance-preview { display: flex; width: 120px; height: 42px; overflow: hidden; border: 1px solid var(--color-line); border-radius: var(--radius-sm); }
+  .appearance-preview span { flex: 1; }
+  .appearance-color-list { display: grid; overflow: hidden; border: 1px solid var(--color-line); border-radius: var(--radius-sm); }
+  .appearance-color-row { display: flex; min-height: 58px; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--color-line); padding: 8px 12px; }
+  .appearance-color-row:last-child { border-bottom: 0; }
+  .appearance-color-row > span:first-child { display: grid; gap: 3px; }
+  .appearance-color-row strong { color: var(--color-text); font-size: 12px; font-weight: 600; }
+  .appearance-color-row small { color: var(--color-faint); font-size: 10px; }
+  .appearance-color-control { display: flex; min-width: 130px; align-items: center; justify-content: flex-end; gap: 8px; }
+  .appearance-color-control input { width: 44px; height: 44px; border: 0; border-radius: var(--radius-sm); background: transparent; padding: 0; }
+  .appearance-color-control code { color: var(--color-muted); font: 10px var(--font-mono); }
+  .appearance-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .appearance-actions > span { color: var(--color-accent); font-size: 11px; }
+}
+
+@media (max-width: 620px) {
+  .appearance-preset-row { align-items: stretch; flex-direction: column; }
+  .appearance-preview { width: 100%; }
+  .appearance-color-control { min-width: 112px; }
+}
