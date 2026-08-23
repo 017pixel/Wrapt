@@ -23,7 +23,7 @@ Alle Änderungen werden in fünf kurzen Stichpunkten pro Kategorie dokumentiert.
 - Neuere Drafts gewinnen bei alten doppelten Slugs und neue Drafts erhalten automatisch eindeutige Slugs
 - Bearbeiten, Aktivieren, Deaktivieren, Öffnen und Löschen sind ohne vorherigen Editor-Umweg sofort sichtbar
 - Servereigene Lifecycle-Felder können nicht mehr per normalem PUT gefälscht oder durch erneute Validierung verloren werden
-- Paketupdates ersetzen alte Dateien atomar und leere JSON-Anfragen werden als typisierte Clientfehler behandelt
+- Paketupdates ersetzen alte Dateien atomar, leere JSON-Anfragen werden typisiert behandelt und Permissions-Policy-Werte korrekt ausgeliefert
 
 ## [0.98.0] - 2026-08-22
 

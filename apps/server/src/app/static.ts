@@ -40,7 +40,7 @@ export async function registerStaticHosting(app: FastifyInstance) {
           // werden an den Iframe delegiert.
           response.header(
             "Permissions-Policy",
-            'local-network-access=(self "https://app.t3.codes"); local-network=(self "https://app.t3.codes"); loopback-network=(self "https://app.t3.codes")',
+            'local-network-access=(self "https://app.t3.codes"), local-network=(self "https://app.t3.codes"), loopback-network=(self "https://app.t3.codes")',
           );
           return;
         }
@@ -82,7 +82,7 @@ export async function registerStaticHosting(app: FastifyInstance) {
       return reply
         .header(
           "Permissions-Policy",
-          'local-network-access=(self "https://app.t3.codes"); local-network=(self "https://app.t3.codes"); loopback-network=(self "https://app.t3.codes")',
+          'local-network-access=(self "https://app.t3.codes"), local-network=(self "https://app.t3.codes"), loopback-network=(self "https://app.t3.codes")',
         )
         .type("text/html")
         .sendFile("index.html");
