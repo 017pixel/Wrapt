@@ -8,7 +8,7 @@ Alle Änderungen werden in fünf kurzen Stichpunkten pro Kategorie dokumentiert.
 - Isolierte Plugin-End-to-End-Suite für leichte, mittlere und komplexe visuelle sowie Code-Plugins ergänzt
 - Echte KI-Erstellung mit drei unterschiedlichen kostenlosen OpenCode-Modellen und materialisierter Paketprüfung verifiziert
 - Regressionstests für eindeutige Slugs, Paketbesitz, Lifecycle-Schutz und aktive Neuvalidierung ergänzt
-- Direkte kompatible Host-Routen für `/plugins/tool/:pluginSlug` und `/plugins/view/:pluginSlug` ergänzt
+- Direkte kompatible Host-Routen für `/plugins/tool/:pluginSlug` und `/plugins/view/:pluginSlug` ergänzt und Plugin-/Theme-Visualisierungen abgelegt
 - Einstellungen für Appearance, semantische Plugin-Tokens und die optionale Codex-Reset-Historie ergänzt
 
 ### Verändert
