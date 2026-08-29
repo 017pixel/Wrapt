@@ -1,0 +1,20 @@
+{
+  "name": "wrapt",
+  "interface": {
+    "displayName": "Wrapt"
+  },
+  "plugins": [
+    {
+      "name": "wrapt-extension-creator",
+      "source": {
+        "source": "local",
+        "path": "./plugins/wrapt-extension-creator"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

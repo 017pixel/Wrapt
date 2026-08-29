@@ -143,9 +143,7 @@
       "alwaysShowLimits": false
     }
   },
-  "plugins": {
-    "creatorSkillPath": "/home/your-user/.codex/skills/.system/plugin-creator/SKILL.md"
-  },
+  "plugins": {},
   "hermes": {
     "enabled": true,
     "host": "127.0.0.1",

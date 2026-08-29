@@ -27,10 +27,11 @@ lesen diese Datei beim Start; fehlt sie, wird auf `config/wrapt.example.json` zu
 Die Werte aus dieser Config bilden die **Defaults**; eine gesetzte Umgebungsvariable in `.env`
 überschreibt den jeweiligen Einzelwert.
 
-`plugins.creatorSkillPath` muss ein absoluter Pfad auf eine UTF-8-Textdatei sein. Ohne Angabe
-verwendet Wrapt `<paths.codexSharedHome>/skills/.system/plugin-creator/SKILL.md` beziehungsweise
-`<system.homeDirectory>/.codex/skills/.system/plugin-creator/SKILL.md`. Die API liefert nur diese
-explizit konfigurierte Datei und erlaubt kein freies Lesen anderer lokaler Pfade.
+`plugins.creatorSkillPath` ist ein optionaler absoluter Pfad auf eine UTF-8-Textdatei.
+Ohne Angabe verwendet Wrapt den mitgelieferten Skill unter
+`.agents/plugins/plugins/wrapt-extension-creator/skills/plugin-creator/SKILL.md`.
+Eine absolute lokale Überschreibung bleibt möglich. Die API liefert ausschließlich die
+aufgelöste Skill-Datei und erlaubt kein freies Lesen anderer lokaler Pfade.
 
 ## Hermes Agent
 

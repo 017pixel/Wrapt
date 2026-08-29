@@ -13,7 +13,7 @@ function exampleConfig(): WraptConfig {
 
 describe("Workbench-Preview-Konfiguration", () => {
   it("hält den Plugin-Creator-Pfad zentral und optional", () => {
-    expect(exampleConfig().plugins.creatorSkillPath).toBe("/home/your-user/.codex/skills/.system/plugin-creator/SKILL.md");
+    expect(exampleConfig().plugins.creatorSkillPath).toBeUndefined();
     const config = exampleConfig() as unknown as Record<string, unknown>;
     delete config.plugins;
     expect(wraptConfigSchema.parse(config).plugins).toEqual({});

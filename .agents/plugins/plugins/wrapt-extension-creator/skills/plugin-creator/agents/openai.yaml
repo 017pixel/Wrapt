@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wrapt Plugin Creator"
+  short_description: "Erstellt und aktualisiert sichere Wrapt-Extensions."
+  default_prompt: "Erstelle ein neues Wrapt-Plugin für dieses Projekt."

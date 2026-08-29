@@ -5,8 +5,8 @@ Wrapt behandelt neue, optionale Produktfunktionen standardmäßig als Extensions
 ## Schnellstart
 
 ```bash
-pnpm extension:create benjamin.docker-monitor
-pnpm extension:validate extensions/benjamin.docker-monitor
+pnpm extension:create beispiel.docker-monitor
+pnpm extension:validate extensions/beispiel.docker-monitor
 ```
 
 Der Scaffolder erzeugt ein gültiges `extension.json` und eine lokale README. Der anfängliche Command ist nur ein Platzhalter und soll durch die tatsächlich benötigten Contributions ersetzt werden.
@@ -74,6 +74,11 @@ Der KI-Prompt beschreibt Ziel, Host-Flächen, Contributions, Permissions, Orbit,
 
 Alternativ kann ein Coding-Agent den lokalen Skill `$plugin-creator` verwenden. Er fragt dieselben Angaben wie der Setup-Wizard ab, prüft vorhandene Drafts und Slugs vor dem Schreiben und aktualisiert persönliche Plugins über die Authoring-API. Für ein vorhandenes Plugin muss der Agent dessen Draft-ID weiterverwenden, statt ein gleichnamiges Duplikat anzulegen. Unter Plugins → Allgemein lässt sich die verwendete Skill-Anleitung direkt lesen oder als `plugin-creator-SKILL.md` herunterladen. Die Quelle wird über `plugins.creatorSkillPath` konfiguriert und bleibt auf genau diese lokale Textdatei begrenzt.
 
+Der Wrapt-spezifische Skill wird im Repository als Codex-Plugin unter `.agents/plugins`
+ausgeliefert. Ohne lokale Überschreibung verwendet auch die Wrapt-Oberfläche genau diese
+versionierte `SKILL.md`. Installation und Abgrenzung zum allgemeinen Codex-Plugin-Creator
+stehen in [plugin-marketplace.md](plugin-marketplace.md).
+
 ### Werkzeugseiten in der linken Sidebar
 
 Ein Plugin kann `page` und `sidebar` gleichzeitig deklarieren. Dann registriert die Frontend-Runtime eine eigene Route unter `/plugins/tool/<slug>` und einen Eintrag in der Gruppe „Werkzeuge“. Die Werkzeugseite darf deklarativ Blöcke und Funktionen, bereinigtes HTML oder einen sandboxed Iframe enthalten. Aktivierte Inhalte werden erst nach erfolgreicher Lifecycle-Prüfung registriert; Deaktivieren oder Deinstallieren entfernt Route und Navigation wieder.
@@ -84,9 +89,12 @@ Für mobile Geräte muss dieselbe Route über die mobile Navigation erreichbar s
 
 Ein Plugin-Agent darf Frontend oder Backend nicht eigenständig neu starten. Der KI-Prompt verlangt zuerst Tests und weist auf die Freigabe durch den Benutzer hin. Nach Store- oder Draft-Änderungen zeigt Wrapt auf der Plugin-Seite einen schließbaren Hinweis. Erst der Benutzer startet dort Frontend und Backend gemeinsam neu und sieht Build, Backend, T3-Kanal sowie Fehler direkt im selben Flow. Laufende Panels, Arbeitsflächen, Terminals und persistierte Daten bleiben erhalten.
 
-### Abgleich mit aktuellen Agenten-Systemen
+### Öffentliche Verträge
 
-[OpenCode 2](https://opencode.ai/v2/docs/build/plugins) setzt auf stabile Plugin-IDs, typisierte Host-Kontexte, geordnete Aktivierung und das Prüfen des tatsächlich geladenen Plugins. [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness/blob/master/docs/user/develop/framework/service.md) trennt Funktionen über Services und Lifecycle-Abhängigkeiten und behandelt Hot Reload als kontrollierten Zustandswechsel. Der deklarative `contributes`-Ansatz orientiert sich außerdem an [VS Code](https://code.visualstudio.com/api/references/extension-manifest). Wrapt übernimmt daraus klare Contribution-Grenzen, explizite Aktivierung, atomare Paketwechsel und Tests gegen das installierte Artefakt. Der lokale Catalog bleibt dabei bewusst einfach: Least Privilege, lokale Quelle und nachvollziehbare Neustart-Freigabe.
+Wrapt hält Plugin- und Agentenpakete bewusst getrennt. Das Codex-Plugin verteilt den
+`$plugin-creator`-Skill; das erzeugte Wrapt-Paket folgt anschließend ausschließlich
+`@wrapt/extension-contracts`. Manifest, Contributions, Permissions, Aktivierung und
+Rollback bleiben dadurch unabhängig vom verwendeten Coding-Agenten reproduzierbar.
 
 ## Definition of Done
 

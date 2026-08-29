@@ -8,9 +8,9 @@ const paths = {
 };
 
 describe("KI-Home-Einstellungen", () => {
-  it("leitet Homes und Plugin-Creator-Skill aus dem System-Home ab", () => {
-    expect(resolveAgentHomeSettings(paths, {})).toMatchObject({
-      pluginCreatorSkillPath: "/home/tester/.codex/skills/.system/plugin-creator/SKILL.md",
+  it("leitet Homes ab und verwendet den ausgelieferten Wrapt-Skill", () => {
+    expect(resolveAgentHomeSettings(paths, {}, "/srv/wrapt")).toMatchObject({
+      pluginCreatorSkillPath: "/srv/wrapt/.agents/plugins/plugins/wrapt-extension-creator/skills/plugin-creator/SKILL.md",
       sharedHomes: {
         codex: { sharedHome: "/home/tester/.codex", authFileName: "auth.json" },
         claude: { sharedHome: "/home/tester/.claude", authFileName: ".credentials.json" },
@@ -20,7 +20,7 @@ describe("KI-Home-Einstellungen", () => {
   });
 
   it("respektiert zentrale Home- und Skill-Overrides", () => {
-    expect(resolveAgentHomeSettings({ ...paths, codex: "/srv/codex" }, { creatorSkillPath: "/srv/skills/plugin.md" })).toMatchObject({
+    expect(resolveAgentHomeSettings({ ...paths, codex: "/srv/codex" }, { creatorSkillPath: "/srv/skills/plugin.md" }, "/srv/wrapt")).toMatchObject({
       pluginCreatorSkillPath: "/srv/skills/plugin.md",
       sharedHomes: { codex: { sharedHome: "/srv/codex" } },
     });

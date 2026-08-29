@@ -231,7 +231,7 @@ export const settings = Object.freeze({
     codex: environment.CODEX_SHARED_HOME,
     claude: environment.CLAUDE_SHARED_HOME,
     opencode: environment.OPENCODE_SHARED_HOME,
-  }, wb.plugins),
+  }, wb.plugins, projectRoot),
   tailscaleHostname: wb.tailscale.hostname,
   tailscaleIp: wb.tailscale.ip,
   tailscaleHttpsPort: wb.tailscale.httpsPort,
