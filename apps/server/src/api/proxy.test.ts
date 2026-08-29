@@ -52,24 +52,17 @@ function makeApp(allowed: string[]) {
     }
     throw error;
   });
-  app.get("/proxy/*", { helmet: { contentSecurityPolicy: false } }, createProxyHandler(allowed));
+  app.get("/proxy/*", createProxyHandler(allowed));
   return app;
 }
 
 describe("proxy handler", () => {
-  it("proxies an allowed origin and rewrites same-origin asset URLs", async () => {
+  it("blocks active HTML responses from the generic proxy", async () => {
     const app = makeApp([upstreamOrigin]);
     const response = await app.inject({ url: `/proxy/${encodeURIComponent(upstreamOrigin + "/page")}` });
-    expect(response.statusCode).toBe(200);
-    const assetProxy = `/api/v1/proxy/${encodeURIComponent(upstreamOrigin + "/asset.png")}`;
-    const linkProxy = `/api/v1/proxy/${encodeURIComponent(upstreamOrigin + "/link")}`;
-    expect(response.body).toContain(assetProxy);
-    expect(response.body).toContain(linkProxy);
-    expect(response.body).toContain("http://example.invalid:9");
-    expect(response.body).not.toContain("/api/v1/proxy/http%3A%2F%2Fexample.invalid");
-    const srcsetProxies = [`/api/v1/proxy/${encodeURIComponent(upstreamOrigin + "/a.png")} 1x`, `/api/v1/proxy/${encodeURIComponent(upstreamOrigin + "/b.png")} 2x`];
-    expect(response.body).toContain(srcsetProxies[0]);
-    expect(response.body).toContain(srcsetProxies[1]);
+    expect(response.statusCode).toBe(415);
+    expect(response.json()).toMatchObject({ error: { code: "PROXY_HTML_BLOCKED" } });
+    expect(response.headers["content-security-policy"]).toContain("default-src 'none'");
     await app.close();
   });
 
@@ -98,7 +91,7 @@ describe("proxy handler", () => {
     await app.close();
   });
 
-  it("strips framing headers from the proxied response", async () => {
+  it("blocks HTML before forwarding upstream framing policy", async () => {
     upstream.removeAllListeners("request");
     upstream.on("request", (_request, response) => {
       response.writeHead(200, {
@@ -110,8 +103,9 @@ describe("proxy handler", () => {
     });
     const app = makeApp([upstreamOrigin]);
     const response = await app.inject({ url: `/proxy/${encodeURIComponent(upstreamOrigin + "/page")}` });
+    expect(response.statusCode).toBe(415);
     expect(response.headers["x-frame-options"]).toBeUndefined();
-    expect(response.headers["content-security-policy"]).toBeUndefined();
+    expect(response.headers["content-security-policy"]).toContain("frame-ancestors 'none'");
     await app.close();
   });
 });

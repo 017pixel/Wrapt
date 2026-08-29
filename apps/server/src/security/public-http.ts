@@ -1,4 +1,4 @@
-import { lookup as dnsLookup } from "node:dns";
+import { lookup as dnsLookup, promises as dnsPromises } from "node:dns";
 import { BlockList, isIP, type LookupFunction } from "node:net";
 import { Agent, fetch as undiciFetch, type Dispatcher, type RequestInit } from "undici";
 
@@ -59,6 +59,23 @@ export function assertPublicHttpUrl(value: string | URL): URL {
     throw new Error("Lokale Ziele sind nicht erlaubt.");
   }
   if (isIP(hostname) && !isPublicAddress(hostname)) throw new Error("Private oder reservierte Ziele sind nicht erlaubt.");
+  return url;
+}
+
+/**
+ * Prüft zusätzlich alle aktuellen DNS-Adressen. Die Prüfung läuft bei der
+ * Registrierung und verhindert, dass ein interner Hostname überhaupt in der
+ * Subscription-Datenbank landet. Für den Versand wird derselbe Schutz noch
+ * einmal über den HTTPS-Agent bei der tatsächlichen Verbindung angewendet.
+ */
+export async function assertPublicHttpEndpoint(value: string | URL): Promise<URL> {
+  const url = assertPublicHttpUrl(value);
+  const hostname = url.hostname.replace(/^\[|\]$/g, "");
+  if (isIP(hostname)) return url;
+  const addresses = await dnsPromises.lookup(hostname, { all: true, verbatim: true });
+  if (addresses.length === 0 || addresses.some(({ address }) => !isPublicAddress(address))) {
+    throw new Error("DNS-Ziel verweist auf eine private oder reservierte Adresse.");
+  }
   return url;
 }
 

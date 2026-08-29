@@ -56,7 +56,7 @@ export async function registerBrowserRoutes(app: FastifyInstance, options: { man
             }
             case "browser.attach": {
               detach?.();
-              detach = options.manager.attach(userId, message.sessionId, message.width, message.height, send).detach;
+              detach = (await options.manager.attach(userId, message.sessionId, message.width, message.height, send)).detach;
               break;
             }
             case "browser.close": await options.manager.closeSession(userId, message.sessionId); detach?.(); detach = undefined; break;

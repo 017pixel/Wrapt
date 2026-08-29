@@ -72,6 +72,9 @@ describe.skipIf(!chromium)("persistent BrowserManager profile", () => {
     });
     managers.push(manager);
     const session = (await manager.createOrAttach("owner@example.com", "clipboard-test", 640, 480, (message) => messages.push(message), "create", "clipboard-profile", url)).session;
+    expect(await waitFor(messages, (message) => message.type === "browser.frame")).toMatchObject({
+      type: "browser.frame", data: expect.any(String), width: 640, height: 480,
+    });
     await waitFor(messages, (message) => message.type === "browser.state" && message.url === url);
     await new Promise((resolve) => setTimeout(resolve, 100));
 

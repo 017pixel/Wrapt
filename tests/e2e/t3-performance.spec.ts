@@ -76,7 +76,7 @@ test.describe("T3-Performance", () => {
 
     const routes = [
       ["Inbox", "/wrapt/inbox"],
-      ["Workbench", "/wrapt/wrapt"],
+      ["Workbench", "/wrapt/workbench"],
       ["Tech TLDRs", "/wrapt/tech-tldrs"],
       ["Projekte", "/wrapt/projects"],
       ["Dateien", "/wrapt/files"],

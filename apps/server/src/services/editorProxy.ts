@@ -1,12 +1,12 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import replyFrom from "@fastify/reply-from";
 import WebSocket from "ws";
+import { isWebSocketOriginAllowed } from "../security/same-origin.js";
+import { bridgeWebSockets, type WebSocketBridgeObserver } from "../utils/websocketBridge.js";
 
 const editorPrefix = "/editor";
 const editorUpstream = "http://127.0.0.1:8080";
 const editorWebSocketUpstream = "ws://127.0.0.1:8080";
-const bufferedMessageLimit = 512 * 1024;
-const maximumBufferedBytes = 2 * 1024 * 1024;
 
 function upstreamPath(rawUrl: string): string {
   const url = new URL(rawUrl, "http://wrapt.local");
@@ -41,16 +41,11 @@ function proxyHttp(request: FastifyRequest, reply: FastifyReply) {
   });
 }
 
-function closeCode(code: number): number {
-  return code === 1005 || code === 1006 ? 1011 : code;
-}
-
-function rawDataBytes(data: WebSocket.RawData): number {
-  if (Array.isArray(data)) return data.reduce((total, chunk) => total + chunk.length, 0);
-  return data.byteLength;
-}
-
-function proxyWebSocket(source: WebSocket, request: FastifyRequest) {
+function proxyWebSocket(source: WebSocket, request: FastifyRequest, observer?: WebSocketBridgeObserver) {
+  if (!isWebSocketOriginAllowed(request)) {
+    source.close(1008, "Cross-Origin-WebSocket abgelehnt");
+    return;
+  }
   const protocolHeader = request.headers["sec-websocket-protocol"];
   const protocols = typeof protocolHeader === "string"
     ? protocolHeader.split(",").map((protocol) => protocol.trim()).filter(Boolean)
@@ -70,81 +65,36 @@ function proxyWebSocket(source: WebSocket, request: FastifyRequest) {
       perMessageDeflate: false,
     },
   );
-  const pending: Array<{ data: WebSocket.RawData; binary: boolean }> = [];
-  let pendingBytes = 0;
-
-  const closeForBackpressure = () => {
-    if (source.readyState === WebSocket.OPEN) source.close(1013, "Editor-WebSocket ist überlastet");
-    if (target.readyState === WebSocket.OPEN) target.close(1013, "Editor-WebSocket ist überlastet");
-    else if (target.readyState === WebSocket.CONNECTING) target.terminate();
-  };
-
-  source.on("message", (data, binary) => {
-    if (target.readyState === WebSocket.OPEN) {
-      // Backpressure wie im Preview-Gateway: Ein langsamer Upstream darf den
-      // Speicher nicht unbegrenzt wachsen lassen (F01-05).
-      if (target.bufferedAmount > maximumBufferedBytes) {
-        closeForBackpressure();
-        return;
-      }
-      target.send(data, { binary });
-      return;
-    }
-    if (target.readyState !== WebSocket.CONNECTING) return;
-    pendingBytes += rawDataBytes(data);
-    if (pendingBytes > bufferedMessageLimit) {
-      source.close(1009, "Editor-WebSocket-Puffer überschritten");
-      target.terminate();
-      return;
-    }
-    pending.push({ data, binary });
-  });
-  target.on("open", () => {
-    for (const message of pending.splice(0)) target.send(message.data, { binary: message.binary });
-    pendingBytes = 0;
-  });
-  target.on("message", (data, binary) => {
-    if (source.readyState !== WebSocket.OPEN) return;
-    if (source.bufferedAmount > maximumBufferedBytes) {
-      closeForBackpressure();
-      return;
-    }
-    source.send(data, { binary });
-  });
-  source.on("close", (code, reason) => {
-    if (target.readyState === WebSocket.OPEN) target.close(closeCode(code), reason);
-    else if (target.readyState === WebSocket.CONNECTING) target.terminate();
-  });
-  target.on("close", (code, reason) => {
-    if (source.readyState === WebSocket.OPEN) source.close(closeCode(code), reason);
-  });
-  source.on("error", () => target.terminate());
-  target.on("error", () => {
-    if (source.readyState === WebSocket.OPEN) source.close(1011, "Editor-WebSocket nicht erreichbar");
-  });
+  bridgeWebSockets(source, target, { label: "Editor", ...(observer === undefined ? {} : { observer }) });
 }
 
-export async function registerEditorProxy(app: FastifyInstance) {
-  await app.register(replyFrom);
+export async function registerEditorProxy(app: FastifyInstance, observer?: WebSocketBridgeObserver) {
+  await app.register(async (scope) => {
+    // Multipart gehört nur in diesen Proxy-Scope: reply-from erhält dadurch
+    // die originalen Bytes, während die Upload-Routen ihren eigenen Parser
+    // gekapselt im API-Scope behalten.
+    scope.addContentTypeParser("multipart/form-data", { parseAs: "buffer" }, (_request, body, done) => done(null, body));
+    await scope.register(replyFrom);
 
-  for (const url of ["/editor", "/editor/*"]) {
-    app.route({
-      method: "GET",
-      url,
-      // The trusted upstream owns its response policy. Applying Workbench's
-      // CSP/X-Frame-Options here breaks code-server's hashed worker bootstrap
-      // and makes Firefox warn about duplicate framing policies.
-      config: { rateLimit: false },
-      helmet: false,
-      handler: proxyHttp,
-      wsHandler: proxyWebSocket,
-    });
-    app.route({
-      method: ["DELETE", "PATCH", "POST", "PUT", "OPTIONS"],
-      url,
-      config: { rateLimit: false },
-      helmet: false,
-      handler: proxyHttp,
-    });
-  }
+    for (const url of ["/editor", "/editor/*"]) {
+      scope.route({
+        method: "GET",
+        url,
+        // The trusted upstream owns its response policy. Applying Workbench's
+        // CSP/X-Frame-Options here breaks code-server's hashed worker bootstrap
+        // and makes Firefox warn about duplicate framing policies.
+        config: { rateLimit: false },
+        helmet: false,
+        handler: proxyHttp,
+        wsHandler: (source, request) => proxyWebSocket(source, request, observer),
+      });
+      scope.route({
+        method: ["DELETE", "PATCH", "POST", "PUT", "OPTIONS"],
+        url,
+        config: { rateLimit: false },
+        helmet: false,
+        handler: proxyHttp,
+      });
+    }
+  });
 }

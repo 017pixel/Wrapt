@@ -4,6 +4,7 @@ import { isSameOriginRequest } from "./same-origin.js";
 
 export interface WorkbenchIdentityOptions {
   allowedUsers: readonly string[];
+  adminUsers?: readonly string[];
   developmentUser?: string;
 }
 
@@ -62,6 +63,24 @@ export function resolveWorkbenchUser(
       403,
       "WRAPT_FORBIDDEN",
       "Dieser Benutzer darf die Workbench nicht verwenden.",
+    );
+  }
+  return identity;
+}
+
+export function requireWorkbenchAdmin(
+  request: FastifyRequest,
+  options: WorkbenchIdentityOptions,
+): string {
+  const identity = resolveWorkbenchUser(request, options);
+  const adminUsers = options.adminUsers && options.adminUsers.length > 0
+    ? options.adminUsers
+    : options.allowedUsers.slice(0, 1);
+  if (!adminUsers.includes(identity)) {
+    throw new AppError(
+      403,
+      "WRAPT_ADMIN_REQUIRED",
+      "Für diese Verwaltung muss die aktuelle Identität als Workbench-Administrator freigeschaltet sein.",
     );
   }
   return identity;

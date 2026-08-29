@@ -2,19 +2,8 @@ import type { FastifyReply, FastifyRequest } from "fastify";
 import { settings } from "../config/settings.js";
 import { AppError } from "../utils/errors.js";
 
-function escapeRegex(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 export function createProxyHandler(allowedOrigins: string[]) {
   const allowedOriginSet = new Set(allowedOrigins);
-  const originAlt = allowedOrigins.map(escapeRegex).join("|");
-  const attrRe = new RegExp(
-    `(?<attr>src|href|srcset|action)=(["'])(?<url>(?:${originAlt})[^"']*)(?<quote>["'])`,
-    "g",
-  );
-  const proxyPrefix = "/api/v1/proxy/";
-
   return async function proxyHandler(request: FastifyRequest, reply: FastifyReply) {
     const params = request.params as Record<string, string>;
     const encoded = params["*"] ?? "";
@@ -72,40 +61,16 @@ export function createProxyHandler(allowedOrigins: string[]) {
       reply.header("cache-control", "no-store");
 
       const body = upstream.body;
-      if (body && contentType.includes("text/html")) {
-        const declaredLength = Number(upstream.headers.get("content-length") ?? "0");
-        if (declaredLength > settings.proxyMaximumHtmlBytes) throw new Error("HTML-Antwort überschreitet das Größenlimit.");
-        const reader = body.getReader();
-        const chunks: Uint8Array[] = [];
-        let bytes = 0;
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          bytes += value.byteLength;
-          if (bytes > settings.proxyMaximumHtmlBytes) {
-            await reader.cancel();
-            throw new Error("HTML-Antwort überschreitet das Größenlimit.");
-          }
-          chunks.push(value);
-        }
-        const html = Buffer.concat(chunks.map((chunk) => Buffer.from(chunk)), bytes).toString("utf8");
-        const rewritten = html.replace(attrRe, (_match, attr: string, open: string, url: string, quote: string) => {
-          if (attr !== "srcset") {
-            return `${attr}=${open}${proxyPrefix}${encodeURIComponent(url)}${quote}`;
-          }
-          // srcset enthält mehrere Kandidaten ("url 1x, url 2x"). Jede Kandidaten-
-          // URL einzeln umschreiben, die Descriptoren (1x, 2x, …) erhalten.
-          const candidates = url.split(",").map((candidate) => candidate.trim());
-          const rewrittenCandidates = candidates.map((candidate) => {
-            const part = candidate.match(/^(\S+)(.*)$/);
-            if (!part) return candidate;
-            const candidateUrl = part[1]!;
-            const descriptor = part[2] ?? "";
-            return `${proxyPrefix}${encodeURIComponent(candidateUrl)}${descriptor}`;
-          });
-          return `${attr}=${open}${rewrittenCandidates.join(", ")}${quote}`;
-        });
-        return reply.send(rewritten);
+      if (contentType.toLowerCase().includes("text/html")) {
+        await body?.cancel();
+        reply
+          .header("content-security-policy", "default-src 'none'; base-uri 'none'; frame-ancestors 'none'")
+          .header("x-content-type-options", "nosniff");
+        throw new AppError(
+          415,
+          "PROXY_HTML_BLOCKED",
+          "Aktive HTML-Inhalte werden aus Sicherheitsgründen nicht über diesen Proxy ausgeliefert.",
+        );
       }
       return reply.send(body);
     } catch (error) {

@@ -7,7 +7,8 @@ import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import WebSocket from "ws";
 import { BROWSER_CLIPBOARD_MAX_BYTES, type ClientBrowserMessage, type ServerBrowserMessage } from "./protocol.js";
 import type { BrowserDatabase } from "./database.js";
-
+import { browserCaptureMetrics, browserCaptureQuality, type BrowserCaptureOptions } from "./capture.js";
+export { browserCaptureMetrics } from "./capture.js";
 interface CdpResponse {
   id?: number;
   sessionId?: string;
@@ -164,27 +165,6 @@ export function validateBrowserClipboardText(value: unknown): { text: string | n
   return { text: value, error: null };
 }
 
-export interface BrowserCaptureOptions {
-  captureMaxWidth: number;
-  captureMaxHeight: number;
-  captureMaxScale: number;
-  captureJpegQuality: number;
-  captureEveryNthFrame: number;
-}
-
-export function browserCaptureMetrics(width: number, height: number, options: BrowserCaptureOptions) {
-  const logicalWidth = Math.max(320, Math.min(2_400, Math.round(width)));
-  const logicalHeight = Math.max(220, Math.min(1_600, Math.round(height)));
-  const scale = Math.max(1, Math.min(options.captureMaxScale, options.captureMaxWidth / logicalWidth, options.captureMaxHeight / logicalHeight));
-  return {
-    width: logicalWidth,
-    height: logicalHeight,
-    scale,
-    captureWidth: Math.round(logicalWidth * scale),
-    captureHeight: Math.round(logicalHeight * scale),
-  };
-}
-
 class BrowserSession {
   readonly id = randomUUID();
   readonly listeners = new Set<BrowserListener>();
@@ -253,11 +233,15 @@ class BrowserSession {
     }
   }
 
-  attach(listener: BrowserListener, width: number, height: number, requestId?: string): () => void {
+  async attach(listener: BrowserListener, width: number, height: number, requestId?: string): Promise<() => void> {
     this.lastUsedAt = Date.now();
     this.listeners.add(listener);
-    void this.activateCapture();
-    void this.resize(width, height);
+    // `browser.ready` darf erst nach dem ersten Screencast-Start rausgehen.
+    // Browser-Clients navigieren direkt nach dieser Nachricht; wenn die
+    // Capture-Initialisierung noch läuft, kann diese Navigation den ersten
+    // Frame überholen und die Ansicht bleibt trotz gültigem Zustand leer.
+    await this.resize(width, height);
+    await this.activateCapture();
     listener({ type: "browser.ready", ...(requestId ? { requestId } : {}), sessionId: this.id, ...this.state, width: this.width, height: this.height });
     listener({ type: "browser.state", sessionId: this.id, ...this.state });
     if (this.lastFrame) listener({ type: "browser.frame", sessionId: this.id, ...this.lastFrame });
@@ -394,6 +378,7 @@ class BrowserSession {
         await this.cdp.send("Page.stopScreencast", {}, this.targetSessionId).catch(() => undefined);
         this.screencastStarted = false;
         await this.startScreencast(metrics);
+        await this.captureCurrentFrame();
       }
       // Läuft ein Größenwechsel nach der Verbindungsfreigabe (z. B. ein letzter
       // Screencast-Frame während des Shutdowns), schlägt der CDP-Befehl fehl.
@@ -404,9 +389,7 @@ class BrowserSession {
   }
 
   private async startScreencast(metrics = browserCaptureMetrics(this.width, this.height, this.captureOptions())) {
-    const pixelCount = metrics.captureWidth * metrics.captureHeight;
-    const baseQuality = this.captureOptions().captureJpegQuality;
-    const quality = pixelCount > 1_000_000 ? Math.max(40, baseQuality - 30) : pixelCount > 500_000 ? Math.max(50, baseQuality - 15) : baseQuality;
+    const quality = browserCaptureQuality(metrics, this.captureOptions());
     await this.cdp.send("Page.startScreencast", {
       format: "jpeg",
       quality,
@@ -417,10 +400,27 @@ class BrowserSession {
     this.screencastStarted = true;
   }
 
+  private async captureCurrentFrame() {
+    if (this.disposed || this.listeners.size === 0) return;
+    const metrics = browserCaptureMetrics(this.width, this.height, this.captureOptions());
+    const result = await this.cdp.send("Page.captureScreenshot", {
+      format: "jpeg",
+      quality: browserCaptureQuality(metrics, this.captureOptions()),
+      fromSurface: true,
+      captureBeyondViewport: false,
+      clip: { x: 0, y: 0, width: metrics.width, height: metrics.height, scale: metrics.scale },
+    }, this.targetSessionId);
+    if (typeof result.data !== "string" || !result.data) return;
+    this.lastUsedAt = Date.now();
+    this.lastFrame = { data: result.data, width: this.width, height: this.height };
+    this.broadcast({ type: "browser.frame", sessionId: this.id, ...this.lastFrame });
+  }
+
   private activateCapture() {
     this.captureQueue = this.captureQueue.then(async () => {
       if (this.disposed || this.listeners.size === 0 || this.screencastStarted) return;
       await this.startScreencast();
+      await this.captureCurrentFrame();
     }).catch(() => undefined);
     return this.captureQueue;
   }
@@ -625,13 +625,13 @@ export class BrowserManager {
     }
     this.instances.set(`${userId}:${instanceId}`, session.id);
     this.options.database?.save({ userId, instanceId, profileKey, lastUrl: stored?.lastUrl ?? requestedInitialUrl ?? "about:blank", updatedAt: Date.now() });
-    const detach = session.attach(listener, width, height, requestId);
+    const detach = await session.attach(listener, width, height, requestId);
     return { session, detach };
   }
 
-  attach(userId: string, sessionId: string, width: number, height: number, listener: BrowserListener) {
+  async attach(userId: string, sessionId: string, width: number, height: number, listener: BrowserListener) {
     const session = this.ownedSession(userId, sessionId);
-    return { session, detach: session.attach(listener, width, height) };
+    return { session, detach: await session.attach(listener, width, height) };
   }
 
   command(userId: string, message: Exclude<ClientBrowserMessage, { type: "browser.create" | "browser.attach" | "browser.close" | "browser.ping" }>) {

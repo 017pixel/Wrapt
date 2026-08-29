@@ -7,6 +7,7 @@ import { normalizePreviewTarget } from "../../lib/previewTargets";
 import { useModalFocus } from "../../lib/useModalFocus";
 import { openGlobalContextMenu } from "../context-menu/contextMenuEvents";
 import { hostContextMenuId } from "../../extensions/hostContextMenus";
+import { createBrowserMessage } from "./createBrowserMessage";
 
 export interface ChromiumBrowserState {
   url: string;
@@ -35,7 +36,6 @@ function websocketUrl(): string {
 function createUuid(): string {
   try { return crypto.randomUUID(); } catch { return `${Date.now().toString(16)}-${Math.random().toString(16).slice(2)}`; }
 }
-
 function normalizeAddress(value: string): string {
   const trimmed = value.trim();
   if (trimmed === "about:blank") return trimmed;
@@ -228,7 +228,7 @@ export function ChromiumBrowser({
   const createOrAttach = useCallback(() => {
     const size = dimensions();
     if (sessionRef.current) send({ type: "browser.attach", sessionId: sessionRef.current, ...size });
-    else send({ type: "browser.create", requestId: createUuid(), instanceId, ...(profileKey ? { profileKey } : {}), ...(initialUrl ? { initialUrl } : {}), ...size });
+    else send(createBrowserMessage(createUuid(), instanceId, profileKey, initialUrl ?? pendingUrlRef.current, size));
   }, [dimensions, initialUrl, instanceId, profileKey, send]);
 
   const connect = useCallback(() => {
@@ -257,13 +257,13 @@ export function ChromiumBrowser({
         setState((current) => ({ ...current, url: message.url, title: message.title }));
         const pendingUrl = pendingUrlRef.current ?? initialNavigationRef.current;
         if (pendingUrl) {
-          pendingUrlRef.current = null;
           initialNavigationRef.current = null;
           requestedUrlRef.current = pendingUrl;
           setAddress(pendingUrl === "about:blank" ? "" : pendingUrl);
           setFrameReady(false);
           startFrameTimeout();
-          if (message.url !== pendingUrl) send({ type: "browser.navigate", sessionId: message.sessionId, url: pendingUrl });
+          if (message.url !== pendingUrl && pendingUrl !== (initialUrl ?? pendingUrlRef.current)) send({ type: "browser.navigate", sessionId: message.sessionId, url: pendingUrl });
+          pendingUrlRef.current = null;
         } else {
           if (!addressEditingRef.current) setAddress(message.url === "about:blank" ? "" : message.url);
           if (message.url !== "about:blank") startFrameTimeout();
@@ -349,7 +349,7 @@ export function ChromiumBrowser({
       reconnectRef.current = window.setTimeout(connect, Math.min(10_000, 500 * (2 ** retriesRef.current++)));
     };
     socket.onerror = () => socket.close();
-  }, [clearFrameTimeout, createOrAttach, renderLatestFrame, send, startFrameTimeout, storageKey]);
+  }, [clearFrameTimeout, createOrAttach, initialUrl, renderLatestFrame, send, startFrameTimeout, storageKey]);
 
   useEffect(() => {
     activeRef.current = active && globalThis.document.visibilityState !== "hidden";

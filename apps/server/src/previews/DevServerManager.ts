@@ -21,7 +21,7 @@ import { detectRuntimeProfile, type RuntimeProfileResult } from "./runtimeProfil
 interface CommandResult { status: number | null; stdout: string; stderr: string }
 type CommandRunner = (args: string[], timeoutMilliseconds: number) => CommandResult;
 
-const PREVIEW_TMUX_SOCKET = "wrapt-previews";
+const DEFAULT_PREVIEW_TMUX_SOCKET = "wrapt-previews";
 const RUNTIME_PORTS_OPTION = "@wrapt_runtime_ports";
 
 export interface PreviewRuntimePublication {
@@ -42,6 +42,8 @@ export interface PreviewDevServerManagerOptions {
   watchdogIntervalMilliseconds?: number;
   watchdogMaxAttemptsPerWindow?: number;
   watchdogWindowMilliseconds?: number;
+  tmuxSocket?: string;
+  useSystemdSupervisor?: boolean;
   logger?: (message: string) => void;
 }
 
@@ -105,10 +107,12 @@ export class PreviewDevServerManager {
   private startQueue: Promise<void> = Promise.resolve();
   private watchdogTimer: ReturnType<typeof setInterval> | null = null;
   private tickRunning = false;
+  private readonly tmuxSocket: string;
 
   constructor(private readonly options: PreviewDevServerManagerOptions) {
+    this.tmuxSocket = options.tmuxSocket ?? DEFAULT_PREVIEW_TMUX_SOCKET;
     this.run = options.runner ?? ((args, timeoutMilliseconds) => {
-      const result = spawnSync(options.tmuxExecutable, ["-L", PREVIEW_TMUX_SOCKET, ...args], { encoding: "utf8", timeout: timeoutMilliseconds });
+      const result = spawnSync(options.tmuxExecutable, ["-L", this.tmuxSocket, ...args], { encoding: "utf8", timeout: timeoutMilliseconds });
       return { status: result.status, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };
     });
     this.watchdogIntervalMilliseconds = options.watchdogIntervalMilliseconds ?? 10_000;
@@ -490,13 +494,9 @@ export class PreviewDevServerManager {
     if (result.status !== 0) throw new AppError(500, "DEV_SERVER_SUPERVISOR_FAILED", cleanOutput(result.stderr).trim() || "Die Projektlaufzeit-Steuerung ist fehlgeschlagen.");
   }
 
-  /**
-   * Die erste Preview-Pane startet in einer eigenen systemd-Scope und auf einem
-   * eigenen tmux-Socket. So gehört der tmux-Server nicht zur Cgroup des
-   * Workbench-Backends und laufende Projektprozesse überleben dessen Neustart.
-   */
+  /** Startet die Preview außerhalb der Backend-Cgroup, damit sie Neustarts überlebt. */
   private createSessionOutsideWorkbench(args: string[], timeoutMilliseconds: number): CommandResult {
-    if (this.options.runner) return this.run(args, timeoutMilliseconds);
+    if (this.options.runner || this.options.useSystemdSupervisor === false) return this.run(args, timeoutMilliseconds);
     const unit = `wrapt-preview-start-${process.pid}-${Date.now()}`;
     const result = spawnSync("/usr/bin/systemd-run", [
       "--user",
@@ -506,7 +506,7 @@ export class PreviewDevServerManager {
       `--unit=${unit}`,
       this.options.tmuxExecutable,
       "-L",
-      PREVIEW_TMUX_SOCKET,
+      this.tmuxSocket,
       ...args,
     ], { encoding: "utf8", timeout: timeoutMilliseconds });
     return { status: result.status, stdout: result.stdout ?? "", stderr: result.stderr ?? "" };

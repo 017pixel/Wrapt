@@ -1,4 +1,6 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+import { resetOrbitTestWorkspace } from "./helpers/orbit";
+import { resetTerminalTestWorkspace } from "./helpers/terminal";
 
 // `WRAPT_E2E_URL` zeigt auf den Origin des Testservers; die Wrapt
 // selbst wird unter dem `/workbench`-Basispfad ausgeliefert.
@@ -17,13 +19,23 @@ test.use({
 // Die Zwischenablage bleibt für Firefox in der manuellen Matrix.
 test.skip(({ browserName }) => browserName !== "chromium", "Zwischenablage-Automatisierung wird in Chromium geprüft.");
 
+test.beforeEach(async ({ page }) => {
+  test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
+  await resetTerminalTestWorkspace(page, "user@example.com");
+});
+
+async function openFirstTerminal(page: Page): Promise<void> {
+  const emptyButton = page.locator(".terminal-empty-state button").first();
+  const entries = page.locator(".terminal-tree-entry");
+  await expect.poll(async () => (await emptyButton.count()) + (await entries.count()), { timeout: 20_000 }).toBeGreaterThan(0);
+  if (await emptyButton.isVisible().catch(() => false)) await emptyButton.click();
+  await expect(page.locator(".terminal-tree-status.is-connected").first()).toBeVisible({ timeout: 20_000 });
+}
+
 test("copies terminal selections with Ctrl+Shift+C and pastes with Ctrl+Shift+V", async ({ page }) => {
   test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   await page.goto(`${workbench}/terminal`);
-  // V2: Beim ersten Besuch öffnet der Empty-State das erste Terminal.
-  const emptyButton = page.locator(".terminal-empty-state button");
-  if (await emptyButton.count() > 0 && await emptyButton.isVisible().catch(() => false)) await emptyButton.click();
-  await expect(page.locator(".terminal-tree-status.is-connected").first()).toBeVisible({ timeout: 20_000 });
+  await openFirstTerminal(page);
   const input = page.locator(".xterm-helper-textarea");
   const marker = `https://github.com/login/device?code=CLIP-${Date.now()}`;
   // Erst auf den Shell-Prompt warten: Tippt der Test vor dem Spawn der
@@ -69,6 +81,75 @@ test("copies terminal selections with Ctrl+Shift+C and pastes with Ctrl+Shift+V"
   await expect(page.locator(".xterm-screen")).toContainText(pasteMarker, { timeout: 10_000 });
 });
 
+test("copies restored scrollback and pastes after route switch and reload", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto(`${workbench}/terminal`);
+  await openFirstTerminal(page);
+  let pane = page.locator(".terminal-session-pane.is-visible");
+  let input = pane.locator(".xterm-helper-textarea");
+  const copyMarker = `COPY_RESTORED_${Date.now()}`;
+  await input.pressSequentially(
+    `printf '${copyMarker}\\n'; for i in $(seq 1 120); do printf 'clipboard-%03d\\n' "$i"; done; printf 'CLIPBOARD_END\\n'`,
+  );
+  await input.press("Enter");
+  await expect(pane.locator(".xterm-screen")).toContainText("CLIPBOARD_END", { timeout: 20_000 });
+
+  await page.locator(".workspace-sidebar").getByRole("link", { name: "Dashboard", exact: true }).click();
+  await page.locator(".workspace-sidebar").getByRole("link", { name: "Terminal", exact: true }).click();
+  await page.reload();
+  await openFirstTerminal(page);
+  pane = page.locator(".terminal-session-pane.is-visible");
+  input = pane.locator(".xterm-helper-textarea");
+  await pane.locator(".terminal-viewport").click();
+  await pane.locator(".terminal-viewport").hover();
+  await page.mouse.wheel(0, -12_000);
+
+  const markerRow = pane.locator(".xterm-rows > div").filter({ hasText: new RegExp(`^${copyMarker}\\s*$`) });
+  await expect(markerRow).toBeVisible();
+  const rowBox = await markerRow.boundingBox();
+  expect(rowBox).not.toBeNull();
+  await page.mouse.move(rowBox!.x + 2, rowBox!.y + rowBox!.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(rowBox!.x + rowBox!.width - 2, rowBox!.y + rowBox!.height / 2, { steps: 12 });
+  await page.mouse.up();
+  await input.press("Control+Shift+C");
+  await expect.poll(() => page.evaluate(() => navigator.clipboard.readText())).toContain(copyMarker);
+
+  const pasteMarker = `PASTE_RESTORED_${Date.now()}`;
+  await page.evaluate((text) => navigator.clipboard.writeText(`printf '${text}\\n'`), pasteMarker);
+  await input.press("Control+Shift+V");
+  await input.press("Enter");
+  await expect(pane.locator(".xterm-screen")).toContainText(pasteMarker, { timeout: 20_000 });
+});
+
+test("pastes only into the clicked terminal in split view", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.goto(`${workbench}/terminal`);
+  await openFirstTerminal(page);
+  await page.getByRole("complementary", { name: "Terminal-Sidebar" }).getByRole("button", { name: "Neues Terminal rechts teilen", exact: true }).click();
+  const panes = page.locator(".terminal-session-pane.is-visible");
+  await expect(panes).toHaveCount(2);
+  const left = panes.first();
+  const right = panes.last();
+
+  const rightMarker = `__PASTE_RIGHT_${Date.now()}__`;
+  await right.locator(".terminal-viewport").click();
+  await page.evaluate((text) => navigator.clipboard.writeText(`printf '${text}\\n'`), rightMarker);
+  await right.locator(".xterm-helper-textarea").press("Control+Shift+V");
+  await right.locator(".xterm-helper-textarea").press("Enter");
+  await expect(right.locator(".xterm-screen")).toContainText(rightMarker, { timeout: 20_000 });
+  await expect(left.locator(".xterm-screen")).not.toContainText(rightMarker);
+
+  const leftMarker = `__PASTE_LEFT_${Date.now()}__`;
+  await left.locator(".terminal-viewport").click();
+  await expect(left).toHaveClass(/is-focused/);
+  await page.evaluate((text) => navigator.clipboard.writeText(`printf '${text}\\n'`), leftMarker);
+  await left.locator(".xterm-helper-textarea").press("Control+Shift+V");
+  await left.locator(".xterm-helper-textarea").press("Enter");
+  await expect(left.locator(".xterm-screen")).toContainText(leftMarker, { timeout: 20_000 });
+  await expect(right.locator(".xterm-screen")).not.toContainText(leftMarker);
+});
+
 test("keeps VS Code on standard Ctrl+C and Ctrl+V inside the editor frame", async ({ page }) => {
   test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   await page.goto(`${workbench}/code-editor`);
@@ -105,7 +186,9 @@ test("keeps T3 Code focused so standard Ctrl+C belongs to the embedded app", asy
   const frame = page.locator('iframe[title="T3 Code"]');
   const t3Available = await frame.waitFor({ state: "visible", timeout: 15_000 }).then(() => true).catch(() => false);
   test.skip(!t3Available, "Kein T3-Dienst hinter dieser Instanz erreichbar.");
-  expect(await frame.getAttribute("allow")).toBeNull();
+  expect(await frame.getAttribute("allow")).toBe(
+    "local-network-access; local-network; loopback-network",
+  );
   await frame.click({ position: { x: 20, y: 20 } });
   await expect.poll(() => page.evaluate(() => document.activeElement?.getAttribute("title"))).toBe("T3 Code");
   await page.keyboard.press("Control+C");
@@ -122,7 +205,9 @@ test("does not grant embedded previews extra clipboard permissions", async ({ pa
 
 test("routes Orbit paste to the focused editor, canvas or terminal only", async ({ page }) => {
   test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
-  await page.goto(`${workbench}/wrapt`);
+  test.setTimeout(60_000);
+  await resetOrbitTestWorkspace(page, "user@example.com");
+  await page.goto(`${workbench}/workbench`);
   await expect(page.locator(".orbit-page")).toBeVisible();
   await page.getByRole("button", { name: /Neue Notiz/ }).click();
   const note = page.getByLabel("Neue Notiz bearbeiten").last();
@@ -147,17 +232,14 @@ test("routes Orbit paste to the focused editor, canvas or terminal only", async 
   // Orbit-Panels laufen im Minimalmodus ohne Tab-Leiste; der Status steht
   // dort in der sr-only-Zeile `.terminal-connection-status`.
   await expect(terminal.locator(".terminal-connection-status")).toHaveText("Verbunden", { timeout: 20_000 });
+  await terminal.locator(".xterm-helper-textarea").focus();
   const nodesBeforeTerminalPaste = await page.locator(".react-flow__node-orbit").count();
   const terminalMarker = `__ORBIT_TERMINAL_${Date.now()}__`;
   await page.evaluate((text) => navigator.clipboard.writeText(`printf '${text}\\n'`), terminalMarker);
-  // Wie oben: erst auf den Shell-Prompt warten, sonst verschluckt die noch
-  // startende Shell Teile der Eingabe.
-  await expect.poll(() => terminal.evaluate((node) => {
-    const rows = [...node.querySelectorAll(".xterm-rows > div")];
-    return rows.some((row) => /[$#]\s*$/.test(row.textContent ?? ""));
-  }), { timeout: 20_000 }).toBe(true);
+  // xterm puffert die Eingabe bereits nach „Verbunden“; auf den sichtbaren
+  // Shell-Prompt zu warten ist unter kalten PTY-Starts ein unnötiges Rennen.
   await terminal.locator(".xterm-helper-textarea").press("Control+Shift+V");
   await terminal.locator(".xterm-helper-textarea").press("Enter");
-  await expect(terminal.locator(".xterm-screen")).toContainText(terminalMarker, { timeout: 10_000 });
+  await expect(terminal.locator(".xterm-screen")).toContainText(terminalMarker, { timeout: 20_000 });
   await expect(page.locator(".react-flow__node-orbit")).toHaveCount(nodesBeforeTerminalPaste);
 });

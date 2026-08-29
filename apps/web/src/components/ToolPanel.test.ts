@@ -59,7 +59,9 @@ describe("standalone T3 Code actions", () => {
     expect(screen.getByRole("menuitem", { name: "In neuem Tab öffnen" })).not.toBeNull();
     const firstFrame = screen.getByTitle("T3 Code");
     // Das gehostete T3-UI braucht lokalen Netzwerkzugriff (Permissions-Policy).
-    expect(firstFrame.getAttribute("allow")).toBe("local-network");
+    expect(firstFrame.getAttribute("allow")).toBe(
+      "local-network-access; local-network; loopback-network",
+    );
     fireEvent.click(screen.getByRole("menuitem", { name: "Neu laden" }));
     await waitFor(() => expect(screen.getByTitle("T3 Code")).not.toBe(firstFrame));
     fireEvent.click(within(target).getByRole("button", { name: "Werkzeugaktionen" }));

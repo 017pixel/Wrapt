@@ -3,12 +3,13 @@ import type { Readable } from "node:stream";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import WebSocket from "ws";
 import { settings } from "../config/settings.js";
+import { isWebSocketOriginAllowed } from "../security/same-origin.js";
+import { bridgeWebSockets, type WebSocketBridgeObserver } from "../utils/websocketBridge.js";
 
 const opencodePrefix = "/opencode";
 const opencodeAuthority = `${settings.opencodeWebHost}:${settings.opencodeWebPort}`;
 const opencodeHttpUpstream = `http://${opencodeAuthority}`;
 const opencodeWebSocketUpstream = `ws://${opencodeAuthority}`;
-const bufferedMessageLimit = 512 * 1024;
 const maxInjectedHtmlBytes = 4 * 1024 * 1024;
 
 /**
@@ -236,16 +237,11 @@ async function proxyIndex(_request: FastifyRequest, reply: FastifyReply) {
   return reply.type("text/html").send(injectOpenCodeHtmlBridge(Buffer.concat(chunks, bytes).toString("utf8")));
 }
 
-function closeCode(code: number): number {
-  return code === 1005 || code === 1006 ? 1011 : code;
-}
-
-function rawDataBytes(data: WebSocket.RawData): number {
-  if (Array.isArray(data)) return data.reduce((total, chunk) => total + chunk.length, 0);
-  return data.byteLength;
-}
-
-function proxyWebSocket(source: WebSocket, request: FastifyRequest) {
+function proxyWebSocket(source: WebSocket, request: FastifyRequest, observer?: WebSocketBridgeObserver) {
+  if (!isWebSocketOriginAllowed(request)) {
+    source.close(1008, "Cross-Origin-WebSocket abgelehnt");
+    return;
+  }
   const forwarded: Record<string, string> = {};
   for (const headerName of ["authorization", "cookie", "origin", "sec-websocket-protocol", "user-agent"] as const) {
     const value = request.headers[headerName];
@@ -254,32 +250,11 @@ function proxyWebSocket(source: WebSocket, request: FastifyRequest) {
   const target = new WebSocket(`${opencodeWebSocketUpstream}${upstreamPath(request.raw.url ?? request.url)}`, {
     headers: proxyHeaders(request, forwarded),
   });
-  const pending: Array<{ data: WebSocket.RawData; binary: boolean }> = [];
-  let pendingBytes = 0;
-  source.on("message", (data, binary) => {
-    if (target.readyState === WebSocket.OPEN) { target.send(data, { binary }); return; }
-    if (target.readyState !== WebSocket.CONNECTING) return;
-    pendingBytes += rawDataBytes(data);
-    if (pendingBytes > bufferedMessageLimit) {
-      source.close(1009, "OpenCode-WebSocket-Puffer überschritten");
-      target.terminate();
-      return;
-    }
-    pending.push({ data, binary });
-  });
-  target.on("open", () => {
-    for (const message of pending.splice(0)) target.send(message.data, { binary: message.binary });
-    pendingBytes = 0;
-  });
-  target.on("message", (data, binary) => { if (source.readyState === WebSocket.OPEN) source.send(data, { binary }); });
-  source.on("close", (code, reason) => target.readyState === WebSocket.OPEN ? target.close(closeCode(code), reason) : target.terminate());
-  target.on("close", (code, reason) => { if (source.readyState === WebSocket.OPEN) source.close(closeCode(code), reason); });
-  source.on("error", () => target.terminate());
-  target.on("error", () => { if (source.readyState === WebSocket.OPEN) source.close(1011, "OpenCode Web ist nicht erreichbar"); });
+  bridgeWebSockets(source, target, { label: "OpenCode", ...(observer === undefined ? {} : { observer }) });
 }
 
-export async function registerOpenCodeWebProxy(app: FastifyInstance) {
+export async function registerOpenCodeWebProxy(app: FastifyInstance, observer?: WebSocketBridgeObserver) {
   app.route({ method: "GET", url: opencodePrefix, config: { rateLimit: false }, helmet: false, handler: proxyIndex });
-  app.route({ method: "GET", url: `${opencodePrefix}/*`, config: { rateLimit: false }, helmet: false, handler: proxyHttp, wsHandler: proxyWebSocket });
+  app.route({ method: "GET", url: `${opencodePrefix}/*`, config: { rateLimit: false }, helmet: false, handler: proxyHttp, wsHandler: (source, request) => proxyWebSocket(source, request, observer) });
   app.route({ method: ["DELETE", "PATCH", "POST", "PUT", "OPTIONS"], url: `${opencodePrefix}/*`, config: { rateLimit: false }, helmet: false, handler: proxyHttp });
 }

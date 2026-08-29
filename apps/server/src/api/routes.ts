@@ -18,7 +18,7 @@ export async function registerApiRoutes(app: FastifyInstance, services: RouteSer
 
   app.get(
     "/proxy/*",
-    { helmet: { contentSecurityPolicy: false }, config: { rateLimit: { max: 120, timeWindow: "1 minute" } } },
+    { config: { rateLimit: { max: 120, timeWindow: "1 minute" } } },
     createProxyHandler(services.proxyOrigins),
   );
 }

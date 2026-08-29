@@ -1,6 +1,6 @@
 import type { FastifyRequest } from "fastify";
 import { describe, expect, it } from "vitest";
-import { isProtectedWorkbenchRequest, resolveWorkbenchUser } from "./workbench-identity.js";
+import { isProtectedWorkbenchRequest, requireWorkbenchAdmin, resolveWorkbenchUser } from "./workbench-identity.js";
 
 function request(url: string, headers: Record<string, string> = {}) {
   return { url, raw: { url }, headers } as unknown as FastifyRequest;
@@ -15,6 +15,16 @@ describe("Workbench-Identität", () => {
 
   it("lehnt nicht erlaubte Hermes-Identitäten ab", () => {
     expect(() => resolveWorkbenchUser(request("/hermes/api/config", { "tailscale-user-login": "other@example.com" }), { allowedUsers: ["user@example.com"] })).toThrowError(expect.objectContaining({ statusCode: 403 }));
+  });
+
+  it("trennt Administratoren serverseitig von normalen Workbench-Nutzern", () => {
+    const options = { allowedUsers: ["admin@example.com", "member@example.com"], adminUsers: ["admin@example.com"] };
+    expect(requireWorkbenchAdmin(request("/api/v1/extensions", { "tailscale-user-login": "admin@example.com" }), options)).toBe("admin@example.com");
+    expect(() => requireWorkbenchAdmin(request("/api/v1/extensions", { "tailscale-user-login": "member@example.com" }), options)).toThrowError(expect.objectContaining({ statusCode: 403 }));
+  });
+
+  it("nutzt für abwärtskompatible Konfiguration den ersten erlaubten Nutzer als Admin", () => {
+    expect(requireWorkbenchAdmin(request("/api/v1/extensions", { "tailscale-user-login": "first@example.com" }), { allowedUsers: ["first@example.com", "second@example.com"] })).toBe("first@example.com");
   });
 
   it("überlässt den T3-WebSocket der eigenen Authentifizierung", () => {

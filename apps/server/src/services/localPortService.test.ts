@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isProjectSocket, parseListeningSockets } from "./localPortService.js";
+import { isAllowedProjectPort, isProjectSocket, parseListeningSockets } from "./localPortService.js";
 
 describe("local port discovery", () => {
   it("deduplicates IPv4 and IPv6 listeners and keeps process names", () => {
@@ -24,5 +24,12 @@ describe("local port discovery", () => {
       'LISTEN 0 4096 0.0.0.0:54321 0.0.0.0:*',
     ].join("\n"));
     expect(sockets.filter((socket) => isProjectSocket(socket)).map((socket) => socket.port)).toEqual([5_173, 54_321]);
+  });
+
+  it("beschränkt den Testscan auf die freigegebenen Ports", () => {
+    const allowed = new Set([3_380, 3_381]);
+    expect(isAllowedProjectPort(3_380, allowed)).toBe(true);
+    expect(isAllowedProjectPort(3_010, allowed)).toBe(false);
+    expect(isAllowedProjectPort(3_010)).toBe(true);
   });
 });

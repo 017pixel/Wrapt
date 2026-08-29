@@ -58,6 +58,10 @@ export function isProjectSocket(socket: ListeningSocket, excludedProcessNames: R
   return !socket.process || !excludedProcessNames.has(socket.process);
 }
 
+export function isAllowedProjectPort(port: number, allowedPorts?: ReadonlySet<number>): boolean {
+  return allowedPorts === undefined || allowedPorts.has(port);
+}
+
 function probe(port: number, protocol: "http" | "https", timeoutMilliseconds: number): Promise<boolean> {
   return new Promise((resolve) => {
     const request = (protocol === "https" ? httpsRequest : httpRequest)({
@@ -112,18 +116,19 @@ async function resolvePort(
   };
 }
 
-export function createLocalPortService(options: { cacheMilliseconds: number; probeTimeoutMilliseconds: number; excludedPorts?: readonly number[]; excludedProcessNames?: readonly string[]; projects?: () => Promise<ReadonlyArray<{ id: string; name: string; path: string }>> }) {
+export function createLocalPortService(options: { cacheMilliseconds: number; probeTimeoutMilliseconds: number; allowedPorts?: readonly number[]; excludedPorts?: readonly number[]; excludedProcessNames?: readonly string[]; projects?: () => Promise<ReadonlyArray<{ id: string; name: string; path: string }>> }) {
   let cached: LocalPortsResponse | null = null;
   let cachedAt = 0;
   let inFlight: Promise<LocalPortsResponse> | null = null;
 
+  const allowedPorts = options.allowedPorts === undefined ? undefined : new Set(options.allowedPorts);
   const excluded = new Set(options.excludedPorts ?? []);
   const excludedProcessNames = options.excludedProcessNames ? new Set(options.excludedProcessNames) : systemProcessNames;
 
   const scan = async (): Promise<LocalPortsResponse> => {
     const result = await execa("ss", ["-H", "-ltnp"], { reject: false, shell: false, timeout: 2_000 });
     const sockets = result.exitCode === 0
-      ? parseListeningSockets(result.stdout).filter((socket) => !excluded.has(socket.port) && isProjectSocket(socket, excludedProcessNames))
+      ? parseListeningSockets(result.stdout).filter((socket) => isAllowedProjectPort(socket.port, allowedPorts) && !excluded.has(socket.port) && isProjectSocket(socket, excludedProcessNames))
       : [];
     const projects = await options.projects?.().catch(() => []) ?? [];
     const resolved = await Promise.all(sockets.map((socket) => resolvePort(socket, options.probeTimeoutMilliseconds, projects)));

@@ -15,3 +15,7 @@ export function isSameOriginRequest(request: FastifyRequest): boolean {
     return false;
   }
 }
+
+export function isWebSocketOriginAllowed(request: FastifyRequest): boolean {
+  return firstHeader(request.headers.origin) !== undefined && isSameOriginRequest(request);
+}

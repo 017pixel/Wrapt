@@ -154,6 +154,9 @@ export function OrbitProjectBrowserDialog({ open, onClose }: OrbitProjectBrowser
       setNavigationPath(target.path);
       setPathInput(target.path);
       setExpanded(new Set(ancestorPaths));
+      // Der Browser-Root dient nur als Navigationsgrenze. Er wird vom
+      // Projekt-Register bewusst abgelehnt und darf deshalb nicht als
+      // auswählbare Ordnerzeile erscheinen.
       setSelectedPath(selectTarget && target.path !== target.root ? target.path : null);
       window.setTimeout(() => {
         const rows = document.querySelectorAll<HTMLElement>("[data-orbit-tree-row]");

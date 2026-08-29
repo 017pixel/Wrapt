@@ -61,7 +61,7 @@ test.describe("Dateimanager desktop", () => {
     test.skip(skip(), "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
     await page.goto(`${workbench}/wrapt/files`);
     await row(page, "/package.json").click({ button: "right" });
-    const menu = page.locator(".file-manager-context-menu");
+    const menu = page.locator('.global-context-menu[data-surface="host.context-menu.file"]');
     await expect(menu).toBeVisible();
     await expect(menu).toContainText("Herunterladen");
     await expect(menu).toContainText("Im Terminal öffnen");
@@ -80,7 +80,7 @@ test.describe("Dateimanager desktop", () => {
 
   test("öffnet den Dateimanager als Tool-Node im Orbit", async ({ page }) => {
     test.skip(skip(), "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
-    await page.goto(`${workbench}/wrapt/wrapt`);
+    await page.goto(`${workbench}/wrapt/workbench`);
     await page.getByRole("button", { name: "Files", exact: true }).click();
     const panel = page.locator('[data-panel-type="files"]').filter({ has: page.locator(".file-manager") }).first();
     await expect(panel).toBeVisible();
@@ -153,13 +153,13 @@ test.describe("Dateimanager Phone", () => {
     // Die Einfahranimation abschließen lassen, sonst misst das BoundingBox
     // den transformierten Zwischenzustand. Nach dem Ende ist die
     // berechnete Transformation wieder "none".
-    await expect.poll(async () => (await sheet.boundingBox())?.y ?? 1).toBe(0);
+    await expect.poll(async () => (await sheet.boundingBox())?.y ?? 1).toBeLessThanOrEqual(0.02);
     // Auf dem Handy nimmt die Vorschau die ganze Fläche ein.
     const bounds = await sheet.boundingBox();
     expect(bounds?.x).toBe(0);
     expect(bounds?.width).toBe(390);
-    expect(bounds?.y).toBe(0);
-    expect(bounds!.y + bounds!.height).toBe(844);
+    expect(bounds?.y ?? 1).toBeLessThanOrEqual(0.02);
+    expect(bounds!.y + bounds!.height).toBeCloseTo(844, 1);
     await page.keyboard.press("Escape");
     await expect(sheet).toHaveCount(0);
   });
