@@ -6,6 +6,15 @@ import { z } from "zod";
 import { loadWraptConfig } from "./wrapt-config.js";
 import { canonicalizeWraptEnvironment } from "./environment.js";
 import { resolveAgentHomeSettings } from "./agent-home-settings.js";
+import { isLoopbackHost } from "./loopback.js";
+import {
+  booleanFromEnvironment,
+  boundedIntegerFromEnvironment,
+  commaSeparatedValues,
+  integerFromEnvironment,
+  localhostUrl,
+  profileHomesFromEnvironment,
+} from "./settings-helpers.js";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const environmentFile = resolve(projectRoot, ".env");
@@ -20,44 +29,13 @@ try { chmodSync(resolve(configDirectory, "wrapt.local.json"), 0o600); } catch (e
 }
 // Zentrale Personalisierung. Env-Variablen überschreiben diese Werte weiterhin.
 const wb = loadWraptConfig(configDirectory);
-const integerFromEnvironment = (fallback: number) =>
-  z.preprocess(
-    (value) => (value === undefined || value === "" ? fallback : Number(value)),
-    z.number().int().positive(),
-  );
-
-const boundedIntegerFromEnvironment = (fallback: number, minimum: number, maximum: number) =>
-  z.preprocess(
-    (value) => (value === undefined || value === "" ? fallback : Number(value)),
-    z.number().int().min(minimum).max(maximum),
-  );
-
-const booleanFromEnvironment = (fallback: boolean) =>
-  z.preprocess(
-    (value) => (value === undefined || value === "" ? fallback : value === "true"),
-    z.boolean(),
-  );
-
-const profileHomesFromEnvironment = z.preprocess(
-  (value) => (typeof value === "string" && value.length > 0 ? value.split(",").map((path) => path.trim()).filter(Boolean) : []),
-  z.array(z.string().startsWith("/")),
-);
-
-const commaSeparatedValues = z.preprocess(
-  (value) => (typeof value === "string" && value.length > 0 ? value.split(",").map((item) => item.trim()).filter(Boolean) : []),
-  z.array(z.string().min(1)),
-);
-
-const localhostUrl = z.url().refine((value) => {
-  const hostname = new URL(value).hostname;
-  return hostname === "127.0.0.1" || hostname === "::1" || hostname === "localhost";
-}, "CODEXBAR_BASE_URL muss auf einen lokalen Host zeigen.");
-
 const settingsSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  WRAPT_E2E: booleanFromEnvironment(false),
+  WRAPT_E2E_ALLOW_DESTRUCTIVE_ORBIT_RESET: booleanFromEnvironment(false),
   HOST: z.string().default("127.0.0.1"),
   PORT: integerFromEnvironment(3010),
-  APP_VERSION: z.string().regex(/^\d+\.\d+\.\d+$/).default("0.99.5"),
+  APP_VERSION: z.string().regex(/^\d+\.\d+\.\d+$/).default("1.0.1"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   CONFIG_DIR: z.string().default("./config"),
   WEB_DIST_DIR: z.string().default("./apps/web/dist"),
@@ -94,12 +72,15 @@ const settingsSchema = z.object({
   CODEX_OAUTH_TIMEOUT_MS: integerFromEnvironment(5_000),
   PROXY_TIMEOUT_MS: integerFromEnvironment(15_000),
   PROXY_MAX_HTML_BYTES: boundedIntegerFromEnvironment(4 * 1024 * 1024, 65_536, 16 * 1024 * 1024),
+  PUSH_TIMEOUT_MS: boundedIntegerFromEnvironment(10_000, 1_000, 60_000),
   TERMINAL_ALLOWED_USERS: commaSeparatedValues.default(wb.tailscale.allowedUsers),
+  ADMIN_USERS: commaSeparatedValues.default(wb.tailscale.adminUsers),
   TERMINAL_ALLOWED_ROOTS: profileHomesFromEnvironment.default(wb.paths.terminalAllowedRoots),
   TERMINAL_DEFAULT_CWD: z.string().startsWith("/").default(wb.paths.terminalDefaultCwd),
   TERMINAL_MAX_SESSIONS: integerFromEnvironment(24),
   TERMINAL_SUPERVISOR: z.enum(["tmux", "direct"]).default("tmux"),
   TMUX_PATH: z.string().startsWith("/").default(wb.cli.tmux),
+  PREVIEW_TMUX_SOCKET: z.string().min(1).default("wrapt-previews"),
   // Optional: dedizierter tmux-Socket unter $XDG_RUNTIME_DIR/wrapt.
   // Ohne Wert berechnet der Server den Pfad selbst (siehe dependencies.ts).
   TMUX_SOCKET_PATH: z.string().startsWith("/").optional(),
@@ -203,11 +184,14 @@ const environment = settingsSchema.parse(canonicalizeWraptEnvironment(process.en
 if (environment.NODE_ENV === "production" && environment.WRAPT_DEV_TAILSCALE_USER.trim()) {
   throw new Error("WRAPT_DEV_TAILSCALE_USER darf in Produktion nicht gesetzt sein.");
 }
-if (!["127.0.0.1", "::1", "localhost"].includes(environment.HERMES_HOST)) {
+if (!isLoopbackHost(environment.HERMES_HOST)) {
   throw new Error("HERMES_HOST darf nur auf Loopback zeigen.");
 }
-if (!["127.0.0.1", "::1", "localhost"].includes(environment.OPENCODE_WEB_HOST)) {
+if (!isLoopbackHost(environment.OPENCODE_WEB_HOST)) {
   throw new Error("OPENCODE_WEB_HOST darf nur auf Loopback zeigen.");
+}
+if (environment.NODE_ENV === "production" && !isLoopbackHost(environment.HOST)) {
+  throw new Error("HOST darf in Produktion nur auf Loopback zeigen.");
 }
 const hermesHomeDirectory = environment.HERMES_HOME;
 const hermesCheckoutDirectory = environment.HERMES_CHECKOUT_DIRECTORY ?? wb.hermes.checkoutDirectory ?? join(hermesHomeDirectory, "hermes-agent");
@@ -228,7 +212,10 @@ if (new Set(listenerPorts).size !== listenerPorts.length) {
 }
 
 export const settings = Object.freeze({
+  repositoryRoot: projectRoot,
   runtimeMode: environment.NODE_ENV,
+  testIsolation: environment.WRAPT_E2E,
+  allowDestructiveOrbitReset: environment.WRAPT_E2E && environment.WRAPT_E2E_ALLOW_DESTRUCTIVE_ORBIT_RESET,
   host: environment.HOST,
   port: environment.PORT,
   appVersion: environment.APP_VERSION,
@@ -305,12 +292,15 @@ export const settings = Object.freeze({
   codexOauthTimeoutMilliseconds: environment.CODEX_OAUTH_TIMEOUT_MS,
   proxyTimeoutMilliseconds: environment.PROXY_TIMEOUT_MS,
   proxyMaximumHtmlBytes: environment.PROXY_MAX_HTML_BYTES,
+  pushTimeoutMilliseconds: environment.PUSH_TIMEOUT_MS,
   terminalAllowedUsers: environment.TERMINAL_ALLOWED_USERS.map((user) => user.toLowerCase()),
+  terminalAdminUsers: environment.ADMIN_USERS.map((user) => user.toLowerCase()),
   terminalAllowedRoots: environment.TERMINAL_ALLOWED_ROOTS.map((path) => resolve(path)),
   terminalDefaultCwd: resolve(environment.TERMINAL_DEFAULT_CWD),
   terminalMaxSessions: environment.TERMINAL_MAX_SESSIONS,
   terminalSupervisor: environment.TERMINAL_SUPERVISOR,
   tmuxPath: environment.TMUX_PATH,
+  previewTmuxSocket: environment.PREVIEW_TMUX_SOCKET,
   tmuxSocketPath: environment.TMUX_SOCKET_PATH,
   codexCliPath: environment.CODEX_CLI_PATH,
   opencodeCliPath: environment.OPENCODE_CLI_PATH,

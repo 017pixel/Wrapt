@@ -13,7 +13,8 @@
     "httpsPort": 8443,
     "allowedUsers": [
       "user@example.com"
-    ]
+    ],
+    "adminUsers": []
   },
   "paths": {
     "projectsRoot": "/home/your-user/projects",
@@ -70,13 +71,30 @@
     }
   },
   "appearance": {
-    "preset": "wrapt-standard",
+    "preset": "t3-code",
     "colors": {
-      "accent": "#3666c2",
+      "accent": "#346bf1",
+      "accentContrast": "#ffffff",
       "background": "#0a0a0a",
-      "sidebar": "#111111",
+      "surface": "#111111",
+      "surfaceRaised": "#141414",
+      "surfaceOverlay": "#191919",
+      "text": "#f5f5f5",
+      "muted": "#818181",
+      "faint": "#a3a3a3",
+      "border": "#191919",
+      "borderStrong": "#191919",
+      "input": "#1e1e1e",
+      "hover": "#131313",
+      "selected": "#111111",
+      "focus": "#346bf1",
+      "success": "oklch(0.765 0.177 163.223)",
+      "warning": "oklch(0.76859 0.164659 70.08)",
+      "danger": "oklch(0.655108 0.221148 23.473)",
+      "info": "oklch(0.758933 0.105833 241.548)",
+      "sidebar": "#000000",
       "topbar": "#0a0a0a",
-      "bottomBar": "#111111"
+      "bottomBar": "#0a0a0a"
     }
   },
   "notifications": {

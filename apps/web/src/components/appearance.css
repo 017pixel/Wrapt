@@ -1,25 +1,109 @@
-@layer components {
-  .appearance-settings { display: grid; gap: 18px; }
-  .appearance-preset-row { display: flex; align-items: end; justify-content: space-between; gap: 16px; }
-  .appearance-preset-row label { display: grid; flex: 1; gap: 6px; color: var(--color-muted); font-size: 11px; }
-  .appearance-preset-row select { min-height: 42px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-ink-850); padding: 9px 10px; color: var(--color-text); font: inherit; }
-  .appearance-preview { display: flex; width: 120px; height: 42px; overflow: hidden; border: 1px solid var(--color-line); border-radius: var(--radius-sm); }
-  .appearance-preview span { flex: 1; }
-  .appearance-color-list { display: grid; overflow: hidden; border: 1px solid var(--color-line); border-radius: var(--radius-sm); }
-  .appearance-color-row { display: flex; min-height: 58px; align-items: center; justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--color-line); padding: 8px 12px; }
-  .appearance-color-row:last-child { border-bottom: 0; }
-  .appearance-color-row > span:first-child { display: grid; gap: 3px; }
-  .appearance-color-row strong { color: var(--color-text); font-size: 12px; font-weight: 600; }
-  .appearance-color-row small { color: var(--color-faint); font-size: 10px; }
-  .appearance-color-control { display: flex; min-width: 130px; align-items: center; justify-content: flex-end; gap: 8px; }
-  .appearance-color-control input { width: 44px; height: 44px; border: 0; border-radius: var(--radius-sm); background: transparent; padding: 0; }
-  .appearance-color-control code { color: var(--color-muted); font: 10px var(--font-mono); }
-  .appearance-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-  .appearance-actions > span { color: var(--color-accent); font-size: 11px; }
-}
+@import "./appearance-themes.css";
+@import "./appearance-customizer.css";
 
-@media (max-width: 620px) {
-  .appearance-preset-row { align-items: stretch; flex-direction: column; }
-  .appearance-preview { width: 100%; }
-  .appearance-color-control { min-width: 112px; }
+@layer components {
+  .appearance-settings {
+    display: grid;
+    gap: var(--space-6);
+  }
+
+  .appearance-section-heading > div,
+  .appearance-theme-copy,
+  .appearance-color-field > span:first-child,
+  .appearance-custom-option > span:nth-child(2) {
+    display: grid;
+    gap: var(--space-1);
+  }
+
+  .appearance-section-heading h3,
+  .appearance-theme-copy strong,
+  .appearance-custom-option strong,
+  .appearance-color-field strong {
+    color: var(--color-text);
+    font-size: var(--text-md);
+    font-weight: 650;
+  }
+
+  .appearance-section-heading p,
+  .appearance-custom-option small,
+  .appearance-color-field small,
+  .appearance-theme-copy small,
+  .appearance-color-group header p {
+    color: var(--color-muted);
+    font-size: var(--text-xs);
+    line-height: 1.45;
+  }
+
+  .appearance-count,
+  .appearance-customizer-state,
+  .appearance-color-group header > span {
+    flex: none;
+    color: var(--color-accent);
+    font-family: var(--font-mono);
+    font-size: var(--text-2xs);
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+
+  .appearance-section-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+  }
+
+  .appearance-section-heading h3,
+  .appearance-section-heading p,
+  .appearance-color-group header h4,
+  .appearance-color-group header p {
+    margin: 0;
+  }
+
+  .appearance-section-heading h3 {
+    font-size: var(--text-lg);
+  }
+
+  .appearance-count,
+  .appearance-customizer-state {
+    border: 1px solid var(--color-accent-line);
+    background: var(--color-accent-soft);
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .appearance-legacy-note {
+    margin: 0 0 var(--space-3);
+    border-left: 2px solid var(--color-warn);
+    background: var(--color-warn-soft);
+    padding: var(--space-2) var(--space-3);
+    color: var(--color-warn);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+  }
+
+  .appearance-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-2);
+  }
+
+  .appearance-actions > span {
+    color: var(--color-ok);
+    font-size: var(--text-xs);
+  }
+
+  .appearance-actions > span.is-error,
+  .appearance-message.is-error {
+    color: var(--color-bad);
+  }
+
+  .appearance-save-note,
+  .appearance-message {
+    margin: 0;
+    color: var(--color-faint);
+    font-size: var(--text-xs);
+    line-height: 1.5;
+  }
 }

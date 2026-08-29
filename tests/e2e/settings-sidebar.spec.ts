@@ -19,7 +19,7 @@ function settingsSection(page: Page, title: string) {
 
 async function openSurfaceTab(page: Page) {
   await page.goto("/wrapt/settings");
-  await page.getByRole("button", { name: "Oberfläche", exact: true }).click();
+  await page.getByRole("button", { name: "Navigation", exact: true }).click();
 }
 
 test("schaltet Seiten in Sidebar und Navigation um und behält die Auswahl nach Reload", async ({ page }) => {
@@ -52,7 +52,7 @@ test("wendet Orbit-Sidebar-Schalter sofort und nach Reload an", async ({ page })
   const orbitSettings = settingsSection(page, "Orbit-Sidebar");
   await orbitSettings.getByRole("button", { name: "OpenCode OpenCode", exact: true }).click();
 
-  await page.goto("/wrapt/wrapt");
+  await page.goto("/wrapt/workbench");
   const orbitTools = page.locator(".sidebar-section")
     .filter({ has: page.locator(".sidebar-section-header", { hasText: "Werkzeuge" }) })
     .filter({ has: page.locator(".orbit-palette-item") })

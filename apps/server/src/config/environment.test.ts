@@ -23,10 +23,12 @@ describe("Wrapt-Umgebungsvariablen", () => {
   });
 
   it("hebt die vorherigen lokalen Produktstände auf den aktuellen Stand", () => {
-    expect(canonicalizeWraptEnvironment({ APP_VERSION: "0.95.0" }).APP_VERSION).toBe("0.99.5");
-    expect(canonicalizeWraptEnvironment({ APP_VERSION: "0.96.1" }).APP_VERSION).toBe("0.99.5");
-    expect(canonicalizeWraptEnvironment({ APP_VERSION: "0.97.0" }).APP_VERSION).toBe("0.99.5");
-    expect(canonicalizeWraptEnvironment({ APP_VERSION: "0.98.0" }).APP_VERSION).toBe("0.99.5");
-    expect(canonicalizeWraptEnvironment({ APP_VERSION: "0.99.0" }).APP_VERSION).toBe("0.99.5");
+    expect(canonicalizeWraptEnvironment({ APP_VERSION: "0.95.0" }).APP_VERSION).toBe("1.0.1");
+    expect(canonicalizeWraptEnvironment({ APP_VERSION: "0.96.1" }).APP_VERSION).toBe("1.0.1");
+    expect(canonicalizeWraptEnvironment({ APP_VERSION: "0.97.0" }).APP_VERSION).toBe("1.0.1");
+    expect(canonicalizeWraptEnvironment({ APP_VERSION: "0.98.0" }).APP_VERSION).toBe("1.0.1");
+    expect(canonicalizeWraptEnvironment({ APP_VERSION: "0.99.0" }).APP_VERSION).toBe("1.0.1");
+    expect(canonicalizeWraptEnvironment({ APP_VERSION: "0.99.5" }).APP_VERSION).toBe("1.0.1");
+    expect(canonicalizeWraptEnvironment({ APP_VERSION: "1.0.0" }).APP_VERSION).toBe("1.0.1");
   });
 });

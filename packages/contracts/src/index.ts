@@ -1,8 +1,9 @@
 import { z } from "zod";
-
+import { pushEndpointSchema } from "./push.js";
 export * from "./appearance.js";
 export * from "./codex-resets.js";
 export * from "./context-menu.js";
+export * from "./operational-metrics.js";
 export * from "./plugins.js";
 
 export const isoDateSchema = z.iso.datetime({ offset: true });
@@ -80,54 +81,6 @@ export const readinessResponseSchema = z.object({
     name: z.string().min(1),
     status: z.enum(["ok", "failed"]),
   })),
-});
-
-export const operationalMetricsSchema = z.object({
-  capturedAt: isoDateSchema,
-  uptimeSeconds: z.number().nonnegative(),
-  http: z.object({
-    activeRequests: z.number().int().nonnegative(),
-    totalRequests: z.number().int().nonnegative(),
-    clientErrors: z.number().int().nonnegative(),
-    serverErrors: z.number().int().nonnegative(),
-    routes: z.array(z.object({
-      method: z.string().min(1),
-      route: z.string().min(1),
-      count: z.number().int().nonnegative(),
-      errorCount: z.number().int().nonnegative(),
-      p95Milliseconds: z.number().nonnegative(),
-      p99Milliseconds: z.number().nonnegative(),
-    })),
-  }),
-  eventLoop: z.object({
-    meanMilliseconds: z.number().nonnegative(),
-    p99Milliseconds: z.number().nonnegative(),
-    maxMilliseconds: z.number().nonnegative(),
-  }),
-  processMemory: z.object({
-    rssBytes: z.number().int().nonnegative(),
-    heapUsedBytes: z.number().int().nonnegative(),
-    heapTotalBytes: z.number().int().nonnegative(),
-    externalBytes: z.number().int().nonnegative(),
-  }),
-  degradedReasons: z.array(z.string().min(1)),
-  audit: z.object({
-    valid: z.boolean(),
-    entries: z.number().int().nonnegative(),
-    latestAt: isoDateSchema.nullable(),
-  }),
-  orbit: z.object({
-    pendingBackups: z.number().int().nonnegative(),
-    oldestPendingAt: isoDateSchema.nullable(),
-    lastError: z.string().nullable(),
-    failedAt: isoDateSchema.nullable(),
-  }),
-  preview: z.object({
-    totalSlots: z.number().int().nonnegative(),
-    freeSlots: z.number().int().nonnegative(),
-    resettingSlots: z.number().int().nonnegative(),
-    quarantinedSlots: z.number().int().nonnegative(),
-  }),
 });
 
 export const restartTargetSchema = z.enum(["frontend", "backend", "both"]);
@@ -1649,7 +1602,7 @@ export const notificationSettingsResponseSchema = z.object({
   serverPushEnabled: z.boolean(),
 });
 export const pushSubscriptionSchema = z.object({
-  endpoint: z.url().max(2_048),
+  endpoint: pushEndpointSchema,
   expirationTime: z.number().nullable().optional(),
   keys: z.object({ p256dh: z.string().min(1).max(512), auth: z.string().min(1).max(512) }),
 });
@@ -1658,7 +1611,7 @@ export const pushSubscriptionRegistrationSchema = pushSubscriptionSchema.extend(
   platform: z.string().trim().min(1).max(80).optional(),
   userAgent: z.string().trim().min(1).max(512).optional(),
 });
-export const pushEndpointRequestSchema = z.object({ endpoint: z.url().max(2_048) });
+export const pushEndpointRequestSchema = z.object({ endpoint: pushEndpointSchema });
 export const pushSubscriptionResponseSchema = z.object({
   registered: z.literal(true),
   subscriptionCount: z.number().int().positive(),
@@ -2071,7 +2024,6 @@ export type HealthResponse = z.infer<typeof healthResponseSchema>;
 export type DashboardSection = z.infer<typeof dashboardSectionSchema>;
 export type DashboardConfig = z.infer<typeof dashboardConfigSchema>;
 export type ReadinessResponse = z.infer<typeof readinessResponseSchema>;
-export type OperationalMetricsResponse = z.infer<typeof operationalMetricsSchema>;
 export type RestartTarget = z.infer<typeof restartTargetSchema>;
 export type RestartRequest = z.infer<typeof restartRequestSchema>;
 export type RestartResponse = z.infer<typeof restartResponseSchema>;

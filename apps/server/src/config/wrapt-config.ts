@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { appearanceThemeSchema, codexResetHistorySettingsSchema, contextMenuConfigSchema, dashboardConfigSchema, defaultAppearanceTheme, notificationPreferencesSchema, t3ChannelSchema, usageMonitoringSchema, type AppearanceTheme, type CodexResetHistorySettings, type ContextMenuConfig, type NotificationPreferences, type T3Channel, type UsageMonitoring } from "@wrapt/contracts";
 import { z } from "zod";
 import { persistLocalConfig } from "./config-persistence.js";
+import { isLoopbackHost } from "./loopback.js";
 
 const absolutePath = z.string().startsWith("/");
 
@@ -21,6 +22,9 @@ export const wraptConfigSchema = z.object({
     ip: z.string().min(1),
     httpsPort: z.number().int().positive(),
     allowedUsers: z.array(z.string().min(1)),
+    // Leere Liste bleibt abwärtskompatibel: settings leitet dann den ersten
+    // explizit erlaubten Benutzer als lokalen Administrator ab.
+    adminUsers: z.array(z.string().min(1)).default([]),
   }),
   paths: z.object({
     projectsRoot: absolutePath,
@@ -224,10 +228,10 @@ export const wraptConfigSchema = z.object({
   if (reservedProjectPort !== undefined) {
     context.addIssue({ code: "custom", path: ["previews", "allowedProjectPorts"], message: `Projektport ${reservedProjectPort} kollidiert mit einem Workbench-Dienst.` });
   }
-  if (!["127.0.0.1", "::1", "localhost"].includes(config.hermes.host)) {
+  if (!isLoopbackHost(config.hermes.host)) {
     context.addIssue({ code: "custom", path: ["hermes", "host"], message: "Das Hermes-Dashboard darf nur an Loopback binden." });
   }
-  if (!["127.0.0.1", "::1", "localhost"].includes(config.opencodeWeb.host)) {
+  if (!isLoopbackHost(config.opencodeWeb.host)) {
     context.addIssue({ code: "custom", path: ["opencodeWeb", "host"], message: "OpenCode Web darf nur an Loopback binden." });
   }
   const reservedPorts = [config.t3.port, config.opencodeWeb.port, ...config.previews.slotPorts, ...config.previews.publicPorts];

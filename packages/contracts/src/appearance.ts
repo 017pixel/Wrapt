@@ -1,46 +1,72 @@
 import { z } from "zod";
+import {
+  appearanceThemePresetIds,
+  appearanceThemePresets,
+  type AppearancePresetColors,
+  type AppearanceThemePresetId,
+} from "./appearance-palettes.js";
 
-const hexColorSchema = z.string().regex(/^#[0-9a-fA-F]{6}$/, "Farben müssen opake sechsstellige Hex-RGB-Werte sein.").transform((value) => value.toLowerCase());
+export { appearanceThemeCatalog, appearanceThemePresetIds, appearanceThemePresets } from "./appearance-palettes.js";
+export type { AppearanceThemePresetId } from "./appearance-palettes.js";
 
-export const appearanceThemePresetSchema = z.enum(["wrapt-standard", "graphit", "sage", "custom"]);
+const hexColorPattern = /^#[0-9a-fA-F]{6}$/;
+const oklchColorPattern = /^oklch\(\s*(?:0|1|0?\.\d+)\s+(?:0|0?\.\d+)\s+-?\d+(?:\.\d+)?\s*\)$/i;
+
+const themeColorSchema = z
+  .string()
+  .trim()
+  .refine((value) => hexColorPattern.test(value) || oklchColorPattern.test(value), "Theme-Farben müssen opake Hex- oder OKLCH-Werte sein.")
+  .transform((value) => hexColorPattern.test(value) ? value.toLowerCase() : value);
+
+const defaultColors: AppearancePresetColors = appearanceThemePresets["t3-code"];
+
+export const appearanceThemePresetSchema = z.enum([
+  "t3-code",
+  "t3-chat",
+  "grove",
+  "ocean",
+  "ember",
+  "iris",
+  "dark-modern",
+  "monokai",
+  "carbon",
+  "signal",
+  "wrapt-standard",
+  "graphit",
+  "sage",
+  "custom",
+]);
 export type AppearanceThemePreset = z.infer<typeof appearanceThemePresetSchema>;
 
 export const appearanceColorsSchema = z.strictObject({
-  accent: hexColorSchema,
-  background: hexColorSchema,
-  sidebar: hexColorSchema,
-  topbar: hexColorSchema,
-  bottomBar: hexColorSchema,
+  accent: themeColorSchema.default(defaultColors.accent),
+  accentContrast: themeColorSchema.default(defaultColors.accentContrast),
+  background: themeColorSchema.default(defaultColors.background),
+  surface: themeColorSchema.default(defaultColors.surface),
+  surfaceRaised: themeColorSchema.default(defaultColors.surfaceRaised),
+  surfaceOverlay: themeColorSchema.default(defaultColors.surfaceOverlay),
+  sidebar: themeColorSchema.default(defaultColors.sidebar),
+  topbar: themeColorSchema.default(defaultColors.topbar),
+  bottomBar: themeColorSchema.default(defaultColors.bottomBar),
+  text: themeColorSchema.default(defaultColors.text),
+  muted: themeColorSchema.default(defaultColors.muted),
+  faint: themeColorSchema.default(defaultColors.faint),
+  border: themeColorSchema.default(defaultColors.border),
+  borderStrong: themeColorSchema.default(defaultColors.borderStrong),
+  input: themeColorSchema.default(defaultColors.input),
+  hover: themeColorSchema.default(defaultColors.hover),
+  selected: themeColorSchema.default(defaultColors.selected),
+  focus: themeColorSchema.default(defaultColors.focus),
+  success: themeColorSchema.default(defaultColors.success),
+  warning: themeColorSchema.default(defaultColors.warning),
+  danger: themeColorSchema.default(defaultColors.danger),
+  info: themeColorSchema.default(defaultColors.info),
 });
 export type AppearanceColors = z.infer<typeof appearanceColorsSchema>;
 
-export const appearanceThemePresets = {
-  "wrapt-standard": {
-    accent: "#3666c2",
-    background: "#0a0a0a",
-    sidebar: "#111111",
-    topbar: "#0a0a0a",
-    bottomBar: "#111111",
-  },
-  graphit: {
-    accent: "#8b9aae",
-    background: "#101112",
-    sidebar: "#181a1c",
-    topbar: "#101112",
-    bottomBar: "#181a1c",
-  },
-  sage: {
-    accent: "#6f9f86",
-    background: "#0b100d",
-    sidebar: "#121a15",
-    topbar: "#0b100d",
-    bottomBar: "#121a15",
-  },
-} as const;
-
 export const defaultAppearanceTheme = {
-  preset: "wrapt-standard" as const,
-  colors: appearanceThemePresets["wrapt-standard"],
+  preset: "t3-code" as const,
+  colors: defaultColors,
 };
 
 export const appearanceThemeSchema = z.strictObject({
@@ -54,3 +80,7 @@ export const appearanceResponseSchema = z.strictObject({
   source: z.enum(["project", "default"]),
 });
 export type AppearanceResponse = z.infer<typeof appearanceResponseSchema>;
+
+export function isVisibleAppearancePreset(value: AppearanceThemePreset): value is AppearanceThemePresetId {
+  return (appearanceThemePresetIds as readonly string[]).includes(value);
+}

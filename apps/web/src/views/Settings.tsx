@@ -1,40 +1,28 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { DownloadIcon, ExtensionsIcon, EyeIcon, GitBranchIcon, InboxIcon, InfoIcon, LayersIcon, LoaderIcon, NutzungIcon, RefreshIcon, RocketIcon, ShieldIcon, TrashIcon, UploadIcon, WarningIcon } from "../components/icons";
-import { wraptQueries } from "../lib/queryOptions";
-import { apiClient, ApiClientError } from "../lib/apiClient";
-import { usePwaInstall } from "../lib/usePwaInstall";
-import { useWorkspaceStore, WORKSPACE_STORAGE_KEY } from "../stores/workspace";
-import { Card } from "../components/Card";
-import { Badge } from "../components/primitives";
-import { ExtensionSettings } from "../components/extensions/ExtensionSettings";
-import { WRAPT_LIMITS, type DashboardConfig, type NotificationPreferences, type NotificationSource, type T3Channel, type UsageMonitoring, type UsageProviderId } from "@wrapt/contracts";
-import { useMemo, useRef, useState } from "react";
-import { ConfirmDialog } from "../components/ModalDialog";
-import { useHashTab } from "../lib/hashTabs";
-import { allPageRoutes, isPageVisibleIn, useSidebarPreferences, type OrbitPaletteItem, type PageRouteId } from "../stores/sidebarPreferences";
-import { useAppPreferences } from "../stores/appPreferences";
-import { useNavigationRegistry } from "../extensions/useNavigationRegistry";
-import { useDashboardPreferences, useDashboardSections } from "../stores/dashboardPreferences";
-import { useRouteActivity } from "../lib/routeActivity";
-import { useWebPushDevice } from "../lib/useWebPushDevice";
-import type { WebPushDeviceStatus } from "../lib/webPushDevice";
-import { AppearanceSettings } from "../components/AppearanceSettings";
-import "../components/appearance.css";
-import { SystemRestartControls } from "../components/SystemRestartControls";
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ContextMenuSettings } from "../components/context-menu/ContextMenuSettings";
-
-type SettingsTabId = "allgemein" | "oberflaeche" | "rechtsklick" | "benachrichtigungen" | "system" | "erweiterungen" | "werkzeuge" | "workspace";
-
-const settingsTabs: { id: SettingsTabId; label: string }[] = [
-  { id: "allgemein", label: "Allgemein" },
-  { id: "oberflaeche", label: "Oberfläche" },
-  { id: "rechtsklick", label: "Rechtsklick" },
-  { id: "benachrichtigungen", label: "Benachrichtigungen" },
-  { id: "system", label: "System" },
-  { id: "erweiterungen", label: "Erweiterungen" },
-  { id: "werkzeuge", label: "Werkzeuge" },
-  { id: "workspace", label: "Workspace" },
-];
+import { AppearanceSettings } from "../components/AppearanceSettings";
+import { ExtensionSettings } from "../components/extensions/ExtensionSettings";
+import { useHashTab } from "../lib/hashTabs";
+import { searchSettings, type SettingsSearchResult } from "../lib/settingsSearch";
+import { wraptQueries } from "../lib/queryOptions";
+import { useRouteActivity } from "../lib/routeActivity";
+import { SettingsSearch } from "./settings/SettingsSearch";
+import { SettingsGeneral } from "./settings/SettingsGeneral";
+import { SettingsNavigation } from "./settings/SettingsNavigation";
+import { SettingsNotifications } from "./settings/SettingsNotifications";
+import { SettingsStartup } from "./settings/SettingsStartup";
+import { SettingsSystem } from "./settings/SettingsSystem";
+import { SettingsUsage } from "./settings/SettingsUsage";
+import { SettingsWorkspace } from "./settings/SettingsWorkspace";
+import {
+  normalizeSettingsTab,
+  settingsTabIds,
+  settingsTabs,
+  type SettingsNavigationTarget,
+} from "./settings/settingsTabs";
+import "../components/appearance.css";
+import "./settings/settings.css";
 
 const TAB_HASH_PREFIX = "einstellungen:";
 
@@ -42,42 +30,66 @@ export function Settings() {
   const routeActive = useRouteActivity();
   const health = useQuery({ ...wraptQueries.health(), enabled: routeActive });
   const dashboardConfig = useQuery({ ...wraptQueries.dashboardConfig(), enabled: routeActive });
-  const resetWorkspace = useWorkspaceStore((s) => s.resetWorkspace);
-  const panelCount = useWorkspaceStore((s) => s.panels.length);
-  const workspaceCount = useWorkspaceStore((s) => s.workspaces.length);
-  const pwa = usePwaInstall();
-  const [resetOpen, setResetOpen] = useState(false);
-  const restartCardRef = useRef<HTMLDivElement>(null);
-  const [restartHighlighted, setRestartHighlighted] = useState(false);
-  const [tab, setTab] = useHashTab(settingsTabs.map((item) => item.id), TAB_HASH_PREFIX, "allgemein");
+  const [query, setQuery] = useState("");
+  const [pendingTarget, setPendingTarget] = useState<SettingsNavigationTarget | null>(null);
+  const [tab, setTab] = useHashTab(settingsTabIds, TAB_HASH_PREFIX, "allgemein");
+  const activeTab = normalizeSettingsTab(tab);
+  const results = useMemo(() => searchSettings(query), [query]);
 
-  // Der Kanal-Hinweis verweist auf die Neustart-Buttons im System-Bereich. Ohne kurze
-  // Hervorhebung übersieht man nach dem Sprung leicht, worauf gezeigt wurde.
-  function jumpToRestart() {
-    setTab("system");
-    // Erst nach dem Tab-Wechsel existiert die Neustart-Card im DOM.
-    window.requestAnimationFrame(() => {
-      restartCardRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-      setRestartHighlighted(true);
-      window.setTimeout(() => setRestartHighlighted(false), 2_000);
+  useEffect(() => {
+    if (pendingTarget === null || pendingTarget.anchor === undefined) return;
+    const anchor = pendingTarget.anchor;
+    const frame = window.requestAnimationFrame(() => {
+      const element = document.getElementById(anchor);
+      if (element === null) {
+        setPendingTarget(null);
+        return;
+      }
+      const highlightTarget = element.closest("#restart-controls") ?? element;
+      highlightTarget.scrollIntoView({ behavior: "smooth", block: "start" });
+      highlightTarget.classList.add("is-search-target", "is-active");
+      window.setTimeout(() => highlightTarget.classList.remove("is-search-target", "is-active"), 2_000);
+      setPendingTarget(null);
     });
-  }
+    return () => window.cancelAnimationFrame(frame);
+  }, [activeTab, pendingTarget]);
+
+  const navigateTo = (target: SettingsNavigationTarget) => {
+    setTab(target.tab);
+    setPendingTarget(target);
+  };
+
+  const selectSearchResult = (result: SettingsSearchResult) => {
+    setQuery("");
+    navigateTo(result.entry);
+  };
 
   return (
     <div className="page-scroll">
-      <div className="page-frame max-w-4xl">
-        <div className="page-heading">
-          <h1>Einstellungen</h1>
-          <p>Lokal in diesem Browser gespeichert.</p>
-        </div>
+      <div className="page-frame max-w-4xl settings-page">
+        <header className="settings-page-heading">
+          <div>
+            <span className="settings-eyebrow">Workbench verwalten</span>
+            <h1>Einstellungen</h1>
+            <p>Finde Bereiche schnell, ändere sie direkt und behalte den Überblick.</p>
+          </div>
+          <span className="settings-heading-version">{health.data?.version ?? "Version wird geladen"}</span>
+        </header>
+
+        <SettingsSearch
+          value={query}
+          results={results}
+          onChange={setQuery}
+          onSelect={selectSearchResult}
+        />
 
         <nav className="settings-tabs" aria-label="Einstellungsbereiche">
           {settingsTabs.map(({ id, label }) => (
             <button
               key={id}
               type="button"
-              aria-pressed={tab === id}
-              className={`settings-tab ${tab === id ? "is-active" : ""}`}
+              aria-pressed={activeTab === id}
+              className={`settings-tab ${activeTab === id ? "is-active" : ""}`}
               onClick={() => setTab(id)}
             >
               {label}
@@ -85,573 +97,59 @@ export function Settings() {
           ))}
         </nav>
 
-        {tab === "allgemein" ? (
-          <>
-            <Card title="Startseite" subtitle="Welche Seite beim Öffnen von Wrapt geladen wird">
-              <HomePageSettings />
-            </Card>
-
-            <Card title="App installieren" subtitle="Für einen schnellen Zugriff vom Homescreen oder Desktop">
-              {pwa.updateAvailable ? <div className="settings-update-row" role="status"><div><strong>Update verfügbar</strong><span>Eine neue Wrapt-Version ist bereit.</span></div><button type="button" className="quiet-button-primary" onClick={() => void pwa.applyUpdate()}><DownloadIcon className="h-3.5 w-3.5" /> Aktualisieren</button></div> : null}
-              {pwa.isInstalled ? (
-                <p className="text-[13px] text-muted">Wrapt ist bereits als App installiert.</p>
-              ) : pwa.canInstall ? (
-                <div className="flex flex-wrap items-center gap-3">
-                  <button type="button" onClick={() => void pwa.install()} className="quiet-button-primary">
-                    <DownloadIcon className="h-3.5 w-3.5" /> App installieren
-                  </button>
-                  <span className="text-[12px] text-faint">Öffnet den Installationsdialog des Browsers.</span>
-                </div>
-              ) : pwa.isAppleMobile ? (
-                <p className="text-[13px] text-muted">
-                  In Safari auf <span className="text-text">Teilen</span> tippen und <span className="text-text">Zum Home-Bildschirm</span> wählen.
-                </p>
-              ) : (
-                <p className="text-[13px] text-muted">
-                  Öffne Wrapt in Chrome oder Edge und wähle im Browsermenü <span className="text-text">App installieren</span>.
-                </p>
-              )}
-            </Card>
-
-            <Card title="Version" subtitle="Wird aus der Health-Antwort gelesen" action={<GitBranchIcon className="h-4 w-4 text-faint" />}>
-              <div className="flex items-center gap-3">
-                <span className="text-xl font-medium tracking-tight text-text">
-                  {health.data?.version ?? "—"}
-                </span>
-                <Badge tone="accent">Wrapt</Badge>
-              </div>
-              {health.data ? (
-                <p className="mt-2 text-[12px] text-faint">Backend-Status: {health.data.status}</p>
-              ) : null}
-            </Card>
-          </>
-        ) : null}
-
-        {tab === "oberflaeche" ? (
-          <>
-            <Card title="Farben und Theme" subtitle="Projektweite Farben für Wrapt und lokale Plugins" action={<EyeIcon className="h-4 w-4 text-faint" />}>
-              <AppearanceSettings />
-            </Card>
-            <Card title="Dashboard" subtitle="Bereiche lokal ein- und ausblenden" action={<EyeIcon className="h-4 w-4 text-faint" />}>
-              <p className="mb-4 text-[12px] text-muted">Die zentrale Config legt Defaults und verfügbare Bereiche fest. Deine Auswahl wird nur in diesem Browser gespeichert. Bereiche, die in der Config deaktiviert sind, bleiben hier gesperrt.</p>
-              <DashboardSectionToggles config={dashboardConfig.data} />
-            </Card>
-
-            <Card title="Orbit-Sidebar" subtitle="Elemente im Infinite Canvas ein- oder ausblenden" action={<LayersIcon className="h-4 w-4 text-faint" />}>
-              <OrbitItemToggles />
-            </Card>
-
-            <Card title="Seiten-Sichtbarkeit" subtitle="Navigationselemente global steuern (Sidebar, Dashboard, Mobile)" action={<EyeIcon className="h-4 w-4 text-faint" />}>
-              <PageVisibilityToggles />
-            </Card>
-          </>
-        ) : null}
-
-        {tab === "rechtsklick" ? <ContextMenuSettings /> : null}
-
-        {tab === "benachrichtigungen" ? (
-          <Card title="Benachrichtigungen" subtitle="Toasts und System-Benachrichtigungen pro Quelle" action={<InboxIcon className="h-4 w-4 text-faint" />}>
-            <NotificationSettings />
-          </Card>
-        ) : null}
-
-        {tab === "system" ? (
-          <>
-            <div ref={restartCardRef} id="restart-controls" className={restartHighlighted ? "settings-jump-target is-active" : "settings-jump-target"}>
-              <Card title="Dienst neu starten" subtitle="Nach Code-Änderungen neu bauen und laden – ohne Datenverlust" action={<RefreshIcon className="h-4 w-4 text-faint" />}>
-                <SystemRestartControls />
-              </Card>
+        <div className="settings-tab-content">
+          {activeTab === "allgemein" ? (
+            <SettingsGeneral
+              version={health.data?.version}
+              healthStatus={health.data?.status}
+              onNavigate={navigateTo}
+            />
+          ) : null}
+          {activeTab === "design" ? (
+            <div id="settings-design">
+              <section className="document-section">
+                <header className="section-heading">
+                  <div>
+                    <h2 className="section-title">Design</h2>
+                    <p className="section-subtitle">
+                      Themes, Vorlagen und eigene Farben für die gesamte Workbench
+                    </p>
+                  </div>
+                </header>
+                <AppearanceSettings />
+              </section>
             </div>
-
-            <Card title="T3 Code Kanal" subtitle="Stable oder Nightly – gilt für alle T3-Flächen" action={<RocketIcon className="h-4 w-4 text-faint" />}>
-              <T3ChannelControls onJumpToRestart={jumpToRestart} />
-            </Card>
-
-            <Card title="Sicherheit" subtitle="Keine eigene Anmeldung" action={<ShieldIcon className="h-4 w-4 text-faint" />}>
-              <ul className="space-y-2 text-[13px] text-muted">
-                <li className="flex items-start gap-2">
-                  <InfoIcon className="h-3.5 w-3.5 shrink-0 text-faint" />
-                  Der Zugriff wird über Tailscale/ACLs begrenzt. T3 Code und code-server behalten ihre eigene Authentifizierung.
-                </li>
-                <li className="flex items-start gap-2">
-                  <InfoIcon className="h-3.5 w-3.5 shrink-0 text-faint" />
-                  Es werden keine Tokens, Cookies oder Credentials im Zustand gespeichert.
-                </li>
-                <li className="flex items-start gap-2">
-                  <InfoIcon className="h-3.5 w-3.5 shrink-0 text-faint" />
-                  Terminals starten ausschließlich serverseitig freigegebene Shell-, Agent- und Anmeldeprozesse.
-                </li>
-              </ul>
-            </Card>
-          </>
-        ) : null}
-
-        {tab === "erweiterungen" ? (
-          <Card title="Extensions" subtitle="Lokale Erweiterungen installieren, aktivieren und berechtigen" action={<ExtensionsIcon className="h-4 w-4 text-faint" />}>
-            <ExtensionSettings />
-          </Card>
-        ) : null}
-
-        {tab === "werkzeuge" ? (
-          <Card title="Limitüberwachung" subtitle="Limits je Werkzeug erfassen oder pauschal deaktivieren" action={<NutzungIcon className="h-4 w-4 text-faint" />}>
-            <UsageMonitoringSettings />
-          </Card>
-        ) : null}
-
-        {tab === "workspace" ? (
-          <Card title="Workspace" subtitle="Lokaler, persistenter Zustand">
-            <div className="space-y-3 text-[13px]">
-              <div className="data-row px-0">
-                <span className="text-muted">Geöffnete Panels</span>
-                <span className="font-mono text-text">{panelCount} / {WRAPT_LIMITS.maxResidentTools}</span>
-              </div>
-              <div className="data-row px-0">
-                <span className="text-muted">Arbeitsflächen</span>
-                <span className="font-mono text-text">{workspaceCount} / {WRAPT_LIMITS.maxWorkspaces}</span>
-              </div>
-              <div className="data-row px-0">
-                <span className="text-muted">Speicherort</span>
-                <span className="font-mono text-[12px] text-faint">{WORKSPACE_STORAGE_KEY}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setResetOpen(true)}
-                className="quiet-button border-bad/30 bg-bad-soft/40 text-bad hover:bg-bad-soft"
-              >
-                <TrashIcon className="h-3.5 w-3.5" /> Workspace zurücksetzen
-              </button>
+          ) : null}
+          {activeTab === "navigation" ? <SettingsNavigation config={dashboardConfig.data} /> : null}
+          {activeTab === "rechtsklick" ? <div id="settings-context-menu"><ContextMenuSettings /></div> : null}
+          {activeTab === "benachrichtigungen" ? <SettingsNotifications /> : null}
+          {activeTab === "system" ? (
+            <SettingsSystem
+              onJumpToRestart={() => navigateTo({ tab: "system", anchor: "settings-system-restart" })}
+            />
+          ) : null}
+          {activeTab === "erweiterungen" ? (
+            <div id="settings-extensions">
+              <section className="document-section">
+                <header className="section-heading">
+                  <div>
+                    <h2 className="section-title">Erweiterungen</h2>
+                    <p className="section-subtitle">
+                      Lokale Extensions installieren, aktivieren und berechtigen
+                    </p>
+                  </div>
+                </header>
+                <ExtensionSettings />
+              </section>
             </div>
-          </Card>
-        ) : null}
+          ) : null}
+          {activeTab === "werkzeuge" ? <SettingsUsage /> : null}
+          {activeTab === "workspace" ? <SettingsWorkspace /> : null}
+          {activeTab === "start-app" ? <SettingsStartup /> : null}
+        </div>
 
         <footer className="settings-system-footer"><span>{health.data?.appName ?? "Wrapt"}</span><strong>Version {health.data?.version ?? "–"}</strong><span>Lokale Remote-Entwicklungsumgebung</span></footer>
-        <ConfirmDialog open={resetOpen} title="Workspace zurücksetzen?" description="Alle geöffneten Panels, Arbeitsflächen und Auswahlen werden lokal gelöscht. Diese Aktion kann nicht rückgängig gemacht werden." confirmLabel="Workspace zurücksetzen" danger onConfirm={resetWorkspace} onClose={() => setResetOpen(false)} />
       </div>
-    </div>
-  );
-}
-
-function HomePageSettings() {
-  const navigation = useNavigationRegistry();
-  const defaultPage = useAppPreferences((s) => s.defaultPage);
-  const setDefaultPage = useAppPreferences((s) => s.setDefaultPage);
-  const hiddenPages = useSidebarPreferences((s) => s.hiddenPages);
-
-  const options = useMemo(() => {
-    const seen = new Set<PageRouteId>();
-    const list: { key: PageRouteId; label: string; path: string }[] = [];
-    for (const item of navigation.items) {
-      const key = item.value.runtime.legacyVisibilityKey as PageRouteId | undefined;
-      if (key === undefined || seen.has(key)) continue;
-      seen.add(key);
-      list.push({
-        key,
-        label: item.value.contribution.label,
-        path: item.value.route.path,
-      });
-    }
-    return list;
-  }, [navigation]);
-
-  return (
-    <div>
-      <p className="mb-2 text-[12px] text-muted">Das Dashboard ist der Standard. Wählst du eine andere Seite, leitet Wrapt den Root-Pfad dorthin weiter.</p>
-      {options.map((option) => {
-        const isHidden = !isPageVisibleIn(hiddenPages, option.key);
-        const selected = defaultPage === option.key;
-        return (
-          <button
-            key={option.key}
-            type="button"
-            aria-pressed={selected}
-            disabled={isHidden}
-            onClick={() => setDefaultPage(option.key)}
-            title={isHidden ? "Diese Seite ist ausgeblendet – erst wieder einblenden" : undefined}
-            className={`settings-radio-row ${selected ? "is-selected" : ""}`}
-          >
-            <span className="settings-radio-copy">
-              <strong>{option.label}</strong>
-              <small><code>{option.path}</code>{isHidden ? " · ausgeblendet" : ""}</small>
-            </span>
-            <span className="settings-radio-dot" aria-hidden />
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-const notificationSourceLabels: Record<NotificationSource, string> = {
-  hermes: "Hermes", t3: "T3 Code", opencode: "OpenCode", codex: "Codex", claude: "Claude Code",
-  terminal: "Terminal", wrapt: "Wrapt", workbench: "Legacy Workbench", update: "Updates",
-};
-
-const pushDeviceStatus: Record<WebPushDeviceStatus, { label: string; tone: "default" | "ok" | "warn" | "bad" | "accent" }> = {
-  checking: { label: "Wird geprüft", tone: "default" },
-  unsupported: { label: "Nicht unterstützt", tone: "default" },
-  "ipad-install-required": { label: "Erst installieren", tone: "warn" },
-  "service-worker-error": { label: "Nicht bereit", tone: "warn" },
-  "permission-default": { label: "Nicht aktiviert", tone: "default" },
-  "permission-denied": { label: "Blockiert", tone: "bad" },
-  inactive: { label: "Nicht aktiviert", tone: "default" },
-  "inactive-server-error": { label: "Lokal deaktiviert", tone: "warn" },
-  "active-synced": { label: "Aktiv", tone: "ok" },
-  "active-unsynced": { label: "Nicht synchronisiert", tone: "warn" },
-};
-
-function NotificationSettings() {
-  const queryClient = useQueryClient();
-  const settings = useQuery(wraptQueries.notificationSettings());
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
-  const preferences = settings.data?.preferences;
-  const pushDevice = useWebPushDevice(settings.data);
-  const save = async (next: NotificationPreferences) => {
-    setSaving(true); setMessage("");
-    try { const response = await apiClient.saveNotificationSettings(next); if (response) queryClient.setQueryData(["notifications", "settings"], response); }
-    catch { setMessage("Die Benachrichtigungseinstellungen konnten nicht gespeichert werden."); }
-    finally { setSaving(false); }
-  };
-  if (!preferences) return <div className="settings-notification-skeleton"><span /><span /><span /></div>;
-  const deviceMeta = pushDeviceStatus[pushDevice.device.status];
-  const deviceActive = pushDevice.device.endpoint !== null;
-  const canActivate = !["checking", "unsupported", "ipad-install-required", "permission-denied", "service-worker-error", "active-synced"].includes(pushDevice.device.status);
-  return <div className="notification-settings">
-    <button type="button" className="settings-toggle-row" disabled={saving} onClick={() => void save({ ...preferences, toastsEnabled: !preferences.toastsEnabled })}>
-      <span><strong>Toasts</strong><small>Wichtige Ereignisse kurz oben rechts anzeigen</small></span><span className={`settings-toggle-switch ${preferences.toastsEnabled ? "is-on" : ""}`} role="switch" aria-checked={preferences.toastsEnabled}><span className="settings-toggle-thumb" /></span>
-    </button>
-    <section className="push-device-settings" aria-labelledby="push-device-title">
-      <header><div><strong id="push-device-title">System-Benachrichtigungen auf diesem Gerät</strong><small>Lokales Abo, unabhängig von deinen anderen Geräten</small></div><Badge tone={deviceMeta.tone}>{deviceMeta.label}</Badge></header>
-      <p>{pushDevice.device.message}</p>
-      <div className="push-device-actions">
-        {canActivate ? <button type="button" className="quiet-button-primary" disabled={pushDevice.working} onClick={() => void pushDevice.activate().then(() => settings.refetch())}>Auf diesem Gerät aktivieren</button> : null}
-        {deviceActive ? <button type="button" className="quiet-button" disabled={pushDevice.working} onClick={() => void pushDevice.deactivate().then(() => settings.refetch())}>Auf diesem Gerät deaktivieren</button> : null}
-        <button type="button" className="quiet-button" disabled={pushDevice.working || pushDevice.device.status !== "active-synced"} onClick={() => void pushDevice.test()}>Testbenachrichtigung an dieses Gerät senden</button>
-      </div>
-      <small className="push-device-count">Für deine Wrapt-Identität registriert: {settings.data?.subscriptionCount ?? 0} {settings.data?.subscriptionCount === 1 ? "Gerät" : "Geräte"}</small>
-      {pushDevice.actionMessage ? <p className="push-device-feedback" role="status">{pushDevice.actionMessage}</p> : null}
-    </section>
-    <button type="button" className="settings-toggle-row" disabled={saving} onClick={() => void save({ ...preferences, pushEnabled: !preferences.pushEnabled })}>
-      <span><strong>Server-Push für wichtige Ereignisse</strong><small>Globaler Master-Schalter, verändert keine Geräte-Abos</small></span><span className={`settings-toggle-switch ${preferences.pushEnabled ? "is-on" : ""}`} role="switch" aria-checked={preferences.pushEnabled}><span className="settings-toggle-thumb" /></span>
-    </button>
-    <div className="notification-source-settings"><header><span>Quelle</span><span>Toast</span><span>Push</span></header>
-      {(Object.keys(preferences.sources) as NotificationSource[]).map((source) => <div key={source}><strong>{notificationSourceLabels[source]}</strong>{(["toast", "push"] as const).map((channel) => <button key={channel} type="button" disabled={saving || (channel === "push" && !preferences.pushEnabled)} onClick={() => void save({ ...preferences, sources: { ...preferences.sources, [source]: { ...preferences.sources[source], [channel]: !preferences.sources[source][channel] } } })} aria-label={`${notificationSourceLabels[source]} ${channel}`}><span className={`settings-toggle-switch is-compact ${preferences.sources[source][channel] ? "is-on" : ""}`} role="switch" aria-checked={preferences.sources[source][channel]}><span className="settings-toggle-thumb" /></span></button>)}</div>)}
-    </div>
-    {message ? <p className="text-[12px] text-muted" role="status">{message}</p> : null}
-  </div>;
-}
-
-const usageMonitoringLabels: Record<UsageProviderId, string> = {
-  codex: "Codex",
-  opencode: "OpenCode Go",
-  claude: "Claude Code",
-};
-const usageMonitoringOrder: UsageProviderId[] = ["opencode", "codex", "claude"];
-
-function UsageMonitoringSettings() {
-  const queryClient = useQueryClient();
-  const monitoring = useQuery(wraptQueries.usageMonitoring());
-  const resetHistory = useQuery(wraptQueries.codexResetHistorySettings());
-  const [saving, setSaving] = useState(false);
-  const [resetHistorySaving, setResetHistorySaving] = useState(false);
-  const [message, setMessage] = useState("");
-  const current = monitoring.data?.monitoring;
-  const resetHistoryEnabled = resetHistory.data?.settings.enabled ?? false;
-
-  const save = async (next: UsageMonitoring) => {
-    setSaving(true); setMessage("");
-    try {
-      const response = await apiClient.saveUsageMonitoring(next);
-      if (response) queryClient.setQueryData(wraptQueries.usageMonitoring().queryKey, response);
-      setMessage("Die Limitüberwachung wurde gespeichert.");
-      // Nutzung und Limitanzeige sollen den neuen Stand sofort zeigen.
-      void queryClient.invalidateQueries({ queryKey: ["usage"] });
-    } catch {
-      setMessage("Die Limitüberwachung konnte nicht gespeichert werden.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const saveResetHistory = async (enabled: boolean) => {
-    setResetHistorySaving(true); setMessage("");
-    try {
-      const response = await apiClient.saveCodexResetHistorySettings({ enabled });
-      if (response) queryClient.setQueryData(wraptQueries.codexResetHistorySettings().queryKey, response);
-      void queryClient.invalidateQueries({ queryKey: ["system", "codex-reset-history"] });
-      setMessage("Die Codex-Reset-Historie wurde gespeichert.");
-    } catch {
-      setMessage("Die Codex-Reset-Historie konnte nicht gespeichert werden.");
-    } finally {
-      setResetHistorySaving(false);
-    }
-  };
-
-  if (!current || !resetHistory.data) return <div className="settings-notification-skeleton"><span /><span /><span /></div>;
-  return (
-    <div className="notification-settings">
-      <p className="mb-2 text-[12px] text-muted">Ausgeschaltete Werkzeuge werden nicht mehr auf ihre Limits abgefragt. Die Nutzungshistorie (Tokens und Kosten) bleibt davon unberührt.</p>
-      {usageMonitoringOrder.map((provider) => (
-        <button key={provider} type="button" className="settings-toggle-row" disabled={saving} onClick={() => void save({ ...current, [provider]: !current[provider] })}>
-          <span><strong>{usageMonitoringLabels[provider]}</strong><small>Limitfenster, Prognosen und Warnungen für {usageMonitoringLabels[provider]}</small></span>
-          <span className={`settings-toggle-switch ${current[provider] ? "is-on" : ""}`} role="switch" aria-checked={current[provider]} aria-label={`Limitüberwachung ${usageMonitoringLabels[provider]}`}>
-            <span className="settings-toggle-thumb" />
-          </span>
-        </button>
-      ))}
-      <div className="mt-3 border-t border-ink-700 pt-3">
-        <p className="mb-2 text-[12px] text-muted">Optionale globale Reset-Ankündigungen von codex-resets.com. Es werden keine Codex-Zugangsdaten übertragen.</p>
-        <button type="button" className="settings-toggle-row" disabled={saving || resetHistorySaving} onClick={() => void saveResetHistory(!resetHistoryEnabled)}>
-          <span><strong>Tibo-Reset-Historie</strong><small>Letzte globale Codex-Resets in der Nutzungsübersicht anzeigen</small></span>
-          <span className={`settings-toggle-switch ${resetHistoryEnabled ? "is-on" : ""}`} role="switch" aria-checked={resetHistoryEnabled} aria-label="Tibo-Reset-Historie">
-            <span className="settings-toggle-thumb" />
-          </span>
-        </button>
-      </div>
-      {message ? <p className="text-[12px] text-muted" role="status">{message}</p> : null}
-    </div>
-  );
-}
-
-function DashboardSectionToggles({ config }: { config: DashboardConfig | undefined }) {
-  const toggleSection = useDashboardPreferences((state) => state.toggleSection);
-  const hiddenSections = useDashboardPreferences((state) => state.hiddenSections);
-  const sections = useDashboardSections();
-  return (
-    <div className="dashboard-settings-toggle-list">
-      {sections.map(({ section, label, description }) => {
-        const allowed = config?.sections[section] ?? true;
-        const hidden = hiddenSections.has(section);
-        const enabled = allowed && !hidden;
-        return (
-          <button key={section} type="button" className="settings-toggle-row dashboard-settings-toggle-row" disabled={!allowed} onClick={() => toggleSection(section)} title={!allowed ? "Dieser Bereich ist in der zentralen Config deaktiviert" : undefined}>
-            <span className="dashboard-settings-toggle-copy"><strong>{label}</strong><small>{description}{!allowed ? " · in Config deaktiviert" : ""}</small></span>
-            <span className={`settings-toggle-switch ${enabled ? "is-on" : ""} ${!allowed ? "is-locked" : ""}`} role="switch" aria-checked={enabled} aria-disabled={!allowed} aria-label={label}>
-              <span className="settings-toggle-thumb" />
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
-const t3ChannelLabels: Record<T3Channel, string> = { stable: "Stable", nightly: "Nightly" };
-const t3ChannelHints: Record<T3Channel, string> = {
-  stable: "Geprüfte Veröffentlichung (t3@latest)",
-  nightly: "Täglicher Vorabbau (t3@nightly)",
-};
-const t3Channels: T3Channel[] = ["stable", "nightly"];
-
-// Der Wechsel wird bewusst nur gespeichert. Angewendet wird er beim nächsten Neustart
-// über Backend/Beides — deshalb der Verweis auf die Neustart-Buttons statt eines
-// automatischen Neustarts.
-function T3ChannelControls({ onJumpToRestart }: { onJumpToRestart: () => void }) {
-  const queryClient = useQueryClient();
-  const channel = useQuery(wraptQueries.t3Channel());
-  const [saving, setSaving] = useState<T3Channel | null>(null);
-  const [error, setError] = useState("");
-  const [pendingDowngrade, setPendingDowngrade] = useState(false);
-  const status = channel.data;
-
-  async function selectChannel(next: T3Channel) {
-    if (saving !== null || status?.configuredChannel === next) return;
-    // Ein Wechsel auf Stable bei installiertem Nightly kann die gemeinsame
-    // state.sqlite unlesbar machen (Schema-Downgrade) — das wird vorab bestätigt.
-    if (next === "stable" && (status?.activeChannel === "nightly" || status?.configuredChannel === "nightly")) {
-      setPendingDowngrade(true);
-      return;
-    }
-    await saveChannel(next);
-  }
-
-  async function saveChannel(next: T3Channel) {
-    if (saving !== null) return;
-    setSaving(next);
-    setError("");
-    try {
-      const updated = await apiClient.setT3Channel(next);
-      if (updated) queryClient.setQueryData(wraptQueries.t3Channel().queryKey, updated);
-    } catch (caught) {
-      setError(caught instanceof ApiClientError ? caught.message : "Der Kanal konnte nicht gespeichert werden.");
-      void channel.refetch();
-    } finally {
-      setSaving(null);
-    }
-  }
-
-  return (
-    <div className="space-y-3">
-      <div className="settings-segment" role="group" aria-label="T3 Code Kanal">
-        {t3Channels.map((option) => {
-          const selected = status?.configuredChannel === option;
-          return (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={selected}
-              disabled={saving !== null || status === undefined}
-              onClick={() => void selectChannel(option)}
-              className={`settings-segment-option ${selected ? "is-selected" : ""}`}
-            >
-              <span className="flex items-center gap-2 font-medium text-text">
-                {saving === option ? <LoaderIcon className="h-3.5 w-3.5 animate-spin" /> : null}
-                {t3ChannelLabels[option]}
-              </span>
-              <span className="text-[11px] text-faint">{t3ChannelHints[option]}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="space-y-3 text-[13px]">
-        <div className="data-row px-0">
-          <span className="text-muted">Aktiv installiert</span>
-          <span className="font-mono text-text">
-            {status === undefined
-              ? "—"
-              : status.activeChannel === null
-                ? "nicht installiert"
-                : `${t3ChannelLabels[status.activeChannel]} · v${status.activeVersion ?? "?"}`}
-          </span>
-        </div>
-        <div className="data-row px-0">
-          <span className="text-muted">Eingestellt</span>
-          <span className="font-mono text-text">{status ? t3ChannelLabels[status.configuredChannel] : "—"}</span>
-        </div>
-        <div className="data-row px-0">
-          <span className="text-muted">Instanz auf Port {status?.port ?? 3773}</span>
-          <Badge tone={status?.reachable ? "ok" : "warn"}>{status?.reachable ? "erreichbar" : "nicht erreichbar"}</Badge>
-        </div>
-      </div>
-
-      {error ? (
-        <p className="flex items-start gap-2 text-[12px] text-bad" role="alert">
-          <WarningIcon className="h-3.5 w-3.5 shrink-0" /> <span>{error}</span>
-        </p>
-      ) : null}
-
-      {status?.restartRequired ? (
-        <div className="settings-update-row" role="status">
-          <div>
-            <strong>Neustart erforderlich</strong>
-            <span>
-              {t3ChannelLabels[status.configuredChannel]} ist gespeichert, läuft aber noch nicht. Der Kanal wird erst
-              beim nächsten Neustart (Backend oder Beides) installiert und gestartet.
-            </span>
-          </div>
-          <button type="button" className="quiet-button-primary" onClick={onJumpToRestart}>
-            <UploadIcon className="h-3.5 w-3.5" /> Zu den Neustart-Buttons
-          </button>
-        </div>
-      ) : (
-        <p className="text-[12px] text-faint">
-          Alle T3-Flächen (Panel, Orbit, Projekt-Detail und die Seite T3 Code) nutzen dieselbe Instanz. Threads und
-          Daten liegen in einem gemeinsamen Verzeichnis und bleiben beim Kanalwechsel erhalten.
-        </p>
-      )}
-
-      <ConfirmDialog
-        open={pendingDowngrade}
-        title="Auf Stable wechseln?"
-        description="Nightly kann die gemeinsame T3-Datenbank (state.sqlite) auf ein neueres Schema heben, das die ältere Stable-Version nicht mehr lesen kann. Nach dem Wechsel können ältere Threads unter Umständen nicht mehr geöffnet werden."
-        confirmLabel="Trotzdem wechseln"
-        danger
-        onConfirm={() => {
-          setPendingDowngrade(false);
-          void saveChannel("stable");
-        }}
-        onClose={() => setPendingDowngrade(false)}
-      />
-    </div>
-  );
-}
-
-const orbitItemLabels: Record<OrbitPaletteItem, string> = {
-  "tool:terminal": "Terminal",
-  "tool:t3-code": "T3 Code",
-  "tool:hermes": "Hermes Agent",
-  "tool:preview": "Preview",
-  "tool:browser": "Browser",
-  "tool:code-server": "Code-Server",
-  "tool:codex": "Codex",
-  "tool:opencode": "OpenCode",
-  "tool:files": "Dateien",
-  "preview:layout-1": "Einzel-Preview",
-  "preview:layout-2": "2er-Preview-Gruppe",
-  "preview:layout-3": "3er-Preview-Gruppe",
-  "preview:layout-6": "6er-Preview-Gruppe",
-  "block:note": "Notiz",
-  "block:todo": "To-do-Liste",
-  "block:snippet": "Code-Snippet",
-  "block:frame": "Bereich",
-  "block:usage-codex": "Codex Nutzung",
-  "block:usage-opencode": "OpenCode Nutzung",
-  "block:usage-claude": "Claude Code Nutzung",
-};
-
-const orbitSections: { label: string; items: OrbitPaletteItem[] }[] = [
-  { label: "Werkzeuge", items: ["tool:terminal", "tool:t3-code", "tool:hermes", "tool:preview", "tool:browser", "tool:code-server", "tool:codex", "tool:opencode", "tool:files"] },
-  { label: "Previews", items: ["preview:layout-1", "preview:layout-2", "preview:layout-3", "preview:layout-6"] },
-  { label: "Blöcke", items: ["block:note", "block:todo", "block:snippet", "block:frame", "block:usage-codex", "block:usage-opencode", "block:usage-claude"] },
-];
-
-function OrbitItemToggles() {
-  const toggleOrbitItem = useSidebarPreferences((s) => s.toggleOrbitItem);
-  const hiddenOrbitItems = useSidebarPreferences((s) => s.hiddenOrbitItems);
-  return (
-    <div className="space-y-4">
-      {orbitSections.map((section) => (
-        <div key={section.label}>
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-faint">{section.label}</p>
-          <div className="space-y-1">
-            {section.items.map((item) => {
-              const isHidden = hiddenOrbitItems.has(item);
-              return (
-                <button key={item} type="button" className="settings-toggle-row" onClick={() => toggleOrbitItem(item)}>
-                  <span className="text-[13px] text-text">{orbitItemLabels[item]}</span>
-                  <span className={`settings-toggle-switch ${isHidden ? "" : "is-on"}`} role="switch" aria-checked={!isHidden} aria-label={orbitItemLabels[item]}>
-                    <span className="settings-toggle-thumb" />
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function PageVisibilityToggles() {
-  const togglePage = useSidebarPreferences((s) => s.togglePage);
-  const hiddenPages = useSidebarPreferences((s) => s.hiddenPages);
-  const navigation = useNavigationRegistry();
-  const labels = useMemo(() => {
-    const fromRegistry = new Map<string, string>();
-    for (const item of navigation.items) {
-      const key = item.value.runtime.legacyVisibilityKey;
-      if (key !== undefined) fromRegistry.set(key, item.value.contribution.label);
-    }
-    return fromRegistry;
-  }, [navigation]);
-  return (
-    <div className="space-y-1">
-      <p className="mb-2 text-[12px] text-muted">Deaktivierte Seiten werden in der Sidebar, der Dashboard-Navigation und der mobilen Navigation ausgeblendet.</p>
-      {allPageRoutes.map((page) => {
-        // Die Einstellungen selbst bleiben sichtbar — sonst gäbe es keinen Weg zurück.
-        const isLocked = page === "settings";
-        const isHidden = !isLocked && hiddenPages.has(page);
-        const label = labels.get(page) ?? page;
-        return (
-          <button key={page} type="button" className="settings-toggle-row" disabled={isLocked} onClick={() => togglePage(page)} title={isLocked ? "Diese Seite bleibt immer sichtbar" : undefined}>
-            <span className="text-[13px] text-text">{label}{isLocked ? <span className="ml-2 text-[11px] text-faint">, immer sichtbar</span> : null}</span>
-            <span className={`settings-toggle-switch ${isHidden ? "" : "is-on"} ${isLocked ? "is-locked" : ""}`} role="switch" aria-checked={!isHidden} aria-disabled={isLocked} aria-label={label}>
-              <span className="settings-toggle-thumb" />
-            </span>
-          </button>
-        );
-      })}
     </div>
   );
 }
