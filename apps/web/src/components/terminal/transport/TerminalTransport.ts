@@ -45,9 +45,11 @@ class TerminalTransport {
     if (initial.sessionId) state.sessionId = initial.sessionId;
     this.subscriptions.set(runtimeId, state);
     if (initial.sessionId) this.sessionToRuntime.set(initial.sessionId, runtimeId);
-    this.ensureSocket();
     const client: SubscriptionClient = { listeners: new Set(), statusListeners: new Set() };
     state.clients.add(client);
+    // Den Client vor dem Socket-Aufbau registrieren. So bleibt auch ein
+    // synchroner Open-Callback eines Test-/Browser-Transports sichtbar.
+    this.ensureSocket();
     let disposed = false;
     return {
       runtimeId,
@@ -59,6 +61,10 @@ class TerminalTransport {
       },
       onStatus: (listener) => {
         client.statusListeners.add(listener);
+        // Neue Renderer können hinzukommen, während der gemeinsame Socket
+        // bereits offen ist. Ohne den sofortigen Ist-Stand bliebe ihr
+        // Create-/Resume-Flow bis zum nächsten Reconnect aus.
+        if (this.socket?.readyState === WebSocket.OPEN) listener(true);
         return () => client.statusListeners.delete(listener);
       },
       dispose: () => {

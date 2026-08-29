@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { resetTerminalTestWorkspace } from "./helpers/terminal";
 
 // `WRAPT_E2E_URL` zeigt auf den Origin des Testservers; die Wrapt
 // selbst wird unter dem `/workbench`-Basispfad ausgeliefert.
@@ -17,14 +18,16 @@ test("keeps a Wrapt terminal running while another device resumes it", async ({ 
     extraHTTPHeaders: authHeaders,
   });
   const firstPage = await firstContext.newPage();
+  await resetTerminalTestWorkspace(firstPage, e2eUser);
   await firstPage.goto(`${workbench}/terminal`);
-  // V2: Beim ersten Besuch öffnet der Empty-State das erste Terminal.
-  const emptyButton = firstPage.locator(".terminal-empty-state button");
-  if (await emptyButton.count() > 0 && await emptyButton.isVisible().catch(() => false)) await emptyButton.click();
+  // Der Sidebar-Button bleibt auch im Empty-State ein stabiles Ziel, wenn
+  // beide Empty-State-Varianten gleichzeitig rendern.
+  await firstPage.getByRole("button", { name: "Terminal öffnen", exact: true }).first().click();
+  await expect(firstPage.locator(".terminal-tree-entry").first()).toBeVisible({ timeout: 20_000 });
   await expect(firstPage.locator(".terminal-tree-status.is-connected").first()).toBeVisible({ timeout: 20_000 });
 
   const marker = `__MULTI_DEVICE_TERMINAL_${Date.now()}__`;
-  const input = firstPage.locator(".xterm-helper-textarea");
+  const input = firstPage.locator(".xterm-helper-textarea").last();
   await input.fill("");
   await input.type(`printf '${marker}\\n'`);
   await input.press("Enter");
@@ -86,7 +89,7 @@ test("keeps a Wrapt terminal running while another device resumes it", async ({ 
   expect(keyboardGeometry.viewportHeight).toBeGreaterThan(100);
 
   const secondMarker = `__MULTI_DEVICE_INPUT_${Date.now()}__`;
-  const secondInput = secondPage.locator(".xterm-helper-textarea");
+  const secondInput = secondPage.locator(".xterm-helper-textarea").last();
   await secondInput.fill("");
   await secondInput.type(`printf '${secondMarker}\\n'`);
   await secondInput.press("Enter");

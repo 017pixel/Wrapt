@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { chmodSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { Agent as HttpsAgent } from "node:https";
 import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import webPush from "web-push";
@@ -14,7 +15,10 @@ import {
   type PushSubscription,
   type PushSubscriptionRegistration,
 } from "@wrapt/contracts";
+import { assertPublicHttpEndpoint, createPublicLookup } from "../security/public-http.js";
+import { AppError } from "../utils/errors.js";
 import type { NotificationDatabase } from "./database.js";
+import { PushDeliveryMetrics, type PushDeliverySummary } from "./push-metrics.js";
 
 interface StoredKeys { publicKey: string; privateKey: string }
 interface SubscriptionRow { endpoint: string; userId: string; json: string }
@@ -24,9 +28,18 @@ interface PushLogger {
   error(data: Record<string, unknown>, message: string): void;
 }
 
+class PushTimeoutError extends Error {
+  constructor() {
+    super("Push-Versand überschritt das Zeitlimit.");
+    this.name = "PushTimeoutError";
+  }
+}
+
 const fallbackLink = "/wrapt/inbox";
 const deliveryConcurrency = 4;
 const noopLogger: PushLogger = { info: () => undefined, warn: () => undefined, error: () => undefined };
+const publicPushAgent = new HttpsAgent({ keepAlive: false, lookup: createPublicLookup() });
+type PushEndpointValidator = (endpoint: string) => Promise<unknown> | unknown;
 
 function loadOrCreateKeys(path: string): StoredKeys {
   try {
@@ -108,7 +121,13 @@ export function createPushPayload(notification: Notification): NotificationPushP
   });
 }
 
-interface PushDeliveryOptions { TTL: number; urgency: "high" | "normal"; topic: string }
+interface PushDeliveryOptions {
+  TTL: number;
+  urgency: "high" | "normal";
+  topic?: string;
+  timeout: number;
+  agent: HttpsAgent;
+}
 
 export class NotificationPushService {
   private readonly db: DatabaseSync;
@@ -116,9 +135,12 @@ export class NotificationPushService {
   private readonly sendNotification: typeof webPush.sendNotification;
   private readonly logger: PushLogger;
   private readonly notifications: NotificationDatabase;
+  private readonly validateEndpoint: PushEndpointValidator;
+  private readonly timeoutMilliseconds: number;
   private preferences: NotificationPreferences;
   private readonly unsubscribeNotifications: () => void;
   private readonly pendingDeliveries = new Set<Promise<unknown>>();
+  private readonly deliveryMetrics = new PushDeliveryMetrics();
 
   constructor(options: {
     databasePath: string;
@@ -128,6 +150,8 @@ export class NotificationPushService {
     notifications: NotificationDatabase;
     logger?: PushLogger;
     sendNotification?: typeof webPush.sendNotification;
+    validateEndpoint?: PushEndpointValidator;
+    timeoutMilliseconds?: number;
   }) {
     this.preferences = notificationPreferencesSchema.parse(options.preferences);
     this.keys = loadOrCreateKeys(join(options.dataDirectory, "notifications/vapid.json"));
@@ -135,6 +159,8 @@ export class NotificationPushService {
     this.sendNotification = options.sendNotification ?? webPush.sendNotification.bind(webPush);
     this.logger = options.logger ?? noopLogger;
     this.notifications = options.notifications;
+    this.validateEndpoint = options.validateEndpoint ?? assertPublicHttpEndpoint;
+    this.timeoutMilliseconds = options.timeoutMilliseconds ?? 10_000;
     this.db = new DatabaseSync(options.databasePath);
     this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;
       CREATE TABLE IF NOT EXISTS push_subscriptions (
@@ -172,9 +198,18 @@ export class NotificationPushService {
     return Number((this.db.prepare("SELECT COUNT(*) count FROM push_subscriptions WHERE user_id = ?").get(userId) as { count: number }).count);
   }
 
-  register(userId: string, input: PushSubscriptionRegistration): { registered: true; subscriptionCount: number } | { registered: false } {
+  metrics() {
+    return this.deliveryMetrics.snapshot();
+  }
+
+  async register(userId: string, input: PushSubscriptionRegistration): Promise<{ registered: true; subscriptionCount: number } | { registered: false }> {
     const registration = pushSubscriptionRegistrationSchema.parse(input);
     const subscription = pushSubscriptionSchema.parse(registration);
+    try {
+      await this.validateEndpoint(subscription.endpoint);
+    } catch {
+      throw new AppError(400, "PUSH_ENDPOINT_INVALID", "Der Push-Endpunkt ist nicht öffentlich erreichbar.");
+    }
     const existing = this.db.prepare("SELECT user_id userId FROM push_subscriptions WHERE endpoint = ?").get(subscription.endpoint) as { userId: string } | undefined;
     if (existing && existing.userId !== userId) return { registered: false };
     const now = new Date().toISOString();
@@ -215,32 +250,51 @@ export class NotificationPushService {
       severity: "info",
       createdAt: new Date().toISOString(),
     });
-    const result = await this.sendToSubscription(row, JSON.stringify(payload), { TTL: 300, urgency: "high", topic: payload.id.replaceAll("-", "") });
+    const result = await this.sendToSubscription(row, JSON.stringify(payload), {
+      TTL: 300,
+      urgency: "high",
+      topic: payload.id.replaceAll("-", ""),
+      timeout: this.timeoutMilliseconds,
+      agent: publicPushAgent,
+    });
     if (result !== "sent") throw new Error("Die Testbenachrichtigung konnte nicht zugestellt werden.");
     return true;
   }
 
   async deliver(notification: Notification): Promise<{ attempted: number; sent: number; removed: number; failed: number }> {
-    if (!this.shouldPush(notification)) return { attempted: 0, sent: 0, removed: 0, failed: 0 };
-    const subscriptions = this.db.prepare("SELECT endpoint, user_id userId, subscription_json json FROM push_subscriptions ORDER BY created_at, endpoint").all() as unknown as SubscriptionRow[];
-    const payload = JSON.stringify(createPushPayload(notification));
-    const options = {
-      TTL: pushTimeToLive(notification),
-      urgency: notification.severity === "error" || notification.kind === "agent.input-required" ? "high" as const : "normal" as const,
-      topic: notification.id.replaceAll("-", ""),
-    };
-    const results: Array<"sent" | "removed" | "failed"> = [];
-    for (let index = 0; index < subscriptions.length; index += deliveryConcurrency) {
-      const batch = subscriptions.slice(index, index + deliveryConcurrency);
-      results.push(...await Promise.all(batch.map((subscription) => this.sendToSubscription(subscription, payload, options))));
+    const startedAt = process.hrtime.bigint();
+    this.deliveryMetrics.start();
+    try {
+      if (!this.shouldPush(notification)) return { attempted: 0, sent: 0, removed: 0, failed: 0 };
+      const subscriptions = this.db.prepare("SELECT endpoint, user_id userId, subscription_json json FROM push_subscriptions ORDER BY created_at, endpoint").all() as unknown as SubscriptionRow[];
+      const payload = JSON.stringify(createPushPayload(notification));
+      const options = {
+        TTL: pushTimeToLive(notification),
+        urgency: notification.severity === "error" || notification.kind === "agent.input-required" ? "high" as const : "normal" as const,
+        topic: notification.id.replaceAll("-", ""),
+        timeout: this.timeoutMilliseconds,
+        agent: publicPushAgent,
+      };
+      const results: Array<"sent" | "removed" | "failed"> = [];
+      for (let index = 0; index < subscriptions.length; index += deliveryConcurrency) {
+        const batch = subscriptions.slice(index, index + deliveryConcurrency);
+        results.push(...await Promise.all(batch.map((subscription) => this.sendToSubscription(subscription, payload, options))));
+      }
+      const summary = {
+        attempted: subscriptions.length,
+        sent: results.filter((result) => result === "sent").length,
+        removed: results.filter((result) => result === "removed").length,
+        failed: results.filter((result) => result === "failed").length,
+      };
+      this.logger.info({ notificationId: notification.id, source: notification.source, ...summary }, "Push-Versand abgeschlossen");
+      return this.recordDelivery(summary, startedAt);
+    } finally {
+      this.deliveryMetrics.finish();
     }
-    const summary = {
-      attempted: subscriptions.length,
-      sent: results.filter((result) => result === "sent").length,
-      removed: results.filter((result) => result === "removed").length,
-      failed: results.filter((result) => result === "failed").length,
-    };
-    this.logger.info({ notificationId: notification.id, source: notification.source, ...summary }, "Push-Versand abgeschlossen");
+  }
+
+  private recordDelivery(summary: PushDeliverySummary, startedAt: bigint) {
+    this.deliveryMetrics.record(summary, startedAt);
     return summary;
   }
 
@@ -273,17 +327,25 @@ export class NotificationPushService {
       this.logger.error({ endpointHost: endpointHost(row.endpoint), error: error instanceof Error ? error.message : String(error) }, "Ungültige Push-Subscription wurde entfernt");
       return "removed";
     }
+    try {
+      await this.validateEndpoint(stored.endpoint);
+    } catch {
+      this.db.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?").run(row.endpoint);
+      this.logger.warn({ endpointHost: endpointHost(row.endpoint) }, "Ungültiger oder interner Push-Endpunkt wurde entfernt");
+      return "removed";
+    }
     // FCM nutzt den Topic zur Kollaps-Bündelung. APNs erwartet dort die
     // Bundle-ID der installierten Web-App; ein beliebiger Wert führt zu 403.
     // Ohne Topic verwendet APNs automatisch die richtige Bundle-ID.
     const effective = isApplePushHost(endpointHost(row.endpoint))
-      ? { TTL: options.TTL, urgency: options.urgency }
+      ? { TTL: options.TTL, urgency: options.urgency, timeout: options.timeout, agent: options.agent }
       : options;
     try {
-      await this.sendNotification({ endpoint: stored.endpoint, keys: stored.keys }, payload, effective);
+      await this.sendWithTimeout({ endpoint: stored.endpoint, keys: stored.keys }, payload, effective);
       this.db.prepare("UPDATE push_subscriptions SET last_success_at = ?, last_error_status = NULL WHERE endpoint = ?").run(new Date().toISOString(), row.endpoint);
       return "sent";
     } catch (error) {
+      if (error instanceof PushTimeoutError) this.deliveryMetrics.timeout();
       const code = statusCode(error);
       if (code === 404 || code === 410) {
         this.db.prepare("DELETE FROM push_subscriptions WHERE endpoint = ?").run(row.endpoint);
@@ -297,6 +359,24 @@ export class NotificationPushService {
       else if (code !== null && code >= 500) this.logger.warn(details, "Push-Dienst ist vorübergehend nicht verfügbar");
       else this.logger.error(details, "Push-Versand an ein Gerät ist fehlgeschlagen");
       return "failed";
+    }
+  }
+
+  private async sendWithTimeout(
+    subscription: Pick<PushSubscription, "endpoint" | "keys">,
+    payload: string,
+    options: PushDeliveryOptions,
+  ): Promise<unknown> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        this.sendNotification(subscription, payload, options),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => reject(new PushTimeoutError()), options.timeout);
+        }),
+      ]);
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
     }
   }
 }

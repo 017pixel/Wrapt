@@ -94,7 +94,7 @@ export async function registerNotificationRoutes(app: FastifyInstance, options: 
   });
   app.post("/notifications/push-subscription", async (request, reply) => {
     const userId = resolveWorkbenchUser(request, options.identity);
-    const result = options.push.register(userId, pushSubscriptionRegistrationSchema.parse(request.body));
+    const result = await options.push.register(userId, pushSubscriptionRegistrationSchema.parse(request.body));
     if (!result.registered) throw new AppError(409, "PUSH_ENDPOINT_OWNED", "Diese Push-Subscription gehört bereits einer anderen Workbench-Identität.");
     return reply.status(201).send(result);
   });

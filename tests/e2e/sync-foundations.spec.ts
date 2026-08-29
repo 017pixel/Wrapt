@@ -8,15 +8,60 @@ test.use({
   viewport: { width: 1440, height: 960 },
 });
 
-test("shows real recent projects, collapsed separators and shared Notion", async ({ page }) => {
+test("shows real recent projects, collapsed separators and preserves legacy Notion", async ({ page }) => {
   test.setTimeout(60_000);
   test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   const projects = await (await page.request.get(new URL("/api/v1/projects", workbench).toString(), { headers: apiIdentityHeaders("ui-check@example.com") })).json() as {
     projects: Array<{ id: string; name: string; path: string; availability: string; activity: { effectiveAt: string | null } }>;
+    projectsRoot: string;
     recentLimit: number;
   };
-  const selectedProject = projects.projects.find((project) => project.availability === "available");
+  // Der konfigurierte Browser-Root ist eine Navigationsgrenze und kein
+  // registrierbarer Projektordner. Für die Prüfung wird deshalb ein echtes
+  // verfügbares Projekt innerhalb der Grenze gewählt.
+  const selectedProject = projects.projects.find((project) => project.availability === "available" && project.path !== projects.projectsRoot);
   expect(selectedProject).toBeDefined();
+
+  const orbitUrl = new URL("/api/v1/orbit", workbench).toString();
+  const currentOrbitResponse = await page.request.get(orbitUrl, { headers: apiIdentityHeaders("ui-check@example.com") });
+  expect(currentOrbitResponse).toBeOK();
+  const currentOrbit = await currentOrbitResponse.json() as {
+    document: { activeBoardId: string; focusedNodeId: string | null; boards: Array<{ id: string; nodes: Array<Record<string, unknown>> }> };
+    revision: number;
+  };
+  const activeBoard = currentOrbit.document.boards.find((board) => board.id === currentOrbit.document.activeBoardId);
+  expect(activeBoard).toBeDefined();
+  const legacyNodeId = `legacy-notion-${Date.now()}`;
+  const legacyNotionNode = {
+    id: legacyNodeId,
+    type: "tool",
+    title: "Legacy Notion",
+    position: { x: 120, y: 120 },
+    size: { width: 360, height: 240 },
+    projectId: null,
+    parentId: null,
+    runtimeId: null,
+    toolType: "notion",
+    previewId: null,
+    provider: null,
+    content: "",
+    language: null,
+    color: null,
+    locked: false,
+    zIndex: Math.max(0, ...activeBoard!.nodes.map((node) => Number(node.zIndex ?? 0))) + 1,
+  };
+  const seededDocument = {
+    ...currentOrbit.document,
+    focusedNodeId: legacyNodeId,
+    boards: currentOrbit.document.boards.map((board) => board.id === activeBoard!.id
+      ? { ...board, nodes: [...board.nodes, legacyNotionNode] }
+      : board),
+  };
+  const saveResponse = await page.request.put(orbitUrl, {
+    headers: { ...apiIdentityHeaders("ui-check@example.com"), "x-wrapt-sync-version": "2" },
+    data: { document: seededDocument, expectedRevision: currentOrbit.revision },
+  });
+  expect(saveResponse).toBeOK();
 
   await page.goto(`${workbench}/wrapt/workbench`);
   await expect(page.locator(".orbit-page")).toBeVisible();
@@ -36,10 +81,11 @@ test("shows real recent projects, collapsed separators and shared Notion", async
   await expect(projectSectionButtons.first()).toContainText(selectedProject!.name);
 
   await page.getByLabel("Sidebar einklappen").click();
-  await expect(page.locator(".sidebar-section-divider")).toHaveCount(5);
+  const sectionCount = await page.locator(".sidebar-section").count();
+  await expect(page.locator(".sidebar-section-divider")).toHaveCount(sectionCount);
   await page.getByLabel("Sidebar ausklappen").click();
 
-  await page.locator(".orbit-palette-item").filter({ hasText: /^Notionziehen$/ }).click();
+  await expect(page.locator(".orbit-palette-item").filter({ hasText: /^Notionziehen$/ })).toHaveCount(0);
   const notion = page.locator('.orbit-live-node [data-panel-type="notion"]').last();
   await expect(notion).toBeVisible();
   await expect(notion).toContainText("Notion-Integration wird nicht mehr ausgeführt");

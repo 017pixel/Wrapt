@@ -41,6 +41,7 @@ const prefersReducedMotion = () =>
 export function MobileNav({ open, onClose, triggerRef }: MobileNavProps) {
   const location = useLocation();
   const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
   const focusTrigger = useRef<() => void>(() => undefined);
   focusTrigger.current = () => triggerRef?.current?.focus();
   const openedPath = useRef(location.pathname);
@@ -91,7 +92,8 @@ export function MobileNav({ open, onClose, triggerRef }: MobileNavProps) {
     document.body.style.overscrollBehavior = "none";
     // Fokus auf den Schließen-Knopf (erstes fokussierbares Element im Header) —
     // so landet die Tastatur im Dialog, ohne einen Navigationseintrag auszuwählen.
-    window.setTimeout(() => dialogRef.current?.querySelector<HTMLElement>("a, button")?.focus(), 0);
+    closeButtonRef.current?.focus({ preventScroll: true });
+    const focusTimer = window.setTimeout(() => closeButtonRef.current?.focus({ preventScroll: true }), 0);
 
     const closeFromHistory = () => onClose();
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -124,6 +126,7 @@ export function MobileNav({ open, onClose, triggerRef }: MobileNavProps) {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
       document.body.style.overscrollBehavior = previousOverscroll;
+      window.clearTimeout(focusTimer);
       if (window.location.pathname === openedPath.current) {
         // Erst nach dem kurzen Exit-Übergang fokussieren: Bis dahin kann der
         // Trigger durch den Render des schließenden Layers noch nicht wieder
@@ -157,7 +160,7 @@ export function MobileNav({ open, onClose, triggerRef }: MobileNavProps) {
           <p className="mobile-navigation-kicker">Menü</p>
           <h2 id="mobile-navigation-title">Navigation</h2>
         </div>
-        <button type="button" onClick={requestClose} className="icon-button mobile-navigation-close" aria-label="Navigation schließen">
+        <button ref={closeButtonRef} autoFocus={open} type="button" onClick={requestClose} className="icon-button mobile-navigation-close" aria-label="Navigation schließen">
           <CloseIcon className="h-[18px] w-[18px]" />
         </button>
       </header>

@@ -71,7 +71,10 @@ export class HeadlessTerminal {
   /** Serialisiert den kompletten Terminalzustand inklusive Cursor. */
   snapshot(): HeadlessSnapshot {
     return {
-      serialized: this.serialize.serialize(),
+      // Explizit an die Runtime-Grenze koppeln. Der Addon-Default serialisiert
+      // aktuell ebenfalls alles, diese Option schützt den Reconnect-Vertrag
+      // aber vor künftigen Default-Änderungen.
+      serialized: this.serialize.serialize({ scrollback: 10_000 }),
       cols: this.terminal.cols,
       rows: this.terminal.rows,
       alternate: this.alternate,

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { apiIdentityHeaders } from "./helpers/environment";
+import { resetOrbitTestWorkspace } from "./helpers/orbit";
 
 const workbench = process.env.WRAPT_E2E_URL;
 
@@ -8,12 +9,18 @@ test.use({
   viewport: { width: 1440, height: 960 },
 });
 
-test("keeps every visible resize point centered on its window corner", async ({ page }) => {
+test("keeps every visible resize point centered on its window corner", async ({ page, browserName }, testInfo) => {
   test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Orbit test server.");
+  const login = `orbit-resize-${browserName}-${testInfo.retry}@example.com`;
+  await page.setExtraHTTPHeaders(apiIdentityHeaders(login));
+  await resetOrbitTestWorkspace(page, login);
   const orbitUrl = new URL("/api/v1/orbit", workbench).toString();
-  const current = await (await page.request.get(orbitUrl, { headers: apiIdentityHeaders("user@example.com") })).json();
+  const current = await (await page.request.get(orbitUrl, { headers: apiIdentityHeaders(login) })).json();
   const nodeId = `corner-${Date.now()}`;
   const activeBoard = current.document.boards.find((board: { id: string }) => board.id === current.document.activeBoardId);
+  // Der Viewport wird serverseitig geteilt. Für diese Pixelprüfung setzen wir
+  // ihn auf einen deterministischen Ausgangswert zurück.
+  activeBoard.viewport = { x: 0, y: 0, zoom: 1 };
   activeBoard.nodes.push({
     id: nodeId,
     type: "note",
@@ -31,7 +38,7 @@ test("keeps every visible resize point centered on its window corner", async ({ 
     locked: false,
     zIndex: Math.max(0, ...activeBoard.nodes.map((node: { zIndex: number }) => node.zIndex)) + 1,
   });
-  const saved = await page.request.put(orbitUrl, { data: { expectedRevision: current.revision, document: current.document }, headers: apiIdentityHeaders("user@example.com") });
+  const saved = await page.request.put(orbitUrl, { data: { expectedRevision: current.revision, document: current.document }, headers: apiIdentityHeaders(login) });
   await expect(saved).toBeOK();
 
   await page.goto(`${workbench}/wrapt/workbench`);

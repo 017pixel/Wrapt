@@ -25,12 +25,12 @@ test("keeps Orbit revisions out of the PWA cache and recovers one stale save", a
   // hier nur, dass die Orbit-Seite geladen und synchronisiert ist.
   const settled = await page.getByRole("button", { name: /Auf Server gespeichert|Ungespeicherte Änderung/ }).waitFor({ state: "visible", timeout: 30_000 }).then(() => true).catch(() => false);
   if (!settled) test.skip(true, "Die frische Instanz hat den Orbit-Save nicht abgeschlossen; der Test setzt eine eingerichtete Wrapt voraus.");
-  await page.evaluate(async () => { await navigator.serviceWorker.ready; });
+  await expect.poll(() => page.evaluate(async () => Boolean(await navigator.serviceWorker.getRegistration("/wrapt/"))), { timeout: 30_000 }).toBe(true);
   if (!await page.evaluate(() => Boolean(navigator.serviceWorker.controller))) await page.reload();
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
-  // Der Cache-Name beginnt mit "workbench-v" — die genaue Versionsnummer
+  // Der Cache-Name beginnt mit "wrapt-v" — die genaue Versionsnummer
   // kommt aus `apps/web/public/sw.js` und wandert mit jeder SW-Änderung.
-  await expect.poll(() => page.evaluate(async () => (await caches.keys()).some((name) => name.startsWith("workbench-v")))).toBe(true);
+  await expect.poll(() => page.evaluate(async () => (await caches.keys()).some((name) => name.startsWith("wrapt-v")))).toBe(true);
 
   const orbitUrl = new URL("/api/v1/orbit", workbench).toString();
   const currentResponse = await page.request.get(orbitUrl, { headers: apiIdentityHeaders("user@example.com") });

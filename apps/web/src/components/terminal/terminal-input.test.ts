@@ -18,7 +18,7 @@ function setupInput(active = true) {
     rows: 20,
     cols: 80,
     element: mount,
-    buffer: { active: { type: "normal", baseY: 0 } },
+    buffer: { active: { type: "normal", baseY: 0, viewportY: 0 } },
     modes: { mouseTrackingMode: "none" },
     attachCustomKeyEventHandler: vi.fn(),
     attachCustomWheelEventHandler: vi.fn(),
@@ -32,7 +32,7 @@ function setupInput(active = true) {
     sessionRef: { current: "session-1" },
     snapshotReplayRef: { current: false },
     replayBufferRef: { current: [] as string[] },
-    mouseTrackingRef: { current: false },
+    mouseTrackingRef: { current: false as boolean },
     kindRef: { current: "shell" as const },
     terminalRef: { current: terminal },
     rememberTyping: vi.fn(),
@@ -71,6 +71,19 @@ describe("Terminal-Scroll-Lifecycle", () => {
     dispose();
   });
 
+  it("bleibt nach einem Kopierversuch ohne Auswahl scrollbar", () => {
+    const { mount, terminal, context, scrollByLines, dispose } = setupInput();
+    context.copySelection.mockImplementation(() => context.setError("Wähle zuerst Text im Terminal aus."));
+    const keyHandler = vi.mocked(terminal.attachCustomKeyEventHandler).mock.calls[0]?.[0];
+
+    expect(keyHandler?.(new KeyboardEvent("keydown", { key: "c", ctrlKey: true, shiftKey: true }))).toBe(false);
+    mount.dispatchEvent(new WheelEvent("wheel", { deltaY: 36, deltaMode: 0, bubbles: true, cancelable: true }));
+
+    expect(context.setError).toHaveBeenCalledWith("Wähle zuerst Text im Terminal aus.");
+    expect(scrollByLines).toHaveBeenCalledWith(2);
+    dispose();
+  });
+
   it("scrollt ausschließlich im aktiven Pane", () => {
     const { mount, scrollByLines, focusedRef, dispose } = setupInput(false);
 
@@ -96,5 +109,38 @@ describe("Terminal-Scroll-Lifecycle", () => {
     first.mount.dispatchEvent(new WheelEvent("wheel", { deltaY: 36, bubbles: true, cancelable: true }));
     expect(first.scrollByLines).toHaveBeenCalledTimes(2);
     reloadedDispose();
+  });
+
+  it("wählt im gescrollten Verlauf relativ zum sichtbaren Viewport aus", () => {
+    const { mount, terminal, context, dispose } = setupInput();
+    context.mouseTrackingRef.current = true;
+    Object.assign(terminal.buffer.active, { baseY: 500, viewportY: 100 });
+    vi.spyOn(mount, "getBoundingClientRect").mockReturnValue({
+      x: 0, y: 0, top: 0, left: 0, right: 800, bottom: 400, width: 800, height: 400,
+      toJSON: () => ({}),
+    });
+
+    mount.dispatchEvent(new MouseEvent("mousedown", { button: 0, clientX: 12, clientY: 10, bubbles: true }));
+    mount.dispatchEvent(new MouseEvent("mousemove", { buttons: 1, clientX: 92, clientY: 30, bubbles: true }));
+    mount.dispatchEvent(new MouseEvent("mouseup", { button: 0, clientX: 92, clientY: 30, bubbles: true }));
+
+    expect(terminal.select).toHaveBeenCalledWith(1, 100, 89);
+    dispose();
+  });
+
+  it("normalisiert eine rückwärts gezogene Auswahl in derselben Zeile", () => {
+    const { mount, terminal, context, dispose } = setupInput();
+    context.mouseTrackingRef.current = true;
+    vi.spyOn(mount, "getBoundingClientRect").mockReturnValue({
+      x: 0, y: 0, top: 0, left: 0, right: 800, bottom: 400, width: 800, height: 400,
+      toJSON: () => ({}),
+    });
+
+    mount.dispatchEvent(new MouseEvent("mousedown", { button: 0, clientX: 105, clientY: 10, bubbles: true }));
+    mount.dispatchEvent(new MouseEvent("mousemove", { buttons: 1, clientX: 25, clientY: 10, bubbles: true }));
+    mount.dispatchEvent(new MouseEvent("mouseup", { button: 0, clientX: 25, clientY: 10, bubbles: true }));
+
+    expect(terminal.select).toHaveBeenCalledWith(2, 0, 9);
+    dispose();
   });
 });

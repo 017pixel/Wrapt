@@ -116,6 +116,11 @@ export function NotificationCenter() {
     notifications.forEach(showToast);
   }, [query.data, query.isSuccess, showToast]);
 
+  const showToastRef = useRef(showToast);
+  useEffect(() => {
+    showToastRef.current = showToast;
+  }, [showToast]);
+
   useEffect(() => {
     let socket: WebSocket | null = null;
     let retry = 0;
@@ -129,7 +134,7 @@ export function NotificationCenter() {
         const parsed = notificationEventSchema.safeParse(JSON.parse(String(event.data)));
         if (!parsed.success) return;
         const message: NotificationEvent = parsed.data;
-        if (message.type === "notification.created") showToast(message.notification);
+        if (message.type === "notification.created") showToastRef.current(message.notification);
         if (message.type === "notification.removed") dismissToast(message.id);
         void queryClient.invalidateQueries({ queryKey: ["notifications"] });
       };
@@ -137,7 +142,7 @@ export function NotificationCenter() {
     };
     connect();
     return () => { closed = true; window.clearTimeout(timer); socket?.close(); };
-  }, [dismissToast, queryClient, showToast]);
+  }, [dismissToast, queryClient]);
 
   const open = async (notification: Notification) => {
     dismissToast(notification.id);

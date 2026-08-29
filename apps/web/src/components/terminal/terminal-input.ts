@@ -74,14 +74,18 @@ export function attachTerminalInput(terminal: Terminal, mount: HTMLElement, cont
     const visibleRow = Math.floor((event.clientY - rect.top) / (rect.height / terminal.rows));
     return {
       col: Math.max(0, Math.min(terminal.cols - 1, col)),
-      row: Math.max(0, Math.min(terminal.rows - 1, visibleRow)) + terminal.buffer.active.baseY,
+      // `viewportY` ist die erste aktuell sichtbare Buffer-Zeile. `baseY`
+      // zeigt dagegen immer auf den unteren Viewport und würde nach oben
+      // gescrollten Text aus einer völlig anderen Zeile auswählen.
+      row: Math.max(0, Math.min(terminal.rows - 1, visibleRow)) + terminal.buffer.active.viewportY,
     };
   };
   const selectCells = (start: { col: number; row: number }, end: { col: number; row: number }) => {
     const terminal = terminalRef.current;
     if (!terminal) return;
-    const first = start.row <= end.row ? start : end;
-    const last = start.row <= end.row ? end : start;
+    const startBeforeEnd = start.row < end.row || (start.row === end.row && start.col <= end.col);
+    const first = startBeforeEnd ? start : end;
+    const last = startBeforeEnd ? end : start;
     const length = (last.row - first.row) * terminal.cols + (last.col - first.col) + 1;
     terminal.select(first.col, first.row, length);
   };

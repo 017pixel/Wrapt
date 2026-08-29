@@ -284,7 +284,7 @@ export class OrbitDatabase {
   }
 
   private assertNotDestructive(current: OrbitRow | undefined, document: OrbitWorkspace, serialized: string) {
-    if (!current?.initialized || current.documentJson === serialized) return;
+    if (!current?.initialized || current.documentJson === serialized || settings.allowDestructiveOrbitReset) return;
     const before = workspaceCounts(parseOrbitDocument(JSON.parse(current.documentJson) as unknown));
     const after = workspaceCounts(document);
     const removedNodes = before.nodes - after.nodes;

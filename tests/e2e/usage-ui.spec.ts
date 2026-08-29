@@ -12,7 +12,7 @@ test("renders usage analytics, charts and account discovery", async ({page}) => 
   await page.goto(`${workbench}/usage`);
   await expect(page.getByRole("heading", {name:"Nutzung und Limits"})).toBeVisible();
   // Neue Standardansicht: Limit-Statuszeile und kompakte Account-Tabelle.
-  await expect(page.getByLabelText("Zusammenfassung der Limits")).toBeVisible({timeout:20_000});
+  await expect(page.getByLabel("Zusammenfassung der Limits")).toBeVisible({timeout:20_000});
   await expect(page.getByRole("table", {name:"Aktuelle Limits je Account"})).toBeVisible();
   await expect(page.getByRole("heading", {name:"Quota-Timeline"})).toHaveCount(0);
   // Analyse-Preset aktiviert die Detailbereiche (KPIs, Provider-Karten, Prognosen).
@@ -105,6 +105,6 @@ test("removes a registered account from the unified account list", async ({page}
   await card.getByRole("button", {name:"Entfernen"}).click();
   await page.getByRole("dialog", {name:"Account entfernen?"}).getByRole("button", {name:"Account entfernen"}).click();
   await expect(card).toBeHidden();
-  await expect(page.getByRole("status")).toContainText("wurde aus Workbench und CodexBar entfernt");
+  await expect(page.getByRole("status")).toContainText("wurde aus Wrapt und CodexBar entfernt");
   expect(removed).toBe(true);
 });

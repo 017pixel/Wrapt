@@ -31,6 +31,8 @@ describe("OperationalAuditDatabase", () => {
     expect(isAuditedMutation("PUT", "/api/v1/orbit")).toBe(true);
     expect(isAuditedMutation("POST", "/api/v1/projects/test/files")).toBe(true);
     expect(isAuditedMutation("DELETE", "/api/v1/previews/storage/profile")).toBe(true);
+    expect(isAuditedMutation("POST", "/api/v1/extensions/workbench.test/operations")).toBe(true);
+    expect(isAuditedMutation("PUT", "/api/v1/plugins/drafts/123")).toBe(true);
     expect(isAuditedMutation("GET", "/api/v1/orbit")).toBe(false);
   });
 

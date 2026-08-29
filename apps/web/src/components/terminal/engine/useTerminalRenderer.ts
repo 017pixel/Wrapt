@@ -43,6 +43,7 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
   const createRetriesRef = useRef(0);
   const subscriptionRef = useRef<TerminalSubscription | null>(null);
   const resizeFrameRef = useRef<number | null>(null);
+  const revealFrameRef = useRef<number | null>(null);
   const cwdRef = useRef("–");
   activeRef.current = active;
 
@@ -106,6 +107,23 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
     } catch { /* Versteckte Container haben kurz keine messbare Größe. */ }
   }, [reportSize]);
 
+  const revealTerminal = useCallback(() => {
+    if (revealFrameRef.current !== null) window.cancelAnimationFrame(revealFrameRef.current);
+    revealFrameRef.current = window.requestAnimationFrame(() => {
+      revealFrameRef.current = null;
+      fitAndReport();
+      const terminal = terminalRef.current;
+      if (activeRef.current && terminal && terminal.rows > 0) {
+        // Beim Parken kann xterm den DOM-Scrollbereich mit einer veralteten
+        // Geometrie zurücklassen. Die Buffer-Position ist weiterhin die
+        // autoritative Position und synchronisiert den Viewport vor dem
+        // Neuzeichnen wieder mit dem aktuell sichtbaren Pane.
+        terminal.scrollToLine(terminal.buffer.active.viewportY);
+        terminal.refresh(0, terminal.rows - 1);
+      }
+    });
+  }, [fitAndReport]);
+
   const refs = {
     terminalRef, fitRef, activeRef, kindRef, sessionRef, epochRef, sequenceRef,
     ownsGeometryRef, hasLiveStateRef, snapshotReplayRef, replayBufferRef,
@@ -123,7 +141,10 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
   // Sichtbarkeit steuert die Subscription: Sichtbar → synchronisieren,
   // unsichtbar → detach (kein Parsen im Hintergrund).
   useEffect(() => {
-    if (active) attach();
+    if (active) {
+      attach();
+      revealTerminal();
+    }
     else detach();
     return () => detach();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -218,7 +239,7 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
       resizeFrameRef.current = window.requestAnimationFrame(fitAndReport);
     });
     observer.observe(mount);
-    const onVisibility = () => { if (document.visibilityState === "visible") fitAndReport(); };
+    const onVisibility = () => { if (document.visibilityState === "visible") revealTerminal(); };
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("resize", fitAndReport);
 
@@ -231,6 +252,7 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("resize", fitAndReport);
       if (resizeFrameRef.current !== null) window.cancelAnimationFrame(resizeFrameRef.current);
+      if (revealFrameRef.current !== null) window.cancelAnimationFrame(revealFrameRef.current);
       disposeInput();
       disposeAppearance();
       cwdHandler.dispose();

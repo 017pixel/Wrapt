@@ -53,6 +53,7 @@ import { writeClipboardText } from "../lib/clipboard";
 import { ContentDialog, ConfirmDialog } from "../components/ModalDialog";
 import { runWithViewTransition } from "../lib/viewTransition";
 import { apiClient } from "../lib/apiClient";
+import { DashboardMobileDetails, DashboardMobileSummary } from "./DashboardMobileSummary";
 
 const integer = new Intl.NumberFormat("de-DE");
 const decimal = new Intl.NumberFormat("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -1212,7 +1213,7 @@ export function Dashboard() {
   const news = useQuery({ ...wraptQueries.news(unreadNewsParams, refresh?.newsMilliseconds), enabled: routeActive && visible("news") });
   const commands = useQuery({ ...wraptQueries.commands(), enabled: routeActive && visible("commands") });
   const [selectedCommand, setSelectedCommand] = useState<{ name: string; description: string; command: string } | null>(null);
-
+  const systemState = deriveSystemState(summary.data, readiness.data, readiness.isError, metrics.data, diagnostics.data);
   // Ein einziger Sammler füttert den geteilten Verlaufsspeicher. Die
   // Abhängigkeiten sind die Query-Daten selbst, deren Referenz sich nur bei
   // echten Änderungen ändert.
@@ -1240,14 +1241,13 @@ export function Dashboard() {
     if (port.projectId) selectProject(port.projectId);
     navigate("/previews");
   };
-
   const visibleCount = dashboardSections.filter(visible).length;
 
   return (
     <div className="page-scroll">
       <div className="page-frame dash">
         <DashboardHeader summary={summary} health={health} readiness={readiness} metrics={metrics} diagnostics={diagnostics} />
-
+        <DashboardMobileSummary state={systemState} liveLabel={metrics.data ? `Live · ${formatRelativeTime(metrics.data.lastUpdated)}` : "Verbindung wird geprüft"} readinessLabel={readiness.isError ? "Bereitschaft unklar" : readiness.data?.status === "ready" ? "Bereit" : "Prüfung läuft"} />
         {configQuery.isError ? (
           <div className="dash-notice is-warn" role="status">
             <InfoIcon className="h-4 w-4 shrink-0" />
@@ -1260,7 +1260,7 @@ export function Dashboard() {
         {/* Bento-Raster: unterschiedlich breite Kacheln in einem gemeinsamen
             12-Spalten-Raster. Klappt eine Kachel auf, ordnet sich der Rest neu
             an — die Bewegung dabei kommt aus `runWithViewTransition`. */}
-        <div className="dash-bento">
+        <DashboardMobileDetails hasProblem={systemState.tone !== "ok"}><div className="dash-bento">
           {serverVisible || metricsVisible ? (
             <ServerDiagnosticsPanel summary={summary} health={health} metrics={metrics} />
           ) : null}
@@ -1270,7 +1270,7 @@ export function Dashboard() {
           {visible("usage") ? <UsagePanel usage={usage} /> : null}
           {visible("news") ? <NewsPanel news={news} /> : null}
           {visible("commands") ? <CommandsPanel commands={commands} onSelect={setSelectedCommand} /> : null}
-        </div>
+          </div></DashboardMobileDetails>
 
         {quickActionsVisible ? <QuickBar projectsLoading={projects.isLoading} projects={projects.data?.projects ?? []} /> : null}
 

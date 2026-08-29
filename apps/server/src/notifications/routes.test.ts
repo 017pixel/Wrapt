@@ -28,6 +28,7 @@ async function fixture() {
   const push = new NotificationPushService({
     databasePath, dataDirectory: directory, subject: "mailto:test@example.com", notifications, sendNotification,
     preferences: notificationPreferencesSchema.parse({ pushEnabled: true, sources: { wrapt: { toast: true, push: true } } }),
+    validateEndpoint: () => undefined,
   });
   const app = Fastify(); apps.push(app);
   await app.register(registerNotificationRoutes, {

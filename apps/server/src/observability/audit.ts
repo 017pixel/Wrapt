@@ -140,5 +140,7 @@ export function isAuditedMutation(method: string, url: string): boolean {
     "/api/v1/terminal/sessions",
     "/api/v1/hermes/",
     "/api/v1/notifications",
+    "/api/v1/extensions/",
+    "/api/v1/plugins/",
   ].some((prefix) => url.startsWith(prefix));
 }

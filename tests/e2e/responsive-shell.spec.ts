@@ -144,3 +144,17 @@ test("moves focus into content after a navigation choice", async ({ page }) => {
   await expect(page).toHaveURL(/\/wrapt\/projects$/);
   await expect(page.locator("#main-content")).toBeFocused();
 });
+
+test("bleibt bei 200 Prozent Textgröße zugänglich und innerhalb des Viewports", async ({ page }) => {
+  test.skip((page.viewportSize()?.width ?? 0) > 860, "Der kompakte Status gilt für kleine Viewports.");
+  await page.goto("/wrapt/");
+  await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+  await expect(page.getByRole("button", { name: "Navigation öffnen" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Kompakter Systemstatus" })).toBeVisible();
+  await expect(page.locator("#main-content")).toHaveAttribute("tabindex", "-1");
+  const overflow = await page.evaluate(() => ({
+    clientWidth: document.documentElement.clientWidth,
+    scrollWidth: document.documentElement.scrollWidth,
+  }));
+  expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth + 1);
+});

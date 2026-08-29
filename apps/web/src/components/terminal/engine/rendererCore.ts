@@ -91,16 +91,22 @@ export function createRendererCore(refs: RendererRefs, deps: RendererCoreDeps): 
         createRetriesRef.current = 0;
         applyGeometry(message.cols, message.rows, message.ownsGeometry);
         if (message.status === "exited") { deps.setStatus("exited"); deps.reportMeta({ status: "exited" }); break; }
+        deps.setStatus("connected");
         snapshotReplayRef.current = true;
         terminal.reset();
         // Der serialisierte Zustand enthält den exakten Bildschirm inklusive
         // Alternate Screen, Maus-Modi und Cursor — kein manuelles Raten mehr.
-        terminal.write(message.serialized, () => {
+        const finishSnapshot = () => {
           snapshotReplayRef.current = false;
           syncMouseModes();
           deps.flushReplayBuffer();
           deps.reportMeta({ status: "connected" });
-        });
+        };
+        // Ein frisch gestartetes PTY kann noch ohne Ausgabe sein. xterm ruft
+        // den Write-Callback für einen leeren String nicht zuverlässig auf;
+        // der Renderer darf dann trotzdem nicht im Status „connecting“ hängen.
+        if (message.serialized) terminal.write(message.serialized, finishSnapshot);
+        else finishSnapshot();
         break;
       }
       case "terminal.deltas": {
@@ -181,9 +187,6 @@ export function createRendererCore(refs: RendererRefs, deps: RendererCoreDeps): 
       if (sessionRef.current) subscribeNow();
       else createSession();
     });
-    // Ist der gemeinsame Socket bereits offen, kommt kein neuer onStatus-
-    // Callback für diese Subscription — dann kann create sofort raus.
-    if (subscriptionRef.current === subscription) createSession();
   };
 
   const detach = () => {

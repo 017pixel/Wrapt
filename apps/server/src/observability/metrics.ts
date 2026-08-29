@@ -1,4 +1,5 @@
 import { monitorEventLoopDelay } from "node:perf_hooks";
+import type { WebSocketBridgeEvent } from "../utils/websocketBridge.js";
 
 interface RouteMetric {
   method: string;
@@ -6,6 +7,14 @@ interface RouteMetric {
   count: number;
   errorCount: number;
   durations: number[];
+}
+
+interface WebSocketMetric {
+  label: string;
+  forwardedMessages: number;
+  forwardedBytes: number;
+  overloads: number;
+  closes: number;
 }
 
 const MAX_TRACKED_ROUTES = 100;
@@ -21,6 +30,7 @@ export class OperationalMetrics {
   private readonly eventLoop = monitorEventLoopDelay({ resolution: 20 });
   private readonly starts = new WeakMap<object, bigint>();
   private readonly routes = new Map<string, RouteMetric>();
+  private readonly websockets = new Map<string, WebSocketMetric>();
   private activeRequests = 0;
   private totalRequests = 0;
   private clientErrors = 0;
@@ -58,6 +68,23 @@ export class OperationalMetrics {
     if (metric.durations.length > MAX_ROUTE_SAMPLES) metric.durations.shift();
   }
 
+  recordWebSocket(label: string, event: WebSocketBridgeEvent): void {
+    let metric = this.websockets.get(label);
+    if (metric === undefined) {
+      if (this.websockets.size >= 16) return;
+      metric = { label, forwardedMessages: 0, forwardedBytes: 0, overloads: 0, closes: 0 };
+      this.websockets.set(label, metric);
+    }
+    if (event.type === "forwarded") {
+      metric.forwardedMessages += 1;
+      metric.forwardedBytes += event.bytes;
+    } else if (event.type === "overload") {
+      metric.overloads += 1;
+    } else {
+      metric.closes += 1;
+    }
+  }
+
   snapshot() {
     const memory = process.memoryUsage();
     const p99Ms = this.eventLoop.count > 0 ? this.eventLoop.percentile(99) / 1_000_000 : 0;
@@ -83,6 +110,11 @@ export class OperationalMetrics {
             p95Milliseconds: percentile(metric.durations, 0.95),
             p99Milliseconds: percentile(metric.durations, 0.99),
           })),
+      },
+      websocket: {
+        totalOverloads: [...this.websockets.values()].reduce((sum, metric) => sum + metric.overloads, 0),
+        totalCloses: [...this.websockets.values()].reduce((sum, metric) => sum + metric.closes, 0),
+        bridges: [...this.websockets.values()].map((metric) => ({ ...metric })),
       },
       eventLoop: {
         meanMilliseconds: Number.isFinite(this.eventLoop.mean) ? this.eventLoop.mean / 1_000_000 : 0,

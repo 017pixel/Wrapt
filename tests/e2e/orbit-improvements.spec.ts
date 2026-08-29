@@ -71,8 +71,8 @@ test("covers precise canvas chrome, menus, zoom and editable routing", async ({ 
   expect(inspectorBox!.height).toBeGreaterThan(inspectorBox!.width * 2);
 
   await noteNode.click({ button: "right" });
-  await expect(page.getByRole("menu", { name: "Knotenaktionen" })).toBeVisible();
-  await expect(page.getByRole("menuitem", { name: "Eigenschaften bearbeiten" })).toBeVisible();
+  await expect(page.getByRole("menu", { name: "Plan" })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Eigenschaften" })).toBeVisible();
   await page.keyboard.press("Escape");
 
   const projectCard = page.locator('.react-flow__node-orbit[data-id="project"] .orbit-project-node');
@@ -136,16 +136,36 @@ test("covers precise canvas chrome, menus, zoom and editable routing", async ({ 
   await expect.poll(() => viewport.evaluate((element) => getComputedStyle(element).transform)).not.toBe(beforeTransform);
   expect(await page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(beforePageScale);
 
-  const pane = page.locator(".react-flow__pane");
-  await pane.click({ button: "right", position: { x: 80, y: 700 } });
-  const quickMenu = page.getByRole("menu", { name: "Schnellaktionen" });
+  const panePoint = await page.locator(".orbit-page").evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    for (let y = bounds.top + 140; y < bounds.bottom - 110; y += 32) {
+      for (let x = bounds.left + 36; x < bounds.right - 36; x += 32) {
+        if (document.elementFromPoint(x, y)?.classList.contains("react-flow__pane")) return { x, y };
+      }
+    }
+    return null;
+  });
+  expect(panePoint).not.toBeNull();
+  await page.mouse.click(panePoint?.x ?? 0, panePoint?.y ?? 0, { button: "right" });
+  const quickMenu = page.getByRole("menu", { name: "Neue Fläche" });
+  await expect(page.getByRole("region", { name: "Schnellaktionen" })).toBeVisible();
   await expect(quickMenu).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Neues Terminal" })).toBeVisible();
-  await quickMenu.click({ button: "right", position: { x: 24, y: 24 } });
+  await page.keyboard.press("Escape");
   await expect(quickMenu).toHaveCount(0);
-  await pane.click({ button: "right", position: { x: 80, y: 700 } });
+  await page.mouse.click(panePoint?.x ?? 0, panePoint?.y ?? 0, { button: "right" });
   await expect(quickMenu).toBeVisible();
-  await pane.click({ button: "right", position: { x: 520, y: 700 } });
+  const secondPanePoint = await page.locator(".orbit-page").evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    for (let y = bounds.top + 180; y < bounds.bottom - 120; y += 32) {
+      for (let x = bounds.left + bounds.width / 2; x < bounds.right - 36; x += 32) {
+        if (document.elementFromPoint(x, y)?.classList.contains("react-flow__pane")) return { x, y };
+      }
+    }
+    return null;
+  });
+  expect(secondPanePoint).not.toBeNull();
+  await page.mouse.click(secondPanePoint?.x ?? 0, secondPanePoint?.y ?? 0);
   await expect(quickMenu).toHaveCount(0);
   await expect(offscreenDraft).toHaveValue("Ungespeicherter Entwurf bleibt erhalten");
 });

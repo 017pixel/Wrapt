@@ -35,6 +35,7 @@ class FakeWebSocket {
 }
 
 afterEach(() => {
+  FakeWebSocket.instances.length = 0;
   vi.unstubAllGlobals();
   vi.resetModules();
 });
@@ -77,4 +78,18 @@ test("teilt eine Runtime-Subscription zwischen Renderer und Preview", async () =
   expect(socket!.sent.map((value) => JSON.parse(value).type)).not.toContain("terminal.unsubscribe");
   renderer.dispose();
   expect(socket!.sent.map((value) => JSON.parse(value).type)).toContain("terminal.unsubscribe");
+});
+
+test("meldet einem neuen Renderer den bereits offenen Socket", async () => {
+  vi.stubGlobal("WebSocket", FakeWebSocket);
+  const { terminalTransport } = await import("./TerminalTransport");
+  const subscription = terminalTransport.subscribe("runtime-2");
+  const socket = FakeWebSocket.instances[0];
+  socket!.open();
+  const statuses: boolean[] = [];
+
+  subscription.onStatus((connected) => statuses.push(connected));
+
+  expect(statuses).toEqual([true]);
+  subscription.dispose();
 });

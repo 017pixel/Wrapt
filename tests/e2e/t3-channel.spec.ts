@@ -6,6 +6,8 @@ import { expect, test, type Page } from "@playwright/test";
 
 const channelEndpoint = "**/api/v1/system/t3-channel";
 
+test.use({ serviceWorkers: "block" });
+
 interface ChannelStatus {
   configuredChannel: "stable" | "nightly";
   activeChannel: "stable" | "nightly" | null;
@@ -52,6 +54,9 @@ async function stubChannelApi(page: Page, initial: ChannelStatus, saved: string[
   // Der Kanal liegt im System-Bereich der neuen Tab-Gliederung.
   await page.goto("/wrapt/settings");
   await page.getByRole("button", { name: "System", exact: true }).click();
+  const card = page.locator("section.document-section").filter({ hasText: "T3 Code Kanal" });
+  await expect(card).toBeVisible({ timeout: 15_000 });
+  await expect(card.getByRole("button", { name: /Stable|Nightly/ }).first()).toBeEnabled({ timeout: 15_000 });
 }
 
 test("zeigt aktiven Kanal und Version ohne Neustart-Hinweis", async ({ page }) => {

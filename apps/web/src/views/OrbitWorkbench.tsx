@@ -22,8 +22,6 @@ import {
   type OnConnectEnd,
   type OnConnectStart,
   type OnNodeDrag,
-  type OnMoveEnd,
-  type OnMoveStart,
   type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -54,6 +52,7 @@ import { openPreviewGroupWindow } from "../lib/previewWindow";
 import { openGlobalContextMenu } from "../components/context-menu/contextMenuEvents";
 import { hostContextMenuId } from "../extensions/hostContextMenus";
 import { PromptDialog } from "../components/ModalDialog";
+import { useOrbitCanvasDrag } from "./orbitCanvasInteraction";
 
 const nodeTypes = { orbit: OrbitNodeView };
 const edgeTypes = { orbit: OrbitEdgeView };
@@ -536,6 +535,7 @@ function OrbitCanvas() {
     setResizingNodeId(null);
     setDeleteArmed(false);
   }, []);
+  const { nodeDragActive, beginNodeDrag, completeNodeDrag, startCanvasPan, finishCanvasPan } = useOrbitCanvasDrag({ canvasInteractionRef, instanceRef, beginCanvasInteraction, endCanvasInteraction, setViewport });
 
   useEffect(() => {
     const focusedChanged = prevFocusedNodeIdRef.current !== document.focusedNodeId;
@@ -1033,11 +1033,12 @@ function OrbitCanvas() {
   }, []);
 
   const startNodeDrag: OnNodeDrag = useCallback((_event, dragged) => {
+    beginNodeDrag(instanceRef.current ? { ...instanceRef.current.getViewport() } : null);
     beginCanvasInteraction("node");
     setDraggingNodeId(dragged.id);
     setSnapPreview(null);
     setEdgeMenu(null);
-  }, [beginCanvasInteraction]);
+  }, [beginCanvasInteraction, beginNodeDrag]);
 
   const trackNodeDrag: OnNodeDrag = useCallback((event, dragged) => {
     setDeleteArmed(isOverDeleteZone(event));
@@ -1058,6 +1059,7 @@ function OrbitCanvas() {
     endCanvasInteraction();
     setDraggingNodeId(null);
     setDeleteArmed(false);
+    completeNodeDrag();
     if (shouldDelete) {
       window.setTimeout(() => removeNodeAndReleaseSlots(dragged.id), 120);
       return;
@@ -1105,16 +1107,7 @@ function OrbitCanvas() {
     updateNode(dragged.id, { position: dragged.position });
     const current = getActiveOrbitBoard();
     setWorldBounds(compactedOrbitBounds(current.nodes.map((node) => node.id === dragged.id ? { ...node, position: dragged.position } : node)));
-  }, [endCanvasInteraction, isOverDeleteZone, removeNodeAndReleaseSlots, setWorldBounds, updateNode]);
-
-  const startCanvasPan: OnMoveStart = useCallback(() => {
-    beginCanvasInteraction("pane");
-  }, [beginCanvasInteraction]);
-
-  const finishCanvasPan: OnMoveEnd = useCallback((event, viewport) => {
-    endCanvasInteraction();
-    if (event) setViewport(viewport);
-  }, [endCanvasInteraction, setViewport]);
+  }, [completeNodeDrag, endCanvasInteraction, isOverDeleteZone, removeNodeAndReleaseSlots, setWorldBounds, updateNode]);
 
   const compactTerritory = () => {
     const current = getActiveOrbitBoard();
@@ -1307,8 +1300,8 @@ function OrbitCanvas() {
         multiSelectionKeyCode={["Meta", "Control"]}
         selectionOnDrag={false}
         selectNodesOnDrag={false}
-        panOnDrag
-        panOnScroll={!isMobile}
+        panOnDrag={!nodeDragActive && canvasInteraction !== "node"}
+        panOnScroll={!isMobile && !nodeDragActive && canvasInteraction !== "node"}
         zoomOnPinch
         zoomOnDoubleClick={!isMobile}
         preventScrolling

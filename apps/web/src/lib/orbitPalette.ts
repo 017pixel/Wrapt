@@ -66,6 +66,6 @@ export function consumeOrbitPayloads(): OrbitPalettePayload[] {
 
 /** Anfrage absetzen: Event (für die geladene Workbench) plus Queue (Backup). */
 export function requestOrbitNode(payload: OrbitPalettePayload): void {
-  window.dispatchEvent(new CustomEvent<OrbitPalettePayload>("orbit:add", { detail: payload }));
   queueOrbitPayload(payload);
+  window.dispatchEvent(new CustomEvent<OrbitPalettePayload>("orbit:add", { detail: payload }));
 }

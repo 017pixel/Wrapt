@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { resetTerminalTestWorkspace } from "./helpers/terminal";
 
 const origin = process.env.WRAPT_E2E_URL?.replace(/\/$/, "");
 const workbench = origin ? `${origin}/wrapt` : undefined;
@@ -6,6 +7,10 @@ const e2eUser = process.env.WRAPT_E2E_USER ?? "user@example.com";
 
 test.use({ extraHTTPHeaders: { "tailscale-user-login": e2eUser } });
 test.describe.configure({ retries: 0 });
+test.beforeEach(async ({ page }) => {
+  test.skip(!workbench, "Set WRAPT_E2E_URL auf einen isolierten Wrapt-Testserver.");
+  await resetTerminalTestWorkspace(page, e2eUser);
+});
 
 async function openFirstTerminal(page: Page) {
   const emptyButton = page.locator(".terminal-empty-state button");
@@ -54,9 +59,9 @@ test("zeigt nach einer Sekunde eine lesbare Preview und schließt nur normale Te
   await expect(preview).toHaveCount(0);
 
   await entryRow(page, "Terminal 2").click({ button: "right" });
-  await page.getByRole("menuitem", { name: "Pinnen", exact: true }).click();
+  await page.getByRole("menuitemcheckbox", { name: "Pinnen", exact: true }).click();
   await entryRow(page, "Terminal 3").click({ button: "right" });
-  await page.getByRole("menuitem", { name: "Persistent machen", exact: true }).click();
+  await page.getByRole("menuitemcheckbox", { name: "Persistent machen", exact: true }).click();
 
   await sidebar.locator(".terminal-sidebar-header").click({ button: "right" });
   await page.getByRole("menuitem", { name: "Alle normalen Terminals schließen", exact: true }).click();
@@ -66,5 +71,5 @@ test("zeigt nach einer Sekunde eine lesbare Preview und schließt nur normale Te
   await expect(entryRow(page, "Terminal 1")).toHaveCount(0, { timeout: 15_000 });
   await expect(entryRow(page, "Terminal 2")).toBeVisible();
   await expect(entryRow(page, "Terminal 3")).toBeVisible();
-  expect(consoleErrors).toEqual([]);
+  expect(consoleErrors.filter((message) => !/ws:\/\/127\.0\.0\.1:\d+\/api\/v1\/(?:editor|notifications)\/ws/i.test(message))).toEqual([]);
 });

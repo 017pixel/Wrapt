@@ -87,7 +87,7 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
       await Promise.all(names.filter((name) => /^(?:workbench-|remote-workplace-)/i.test(name)).map((name) => caches.delete(name)));
     }
   };
-  window.addEventListener("load", () => {
+  const registerProductWorker = () => {
     void removeLegacyProductWorkers().catch(() => undefined).then(() => navigator.serviceWorker.register(`${base}sw.js`, { scope: base, updateViaCache: "none" })).then(async (registration) => {
       // Ein bereits fertig installiertes Update übernehmen. register() prüft
       // sw.js ungecached; ein noch installierender Worker wird beim nächsten
@@ -95,5 +95,10 @@ if ("serviceWorker" in navigator && import.meta.env.PROD) {
       registration.waiting?.postMessage({ type: "SKIP_WAITING" });
       await synchronizeExistingPushDevice();
     }).catch(() => undefined);
-  });
+  };
+  // Top-Level-Imports können den Modulstart bis hinter das load-Event
+  // verschieben. In diesem Fall würde ein ausschließliches load-Listener-
+  // Setup die PWA-Registrierung dauerhaft verpassen.
+  if (document.readyState === "complete") registerProductWorker();
+  else window.addEventListener("load", registerProductWorker, { once: true });
 }

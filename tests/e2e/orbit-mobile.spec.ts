@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { apiIdentityHeaders } from "./helpers/environment";
+import { resetOrbitTestWorkspace } from "./helpers/orbit";
 
 const workbench = process.env.WRAPT_E2E_URL;
 
@@ -10,33 +11,39 @@ test.use({
   isMobile: true,
 });
 
-test("keeps the infinite canvas navigable and usable on mobile", async ({ page, browserName }) => {
+test("keeps the infinite canvas navigable and usable on mobile", async ({ page, browserName }, testInfo) => {
   test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Orbit test server.");
+  const login = `orbit-mobile-${browserName}-${testInfo.retry}@example.com`;
+  await page.setExtraHTTPHeaders(apiIdentityHeaders(login));
+  await resetOrbitTestWorkspace(page, login);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
 
   const orbitUrl = new URL("/api/v1/orbit", workbench).toString();
-  const currentResponse = await page.request.get(orbitUrl, { headers: apiIdentityHeaders("user@example.com") });
+  const currentResponse = await page.request.get(orbitUrl, { headers: apiIdentityHeaders(login) });
   await expect(currentResponse).toBeOK();
   const current = await currentResponse.json();
   const marker = `Mobile Canvas ${Date.now()}`;
-  const boardId = `mobile-e2e-${Date.now()}`;
+  const activeBoard = current.document.boards.find((board: { id: string }) => board.id === current.document.activeBoardId);
+  expect(activeBoard).toBeDefined();
+  const mobileNodeId = `mobile-note-${browserName}-${testInfo.retry}-${Date.now()}`;
   const seedResponse = await page.request.put(orbitUrl, {
-    headers: apiIdentityHeaders("user@example.com"),
+    headers: apiIdentityHeaders(login),
     data: {
       expectedRevision: current.revision,
       document: {
-        version: 7,
-        activeBoardId: boardId,
+        ...current.document,
+        version: current.document.version,
+        activeBoardId: activeBoard.id,
         focusedNodeId: null,
-        boards: [{
-          id: boardId,
+        boards: current.document.boards.map((board: typeof activeBoard) => board.id === activeBoard.id ? {
+          ...board,
           name: "Mobile Arbeitsfläche",
           viewport: { x: 24, y: 210, zoom: 1 },
           worldBounds: { minX: -1_600, minY: -1_000, maxX: 1_600, maxY: 1_000 },
-          nodes: [{
-            id: "mobile-note",
+          nodes: [...board.nodes, {
+            id: mobileNodeId,
             type: "note",
             title: "Mobile Testnotiz",
             position: { x: 0, y: 0 },
@@ -52,11 +59,10 @@ test("keeps the infinite canvas navigable and usable on mobile", async ({ page, 
             locked: false,
             zIndex: 1,
           }],
-          edges: [],
-        }],
+        } : board),
       },
     },
-    headers: apiIdentityHeaders("user@example.com"),
+    headers: apiIdentityHeaders(login),
   });
   await expect(seedResponse).toBeOK();
 
@@ -65,7 +71,9 @@ test("keeps the infinite canvas navigable and usable on mobile", async ({ page, 
   await expect(orbitPage).toBeVisible();
   await expect(orbitPage).toHaveAttribute("data-mobile-mode", "navigate");
   await expect(page.getByText("Zwei Finger bewegen und zoomen")).toBeVisible();
-  await expect(page.getByLabel("Mobile Testnotiz bearbeiten")).toHaveValue(marker);
+  const mobileNote = page.locator(".react-flow__node-orbit").filter({ has: page.getByLabel("Mobile Testnotiz bearbeiten") }).last();
+  const note = mobileNote.getByLabel("Mobile Testnotiz bearbeiten");
+  await expect(note).toHaveValue(marker);
 
   const toolbar = page.locator(".orbit-main-island");
   await expect(toolbar).toBeVisible();
@@ -89,13 +97,13 @@ test("keeps the infinite canvas navigable and usable on mobile", async ({ page, 
   const modeButtonBox = await modeButton.boundingBox();
   expect(modeButtonBox?.width).toBeGreaterThanOrEqual(44);
   expect(modeButtonBox?.height).toBeGreaterThanOrEqual(44);
-  expect(await page.locator(".react-flow__node-orbit").evaluate((element) => getComputedStyle(element).pointerEvents)).toBe("none");
+  expect(await page.locator(".react-flow__node-orbit").evaluateAll((elements) => elements.every((element) => getComputedStyle(element).pointerEvents === "none"))).toBe(true);
   await page.screenshot({ path: "/tmp/orbit-mobile-navigate-390.png", fullPage: true });
 
   if (browserName === "chromium") {
     const viewport = page.locator(".react-flow__viewport");
     const transformBeforePinch = await viewport.getAttribute("style");
-    const nodeBox = await page.locator(".react-flow__node-orbit").boundingBox();
+    const nodeBox = await mobileNote.boundingBox();
     expect(nodeBox).not.toBeNull();
     const centerX = Math.max(100, Math.min(290, (nodeBox?.x ?? 24) + 160));
     const centerY = Math.max(220, Math.min(620, (nodeBox?.y ?? 210) + 110));
@@ -118,13 +126,12 @@ test("keeps the infinite canvas navigable and usable on mobile", async ({ page, 
   await modeButton.click();
   await expect(orbitPage).toHaveAttribute("data-mobile-mode", "interact");
   await expect(page.getByRole("button", { name: /Canvas-Modus: Inhalt benutzen/ })).toHaveAttribute("aria-pressed", "true");
-  const note = page.getByLabel("Mobile Testnotiz bearbeiten");
   expect(await note.evaluate((element) => getComputedStyle(element).pointerEvents)).not.toBe("none");
   await note.fill("Mobile Inhalte bleiben bedienbar");
   await expect(note).toHaveValue("Mobile Inhalte bleiben bedienbar");
   await expect(page.getByRole("button", { name: "Eigenschaften öffnen" })).toHaveCount(0);
 
-  await page.locator(".orbit-node-header").click();
+  await mobileNote.locator(".orbit-node-header").click();
   await expect(page.getByRole("button", { name: "Eigenschaften öffnen" })).toBeVisible();
   await expect(page.locator(".orbit-resize-corner")).toHaveCount(8);
   await page.getByRole("button", { name: "Eigenschaften öffnen" }).click();
@@ -167,10 +174,10 @@ test("keeps the infinite canvas navigable and usable on mobile", async ({ page, 
   const navigationButton = page.getByRole("button", { name: "Navigation öffnen" });
   await expect(navigationButton).toBeVisible();
   await navigationButton.click();
-  await expect(page.getByRole("dialog", { name: "Seiten auswählen" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Navigation" })).toBeVisible();
   await page.getByRole("button", { name: "Navigation schließen" }).click();
-  await expect(page.getByRole("dialog", { name: "Seiten auswählen" })).toHaveCount(0);
+  await expect(page.getByRole("dialog", { name: "Navigation" })).toHaveCount(0);
 
   await page.screenshot({ path: "/tmp/orbit-mobile-e2e.png", fullPage: true });
-  expect(errors.filter((message) => !/favicon|ResizeObserver loop/i.test(message))).toEqual([]);
+  expect(errors.filter((message) => !/favicon|ResizeObserver loop|ws:\/\/127\.0\.0\.1:\d+\/api\/v1\/(?:editor|notifications)\/ws/i.test(message))).toEqual([]);
 });

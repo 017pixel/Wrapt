@@ -1,4 +1,5 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
+import { resetTerminalTestWorkspace } from "./helpers/terminal";
 
 // `WRAPT_E2E_URL` zeigt auf den Origin des Testservers; die Wrapt
 // selbst wird unter dem `/workbench`-Basispfad ausgeliefert.
@@ -11,6 +12,10 @@ const e2eUser = process.env.WRAPT_E2E_USER ?? "user@example.com";
 const fixture = `${process.cwd()}/tests/fixtures/tui-fixture.mjs`;
 
 test.use({ extraHTTPHeaders: { "tailscale-user-login": e2eUser } });
+test.beforeEach(async ({ page }) => {
+  test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
+  await resetTerminalTestWorkspace(page, e2eUser);
+});
 
 async function openFirstTerminal(page: Page) {
   const emptyButton = page.locator(".terminal-empty-state button");
@@ -25,6 +30,31 @@ async function runFixture(page: Page, mode: string) {
   await input.fill("");
   await input.type(`node ${fixture} --${mode}`);
   await input.press("Enter");
+}
+
+async function seedScrollback(pane: Locator, prefix: string): Promise<string> {
+  const marker = `__${prefix}_SCROLLBACK_START_${Date.now()}__`;
+  const input = pane.locator(".xterm-helper-textarea");
+  await input.focus();
+  await input.pressSequentially(
+    `printf '${marker}\\n'; for i in $(seq 1 140); do printf '${prefix}-%03d\\n' "$i"; done; printf '__${prefix}_SCROLLBACK_END__\\n'`,
+  );
+  await input.press("Enter");
+  await expect(pane.locator(".xterm-screen")).toContainText(`__${prefix}_SCROLLBACK_END__`, { timeout: 20_000 });
+  return marker;
+}
+
+async function scrollToMarker(page: Page, pane: Locator, marker: string): Promise<void> {
+  const viewport = pane.locator(".terminal-viewport");
+  await viewport.click();
+  await viewport.hover();
+  await page.mouse.wheel(0, -12_000);
+  await expect(pane.locator(".xterm-screen")).toContainText(marker, { timeout: 10_000 });
+}
+
+async function scrollToBottom(page: Page, pane: Locator): Promise<void> {
+  await pane.locator(".terminal-viewport").hover();
+  await page.mouse.wheel(0, 12_000);
 }
 
 /** Liest die sichtbaren Terminal-Zeilen ohne ANSI und ohne Leerraum am Rand. */
@@ -58,6 +88,7 @@ test("renders a fullscreen TUI identically after reload (no right-shift)", async
 
 test("recreates the browser and resumes the same runtime with intact rendering", async ({ browser }) => {
   test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
+  test.setTimeout(60_000);
   const context = await browser.newContext({ viewport: { width: 1_280, height: 800 }, extraHTTPHeaders: { "tailscale-user-login": e2eUser } });
   const page = await context.newPage();
   await page.goto(`${workbench}/terminal`);
@@ -68,7 +99,7 @@ test("recreates the browser and resumes the same runtime with intact rendering",
   await context.close();
   const recreated = await browser.newContext({ viewport: { width: 1_280, height: 800 }, extraHTTPHeaders: { "tailscale-user-login": e2eUser } });
   const secondPage = await recreated.newPage();
-  await secondPage.goto(`${workbench}/terminal`);
+  await secondPage.goto(`${workbench}/terminal`, { waitUntil: "domcontentloaded", timeout: 60_000 });
   await openFirstTerminal(secondPage);
   await expect(secondPage.locator(".xterm-screen")).toContainText("TUI FIXTURE", { timeout: 20_000 });
   const after = await rows(secondPage);
@@ -84,10 +115,10 @@ test("keeps a hidden terminal intact when switching back (no black area)", async
   await expect(page.locator(".xterm-screen")).toContainText("TUI FIXTURE", { timeout: 15_000 });
 
   // Zweites Terminal öffnen (wechselt den Fokus) und zurückwechseln.
-  await page.getByRole("button", { name: "Neues Terminal", exact: true }).click();
+  await page.getByRole("complementary", { name: "Terminal-Sidebar" }).getByRole("button", { name: "Terminal öffnen", exact: true }).click();
   await expect(page.locator(".terminal-tree-entry")).toHaveCount(2);
   await page.locator(".terminal-tree-entry .terminal-tree-row").first().click();
-  await expect(page.locator(".xterm-screen")).toContainText("TUI FIXTURE", { timeout: 15_000 });
+  await expect(page.locator(".terminal-session-pane.is-visible").first()).toContainText("TUI FIXTURE", { timeout: 15_000 });
   const after = await rows(page);
   expect(after.some((row) => row.trimStart().startsWith("┌"))).toBe(true);
 });
@@ -99,11 +130,102 @@ test("shows both terminals in a split without layout corruption", async ({ page 
   await runFixture(page, "alternate");
   await expect(page.locator(".xterm-screen")).toContainText("TUI FIXTURE", { timeout: 15_000 });
 
-  await page.getByRole("button", { name: "Neues Terminal rechts teilen", exact: true }).click();
+  await page.getByRole("complementary", { name: "Terminal-Sidebar" }).getByRole("button", { name: "Neues Terminal rechts teilen", exact: true }).click();
   await expect(page.locator(".terminal-area")).toHaveAttribute("data-split", "true");
   await expect(page.locator(".terminal-session-pane.is-visible")).toHaveCount(2, { timeout: 10_000 });
   // Der TUI bleibt im linken Pane sichtbar.
-  await expect(page.locator(".terminal-session-pane.is-visible").first()).toContainText("TUI FIXTURE");
+  await expect(page.locator(".terminal-session-pane.is-visible").first()).toContainText("TUI FIXTURE", { timeout: 15_000 });
+});
+
+test("scrolls after terminal, route and hard-refresh changes", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto(`${workbench}/terminal`);
+  await openFirstTerminal(page);
+  const firstMarker = await seedScrollback(page.locator(".terminal-session-pane.is-visible"), "FIRST");
+
+  await page.getByRole("complementary", { name: "Terminal-Sidebar" }).getByRole("button", { name: "Terminal öffnen", exact: true }).click();
+  await expect(page.locator(".terminal-tree-entry")).toHaveCount(2);
+  await page.locator(".terminal-tree-entry .terminal-tree-row").first().click();
+  let activePane = page.locator(".terminal-session-pane.is-visible");
+  await expect(activePane).toHaveCount(1);
+  await scrollToMarker(page, activePane, firstMarker);
+
+  await scrollToBottom(page, activePane);
+  await page.locator(".workspace-sidebar").getByRole("link", { name: "Dashboard", exact: true }).click();
+  await expect(page).not.toHaveURL(/\/terminal$/);
+  await page.locator(".workspace-sidebar").getByRole("link", { name: "Terminal", exact: true }).click();
+  await expect(page).toHaveURL(/\/terminal$/);
+  activePane = page.locator(".terminal-session-pane.is-visible");
+  await scrollToMarker(page, activePane, firstMarker);
+
+  await scrollToBottom(page, activePane);
+  await page.reload();
+  await openFirstTerminal(page);
+  activePane = page.locator(".terminal-session-pane.is-visible");
+  await scrollToMarker(page, activePane, firstMarker);
+});
+
+test("scrolls only the clicked terminal in split view", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto(`${workbench}/terminal`);
+  await openFirstTerminal(page);
+  const leftPane = page.locator(".terminal-session-pane.is-visible").first();
+  const leftMarker = await seedScrollback(leftPane, "LEFT");
+
+  await page.getByRole("complementary", { name: "Terminal-Sidebar" }).getByRole("button", { name: "Neues Terminal rechts teilen", exact: true }).click();
+  await expect(page.locator(".terminal-session-pane.is-visible")).toHaveCount(2);
+  const rightPane = page.locator(".terminal-session-pane.is-visible").last();
+  const rightMarker = await seedScrollback(rightPane, "RIGHT");
+
+  await scrollToMarker(page, rightPane, rightMarker);
+  await scrollToBottom(page, rightPane);
+  await leftPane.locator(".terminal-viewport").click();
+  await expect(leftPane).toHaveClass(/is-focused/);
+  await scrollToMarker(page, leftPane, leftMarker);
+  await expect(rightPane.locator(".xterm-screen")).toContainText("__RIGHT_SCROLLBACK_END__");
+});
+
+test("restores scrollback after closing and recreating the browser context", async ({ browser }) => {
+  test.setTimeout(90_000);
+  const headers = { "tailscale-user-login": e2eUser };
+  const firstContext = await browser.newContext({ viewport: { width: 1_280, height: 800 }, extraHTTPHeaders: headers });
+  const firstPage = await firstContext.newPage();
+  await firstPage.goto(`${workbench}/terminal`);
+  await openFirstTerminal(firstPage);
+  const marker = await seedScrollback(firstPage.locator(".terminal-session-pane.is-visible"), "REOPEN");
+  await firstContext.close();
+
+  const secondContext = await browser.newContext({ viewport: { width: 1_280, height: 800 }, extraHTTPHeaders: headers });
+  const secondPage = await secondContext.newPage();
+  await secondPage.goto(`${workbench}/terminal`);
+  await openFirstTerminal(secondPage);
+  await scrollToMarker(secondPage, secondPage.locator(".terminal-session-pane.is-visible"), marker);
+  await secondContext.close();
+});
+
+test("renders background output and new input immediately after a browser-tab switch", async ({ page, context }) => {
+  test.setTimeout(60_000);
+  await page.goto(`${workbench}/terminal`);
+  await openFirstTerminal(page);
+  const pane = page.locator(".terminal-session-pane.is-visible");
+  const input = pane.locator(".xterm-helper-textarea");
+  const backgroundMarker = `__BACKGROUND_OUTPUT_${Date.now()}__`;
+  await input.pressSequentially(`sleep 1; printf '${backgroundMarker}\\n'`);
+  await input.press("Enter");
+
+  const otherTab = await context.newPage();
+  await otherTab.goto(`${workbench}/`);
+  await otherTab.bringToFront();
+  await otherTab.waitForTimeout(1_300);
+  await page.bringToFront();
+  await expect(pane.locator(".xterm-screen")).toContainText(backgroundMarker, { timeout: 15_000 });
+
+  const inputMarker = `__INPUT_AFTER_TAB_${Date.now()}__`;
+  await input.focus();
+  await input.pressSequentially(`printf '${inputMarker}\\n'`);
+  await input.press("Enter");
+  await expect(pane.locator(".xterm-screen")).toContainText(inputMarker, { timeout: 15_000 });
+  await otherTab.close();
 });
 
 test("uses a touch drawer, focused pane and safe bottom controls on phone portrait", async ({ page }) => {
@@ -121,7 +243,7 @@ test("uses a touch drawer, focused pane and safe bottom controls on phone portra
   expect(drawerBox?.width).toBeLessThanOrEqual(350);
   expect(drawerBox?.width).toBeGreaterThanOrEqual(280);
 
-  await drawer.getByRole("button", { name: "Neues Terminal rechts teilen" }).click();
+  await drawer.getByRole("button", { name: "Neues Terminal rechts teilen", exact: true }).click();
   await expect(page.locator(".terminal-area")).toHaveAttribute("data-split", "true");
   await expect(page.locator(".terminal-session-pane.is-visible")).toHaveCount(1);
 

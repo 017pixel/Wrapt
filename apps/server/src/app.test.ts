@@ -102,6 +102,11 @@ describe("Wrapt API", () => {
       audit: { valid: true, entries: expect.any(Number) },
       orbit: { pendingBackups: expect.any(Number) },
       preview: { totalSlots: settings.previewSlotPorts.length },
+      extensions: {
+        quarantined: expect.any(Number),
+        recoveredTransientOperations: expect.any(Number),
+        backup: { available: expect.any(Boolean), revision: expect.any(Number), lastError: null },
+      },
     });
   });
 

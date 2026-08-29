@@ -52,6 +52,16 @@ describe("HeadlessTerminal", () => {
     expect(terminal.snapshot()).toMatchObject({ cols: 120, rows: 40 });
   });
 
+  it("serialisiert den Scrollback vollständig für Browser-Reconnects", async () => {
+    const terminal = createHeadlessTerminal(30, 4);
+    terminal.write(Array.from({ length: 20 }, (_, index) => `verlauf-${index.toString().padStart(2, "0")}\r\n`).join(""));
+    await waitForParse();
+
+    const snapshot = terminal.snapshot();
+    expect(snapshot.serialized).toContain("verlauf-00");
+    expect(snapshot.serialized).toContain("verlauf-19");
+  });
+
   it("normalisiert gefährliche Geometrie-Eingaben", () => {
     const terminal = createHeadlessTerminal(0, -3);
     expect(terminal.cols).toBeGreaterThanOrEqual(2);

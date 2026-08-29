@@ -15,6 +15,7 @@ import { TerminalSessionPicker } from "./terminal-session-picker";
 import { TerminalSidebar } from "./sidebar/TerminalSidebar";
 import { TerminalCanvas } from "./TerminalCanvas";
 import { WebTerminal, type WebTerminalHandle } from "./WebTerminal";
+import { useAutoCreateTerminalPane } from "./useAutoCreateTerminalPane";
 import type { TerminalMeta } from "./terminal-types";
 import {
   createTerminalOps,
@@ -171,6 +172,7 @@ export function TerminalArea({
     return runtimeId;
   }, [areaId, initialProjectId, kind, queueOps]);
 
+  useAutoCreateTerminalPane(minimal, Boolean(document), hasActivePane, initialProjectId, create);
   const createSplit = useCallback(() => {
     const state = useTerminalWorkspaceStore.getState();
     const doc = state.document;

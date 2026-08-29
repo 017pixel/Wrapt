@@ -1,7 +1,14 @@
 type RouteLoader<T> = () => Promise<T>;
 
-const STALE_CHUNK_RETRY_PARAM = "__wrapt_chunk_retry";
+export const STALE_CHUNK_RETRY_PARAM = "__wrapt_chunk_retry";
 const DYNAMIC_IMPORT_ERROR_PATTERN = /(?:dynamically imported module|module script failed|failed to fetch dynamically imported module)/i;
+
+export function freshAppLoadUrl(currentUrl: string): string | null {
+  const url = new URL(currentUrl);
+  if (url.searchParams.has(STALE_CHUNK_RETRY_PARAM)) return null;
+  url.searchParams.set(STALE_CHUNK_RETRY_PARAM, "1");
+  return url.toString();
+}
 
 function clearStaleChunkRetryMarker() {
   if (typeof window === "undefined") return;
@@ -13,11 +20,10 @@ function clearStaleChunkRetryMarker() {
 
 function requestFreshAppLoad(): boolean {
   if (typeof window === "undefined") return false;
-  const url = new URL(window.location.href);
+  const url = freshAppLoadUrl(window.location.href);
   // Ein zweiter Fehlschlag nach dem Reload darf keine Endlosschleife auslösen.
-  if (url.searchParams.has(STALE_CHUNK_RETRY_PARAM)) return false;
-  url.searchParams.set(STALE_CHUNK_RETRY_PARAM, "1");
-  window.location.replace(url.toString());
+  if (url === null) return false;
+  window.location.replace(url);
   return true;
 }
 
