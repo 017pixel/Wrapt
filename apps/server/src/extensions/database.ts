@@ -7,6 +7,7 @@ import {
   type ExtensionRegistryDetail,
 } from "@wrapt/extension-contracts";
 import { detailFromRow, operationFromRow, reviewFromRow, defaultHealth as codecDefaultHealth } from "./database-codecs.js";
+import { serializeExtensionDatabase } from "./database-snapshot.js";
 
 interface ExtensionRow {
   id: string;
@@ -65,10 +66,12 @@ interface RegistryStateRow {
  */
 export class ExtensionDatabase {
   private readonly database: DatabaseSync;
+  private readonly databasePath: string;
   private recoveredTransientOperations = 0;
 
   constructor(databasePath: string) {
     mkdirSync(dirname(databasePath), { recursive: true });
+    this.databasePath = databasePath;
     this.database = new DatabaseSync(databasePath);
     this.database.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;");
     this.database.exec("PRAGMA foreign_keys = ON;");
@@ -150,7 +153,7 @@ export class ExtensionDatabase {
   }
 
   serialize(): Uint8Array {
-    return this.database.serialize();
+    return serializeExtensionDatabase(this.database, this.databasePath);
   }
 
   transaction<T>(callback: () => T): T {
