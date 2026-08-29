@@ -30,8 +30,8 @@ diag.mjs
 scroll-check.mjs
 tp.mjs
 identity-proxy.mjs
-file-manager-desktop.png
-inbox-read-states-mobile.png
+# Testing-/Screenshot-Artefakte im Repo-Root
+/*.png
 .DS_Store
 .idea/
 .vscode/
