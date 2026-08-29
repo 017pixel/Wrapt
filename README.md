@@ -6,6 +6,8 @@ und dem Hermes-Agenten (Chat, Cron, Systemverwaltung), lokalen Projekten, Develo
 einem eingebetteten Browser, einem freien Orbit-Workspace und einer Tech-News-Intelligence —
 alles auf deinem eigenen Server, privat erreichbar über Tailscale.
 
+Aktueller Produktstand: **1.0.1**.
+
 > **Für wen?** Entwickler:innen, die von überall auf einen leistungsstarken, persönlichen
 > Server-Arbeitsplatz zugreifen wollen, ohne Code oder Zugänge aus der Hand zu geben.
 
@@ -43,6 +45,8 @@ alles auf deinem eigenen Server, privat erreichbar über Tailscale.
 ## Funktionen
 
 - React-19-/Vite-Frontend und Fastify-5-Backend in einem strikten TypeScript-Monorepo.
+- Übersichtlich gruppierte Einstellungen mit Design-Tab, Start-App-Bereich, Alias-Suche und
+  direkten Frontend-/Backend-Neustarts.
 - Tech TLDRs mit RSS-, Atom-, Hacker-News- und YouTube-Feed, deutschen Mistral-Zusammenfassungen, automatischer Wichtigkeit, semantischer Suche und quellengebundenen Rückfragen.
 - Editorial-Bento auf Desktop sowie vertikaler Mobile-Snap-Feed mit Dynamic-Island-Wechsel zwischen Feed und benennbaren Sammlungen.
 - Freier Orbit Workspace mit Zoom, Pan, Lasso, Mehrfachauswahl, adaptiv wachsendem Arbeitsgebiet und mehreren Canvas-Tabs.
@@ -151,6 +155,7 @@ Ausführlich: [docs/configuration.md](docs/configuration.md).
 - Architektur: [docs/architecture.md](docs/architecture.md)
 - Installation: [docs/installation.md](docs/installation.md)
 - Konfiguration: [docs/configuration.md](docs/configuration.md)
+- Einstellungen: [docs/settings.md](docs/settings.md)
 - Agent-Setup: [docs/agent-setup.md](docs/agent-setup.md)
 - Terminal: [docs/terminal.md](docs/terminal.md)
 - Fehlerbehebung: [docs/troubleshooting.md](docs/troubleshooting.md)

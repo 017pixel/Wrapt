@@ -1,6 +1,6 @@
 {
   "name": "wrapt",
-  "version": "0.99.5",
+  "version": "1.0.1",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@10.29.2",
@@ -23,6 +23,9 @@
     "lint": "eslint .",
     "test": "pnpm --filter @wrapt/extension-contracts build && pnpm --filter @wrapt/contracts build && pnpm -r test",
     "test:coverage": "pnpm -r test:coverage",
+    "test:artifact-retention": "node scripts/test-web-artifact-retention.mjs",
+    "test:extension-deployment": "node scripts/test-extension-deployment.mjs",
+    "test:quality-gates": "node scripts/test-quality-gates.mjs",
     "test:e2e": "playwright test",
     "security:audit": "pnpm audit --prod --audit-level=high",
     "architecture:extensions": "node scripts/extensions/check-boundary.mjs",

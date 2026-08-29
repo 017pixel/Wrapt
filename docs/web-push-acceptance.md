@@ -61,7 +61,7 @@ Service-Worker-Testwerkzeug prüfen:
 
 - Automatisierte Backend-, API- und Browserclient-Tests decken Mehrgerätebetrieb, Ownership,
   Policy, Fehlerisolation, Endpoint-Bereinigung, VAPID-Stabilität und lokale Gerätezustände ab.
-- Produktionsbuild, Serverneustart, Health- und API-Smoke-Test wurden mit Version 0.40.0 geprüft.
+- Produktionsbuild, Serverneustart, Health- und API-Smoke-Test wurden mit Version 1.0.0 geprüft.
 - Die Einstellungsoberfläche wurde im Desktop- und 390-Pixel-Viewport sowie mit emuliertem iPadOS
   außerhalb des Standalone-Modus geprüft. Alle Aktionen sind mindestens 44 Pixel hoch.
 - DNS und ausgehendes HTTPS zu `web.push.apple.com` funktionieren; HTTP 405 bestätigt, dass der

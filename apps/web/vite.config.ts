@@ -70,6 +70,8 @@ export default defineConfig(({mode}) => {
     // Lazy-Loader können dadurch bei einem laufenden Build weiterladen, statt
     // auf eine fehlende Datei zu treffen.
     emptyOutDir: false,
+    manifest: "build-manifest.json",
+    outDir: process.env.WRAPT_E2E_WEB_OUT_DIR || "dist",
     sourcemap: false,
   },
   test: {
@@ -79,6 +81,19 @@ export default defineConfig(({mode}) => {
     // schon auf `production`; Tests sollen davon unabhängig deterministisch
     // mit dem Development-Build laufen.
     env: { NODE_ENV: "test" },
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json-summary"],
+      thresholds: {
+        statements: 38,
+        branches: 35,
+        functions: 35,
+        lines: 42,
+        "src/components/plugins/PluginOverview.tsx": { statements: 55, branches: 50, functions: 40, lines: 58 },
+        "src/extensions/pluginRuntime.ts": { statements: 80, branches: 70, functions: 75, lines: 85 },
+        "src/views/DashboardMobileSummary.tsx": { statements: 75, branches: 50, functions: 75, lines: 80 },
+      },
+    },
   },
   });
 });

@@ -37,3 +37,7 @@ inbox-read-states-mobile.png
 .vscode/
 *.swp
 *.log
+
+# Lokale private Agent-Skills
+.codex/
+.opencode/skills/t3-pairing-links/

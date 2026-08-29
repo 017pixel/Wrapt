@@ -1,6 +1,9 @@
 # Design-Audit der Wrapt-Oberfläche
 
-Stand: 04.08.2026 · Methode: Code-Review + Live-Prüfung der laufenden Instanz (Desktop 1440px und Mobile 390px, Accessibility-Snapshots)
+Stand: 28.08.2026 · Methode: Code-Review + Live-Prüfung der laufenden Instanz (Desktop 1440px und Mobile 390px, Accessibility-Snapshots)
+
+Nachtrag: Die damalige Settings-Priorität ist umgesetzt. Einstellungen besitzen jetzt fachliche
+Tabs, direkte Anker und eine fehlertolerante Suche mit Alias-Begriffen.
 
 ## Produktverständnis
 
@@ -26,7 +29,7 @@ Stand: 04.08.2026 · Methode: Code-Review + Live-Prüfung der laufenden Instanz 
 |---|---|---|---|---|---|
 | P1 | Projekte (Datenqualität) | `node_modules` erscheint als Projektkarte; `skills` doppelt (zwei Pfade); 27 Einträge, davon Müll | Vertrauen und Liste verschmutzen; Doppelungen verwirren | Projekt-Scanner: `node_modules`, versteckte Ordner und Nicht-Projekte ausschließen; Duplikate (Symlink/Ordnername) zusammenführen | M |
 | P1 | Projekte (Informationsarchitektur) | 27 fast identische Karten ohne Suche, Filter oder Sortierung; „T3 öffnen“ visuell dominant, obwohl „Weitere Werkzeuge“ der häufigere Einstieg ist | Findbarkeit und Scanbarkeit sinken mit der Projektanzahl | Suche ergänzen, kompaktere Zeilendarstellung, Werkzeug-Hierarchie überdenken | M |
-| P2 | Einstellungen (Navigation) | Elf Sektionen als eine lange Scroll-Seite, keine Sprungmarken, kein Suchfeld | „Wo war nochmal …?“-Problem, besonders mobil | Segmentierte In-Page-Navigation oder Suchfeld | S |
+| erledigt | Einstellungen (Navigation) | Fachliche Tabs, Sprungmarken und Suchfeld vorhanden; die Suche akzeptiert Alias-Begriffe und Tippfehler | Findbarkeit auf Desktop und Mobile verbessert | Umsetzung in `Settings.tsx`, `settingsSearch.ts` und `docs/settings.md` | ✓ |
 | P2 | Accessibility | Switch-Zeilen mit doppelten Namen: „Dashboard Dashboard“, „Codex Codex“ (Button-Text plus `aria-label` auf innerem `role=switch`) | Screenreader lesen jeden Schalter zweimal | `aria-labelledby` auf den Button-Text, Switch ohne eigenes Label | S |
 | P2 | Orbit-Sidebar (Datenqualität) | „skills“ auch hier doppelt | Gleiche Ursache wie P1 | Scanner-Fix abwarten | S |
 | P3 | Benachrichtigungen | WebSocket `notifications/ws` meldet bei jedem Seitenwechsel eine Verbindungs-Warnung | Konsolen-Rauschen, unnötige Verbindungsaufbauten | WebSocket sauber schließen beziehungsweise Reconnect drosseln | S |
@@ -38,7 +41,7 @@ Stand: 04.08.2026 · Methode: Code-Review + Live-Prüfung der laufenden Instanz 
 
 - **Projekt-Scanner:** Auschlusslisten für `node_modules`, versteckte Verzeichnisse und typische Nicht-Projektordner; Deduplizierung über aufgelöste Pfade; Kennzeichnung von Symlink-Projekten statt eigener Karte.
 - **Projektliste:** Suche nach Name/Pfad, kompakte Zeilen mit Status-Badges statt Karten, primäre Aktion nach Nutzungshäufigkeit (Weitere Werkzeuge vor T3 öffnen).
-- **Einstellungen:** Sprung-Navigation (Segmente oder Ankerliste) mit Scroll-Spy; Suche über Sektions- und Titeltexte.
+- **Einstellungen:** Fachliche Tabs, Ankerziele und Suche über Sektions-, Titel- und Aliastexte sind umgesetzt.
 - **Switch-Komponente:** Ein gemeinsames Muster: Zeilen-Button mit `aria-labelledby` auf Titel, `role=switch` ohne eigenen Namen; zentral in `primitives.tsx` statt drei Kopien (Settings, Dashboard, Orbit-Sidebar, Seiten-Sichtbarkeit).
 - **Orbit-Preview-Menü:** Kontextmenü zusätzlich per sichtbarem „…“-Button oder Long-Press zugänglich machen.
 
@@ -59,7 +62,7 @@ Stand: 04.08.2026 · Methode: Code-Review + Live-Prüfung der laufenden Instanz 
 
 1. Scanner-Fix (behebt P1 und die Orbit-Sidebar-Duplikate zugleich)
 2. Projektliste: Suche und kompaktere Darstellung
-3. Einstellungen: In-Page-Navigation
+3. Einstellungen: In-Page-Navigation ✅
 4. Switch-A11y-Fix
 5. P3-Punkte: WS-Rauschen, PWA-Install-Button, Touch-Menü für Orbit-Previews
 
@@ -67,5 +70,5 @@ Stand: 04.08.2026 · Methode: Code-Review + Live-Prüfung der laufenden Instanz 
 
 - Scanner-Fix: Projektliste und Orbit-Sidebar nach dem Fix prüfen; `node_modules` darf nicht mehr auftauchen, Duplikate sind zusammengeführt.
 - Projektliste: Suche mit bekannten Projekten testen; Darstellung bei 27+ Einträgen und auf Mobile prüfen.
-- Einstellungen: Sprungnavigation auf Desktop und Mobile testen; aktive Sektion beim Scrollen.
+- Einstellungen: Sprungnavigation und Suche auf Desktop und Mobile geprüft; Suchziele werden im passenden Tab markiert.
 - A11y: Switch-Zeilen mit Screenreader einmal durchhören; doppelte Namen müssen weg sein.

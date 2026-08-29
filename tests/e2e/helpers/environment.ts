@@ -13,7 +13,11 @@
  * `hasPrivateWrapt` und überspringen sich, statt mit
  * `ERR_NAME_NOT_RESOLVED` zu scheitern und den Lauf rot zu färben.
  */
-export const hasPrivateWrapt = Boolean(process.env.WRAPT_E2E_URL);
+// Der isolierte E2E-Server liefert reproduzierbare Fixture-Daten, aber nicht
+// die private Produktionsumgebung mit allen Projekten, Accounts und News.
+// Private-only-Suiten dürfen deshalb nicht allein wegen einer Test-URL laufen.
+export const hasPrivateWrapt = Boolean(process.env.WRAPT_E2E_URL)
+  && process.env.WRAPT_E2E_ISOLATED !== "true";
 
 export const workbenchUrl = `${(process.env.WRAPT_E2E_URL ?? "http://127.0.0.1:3010").replace(/\/$/, "")}/wrapt`;
 

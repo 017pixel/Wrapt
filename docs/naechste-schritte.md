@@ -1,7 +1,20 @@
 # Nächste Schritte — Aufgabenliste für den nächsten Agenten
 
-Stand: 25.07.2026, Version 0.30.2. Sortiert nach Nutzen. Jeder Punkt nennt, was
+Stand: 28.08.2026, Version 1.0.0. Sortiert nach Nutzen. Jeder Punkt nennt, was
 zu tun ist und woran man erkennt, dass es erledigt ist.
+
+## Erledigt am 28.08.2026
+
+### Einstellungen und Release 1.0.0 ✅
+
+Die Einstellungsseite ist in fachliche Tabs gegliedert und besitzt eine fehlertolerante Suche
+mit Alias-Begriffen und bis zu drei Tippfehlern. Design und Start-App sind eigene Bereiche;
+Allgemein bündelt Status, Schnellzugriffe und den Frontend-/Backend-Neustart. Der Dark-Mode-
+Hinweis wurde entfernt und die Umsetzung ist in [`docs/settings.md`](settings.md) beschrieben.
+
+Typecheck, Lint, Architekturprüfung, Build, 1.503 Unit- und Integrationstests sowie der
+vollständige Playwright-Lauf wurden am 28.08.2026 erfolgreich ausgeführt. Der E2E-Lauf meldete
+134 bestandene und 234 bewusst übersprungene Szenarien.
 
 ## Erledigt am 26.07.2026
 
@@ -16,8 +29,8 @@ gesammelt im letzten Commit, damit er die Themen nicht verschmiert.
 Basis-Adresse kommt aus `tests/e2e/helpers/environment.ts`: `WRAPT_E2E_URL`
 mit Fallback `127.0.0.1:3010`. Tests, die eine eingerichtete Instanz brauchen
 (Projekte, Tailscale-Identität, News), überspringen sich mit Begründung.
-`pnpm test:e2e` läuft ohne Sonderumgebung grün — 68 bestanden, 70 übersprungen,
-in drei Läufen hintereinander bestätigt.
+Der Abschlusslauf am 28.08.2026 lief auf einem isolierten Testport grün — 134 bestanden,
+234 bewusst übersprungen.
 
 Dabei aufgefallen und mitbehoben: Der Lauf lief in `429`. Das API-Ratenlimit
 zählt pro IP, und hinter dem Tailscale-Proxy sehen alle Anfragen wie 127.0.0.1
@@ -68,11 +81,10 @@ festhalten, ab welcher Nightly-Version der Rückweg blockiert ist.
 
 ## Frontend
 
-### 8. Neun Lint-Warnungen abarbeiten
-Alle aus `react-hooks/exhaustive-deps` in `MobileNav`, `ChromiumBrowser`,
-`OrbitWorkbench` und `TechTldrs`. Genau diese Kategorie hat den Cache-Fehler
-verursacht — fehlende Abhängigkeiten sind hier keine Kosmetik.
-**Fertig, wenn:** `pnpm lint` 0 Warnungen meldet.
+### 8. Neun Lint-Warnungen abarbeiten ✅
+Die früheren `react-hooks/exhaustive-deps`-Warnungen in `MobileNav`, `ChromiumBrowser`,
+`OrbitWorkbench` und `TechTldrs` sind behoben.
+**Fertig:** `pnpm lint` meldet 0 Warnungen.
 
 ### 9. `TechTldrs.tsx` aufteilen (1.547 Zeilen)
 Größte Datei im Projekt, enthält Feed, Reader, Chat, Filter und Sammlungen in einem.

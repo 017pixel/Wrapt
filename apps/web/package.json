@@ -1,6 +1,6 @@
 {
   "name": "@wrapt/web",
-  "version": "0.99.5",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -35,7 +35,6 @@
     "@tailwindcss/vite": "4.3.3",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.2",
-    "@types/dompurify": "^3.2.0",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "@vitejs/plugin-react": "6.0.5",

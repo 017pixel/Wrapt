@@ -42,6 +42,24 @@ Wenn die SQLite-Datei fehlt, stellt der Server beim nächsten Start automatisch 
 
 Ein `ORBIT_REVISION_CONFLICT` oder `ORBIT_DESTRUCTIVE_SAVE_BLOCKED` überschreibt den aktiven Serverstand nicht. Der abweichende Browserentwurf liegt in `orbit_conflict_backups`; die aktuelle Arbeitsfläche bleibt in `orbit_documents` und `orbit_document_revisions` erhalten.
 
+## Extension-Registry und Release-Slots
+
+Die Registry liegt unter `<paths.dataDir>/extensions.sqlite`. Verifizierte Registry-Snapshots
+liegen unter `<paths.dataDir>/extension-backups/`; die unveränderlichen Catalog-Slots liegen
+unter `<paths.dataDir>/extension-releases/`. Ein Snapshot enthält Revision, Bytezahl und
+SHA-256-Prüfsumme. Fehlt die Registry-Datei beim Start, stellt Wrapt den letzten geprüften
+Snapshot wieder her. Eine beschädigte oder unvollständige Sicherung führt absichtlich zu einem
+Startfehler statt zu einer leeren Registry.
+
+Release-Slots sind geprüfte, unveränderliche Artefakte. Bei Updates speichert die Registry die
+exakte vorherige Asset-Revision; Update und Rollback prüfen Manifest, Grants und Paketinventar
+aus dem vollständigen Release-Slot. Deklarative UI-Pakete werden erst nach Entrypoint-Health,
+Capability-Broker und aktivem Runtime-Pointer als aktiv markiert. Serverseitige Fremd-Entrypoints
+bleiben fail-closed. Vor einer manuellen Reparatur den Dienst anhalten und Registry, Backup-,
+Release- sowie Runtime-Pointer-Verzeichnis gemeinsam kopieren. Die Betriebsdiagnose
+`/api/v1/system/operational-metrics` zeigt den geprüften Registry-Backupstatus. Der isolierte
+Nachweis läuft mit `pnpm test:extension-deployment` und verändert keine aktive Workbench.
+
 ## Terminal verbindet nicht
 
 - `journalctl -u wrapt.service -n 100 --no-pager` auf WebSocket- oder PTY-Fehler prüfen.

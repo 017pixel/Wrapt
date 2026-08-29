@@ -1,6 +1,6 @@
 {
   "name": "@wrapt/server",
-  "version": "0.99.5",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "scripts": {

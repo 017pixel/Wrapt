@@ -1,7 +1,14 @@
+import { mkdtempSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { defineConfig, devices } from "@playwright/test";
 
 const e2ePort = Number(process.env.WRAPT_E2E_PORT ?? 3010);
 const e2eBaseURL = process.env.WRAPT_E2E_URL ?? `http://127.0.0.1:${e2ePort}`;
+const e2eWebDist = process.env.WRAPT_E2E_EXTERNAL === "true"
+  ? undefined
+  : mkdtempSync(join(tmpdir(), "wrapt-e2e-web-"));
+if (e2eWebDist) process.env.WRAPT_E2E_WEB_OUT_DIR = e2eWebDist;
 
 if (process.env.WRAPT_E2E_URL && process.env.WRAPT_E2E_ISOLATED !== "true") {
   throw new Error(
@@ -14,11 +21,8 @@ export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: false,
   workers: 1,
-  // Der Lauf geht gegen die laufende Workbench und teilt sich deren API-Budget
-  // (180 Anfragen pro Minute, hinter dem Tailscale-Proxy für alle Tabs gemeinsam).
-  // Ein einzelner Test kann deshalb ein `429` abbekommen, obwohl nichts kaputt ist;
-  // das Fenster ist nach wenigen Sekunden wieder offen. Ein Wiederholungsversuch
-  // fängt genau das ab — echte Fehler schlagen auch im zweiten Anlauf fehl.
+  // Der isolierte Launcher besitzt ein eigenes Dist-Verzeichnis; kein E2E-Lauf
+  // überschreibt die Assets oder Sitzungen der aktiven Workbench.
   retries: 1,
   reporter: "list",
   projects: [
@@ -26,12 +30,14 @@ export default defineConfig({
     // Playwrights Firefox-Transport verliert bei page.reload() gelegentlich die
     // Service-Worker-Response-Bindung. Diese Suite prüft Desktop-UI, nicht PWA-Caching.
     { name: "firefox", testIgnore: /responsive-shell\.spec\.ts/, use: { ...devices["Desktop Firefox"], serviceWorkers: "block" } },
+    { name: "webkit", testIgnore: /responsive-shell\.spec\.ts/, use: { ...devices["Desktop Safari"] } },
     { name: "phone-touch", testMatch: /responsive-shell\.spec\.ts/, use: { ...devices["iPhone 13"], browserName: "chromium" } },
     { name: "phone-landscape", testMatch: /responsive-shell\.spec\.ts/, use: { ...devices["iPhone 13"], browserName: "chromium", viewport: { width: 844, height: 390 } } },
     { name: "ipad-portrait", testMatch: /responsive-shell\.spec\.ts/, use: { ...devices["iPad Mini"], browserName: "chromium" } },
     { name: "ipad-landscape", testMatch: /responsive-shell\.spec\.ts/, use: { ...devices["iPad Mini"], browserName: "chromium", viewport: { width: 1024, height: 768 } } },
     { name: "ipad-pro-portrait", testMatch: /responsive-shell\.spec\.ts/, use: { ...devices["Desktop Chrome"], viewport: { width: 1024, height: 1366 }, hasTouch: true, deviceScaleFactor: 2 } },
     { name: "ipad-pro-landscape", testMatch: /responsive-shell\.spec\.ts/, use: { ...devices["Desktop Chrome"], viewport: { width: 1366, height: 1024 }, hasTouch: true, deviceScaleFactor: 2 } },
+    { name: "webkit-mobile", testMatch: /responsive-shell\.spec\.ts/, use: { ...devices["iPhone 13"], browserName: "webkit" } },
   ],
   use: {
     baseURL: e2eBaseURL,

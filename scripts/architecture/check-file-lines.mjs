@@ -7,11 +7,16 @@
 // dürfen hier niemals ausgenommen werden. Läuft ohne externe Unix-Spezialwerkzeuge, nur Node.js.
 
 import { readdir, readFile } from "node:fs/promises";
-import { join, relative } from "node:path";
+import { join, relative, resolve } from "node:path";
 import process from "node:process";
 
 const MAX_LINES = 400;
-const root = process.cwd();
+const root = process.env.WRAPT_FILE_LINES_ROOT
+  ? resolve(process.env.WRAPT_FILE_LINES_ROOT)
+  : process.cwd();
+const baselinePath = process.env.WRAPT_FILE_LINES_BASELINE
+  ? resolve(process.env.WRAPT_FILE_LINES_BASELINE)
+  : join(root, "scripts/architecture/file-line-baseline.json");
 
 const SOURCE_EXTENSIONS = new Set([
   ".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs",
@@ -123,6 +128,7 @@ async function walk(directory, files) {
 const files = await walk(root, []);
 const violations = [];
 const exceptions = [];
+const baseline = JSON.parse(await readFile(baselinePath, "utf8"));
 
 for (const file of files) {
   if (isAllowedDirectory(file)) continue;
@@ -132,21 +138,30 @@ for (const file of files) {
 
   const reason = ALLOWED_FILES.get(file);
   if (reason) {
-    exceptions.push({ file, lines, reason });
+    const maximum = baseline[file];
+    if (reason.startsWith("historisch") && typeof maximum !== "number") {
+      violations.push({ file, lines, baseline: "fehlend" });
+    } else if (typeof maximum === "number" && lines > maximum) {
+      violations.push({ file, lines, baseline: maximum });
+    } else {
+      exceptions.push({ file, lines, reason, ...(typeof maximum === "number" ? { baseline: maximum } : {}) });
+    }
     continue;
   }
   violations.push({ file, lines });
 }
 
-for (const { file, lines, reason } of exceptions) {
-  console.log(`Ausnahme (${reason}): ${lines}  ${file}`);
+for (const { file, lines, reason, baseline: maximum } of exceptions) {
+  const frozen = typeof maximum === "number" ? `, Baseline ${maximum}` : "";
+  console.log(`Ausnahme (${reason}${frozen}): ${lines}  ${file}`);
 }
 
 if (violations.length > 0) {
   violations.sort((a, b) => b.lines - a.lines);
   console.error("\nFile length check failed.\n");
-  for (const { file, lines } of violations) {
-    console.error(`${String(lines).padStart(5)}  ${file}`);
+  for (const { file, lines, baseline: maximum } of violations) {
+    const limit = maximum === undefined ? MAX_LINES : maximum;
+    console.error(`${String(lines).padStart(5)}  ${file} (Limit/Baseline ${limit})`);
   }
   console.error(`\nMaximum allowed: ${MAX_LINES} lines.`);
   process.exit(1);

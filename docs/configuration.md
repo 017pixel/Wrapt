@@ -8,7 +8,7 @@ Konfigurationsquelle für alles Umgebungsspezifische:
 
 - `branding` — Anzeigename der App (`appName`, `shortName`); fließt in Titel, Web-Manifest und Footer.
 - `system` — Dienstbenutzer und Home-Verzeichnis.
-- `tailscale` — Hostname, IP, HTTPS-Port und erlaubte Login-E-Mails (`allowedUsers`).
+- `tailscale` — Hostname, IP, erlaubte Login-E-Mails (`allowedUsers`) und optionale Administratoren (`adminUsers`). Fehlt `adminUsers`, wird aus Kompatibilitätsgründen der erste Eintrag aus `allowedUsers` als Administrator verwendet.
 - `paths` — Projekt-Root, Orbit-Browser-Root, Terminal-Roots, Datenverzeichnis, Datenbank,
   Backups, Assets und Profile.
 - `cli` — Pfade zu `codexbar`, `codex`, `opencode`, `claude`, `tmux`, `chromium`.
@@ -192,7 +192,7 @@ Qualitätsstufe 4 hält Buildzeit und Dateigröße in einem guten Verhältnis. D
 
 Der Abschnitt `dashboard` in `config/wrapt.local.json` steuert, welche Bereiche der Server an die Oberfläche freigibt und wie oft die Live-Daten abgefragt werden. Die Schlüssel unter `sections` sind `quickActions`, `server`, `metrics`, `services`, `runtime`, `diagnostics`, `usage`, `news` und `commands`. Die Intervalle unter `refresh` werden in Millisekunden angegeben und serverseitig begrenzt.
 
-Die Schalter unter Einstellungen → Dashboard gelten nur für den aktuellen Browser und werden in `localStorage` gespeichert. Ein Bereich, der in `dashboard.sections` auf `false` steht, bleibt auch dort gesperrt. Nach Änderungen an der zentralen Config ist ein Backend-Neustart erforderlich.
+Die Schalter unter Einstellungen → Navigation → Dashboard gelten nur für den aktuellen Browser und werden in `localStorage` gespeichert. Ein Bereich, der in `dashboard.sections` auf `false` steht, bleibt auch dort gesperrt. Nach Änderungen an der zentralen Config ist ein Backend-Neustart erforderlich.
 
 ## Nutzungsübersicht und Codex-Reset-Historie
 
@@ -221,22 +221,21 @@ bleiben ausgenommen und verwenden ihr eigenes Kontextmenü.
 
 ## Appearance und lokale Plugins
 
-Der Abschnitt `appearance` kann als Preset oder mit eigenen sechsstelligen Hex-Farben gesetzt werden:
+Der Abschnitt `appearance` kann als eines von zehn dunklen Presets oder mit eigenen Farbrollen gesetzt werden. Die ersten sechs Presets folgen den dunklen T3-Code-Paletten: `t3-code`, `t3-chat`, `grove`, `ocean`, `ember` und `iris`. Danach folgen `dark-modern` und `monokai` als VS-Code-inspirierte Dark-Themes sowie die eigenen Wrapt-Themes `carbon` und `signal`. Light-Mode ist nicht Teil des Vertrags.
 
 ```json
 {
-  "preset": "wrapt-standard",
+  "preset": "t3-code",
   "colors": {
-    "accent": "#3666c2",
+    "accent": "#346bf1",
     "background": "#0a0a0a",
-    "sidebar": "#111111",
-    "topbar": "#0a0a0a",
-    "bottomBar": "#111111"
+    "surface": "#111111",
+    "hover": "#131313"
   }
 }
 ```
 
-Die Oberfläche unter Einstellungen → Oberfläche schreibt diese Werte in `wrapt.local.json`. Plugins verwenden für eigene Flächen die semantischen Rollen `--surface-base`, `--surface-raised`, `--surface-overlay`, `--color-accent`, `--color-text` und `--color-muted`, damit sie bei einem Presetwechsel nicht wie Fremdkörper wirken.
+Die Oberfläche unter Einstellungen → Design schreibt diese Werte in `wrapt.local.json`. Die Farbrollen decken Flächen, Text, Interaktion, Hover, Auswahl, Fokus, Rahmen und Statuswerte ab. Alte `wrapt-standard`-, `graphit`- und `sage`-Konfigurationen bleiben lesbar. Plugins verwenden für eigene Flächen die semantischen Rollen `--surface-base`, `--surface-raised`, `--surface-overlay`, `--surface-hover`, `--color-accent`, `--color-text` und `--color-muted`, damit sie bei einem Presetwechsel nicht wie Fremdkörper wirken.
 
 ```dotenv
 API_RATE_LIMIT_MAX=180
@@ -304,7 +303,7 @@ Bei Multi-Page-Apps kann `path` direkt auf den gewünschten Einstieg zeigen, zum
 - `self`: Backendprozess gilt nach erfolgreichem Request als aktiv.
 - `none`: klarer inaktiver Zustand mit Begründung.
 
-Interne Healthcheck-URLs werden nie an den Browser gesendet. Öffentliche URLs dürfen nicht localhost sein.
+Interne Healthcheck-URLs werden nie an den Browser gesendet. Öffentliche URLs dürfen nicht localhost sein. Beim Dienst `t3-code` folgt die offizielle Hosted-App automatisch dem Kanal: `https://app.t3.codes` für Stable und `https://nightly.app.t3.codes` für Nightly. Eigene T3-URLs bleiben unverändert. Manuell gekoppelte Hosted-App-Umgebungen sind browserlokal; für geräteübergreifende Einträge muss der Server über T3 Connect verknüpft und der Browser dort angemeldet sein.
 
 ## Commands
 

@@ -24,11 +24,25 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm architecture:extensions
+      - run: pnpm architecture:file-lines
+      - run: pnpm test:quality-gates
       - run: pnpm typecheck
       - run: pnpm exec eslint . --max-warnings=0
       - run: pnpm build
       - run: pnpm test
       - run: pnpm test:coverage
+      - run: pnpm test:artifact-retention
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-report
+          path: |
+            apps/server/coverage/
+            apps/web/coverage/
+            packages/contracts/coverage/
+            packages/extension-contracts/coverage/
+          if-no-files-found: ignore
+          retention-days: 7
       - run: pnpm security:audit
 
   e2e:
@@ -52,7 +66,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # Preview-Laufzeiten starten über tmux auf dem separaten Preview-Socket.
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tmux
-      - run: pnpm exec playwright install --with-deps chromium firefox
+      - run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - run: pnpm test:extension-deployment
       - run: pnpm test:e2e
       - if: failure()
         uses: actions/upload-artifact@v7
