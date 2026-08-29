@@ -2,59 +2,35 @@
 
 Alle Änderungen werden in fünf kurzen Stichpunkten pro Kategorie dokumentiert.
 
-## [Unreleased] - 2026-08-24
-
-### Erstellt
-- Sicherheitsprüfungen für lokale Listener, WebSocket-Verbindungen und Push-Ziele ergänzt
-- Verifizierte Paketinventare, Release-Slots, exakte Catalog-Artefakt-Rollbacks und sichere Registry-Recovery für Extension-Operationen ergänzt
-- Deklarative UI-Runtime mit atomarem Pointer, Health-Handshake, Capability-Recheck und isoliertem Deployment-/Restore-/Rollback-Smoke-Test ergänzt
-- Kompakte mobile Dashboard-Zusammenfassung mit automatisch geöffneten Warnungsdetails ergänzt
-- Isolierten E2E-Lauf mit eigenen Testpfaden, Testintegrationen und temporärem Frontend-Build ergänzt
-- Begrenzte Frontend-Release-Aufbewahrung, Push-/Buildmetriken und CI-Coverage-Artefakte ergänzt
-
-### Verändert
-- Plugin-Drafts verwenden jetzt Versionskonflikte, serialisierte Schreibvorgänge und gestagete Pakete
-- Extension- und Plugin-Verwaltung verlangt serverseitig die passende Administrator-Identität
-- Proxy- und Upload-Schnittstellen trennen aktive HTML-Inhalte und Multipart-Daten sicher voneinander
-- WebSocket-Bridges begrenzen ausstehende und verbundene Puffer in allen relevanten Proxys
-- Mobile Plugin-Tabs unterstützen horizontales Scrollen, Snap-Verhalten und aktives Sichtbarmachen
-
-### Gelöscht
-- Aktive HTML-Inhalte aus der privilegierten API-Proxy-Antwort entfernt
-- Unbegrenztes Wachstum abgeschlossener Extension-Operationswarteschlangen entfernt
-- Gemeinsame globale Multipart-Verarbeitung vor dem Proxy entfernt
-- Veraltete direkte DOMPurify-Typabhängigkeit entfernt
-- Unbegrenzte Aufbewahrung alter Frontend-Kompressionsdateien entfernt
-
 ## [1.0.1] - 2026-08-29
 
 ### Erstellt
-- Regressionstest für den Theme-Erhalt über Einstellungsbereiche ergänzt
-- Prüfung der aktiven Auswahl nach mehrfachen Tab-Wechseln ergänzt
-- Patch-Version für den stabilen Produktstand dokumentiert
-- Verständliche Rückmeldung für die gespeicherte Theme-Auswahl beibehalten
-- Kompatible Versionsnormalisierung für bestehende Installationen ergänzt
+- Öffentlichen Codex-Marktplatz mit dem Wrapt-spezifischen `$plugin-creator` ergänzt
+- Verifizierte Extension-Rollbacks, sichere Registry-Recovery und isolierte Deployment-Smoke-Tests ergänzt
+- Vollständigen Dokumentationsindex sowie Installations- und Plugin-Anleitungen ergänzt
+- Isolierten E2E-Lauf mit eigenen Testpfaden und temporärem Frontend-Build ergänzt
+- Regressionstests für Theme-Erhalt, Tab-Wechsel und kompatible Versionsnormalisierung ergänzt
 
 ### Verändert
-- Aktive Theme-Auswahl bleibt beim Wechsel zwischen Einstellungsseiten erhalten
-- Live-Theme und Einstellungsansicht verwenden denselben aktuellen Auswahlstand
-- Server, Frontend und Produktmetadaten verwenden jetzt Version 1.0.1
-- Bestehende Konfigurationen werden beim Start auf den Patch-Stand aktualisiert
-- Das explizite Speichern der Projektkonfiguration bleibt unverändert
+- README, Schnellstart und systemd-Betrieb bilden die tatsächlichen Installationswege ab
+- Wrapt verwendet standardmäßig den versionierten, mitgelieferten Plugin-Creator-Skill
+- Sämtliche README-Aufnahmen verwenden neutrale Beispieldaten und T3 Code im Dark Mode
+- Plugin-Drafts nutzen Versionskonflikte, serialisierte Schreibvorgänge und gestagete Pakete
+- Server, Frontend, Produktmetadaten und bestehende Konfigurationen verwenden Version 1.0.1
 
 ### Behoben
+- Plugin-Verwaltung verweist nicht mehr auf den allgemeinen Codex-Plugin-Creator
+- Installationsanleitung trennt Vordergrundstart und dauerhaften systemd-Betrieb eindeutig
 - Design-Seite fällt nach dem Wechsel auf Navigation nicht mehr auf T3 Code zurück
 - Ocean, Ember und eigene Farbänderungen verlieren ihren aktiven Zustand nicht mehr
-- Die globale Theme-Synchronisierung überschreibt keine aktuelle Live-Auswahl mehr
-- Erneutes Öffnen des Design-Bereichs zeigt wieder das zuletzt ausgewählte Theme
-- Theme-Wechsel zwischen Einstellungsseiten bleibt ohne vollständigen Seitenneulauf stabil
+- Proxy-, Upload- und WebSocket-Grenzen verhindern unkontrollierte aktive Inhalte und Puffer
 
 ### Gelöscht
-- Unbeabsichtigte Rücksetzung der Auswahl beim Entfernen des Design-Bereichs entfernt
-- Veraltete Trennung zwischen lokaler Auswahl und aktuellem Live-Theme entfernt
-- Doppelte Neuauswahl des Standard-Themes beim Zurückkehren entfernt
-- Nicht benötigter Auswahlverlust zwischen benachbarten Tabs entfernt
-- Irreführender Wechsel von einem aktiven Theme zum T3-Code-Layout entfernt
+- Echte Host-, Account-, Sitzungs- und lokale Pfaddaten aus öffentlichen Screenshots entfernt
+- Abhängigkeit des Wrapt-Plugin-Makers von einem externen System-Skill entfernt
+- Aktive HTML-Inhalte und globale Multipart-Verarbeitung aus privilegierten Proxy-Pfaden entfernt
+- Unbegrenzte Aufbewahrung alter Frontend-Artefakte und Operationswarteschlangen entfernt
+- Unbeabsichtigte Theme-Rücksetzungen und doppelte Standardauswahl entfernt
 
 ## [1.0.0] - 2026-08-28
 

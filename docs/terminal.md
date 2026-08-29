@@ -42,7 +42,7 @@ parallel laufen, ohne dass eine bestehende Session stillschweigend ihr Arbeitsve
 In der privaten `.env` müssen die Tailscale-Loginnamen berechtigt werden, etwa:
 
 ```dotenv
-TERMINAL_ALLOWED_USERS=benjamin@example.com
+TERMINAL_ALLOWED_USERS=user@example.com
 TERMINAL_ALLOWED_ROOTS=/home/your-user,/home/your-user/projects
 TERMINAL_DEFAULT_CWD=/home/your-user
 TERMINAL_MAX_SESSIONS=5

@@ -36,7 +36,7 @@ Registry- und UI-Verträgen verifizierte Release-Artefakte, Permission-Review/Gr
 deterministisches Recovery und vollständiger Rollback nachgewiesen sind. Ein erfolgreicher
 Install- oder Draft-Write-Request allein ist kein Runtime- oder Sicherheitsnachweis.
 
-Review-Owner: Wrapt-Maintainer (Benjamin Becker). Review: vor jeder Änderung an Extension-
+Review-Owner: Wrapt-Maintainer. Review: vor jeder Änderung an Extension-
 Verträgen, Lifecycle/Permissions, Catalog-Hashing oder Plugin-Runtime sowie mindestens einmal
 pro Produktrelease. Die Audit-Checkliste bleibt der Abschlussnachweis; dieses Dokument beschreibt
 die aktuelle Zwischeninvariante und das historische Journal getrennt.

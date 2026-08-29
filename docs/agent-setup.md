@@ -66,6 +66,7 @@ Antworten aus Schritt 1 ein. Bedeutung der Felder:
 | `paths.codexSharedHome` / `claudeSharedHome` / `opencodeSharedHome` | Optional. Gemeinsame Homes der KI-Werkzeuge für den Accountwechsel (Standard: `<home>/.codex`, `<home>/.claude`, `<home>/.local/share/opencode`). |
 | `cli.*` | Pfade zu `codexbar`, `codex`, `opencode`, `claude`, `tmux`, `chromium`. |
 | `codexbar.configPath` / `oauthProfileHomes` | CodexBar-Konfiguration und optionale OAuth-Profile. |
+| `plugins.creatorSkillPath` | Optionaler absoluter Ersatzpfad. Ohne Wert nutzt Wrapt den mitgelieferten `$plugin-creator`. |
 
 ### b) `.env`
 Kopiere `.env.example` nach `.env`. Hier gehören **nur Secrets und neutrale Runtime-Knöpfe**
@@ -98,7 +99,7 @@ pnpm dev
 pnpm build && pnpm start
 ```
 
-**Optional als systemd-Dienst** (Linux, dauerhafter Betrieb):
+**Als systemd-Dienst** (Linux, empfohlener dauerhafter Betrieb):
 ```bash
 bash deploy/systemd/install.sh               # rendert User-Units aus der Config und installiert sie (kein sudo)
 bash deploy/proxy/configure-tailscale-serve.sh   # veröffentlicht privat im Tailnet (optional)
@@ -106,6 +107,8 @@ sudo bash deploy/systemd/install-codexbar.sh # optionaler CodexBar-Dienst
 ```
 Die systemd-Units werden aus den Templates in `deploy/systemd/units/` gerendert und mit den
 Werten aus `config/wrapt.local.json` gefüllt (siehe `deploy/systemd/render-units.mjs`).
+Der Installationslauf baut, installiert und startet aktive User-Dienste. Ein Coding-Agent
+führt ihn nur aus, nachdem der Benutzer den Dienstwechsel ausdrücklich bestätigt hat.
 
 ---
 
@@ -142,7 +145,7 @@ werden dabei nie gelöscht, sondern verschoben und gesichert.
    curl -s http://127.0.0.1:3010/api/v1/health
    ```
    Antwort enthält `"appName"` mit dem konfigurierten Namen.
-2. **UI erreichbar:** `http://127.0.0.1:3010/workbench` (bzw. über Tailscale-Host:Port).
+2. **UI erreichbar:** `http://127.0.0.1:3010/wrapt/` (bzw. über Tailscale-Host:Port).
 3. **Projekte sichtbar:** Im Orbit erscheinen die Projekte aus `paths.projectsRoot`.
 4. **Terminal/Browser/News/Usage** laden ohne Fehler.
 

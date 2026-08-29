@@ -8,7 +8,7 @@ Tabs, direkte Anker und eine fehlertolerante Suche mit Alias-Begriffen.
 ## Produktverständnis
 
 - **Produkttyp:** Private, selbst gehostete Remote-Development-Wrapt (Operations- und Agent-Werkzeug).
-- **Primärnutzer:** Benjamin (Einzelnutzer, Desktop und Mobile).
+- **Primärnutzer:** Einzelnutzer auf Desktop und Mobile.
 - **Primärtasks:** Projekte und Workflows öffnen, Agenten (T3 Code, Hermes, CLI-Terminals) bedienen, Serverzustand überwachen, Terminals und Previews steuern.
 - **Business-Ziel:** Zuverlässiger, schneller Zugriff auf alle Remote-Werkzeuge von jedem Gerät.
 - **Constraints:** Nur ein Nutzer, Tailscale-Identity-Auth, Produktion läuft als systemd-Dienst, Wrapt wird für die Eigenentwicklung benutzt.

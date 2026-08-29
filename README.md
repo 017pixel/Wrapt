@@ -1,182 +1,221 @@
 # Wrapt
 
-Selbst gehostete Remote-Development-Wrapt: ein privater Arbeitsplatz im Browser mit
-Editor (code-server / T3 Code), nativen PTY-Terminals, KI-CLIs (Codex, OpenCode, Claude Code)
-und dem Hermes-Agenten (Chat, Cron, Systemverwaltung), lokalen Projekten, Development-Previews,
-einem eingebetteten Browser, einem freien Orbit-Workspace und einer Tech-News-Intelligence —
-alles auf deinem eigenen Server, privat erreichbar über Tailscale.
+Die selbst gehostete Remote-Development-Workbench für den privaten Arbeitsplatz im Browser.
+Wrapt verbindet Projekte, Terminals, Editoren, Coding-Agenten, Previews, Dateien,
+Automatisierungen und Systemdiagnose in einer Oberfläche.
 
-Aktueller Produktstand: **1.0.1**.
+**Aktuelle Vollversion: 1.0.1 · MIT · Node.js 22+ · pnpm 10**
 
-> **Für wen?** Entwickler:innen, die von überall auf einen leistungsstarken, persönlichen
-> Server-Arbeitsplatz zugreifen wollen, ohne Code oder Zugänge aus der Hand zu geben.
+![Wrapt-Dashboard mit anonymisiertem Beispielserver](docs/screenshots/01-dashboard.png)
 
-## Screenshots
+Wrapt läuft standardmäßig auf `127.0.0.1:3010`. Für den Remote-Zugriff ist Tailscale
+vorgesehen; öffentliche Freigaben per Funnel gehören bewusst nicht zum Betriebsmodell.
 
-![Dashboard – Systemstatus, Dienste und Projekte](docs/screenshots/01-dashboard.png)
+## Was Wrapt bietet
 
-<p align="center"><em>Dashboard: Systemstatus, aktive Dienste und konfigurierte Projekte auf einen Blick.</em></p>
-
-| Development Wrapt (Infinite Canvas) | Tech TLDRs – News Intelligence |
-|:--:|:--:|
-| ![Development Wrapt im Infinite Canvas](docs/screenshots/02-workbench.png) | ![Tech TLDRs News Intelligence](docs/screenshots/03-tech-tldrs.png) |
-| Freier Orbit-Workspace mit Terminals, Agenten und Tools nebeneinander. | RSS-/HN-/YouTube-Feeds mit deutschen Zusammenfassungen und semantischer Suche. |
-
-| T3 Code | Code-Server Editor |
-|:--:|:--:|
-| ![T3 Code Agent](docs/screenshots/04-t3-code.png) | ![Code-Server Editor](docs/screenshots/05-code-server.png) |
-| Agentengestützte Entwicklung direkt im Browser. | Vollwertiger VS-Code-Editor im Browser. |
-
-| Dateimanager | Terminal |
-|:--:|:--:|
-| ![Dateimanager](docs/screenshots/06-gallery.png) | ![Natives PTY-Terminal](docs/screenshots/07-terminal.png) |
-| Finder-Dateimanager mit Verzeichnisbaum, Listenansicht und Dateiaktionen. | Native `node-pty`-/xterm.js-Terminals mit Reconnect und Verlauf. |
-
-| Nutzung & Limits | Einstellungen |
-|:--:|:--:|
-| ![Nutzung, Kosten und Limits](docs/screenshots/08-usage.png) | ![Einstellungen](docs/screenshots/09-settings.png) |
-| Token-, Kosten- und Limithistorie für Codex, OpenCode und Claude Code. | Zentrale Konfiguration von Accounts, Diensten und Oberfläche. |
-
-| Hermes Agent – Chat | Hermes Agent – System |
-|:--:|:--:|
-| ![Hermes Agent Chat](docs/screenshots/10-hermes-chat.png) | ![Hermes Agent System](docs/screenshots/11-hermes-system.png) |
-| Vollständige offizielle Hermes-Web-UI im eingebetteten Dashboard für Chat, Automatisierungen und Verwaltung. | Host- und Dienstzustand des Hermes-Agenten: Version, Ressourcen und Gateway. |
-
-## Funktionen
-
-- React-19-/Vite-Frontend und Fastify-5-Backend in einem strikten TypeScript-Monorepo.
-- Übersichtlich gruppierte Einstellungen mit Design-Tab, Start-App-Bereich, Alias-Suche und
-  direkten Frontend-/Backend-Neustarts.
-- Tech TLDRs mit RSS-, Atom-, Hacker-News- und YouTube-Feed, deutschen Mistral-Zusammenfassungen, automatischer Wichtigkeit, semantischer Suche und quellengebundenen Rückfragen.
-- Editorial-Bento auf Desktop sowie vertikaler Mobile-Snap-Feed mit Dynamic-Island-Wechsel zwischen Feed und benennbaren Sammlungen.
-- Freier Orbit Workspace mit Zoom, Pan, Lasso, Mehrfachauswahl, adaptiv wachsendem Arbeitsgebiet und mehreren Canvas-Tabs.
-- Mobile Orbit-Bedienung mit zuverlässigem Canvas-/Inhaltsmodus, Zwei-Finger-Pan und Pinch-Zoom, scrollbarer Steuerleiste sowie daumenfreundlichem Fünfer-Dock.
-- Projekt-Hubs verbinden T3 Code, code-server, Preview, Browser, Notion, Terminal, Codex, OpenCode, Notizen, Snippets, Dateien und Nutzungsanzeigen visuell.
-- Orbit-Zustand wird in einer updatefesten lokalen SQLite-Datei mit vollständiger Revisionshistorie gespeichert und automatisch synchronisiert.
-- Jede erfolgreiche Orbit-Revision erhält zusätzlich eine unveränderliche, prüfsummengesicherte JSON-Sicherung außerhalb des Repositorys.
-- Fehlende Datenbankstände werden automatisch wiederhergestellt; Konflikte und ungewöhnlich große Löschungen bleiben als getrennte Wiederherstellungsentwürfe erhalten.
-- Sidebar-Palette und Slash-Menü erzeugen Knoten per Klick oder Drag-and-drop; Inspector, Szenen und Undo/Redo ermöglichen freie Organisation.
-- Native `node-pty`-/xterm.js-Terminals mit Tailscale-Identität, tmux-Supervisor, serverseitiger Session-Registry, geräteübergreifender Wiederaufnahme, Resize, Verlauf und Reconnect.
-- Eigenständige Codex- und OpenCode-Seiten mit automatisch gestarteten CLIs, Projektbindung und bis zu vier persistenten Bento-Instanzen je Werkzeug.
-- Hermes-Agent als eigenständige Fläche: die vollständige offizielle Hermes-SPA für Chat, Cron, Logs, Modelle, Skills, MCP und weitere Verwaltungsfunktionen im eingebetteten Dashboard.
-- Zentrale Inbox für Hermes, T3 Code, Codex, OpenCode, Claude Code und lange Terminal-Prozesse mit Live-Zustellung, sicheren Deep-Links, Swipe-Aktionen, Fehlerberichten und geräteübergreifendem Web-Push für Android und installierte iPadOS-PWAs. Jedes Gerät besitzt ein unabhängiges Abo und lässt sich einzeln testen oder deaktivieren.
-- Werkzeug „KI-Skills": globale Agenten-Regeln und alle Skills des Harness-Ordners im Browser bearbeiten, mit Autosave ohne Speichern-Knopf, Konflikterkennung, Skill-Gerüst im offiziellen Format, automatischer Verteilung per Symlink und Commit/Push ins Skills-Repository.
-- Dateimanager „Finder" als eigene Seite und Wrapt-Werkzeug: Drei-Pane-Ansicht mit Verzeichnisbaum, Liste/Raster und Vorschau-Panel, serverseitig synchronisierter Zustand über Geräte hinweg, Quick Look per Leertaste (Code, Bilder, Video, Audio, PDF, HTML, Markdown) und Dateiaktionen im Server-Dateisystem (Umbenennen, Verschieben, Löschen, Upload, Download).
-- Dashboard als Betriebszentrale: Gesamtaussage im Kopf, Kennzahlenleiste mit CPU, Arbeitsspeicher, Datenträger, Event-Loop, Anfragen und Fehlerquote samt Verlauf sowie eigener Bereich „Wrapt-Diagnose" mit Bereitschaftsprüfungen, Audit und Orbit-/Preview-Status.
-- Automatische Erkennung aller direkten, nicht versteckten Verzeichnisse unter dem konfigurierten Projekt-Root; Orbit sortiert die jüngste Auswahl aus Wrapt-Nutzung, Dateisystemänderungen und Git-Commits und bietet zusätzlich eine vollständige Suche.
-- Großer Orbit-Serverbrowser zeigt den vollständigen Dateibaum unter dem konfigurierten Home-Verzeichnis, springt direkt zu eingegebenen Pfaden und registriert beliebige Unterordner dauerhaft als Projekt-Hubs.
-- code-server bleibt auf `127.0.0.1:8080` und wird samt WebSockets unter `/editor/` am privaten Wrapt-HTTPS-Origin bereitgestellt.
-- Development-Previews laufen direkt und ohne Bildstream über getrennte HTTPS-Slot-Origins; localStorage und IndexedDB sind pro Slot getrennt und Vite-HMR bleibt am Root erhalten. Cookies gelten weiterhin hostweit, und externe Websites laufen nie über diesen Gateway.
-- Der Preview Hub verwaltet mehrere persistente Projekt-Tabs, startet erkannte Dienste konfliktfrei auf freien Ports der zentralen Palette, zeigt Status und Logs je Projekt und öffnet die direkte Tailscale-Preview im neuen Tab oder Fenster.
-- Canvas, Sidebar, Vollbildroute und Browser-Panel teilen sich dieselbe lokale Preview-Laufzeit: eine Session-Lease je Fläche, Slot-Affinität pro Storage-Profil und ein fail-closed Quarantänezustand, falls ein Slot-Reset nicht verifizierbar ist.
-- Optionale Best-Effort-Diagnose (Console, Fehler, Netzwerk, Routing) mit gekennzeichneter Quelle und Vollständigkeit, redigierten Logs für höchstens sieben Tage und einem Doctor ohne `sudo`.
-- Opt-in-Snapshots des localStorage je Preview, AES-256-GCM verschlüsselt und konfliktbewusst. IndexedDB, Cache Storage, Service Worker, sessionStorage und Cookies werden ausdrücklich **nicht** synchronisiert.
-- Benannte Orbit-Preview-Gruppen mit 1er-, 2er-, 3er- und 6er-Layout, Gerätepresets, Vollbildroute sowie lös- und andockbaren Slots.
-- Ein eigener, serverseitig isolierter Chromium-Browser mit dauerhaften, benutzergebundenen Profilen erhält Cookies und Logins über Geräte- und Backendwechsel hinweg.
-- Notion ist als gemeinsames Chromium-Werkzeug in Sidebar, Einzelansicht, Wrapt und Infinite Canvas verfügbar; die Anmeldung bleibt ausschließlich im geschützten Serverprofil.
-- Besuchte Hauptansichten, Iframes, xterm-Instanzen und WebSockets bleiben während der Browser-Session gemountet und wechseln ohne Neustart.
-- Alle Live-Werkzeuge lassen sich frei positionieren und skalieren; stabile Laufzeit-IDs erhalten Terminal- und Agent-Sitzungen über Canvas-Interaktionen hinweg.
-- Kontextuelle Preview-Island mit automatisch gefilterten Rastern, Reload, externem Fenster, Hub-Sprung, direkter iframe-Laufzeit und Xcode-artiger Geräteauswahl.
-- Lazy geladene Routen, Idle-Prefetch, Brotli/Gzip und langfristig gecachte Build-Assets reduzieren Start- und Wechselzeiten.
-- Desktop-Sidebar, echte Breadcrumbs, mobile Gruppenansicht und Statuszeile mit Codex-, OpenCode- und Claude-Code-Limits.
-- SQLite-gestützte Token-, Kosten-, Projekt- und Modellhistorie aus CodexBar mit Diagrammen und Limitprognosen.
-- Sichere Codex-/OpenCode-/Claude-Code-Accountverwaltung mit lokaler Profilerkennung und isolierten CLI-Neuanmeldungen.
-- **Schnellwechsel zwischen Accounts:** je Werkzeug genau ein serverweit aktiver Account — mehrere OpenAI-/Codex-Abos (privat, Arbeit) ebenso wie Claude Code und OpenCode. Ein Klick auf „Aktivieren“ oder `scripts/ki-account.sh use arbeit` schaltet um, ohne Abmeldung und ohne neue Geräteanmeldung; Projekte, Sessions und Konfiguration bleiben gemeinsam.
-- Zod-validierte API, strenge CSP, loopback-only Dienste und Tailscale Serve ohne öffentlichen Funnel.
-- Reproduzierbare systemd-Units mit Neustart, Healthchecks und Rollback-Vorbereitung.
-
-## Voraussetzungen
-
-- **Linux mit systemd** (für den dauerhaften Dienstbetrieb; zum Entwickeln reicht jedes System mit Node).
-- **Node.js ≥ 22** und **pnpm 10**.
-- **tmux** (für Terminal-Sessions), **Chromium/Chrome** (für das Browser-Tool).
-- **Tailscale** für den privaten Remote-Zugriff — *optional*, lokal läuft es auch ohne.
-- **code-server** (eingebetteter Editor), **CodexBar-CLI** (Nutzungshistorie), **Mistral-Account**
-  (KI-Funktionen der Tech-TLDRs) — jeweils *optional*.
+- Einen freien Orbit-Workspace für Projekte, Terminals, Agenten, Previews und Notizen.
+- Browserbasierte Werkzeuge für T3 Code, code-server, Codex, OpenCode und Claude Code.
+- Persistente PTY-Terminals mit tmux-Supervisor, Wiederaufnahme und Projektbindung.
+- Direkte Development-Previews, einen serverseitigen Chromium-Browser und einen Dateimanager.
+- Hermes Agent mit offizieller Weboberfläche, Chat, Cron, Skills und Verwaltung.
+- Tech TLDRs, Inbox, Nutzungsanalyse, Accountwechsel und lokale Systemdiagnose.
+- Ein versioniertes Extension-System und persönliche, deklarative Plugins mit Least Privilege.
 
 ## Installation
 
-### Empfohlen: Einrichtung durch einen Coding-Agent
+### Voraussetzungen
 
-Gib deinem Coding-Agent (Claude Code, Codex, OpenCode …) diesen Prompt:
+- Linux mit systemd für den dauerhaften Betrieb. Die Entwicklung funktioniert auch ohne systemd.
+- Node.js `>= 22` und pnpm `10`.
+- tmux für persistente Terminal-Sitzungen.
+- Optional: Tailscale, Chromium/Chrome, code-server sowie die gewünschten KI-CLIs.
 
-```text
-Lies und befolge docs/agent-setup.md in diesem Repository. Richte Wrapt auf
-diesem Server ein: frag mich nach allen benötigten Werten (Systembenutzer, Projekt-Root,
-Tailscale-Host/IP, erlaubte Login-E-Mails, optionale CLI-Pfade und Mistral-Key), erzeuge
-config/wrapt.local.json und .env aus den Vorlagen, führe scripts/install-deps.sh aus
-und verifiziere am Ende den Health-Check.
-```
-
-Der Agent stellt die nötigen Fragen, füllt die Konfiguration, installiert alles und prüft,
-dass die Wrapt läuft. Details: [docs/agent-setup.md](docs/agent-setup.md).
-
-### Manuelle Installation (Kurzform)
+### 1. Repository vorbereiten
 
 ```bash
-# 1. Konfiguration aus den Vorlagen erzeugen und mit echten Werten füllen
+git clone https://github.com/017pixel/Wrapt.git
+cd Wrapt
 cp config/wrapt.example.json config/wrapt.local.json
 cp .env.example .env
-$EDITOR config/wrapt.local.json   # Benutzer, Pfade, Tailscale, erlaubte E-Mails …
-$EDITOR .env                          # optional: MISTRAL_API_KEY
-
-# 2. Abhängigkeiten prüfen/installieren und bauen
-bash scripts/install-deps.sh
-
-# 3. Starten
-pnpm dev                              # Entwicklung (Hot-Reload)
-# oder für Produktion:
-pnpm build && pnpm start
 ```
 
-Health-Check: `curl -s http://127.0.0.1:3010/api/v1/health`
+Passe anschließend `config/wrapt.local.json` an. Mindestens `system`, `paths` und die
+erlaubten Tailscale-Identitäten müssen zur Zielumgebung passen. Die `.env` enthält nur
+Secrets und neutrale Runtime-Werte; `HOST=127.0.0.1` bleibt in Produktion unverändert.
 
-## Konfiguration
+Alle Beispielwerte verwenden neutrale Konten wie `user@example.com` und `your-user`.
 
-Alle persönlichen Werte leben in **einer** zentralen, gitignorierten Datei:
-`config/wrapt.local.json` (Vorlage: `config/wrapt.example.json`). Sie bündelt Branding,
-Systembenutzer, Tailscale-Angaben, alle Pfade und CLI-Pfade. Die `.env` enthält nur Secrets und
-neutrale Runtime-Knöpfe; gesetzte Env-Variablen überschreiben einzelne Config-Werte.
-Ausführlich: [docs/configuration.md](docs/configuration.md).
+### 2. Abhängigkeiten installieren und bauen
 
-## Befehle
+```bash
+bash scripts/install-deps.sh
+```
 
-- `pnpm dev` – Contracts (`contracts`, `extension-contracts`) bauen und Server/Web parallel starten.
-- `pnpm typecheck` – strict TypeScript prüfen.
-- `pnpm lint` – Repository linten.
-- `pnpm test` – Unit-/Integrationstests ausführen.
-- `pnpm build` – Contracts, Server und Web produktiv bauen.
-- `pnpm test:e2e` – Playwright-Abläufe prüfen.
-- `pnpm start` – gebauten Produktionsserver auf localhost starten.
-- `bash deploy/systemd/install.sh` – systemd-User-Units aus der Config rendern und installieren (kein `sudo`).
+Das idempotente Skript prüft Node und pnpm, installiert die Workspace-Abhängigkeiten und
+baut Extension Contracts, Contracts, Backend und Frontend in der richtigen Reihenfolge.
+
+### 3. Startmodus wählen
+
+Entwicklung mit Hot Reload:
+
+```bash
+pnpm dev
+```
+
+Produktionsserver im Vordergrund:
+
+```bash
+pnpm start
+```
+
+Dauerhafter Betrieb als systemd-User-Dienst:
+
+```bash
+bash deploy/systemd/install.sh
+```
+
+Der systemd-Installer baut und prüft Wrapt, installiert beziehungsweise aktualisiert die
+User-Units und startet die betroffenen Dienste. Führe ihn deshalb nur aus, wenn ein
+Dienstwechsel in diesem Moment gewollt ist.
+
+### 4. Installation prüfen
+
+```bash
+curl -f http://127.0.0.1:3010/api/v1/health
+systemctl --user status wrapt.service  # nur bei systemd-Installation
+```
+
+Öffne lokal `http://127.0.0.1:3010/wrapt/`. Der optionale private Tailscale-Zugang wird
+anschließend mit `bash deploy/proxy/configure-tailscale-serve.sh` eingerichtet.
+
+Die vollständigen Wege, Voraussetzungen und Prüfungen stehen in der
+[Installationsanleitung](docs/installation.md). Für eine agentengestützte Einrichtung gibt es
+die genaue [Agent-Setup-Anleitung](docs/agent-setup.md).
+
+## Plugin- und Extension-System
+
+Wrapt unterscheidet drei Ebenen:
+
+| Ebene | Zweck | Speicherort |
+| --- | --- | --- |
+| Persönlicher Plugin-Draft | Lokales Werkzeug für eine Wrapt-Instanz | `<dataDir>/plugin-drafts` |
+| Installiertes Plugin | Validiertes Laufzeitpaket | `<dataDir>/extension-catalog` |
+| Versionierte Extension | Teilbares oder First-Party-Paket | `extensions/` |
+
+Persönliche Drafts entstehen in **Plugins → Neues Plugin erstellen** wahlweise mit KI,
+visuell oder als Code-Paket. Versionierte Extensions werden mit den öffentlichen Contracts
+erstellt:
+
+```bash
+pnpm extension:create beispiel.mein-plugin
+pnpm extension:validate extensions/beispiel.mein-plugin
+```
+
+### `$plugin-creator` für Codex installieren
+
+Dieses Repository enthält einen vollständigen Codex-Marktplatz unter `.agents/plugins`.
+Nach dem Klonen lässt sich der Wrapt-spezifische Creator so installieren:
+
+```bash
+codex plugin marketplace add "$PWD/.agents/plugins"
+codex plugin add wrapt-extension-creator@wrapt
+```
+
+Danach kann Codex den enthaltenen Skill direkt verwenden:
+
+```text
+$plugin-creator Erstelle ein persönliches Wrapt-Plugin für eine kompakte Projektstatus-Seite.
+```
+
+Der Skill trennt persönliche Drafts von versionierten Extensions, arbeitet bei Drafts über
+die Authoring-API, verlangt explizite Permissions und aktiviert nur erfolgreich validierte
+Pakete. Aufbau, Installation und Veröffentlichung sind in
+[Plugins und Extensions](docs/extensions/plugin-marketplace.md) sowie im
+[Authoring-Guide](docs/extensions/authoring.md) beschrieben.
+
+## Oberfläche
+
+Die Wrapt-Aufnahmen stammen aus einer isolierten Dokumentationsinstanz; eingebettete
+Werkzeuge wurden zusätzlich einzeln auf persönliche Inhalte geprüft. Es sind nur
+Beispielkonten und neutrale Projektdaten sichtbar; T3 Code ist im Dark Mode dargestellt.
+
+| Orbit-Workbench | Tech TLDRs |
+| :--: | :--: |
+| ![Orbit-Workbench mit Beispielprojekten](docs/screenshots/02-workbench.png) | ![Tech TLDRs](docs/screenshots/03-tech-tldrs.png) |
+
+| T3 Code im Dark Mode | code-server |
+| :--: | :--: |
+| ![T3 Code im Dark Mode ohne angemeldetes Konto](docs/screenshots/04-t3-code.png) | ![code-server ohne persönliche Dateien](docs/screenshots/05-code-server.png) |
+
+| Plugin-Verwaltung | Plugin Creator |
+| :--: | :--: |
+| ![Lokale Plugin-Verwaltung](docs/screenshots/12-plugins.png) | ![Auswahl des Plugin-Creators](docs/screenshots/13-plugin-creator.png) |
+
+| Dateimanager | Terminal |
+| :--: | :--: |
+| ![Dateimanager](docs/screenshots/06-gallery.png) | ![Terminal mit Beispiel-Prompt](docs/screenshots/07-terminal.png) |
+
+| Nutzung | Einstellungen |
+| :--: | :--: |
+| ![Nutzungsübersicht ohne echte Accounts](docs/screenshots/08-usage.png) | ![Wrapt-Einstellungen](docs/screenshots/09-settings.png) |
+
+## Entwicklung
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm test
+pnpm build
+pnpm architecture:file-lines
+pnpm test:e2e
+```
+
+Wichtige Regeln:
+
+- API-Verträge zuerst in `packages/contracts` definieren.
+- Extension-Verträge liegen in `packages/extension-contracts` und werden zuerst gebaut.
+- Konfigurierbare Werte gehören in `config/wrapt.local.json` oder `.env`.
+- Handgeschriebene Projektdateien bleiben unter 400 physischen Zeilen.
+- Öffentliche oder persistierte Schnittstellen werden nicht still inkompatibel geändert.
+
+## Sicherheit und Daten
+
+- Eigene Dienste binden standardmäßig nur an Loopback.
+- Geschützte Routen verlangen eine erlaubte Tailscale-Identität; Mutationen zusätzlich Same-Origin.
+- Accounts, Tokens und Browserprofile bleiben auf dem Server und werden nicht im Browserzustand gespeichert.
+- Orbit, Plugins, Nutzung und weitere lokale Daten liegen außerhalb des Repositorys in SQLite
+  beziehungsweise im konfigurierten `dataDir`.
+- Preview-, Terminal-, Datei- und Extension-Zugriffe sind auf serverseitig geprüfte Pfade und
+  deklarierte Berechtigungen begrenzt.
+
+Weitere Details: [Architektur](docs/architecture.md),
+[Konfiguration](docs/configuration.md),
+[Sicherheitsausnahmen](docs/security-exceptions.md) und
+[Fehlerbehebung](docs/troubleshooting.md).
 
 ## Dokumentation
 
-- Architektur: [docs/architecture.md](docs/architecture.md)
-- Installation: [docs/installation.md](docs/installation.md)
-- Konfiguration: [docs/configuration.md](docs/configuration.md)
-- Einstellungen: [docs/settings.md](docs/settings.md)
-- Agent-Setup: [docs/agent-setup.md](docs/agent-setup.md)
-- Terminal: [docs/terminal.md](docs/terminal.md)
-- Fehlerbehebung: [docs/troubleshooting.md](docs/troubleshooting.md)
-- Web-Push-Abnahme: [docs/web-push-acceptance.md](docs/web-push-acceptance.md)
-- Einbettungstest: [docs/embedding-test.md](docs/embedding-test.md)
+Der vollständige Einstieg nach Zielgruppe steht im [Dokumentationsindex](docs/README.md).
+
+- [Installation](docs/installation.md)
+- [Konfiguration](docs/configuration.md)
+- [Agent-Setup](docs/agent-setup.md)
+- [Plugin-Marktplatz](docs/extensions/plugin-marketplace.md)
+- [Extension Authoring](docs/extensions/authoring.md)
+- [Architektur](docs/architecture.md)
+- [Terminal](docs/terminal.md)
+- [Previews für Agenten](docs/previews-for-agents.md)
+- [Fehlerbehebung](docs/troubleshooting.md)
 
 ## Danksagungen
 
-Dieses Projekt baut auf großartigen Open-Source-Werkzeugen auf, die wir hier
-integrieren und orchestrieren:
-
-- **[T3 Code](https://github.com/pingdotgg/t3code)** von [Theo Brown (pingdotgg)](https://github.com/pingdotgg)
-  — der agentengestützte Browser-Editor, der direkt in der Wrapt läuft.
-- **[code-server](https://github.com/coder/code-server)** — vollwertiger VS-Code-Editor im Browser.
-- **[node-pty](https://github.com/microsoft/node-pty)** & **[xterm.js](https://github.com/xtermjs/xterm.js)** — native Terminal-Emulation.
-- **[Tailscale](https://github.com/tailscale/tailscale)** — privater, sicherer Remote-Zugriff.
-- **[Hermes](https://github.com/NousResearch/hermes-agent)** von [Nous Research](https://nousresearch.com)
-  — der persönliche KI-Agent mit Chat, Cron und Verwaltung, eingebettet über seine offizielle Weboberfläche.
-
-Ein besonderer Dank an Theo Brown und alle Mitwirkenden von T3 Code für das
-offene, inspirierende Fundament, auf dem dieser Arbeitsplatz aufbaut.
+Wrapt integriert und orchestriert unter anderem
+[T3 Code](https://github.com/pingdotgg/t3code),
+[code-server](https://github.com/coder/code-server),
+[node-pty](https://github.com/microsoft/node-pty),
+[xterm.js](https://github.com/xtermjs/xterm.js),
+[Tailscale](https://github.com/tailscale/tailscale) und
+[Hermes Agent](https://github.com/NousResearch/hermes-agent).
 
 ## Lizenz
 
