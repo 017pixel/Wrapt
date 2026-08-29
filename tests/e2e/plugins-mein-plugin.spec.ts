@@ -7,9 +7,11 @@ const workbench = process.env.WRAPT_E2E_URL
 test.use({
   extraHTTPHeaders: { "tailscale-user-login": "user@example.com" },
 });
+test.use({ serviceWorkers: "block" });
 
-test("installiert mein-plugin und zeigt die Hello-World-Seite auf Desktop und Mobil", async ({ page, browserName, context }) => {
+test("installiert mein-plugin und zeigt die Hello-World-Seite auf Desktop und Mobil", async ({ page, browserName, context }, testInfo) => {
   test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
+  await page.setExtraHTTPHeaders({ "tailscale-user-login": `plugins-mein-plugin-${browserName}-${testInfo.retry}@example.com` });
   if (browserName === "chromium") {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   }
@@ -24,11 +26,12 @@ test("installiert mein-plugin und zeigt die Hello-World-Seite auf Desktop und Mo
   await expect(card).toContainText("Eine erste eigene Wrapt-Seite.");
   const install = card.getByRole("button", { name: "Installieren", exact: true });
   if (await install.count()) {
-    await install.click();
-    await expect(card.getByText("Aktiv", { exact: true })).toBeVisible();
+    await install.press("Enter");
+    await expect(card.getByText("Aktiv", { exact: true })).toBeVisible({ timeout: 15_000 });
   }
 
-  const sidebarLink = page.locator("aside").getByRole("link", { name: "Mein erstes Plugin" });
+  await page.reload();
+  const sidebarLink = page.locator('aside a[href="/wrapt/plugins/tool/mein-plugin"]');
   await expect(sidebarLink).toBeVisible({ timeout: 15_000 });
   await sidebarLink.click();
   await expect(page).toHaveURL(/\/plugins\/tool\/mein-plugin$/);

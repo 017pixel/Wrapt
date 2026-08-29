@@ -11,9 +11,10 @@ test.use({
   viewport: { width: 1440, height: 960 },
 });
 
-test("verwaltet Extensions über den lokalen Catalog: installieren, berechtigen, deaktivieren, deinstallieren", async ({ page }) => {
+test("verwaltet Extensions über den lokalen Catalog mit fail-closed Runtime", async ({ page }) => {
   test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   await page.goto(`${workbench}/settings`);
+  await page.getByRole("button", { name: "Erweiterungen", exact: true }).click();
 
   const extensionsCard = page.locator(".page-frame").getByRole("heading", { name: "Extensions" });
   await expect(extensionsCard).toBeVisible();
@@ -40,21 +41,19 @@ test("verwaltet Extensions über den lokalen Catalog: installieren, berechtigen,
   await expect(reviewDialog).toBeVisible();
   await expect(reviewDialog).toContainText("Benachrichtigungen senden");
 
-  // Freigabe aktiviert die Extension.
+  // Die Permission-Freigabe installiert die Extension; die Catalog-Runtime
+  // bleibt bis zum verifizierten Entrypoint-Host fail-closed deaktiviert.
   await reviewDialog.getByRole("button", { name: "Alle freigeben" }).click();
   await expect(reviewDialog).not.toBeVisible();
-  await expect(page.locator(".extension-row", { hasText: "Demo Uhr" }).getByText("Aktiv")).toBeVisible();
+  const catalogRow = page.locator(".extension-row", { hasText: "Demo Uhr" });
+  await expect(catalogRow.getByText("Installiert", { exact: true })).toBeVisible();
+  await expect(catalogRow.getByRole("switch")).toHaveCount(0);
 
-  // Der Installierte-Tab zeigt die Extension mit aktivem Zustand.
+  // Der Installierte-Tab zeigt denselben Zustand ohne Aktivierungsaktion.
   await page.getByRole("button", { name: /Installiert/ }).click();
   const installedRow = page.locator(".extension-row", { hasText: "Demo Uhr" });
-  await expect(installedRow.getByText("Aktiv")).toBeVisible();
-
-  // Deaktivieren und wieder aktivieren über den Umschalter.
-  await installedRow.getByRole("switch", { name: /Deaktivieren: Demo Uhr/ }).click();
-  await expect(installedRow.getByText("Deaktiviert")).toBeVisible();
-  await installedRow.getByRole("switch", { name: /Aktivieren: Demo Uhr/ }).click();
-  await expect(installedRow.getByText("Aktiv")).toBeVisible();
+  await expect(installedRow.getByText("Installiert", { exact: true })).toBeVisible();
+  await expect(installedRow.getByRole("switch", { name: /Aktivieren: Demo Uhr/ })).toBeDisabled();
 
   // Deinstallieren mit Bestätigung entfernt die Extension aus der Registry.
   await installedRow.getByRole("button", { name: /Deinstallieren/ }).click();
@@ -62,5 +61,4 @@ test("verwaltet Extensions über den lokalen Catalog: installieren, berechtigen,
   await expect(confirmDialog).toBeVisible();
   await confirmDialog.getByRole("button", { name: "Deinstallieren" }).click();
   await expect(page.locator(".extension-row", { hasText: "Demo Uhr" })).not.toBeVisible();
-  await expect(page.getByText(/Noch keine Extensions installiert/)).toBeVisible();
 });

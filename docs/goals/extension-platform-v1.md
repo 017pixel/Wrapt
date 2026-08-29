@@ -1,5 +1,48 @@
 # Goal: Remote Workplace Extension Platform V1
 
+> Dokumentstatus: Der ursprüngliche Goal-Journal-Teil ab „Historischer Goal-Snapshot“ ist
+> bewusst archiviert. Verbindlich ist die aktuelle Reality-Matrix unten. Letzte Prüfung:
+> 2026-08-28, Produktversion 1.0.0, Audit-Nacharbeiten im Arbeitsbaum; Referenzstand `09e5d65`.
+
+Die Audit-Nacharbeiten sind mit Unit-/Integrationstests, Coverage-Schwellen, Produktionsbuild,
+isolierter E2E-Suite und einem eigenen Deployment-Smoke-Test verifiziert. Die bewusst offenen
+Grenzen stehen weiterhin explizit in der Reality-Matrix und werden nicht als Runtime-
+Funktionalität interpretiert.
+
+## Aktuelle Reality-Matrix
+
+Die [Projekt-Audit- und Verbesserungsplanung](../../plans/PROJECT_AUDIT_AND_IMPROVEMENT_PLAN.md)
+hat den früheren Ist-Zustand korrigiert. Die Extension-Plattform ist ein lokaler Beta-/Kernel-
+Baustein, kein abgeschlossener V1-Release. Die Zwischeninvariante lautet:
+
+> Ein deklaratives UI-Paket wird nur dann als aktive Runtime gemeldet, wenn Release-Slot,
+> Manifest, Paketdigest, Registry-Fakten, atomarer Runtime-Pointer und Health-Handshake exakt
+> zusammenpassen. Serverseitige Fremd-Entrypoints und nicht deklarative Pakete bleiben
+> fail-closed.
+
+| Bereich | Aktueller Stand | Nicht stillschweigend zugesagt |
+| --- | --- | --- |
+| EXT-01 Lifecycle | Deklarative Catalog- und lokale UI-Pakete erhalten einen vollständig inventarisierten, atomar abgelegten Release-Slot mit Manifest/Grants, atomarem Runtime-Pointer und Entrypoint-Health. `runtimeActive` gilt erst nach dem Handshake; Update und Rollback wechseln den vollständigen Release-Slot. Server-Entrypoints bleiben fail-closed. | Prozessbasierte Fremd-Entrypoints, Publisher-Signaturen und OS-Sandboxing |
+| EXT-02 Recovery | Extension-DB-Schreibvorgänge laufen in `BEGIN IMMEDIATE`-Transaktionen. Queued-/Running-Operationen werden beim Start deterministisch reconciliert; korrupte Einzelzeilen werden verworfen. Registry-Snapshots werden versioniert gesichert und bei fehlender DB wiederhergestellt. Der isolierte Deployment-Smoke-Test beweist Neustart, Restore, Update und Rollback. | Fortsetzbares Resume langsamer externer Prozesse und vollständiger Host-Migrations-Restore außerhalb der Extension-Daten |
+| EXT-03 Provenienz | Catalog-Dateien werden vollständig inventarisiert und gehasht, Symlinks abgelehnt, beim Auflösen erneut gehasht und gegen Catalog-Revision sowie Manifest-ID/Version geprüft. | Vertrauenswürdige entfernte Registries oder Publisher-Signaturen |
+| EXT-04 Drafts | Expected-Revision liefert bei stale Writes `409`; Draft-/Slug-Operationen sind serialisiert, Pakete werden gestaged und bei Fehlern kompensiert. | SQLite-basierter globaler Draft-Index und geräteübergreifende Merge-UI |
+| EXT-05 lokale Runtime | Aktive lokale Drafts synchronisieren über den Extension-Manager in die Registry. Deklarative lokale UI-Pakete werden über denselben Release-/Pointer-/Health-Pfad hostgerendert; permissiontragende Drafts bleiben bis zum Review fail-closed. | Freie Plugin-Komponenten, serverseitige Fremd-Entrypoints und OS-Isolation |
+| EXT-06/07 | Inaktive Drafts verdecken keine aktiven Beispiele; abgeschlossene Manager-Queues werden entfernt. | — |
+
+### Definition of Done für V1
+
+V1 darf erst als abgeschlossen markiert werden, wenn zusätzlich zu den bestehenden Manifest-,
+Registry- und UI-Verträgen verifizierte Release-Artefakte, Permission-Review/Grants,
+deterministisches Recovery und vollständiger Rollback nachgewiesen sind. Ein erfolgreicher
+Install- oder Draft-Write-Request allein ist kein Runtime- oder Sicherheitsnachweis.
+
+Review-Owner: Wrapt-Maintainer (Benjamin Becker). Review: vor jeder Änderung an Extension-
+Verträgen, Lifecycle/Permissions, Catalog-Hashing oder Plugin-Runtime sowie mindestens einmal
+pro Produktrelease. Die Audit-Checkliste bleibt der Abschlussnachweis; dieses Dokument beschreibt
+die aktuelle Zwischeninvariante und das historische Journal getrennt.
+
+## Historischer Goal-Snapshot
+
 Stand: 2026-08-15
 
 ## Goal
@@ -30,7 +73,7 @@ lokale `.rwext`-Pakete.
 - Nicht Teil von V1 sind öffentliche oder entfernte Registries, Publisher-Systeme,
   Community-Uploads, Bewertungen, Zahlungen und Installationen über Git, GitHub, npm oder HTTP.
 
-## Current Repository State
+## Historische Repository-Beschreibung (Stand 2026-08-15)
 
 - pnpm-Monorepo mit Node >= 22 und TypeScript 6 im strikten Modus.
 - `apps/server` ist ein Fastify-5-Backend, `apps/web` eine React-19-/Vite-8-Anwendung,
@@ -146,15 +189,15 @@ lokale `.rwext`-Pakete.
   Lazy-Chunks, 21 Prefetch-Präfixe und 18 bisherige Preference-IDs. `App.tsx` bleibt bis Phase 3
   der statische Router-Consumer.
 
-## Current Branch
+## Historischer Branch-Snapshot
 
 `master`, beim Stand nach Subgoal 5.2 fünfundfünfzig lokale Goal-Commits vor `origin/master`.
 
-## Current Commit
+## Historischer Commit-Snapshot
 
 `53452cf` — Local Catalog mit echtem Installationspfad.
 
-## Current Remote Workplace Version
+## Historischer Versions-Snapshot
 
 `0.44.0`
 
@@ -175,15 +218,15 @@ Realtime-, Notification- und Theme-Contributions sind ebenfalls geöffnet. Damit
 geplanten Contribution-Bereiche typisiert. Catalog Snapshot, Catalog Entry und Package Descriptor
 V1 sind als eigenständige Zod- und JSON-Schema-Verträge eingeführt.
 
-## Current Phase
+## Historischer Phasen-Snapshot
 
 Phase 6, `in-progress`. Phasen 0 bis 5 sind abgeschlossen.
 
-## Current Subgoal
+## Historischer Subgoal-Snapshot
 
 Subgoal 6.1, Capability Broker mit Projects-, Files- und Storage-Fähigkeiten.
 
-## Next Concrete Action
+## Historischer nächster Arbeitsschritt
 
 Subgoal 6.1 baut den serverseitigen Capability Broker: projects.read, files.read/write und
 storage.kv/sql werden als namespaced Capability-Aufrufe mit Identity-, Scope-, Realpath-,
@@ -191,7 +234,7 @@ Symlink-, Größen- und Audit-Prüfung bereitgestellt. Grants bleiben Teilmenge 
 Requests; jede Nutzung wird erneut geprüft, nie vorab erteilt. Danach folgen process,
 network, events, jobs und secrets (6.2 ff.).
 
-## Phase Table
+## Historische Phasentabelle
 
 | Phase | Ergebnis | Status |
 | --- | --- | --- |
@@ -214,7 +257,7 @@ network, events, jobs und secrets (6.2 ff.).
 
 Statuswerte: `not-started`, `planning`, `in-progress`, `blocked`, `verification`, `done`.
 
-## Migration Matrix
+## Historische Migrationsmatrix
 
 Die Reihenfolge ist nach dem vollständigen Inventar priorisiert. Die Phasen 1 bis 3 schaffen
 zuerst additive Verträge und UI-Registries ohne Datenmigration. Orbit folgt wegen seiner
@@ -400,7 +443,7 @@ Priorisierte Abhängigkeiten:
 | `pnpm test` | bestanden am 2026-08-15, 458 Extension-, 18 Contract-, 396 Server- und 305 Web-Tests, insgesamt 1177 | Subgoal 2.3, gesamtes Repository |
 | `pnpm build` | bestanden am 2026-08-15 | Subgoal 2.3, vollständiger Produktionsbuild mit 15 getrennten Feature-Chunks |
 | Browser-Baseline | bestanden am 2026-08-15 | isolierter Testserver, Playwright MCP, Dashboard, Orbit und Settings |
-| `pnpm test:e2e` | noch nicht in diesem Goal ausgeführt | erster UI-Milestone |
+| `pnpm test:e2e` | bestanden am 2026-08-28, 134 bestanden und 234 bewusst übersprungen | isolierter vollständiger Playwright-Lauf |
 | `pnpm security:audit` | High-Severity-Gate bestanden am 2026-08-15; eine moderate bestehende DOMPurify-Advisory | Subgoal 1.1, nicht durch `semver` eingeführt |
 
 ## Performance Baseline

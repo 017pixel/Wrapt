@@ -5,12 +5,14 @@ import { CodexOAuthPrimaryWindowFallback } from "../adapters/codexbar/codex-oaut
 import { CodexbarClient } from "../adapters/codexbar/codexbar-client.js";
 import { createCodexbarUsageService } from "../adapters/codexbar/codexbar-cache.js";
 import { BrowserDatabase } from "../browser/database.js";
-import { BrowserManager } from "../browser/Manager.js";
 import { loadCommandsConfig, loadProjectsConfig, loadServicesConfig } from "../config/repository.js";
 import { settings } from "../config/settings.js";
 import { ExtensionDatabase } from "../extensions/database.js";
+import { restoreMissingExtensionDatabase } from "../extensions/startup.js";
 import { defaultCatalogProviderId, LocalExtensionCatalog } from "../extensions/catalog.js";
 import { ExtensionManager } from "../extensions/manager.js";
+import { ExtensionReleaseStore } from "../extensions/release-store.js";
+import { ExtensionRuntimeHost } from "../extensions/runtime-host.js";
 import { FileManagerService } from "../filesystem/fileManagerService.js";
 import { ProjectBrowserService } from "../filesystem/projectBrowserService.js";
 import { HermesDashboardClient } from "../hermes/client.js";
@@ -48,23 +50,34 @@ import { usageMonitoringService } from "../services/usageMonitoringService.js";
 import type { WorkbenchIdentityOptions } from "../security/workbench-identity.js";
 import { SkillEditorService } from "../skills/skillEditorService.js";
 import { TerminalDatabase } from "../terminal/database.js";
-import { TerminalManager } from "../terminal/Manager.js";
-import { defaultTerminalSocketPath, TmuxSupervisor } from "../terminal/TmuxSupervisor.js";
 import { AccountService } from "../usage/account-service.js";
 import { UsageDatabase } from "../usage/database.js";
 import { UsageTimelineService } from "../usage/timeline-service.js";
 import { UsageAnalyticsService } from "../usage/usage-service.js";
 import { AppError } from "../utils/errors.js";
 import { createPluginAuthoring } from "../plugins/dependencies.js";
+import { createRuntimeDependencies } from "./runtime-dependencies.js";
+import { readConfiguredT3Channel } from "../config/wrapt-config.js";
+import { resolveT3ServiceUrls } from "../services/t3HostedApp.js";
 
 export async function createAppDependencies(app: FastifyInstance) {
-  const [projectsConfig, servicesConfig, commandsConfig] = await Promise.all([
+  const [projectsConfig, loadedServicesConfig, commandsConfig] = await Promise.all([
     loadProjectsConfig(),
     loadServicesConfig(),
     loadCommandsConfig(),
   ]);
+  const servicesConfig = {
+    ...loadedServicesConfig,
+    services: resolveT3ServiceUrls(
+      loadedServicesConfig.services,
+      readConfiguredT3Channel(settings.configDirectory),
+    ),
+  };
   const identityOptions: WorkbenchIdentityOptions = {
     allowedUsers: settings.terminalAllowedUsers,
+    adminUsers: settings.terminalAdminUsers.length > 0
+      ? settings.terminalAdminUsers
+      : settings.terminalAllowedUsers.slice(0, 1),
     ...(settings.developmentTailscaleUser
       ? { developmentUser: settings.developmentTailscaleUser }
       : {}),
@@ -167,11 +180,19 @@ export async function createAppDependencies(app: FastifyInstance) {
   const projects = createProjectService(projectsConfig, servicesConfig.services, undefined, projectActivity, projectRegistryDatabase);
   const terminalDatabase = new TerminalDatabase(settings.databasePath);
   const notificationDatabase = new NotificationDatabase(settings.databasePath, settings.notifications.pruneAfterHours);
-  const extensionDatabase = new ExtensionDatabase(join(settings.dataDirectory, "extensions.sqlite"));
-  const extensionManager = new ExtensionManager(extensionDatabase);
+  const extensionDatabasePath = join(settings.dataDirectory, "extensions.sqlite");
+  const extensionBackupDirectory = join(settings.dataDirectory, "extension-backups");
+  const extensionReleaseDirectory = join(settings.dataDirectory, "extension-releases");
+  restoreMissingExtensionDatabase(extensionDatabasePath, extensionBackupDirectory);
+  const extensionDatabase = new ExtensionDatabase(extensionDatabasePath);
+  const extensionReleaseStore = new ExtensionReleaseStore(extensionReleaseDirectory);
+  const extensionRuntime = new ExtensionRuntimeHost(join(settings.dataDirectory, "extension-runtime"), extensionReleaseStore);
+  const extensionManager = new ExtensionManager(extensionDatabase, extensionBackupDirectory, extensionReleaseStore, extensionRuntime);
   const extensionCatalog = new LocalExtensionCatalog(defaultCatalogProviderId(), app.log);
   extensionManager.attachCatalog(extensionCatalog);
-  const pluginAuthoring = createPluginAuthoring(extensionCatalog);
+  extensionManager.reconcileRuntime();
+  const pluginAuthoring = createPluginAuthoring(extensionCatalog, extensionManager);
+  extensionManager.syncCatalogUpdates();
   const notificationPush = new NotificationPushService({
     databasePath: settings.databasePath,
     dataDirectory: settings.dataDirectory,
@@ -179,6 +200,7 @@ export async function createAppDependencies(app: FastifyInstance) {
     preferences: settings.notifications.preferences,
     notifications: notificationDatabase,
     logger: app.log,
+    timeoutMilliseconds: settings.pushTimeoutMilliseconds,
   });
   const t3StatusSync = new T3StatusSync({
     databasePath: join(settings.systemHomeDirectory, ".t3/userdata/state.sqlite"),
@@ -234,6 +256,7 @@ export async function createAppDependencies(app: FastifyInstance) {
   const localPorts = createLocalPortService({
     cacheMilliseconds: settings.localPortCacheMilliseconds,
     probeTimeoutMilliseconds: settings.localPortProbeTimeoutMilliseconds,
+    ...(settings.runtimeMode === "test" ? { allowedPorts: settings.previews.allowedProjectPorts } : {}),
     excludedPorts: [
       settings.port,
       settings.t3Port,
@@ -247,6 +270,8 @@ export async function createAppDependencies(app: FastifyInstance) {
   const previewDevServers = new PreviewDevServerManager({
     database: previewDevServerDatabase,
     tmuxExecutable: settings.tmuxPath,
+    tmuxSocket: settings.previewTmuxSocket,
+    useSystemdSupervisor: settings.runtimeMode !== "test",
     allowedProjectPorts: settings.previews.allowedProjectPorts,
     logBytes: settings.previews.devServerLogBytes,
     startTimeoutMilliseconds: settings.previews.devServerStartTimeoutMilliseconds,
@@ -290,50 +315,11 @@ export async function createAppDependencies(app: FastifyInstance) {
     probeTimeoutMilliseconds: settings.localPortProbeTimeoutMilliseconds,
   });
   const previewRepair = new PreviewRepairService({ database: previewSlotDatabase, slots: previewSlots, scanCandidates });
-  // Dedizierter tmux-Socket unter $XDG_RUNTIME_DIR: Der Supervisor läuft als
-  // eigene systemd-Unit (wrapt-terminal-supervisor.service) und überlebt
-  // Backend-Neustarts. Die Workbench verbindet sich nur mit dem Server.
-  const terminalSupervisor = settings.terminalSupervisor === "tmux" ? new TmuxSupervisor(settings.tmuxPath, settings.tmuxSocketPath ?? defaultTerminalSocketPath()) : null;
-  if (settings.runtimeMode === "production") terminalSupervisor?.ensureSupervisorUnit();
-  const terminals = new TerminalManager({
-    allowedRoots: settings.terminalAllowedRoots,
-    defaultCwd: settings.terminalDefaultCwd,
-    maxSessions: settings.terminalMaxSessions + settings.codexMaxSessions + settings.opencodeMaxSessions + settings.claudeMaxSessions,
-    maxSessionsByKind: {
-      shell: settings.terminalMaxSessions,
-      codex: settings.codexMaxSessions,
-      opencode: settings.opencodeMaxSessions,
-      claude: settings.claudeMaxSessions,
-    },
-    cliPaths: { codex: settings.codexCliPath, opencode: settings.opencodeCliPath, claude: settings.claudeCliPath },
-    database: terminalDatabase,
-    onOutput: (session, data) => {
-      // Shell-Ausgabe interessiert nicht; bei Agenten entscheidet die
-      // Pause-Heuristik im Sync, ob der Nutzer wirklich gebraucht wird.
-      terminalStatusSync.noteOutput(session, data);
-    },
-    onInput: (session) => terminalStatusSync.resolveWaiting(session.kind, session.id),
-    ...(terminalSupervisor ? { supervisor: terminalSupervisor } : {}),
-    ...(settings.terminalAllowedUsers.length === 1 ? { externalSessionOwnerId: settings.terminalAllowedUsers[0] } : {}),
-    resolveAccountProfile: (accountId, kind) => {
-      const account = usageDatabase.getAccount(accountId);
-      if (account.provider !== kind) throw new Error("Provider mismatch");
-      return account.profilePath;
-    },
-  });
-  const browsers = new BrowserManager({
-    chromiumPath: settings.chromiumPath,
-    profilesRoot: settings.browserProfilesRoot,
-    database: browserDatabase,
-    maxSessions: settings.browserMaxSessions,
-    startupTimeoutMilliseconds: settings.browserStartupTimeoutMilliseconds,
-    idleTimeoutMilliseconds: settings.browserIdleTimeoutMilliseconds,
-    captureMaxWidth: settings.browserCaptureMaxWidth,
-    captureMaxHeight: settings.browserCaptureMaxHeight,
-    captureMaxScale: settings.browserCaptureMaxScale,
-    captureJpegQuality: settings.browserCaptureJpegQuality,
-    captureEveryNthFrame: settings.browserCaptureEveryNthFrame,
-    allowNoSandbox: settings.browserAllowNoSandbox,
+  const runtime = createRuntimeDependencies({
+    browserDatabase,
+    terminalDatabase,
+    terminalStatusSync,
+    usageDatabase,
   });
   const editorOpenSecrets = new EditorOpenSecrets(settings.dataDirectory);
   return {
@@ -363,8 +349,10 @@ export async function createAppDependencies(app: FastifyInstance) {
     terminalDatabase,
     notificationDatabase,
     extensionDatabase,
+    extensionBackupDirectory,
     extensionManager,
     extensionCatalog,
+    extensionRuntime,
     pluginAuthoring,
     notificationPush,
     t3StatusSync,
@@ -390,9 +378,7 @@ export async function createAppDependencies(app: FastifyInstance) {
     previewDevServers,
     previewRepair,
     scanCandidates,
-    terminalSupervisor,
-    terminals,
-    browsers,
+    ...runtime,
     editorOpenSecrets,
   };
 }

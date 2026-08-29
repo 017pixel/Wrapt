@@ -5,6 +5,12 @@
 - Entscheider: Remote Workplace
 - Geltungsbereich: Extension Platform V1
 
+> Implementierungsstatus 2026-08-24: Deklarative UI-Catalog- und lokale Pakete werden in
+> verifizierte Release-Slots kopiert, über einen atomaren Pointer aktiviert und durch einen
+> Entrypoint-Health-Handshake bestätigt. Der hostseitige Capability-Broker prüft Grants vor
+> jedem Aufruf erneut. Serverseitige Fremd-Entrypoints und nicht deklarative Pakete bleiben
+> fail-closed. Siehe die [aktuelle Reality-Matrix](../goals/extension-platform-v1.md#aktuelle-reality-matrix).
+
 ## Kontext
 
 Installation, Aktivierung, Updates, Migrationen und Recovery laufen künftig über einen
@@ -127,8 +133,9 @@ Runtime und Health und stellt danach eine erlaubte Phase wieder her.
   unterscheidbar.
 - Der Manager benötigt ein transaktionales Operationsjournal und eine zentrale
   Übergangsfunktion statt verteilter Statuswrites.
-- Health, Crash-Zähler, Rollback und konkrete Registry-Records folgen in späteren Phasen auf
-  dieser Vertragsgrundlage.
+- Der V1-Host führt für deklarative UI-Runtimes Pointer, Health und einen erneuten Grant-Check
+  über den Capability-Broker. Beliebige serverseitige JavaScript-Entrypoints bleiben außerhalb
+  dieses bewusst kleineren Hostvertrags und werden nicht als aktiv gemeldet.
 
 ## Verworfene Alternativen
 
@@ -152,7 +159,9 @@ Verworfen, weil UI, API, CLI und Recovery unbekannte Zustände unterschiedlich b
 - Pfadtests prüfen Install, Permission Review, Enable, Disable, Update und Uninstall.
 - Negative Tests blockieren direkte Aktivierung, direkte Deinstallation aktiver Extensions,
   Selbstübergänge und einen direkten Neustart aus Quarantäne.
-- Manager-Integrationstests prüfen später Locks, Restart-Recovery, Crash Loop und Rollback.
+- Manager-Integrationstests prüfen Locks, Restart-Recovery, Release-Slot-Integrität, Health,
+  Pointer-Kompensation, Capability-Recheck und den vollständigen aktiven Runtime-Rollback.
+  Der isolierte Deployment-Smoke-Test prüft zusätzlich Backup-Restore über Prozessgrenzen.
 
 ## Folgeentscheidungen
 

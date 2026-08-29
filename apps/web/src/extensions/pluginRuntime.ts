@@ -6,7 +6,14 @@ export interface ActivePluginContent {
   readonly content: PluginDraftContent;
 }
 
-type RegistryState = Pick<ExtensionRegistrySummary, "id" | "lifecycle">;
+type RegistryState = Pick<ExtensionRegistrySummary, "id" | "lifecycle" | "runtimeActive" | "activeVersion" | "activeAssetRevision">;
+
+function hasVerifiedRelease(entry: RegistryState | undefined, version: string): boolean {
+  return entry?.lifecycle === "active"
+    && entry.runtimeActive
+    && entry.activeVersion === version
+    && entry.activeAssetRevision !== undefined;
+}
 
 function normalizedSlug(value: string): string {
   return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48).replace(/-+$/g, "") || "plugin";
@@ -27,21 +34,25 @@ export function resolveActivePluginContents(
   registry: readonly RegistryState[],
 ): ActivePluginContent[] {
   const result = new Map<string, ActivePluginContent>();
-  const localSlugs = new Set(drafts.map((draft) => draft.slug));
+  const localSlugs = new Set(drafts.filter((draft) => draft.activationStatus === "active").map((draft) => draft.slug));
   const newestDrafts = [...drafts].sort((left, right) =>
     right.updatedAt.localeCompare(left.updatedAt) || right.id.localeCompare(left.id));
   for (const draft of newestDrafts) {
     if (draft.activationStatus !== "active") continue;
+    const registryEntry = registry.find((entry) => entry.id === `wrapt.local.${draft.slug}`);
+    if (!hasVerifiedRelease(registryEntry, draft.version)) continue;
     if (result.has(draft.slug)) continue;
     result.set(draft.slug, { extensionId: `wrapt.local.${draft.slug}`, content: draft });
   }
 
   const examplesBySlug = new Map(examples.map((example) => [example.slug, example]));
   for (const entry of registry) {
-    if (entry.lifecycle !== "active" || !entry.id.startsWith("wrapt.example.")) continue;
+    if (!entry.id.startsWith("wrapt.example.")) continue;
     const slug = entry.id.slice("wrapt.example.".length);
     const example = examplesBySlug.get(slug);
-    if (example !== undefined && !localSlugs.has(slug) && !result.has(slug)) result.set(slug, { extensionId: entry.id, content: example });
+    if (example !== undefined && hasVerifiedRelease(entry, example.version) && !localSlugs.has(slug) && !result.has(slug)) {
+      result.set(slug, { extensionId: entry.id, content: example });
+    }
   }
   return [...result.values()].sort((left, right) => left.content.name.localeCompare(right.content.name, "de"));
 }

@@ -2,16 +2,11 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import {
-  extensionIdSchema,
-  semanticVersionSchema,
-  sha256IntegritySchema,
-  type ExtensionHealth,
   type ExtensionManagementOperation,
   type ExtensionPermissionReview,
   type ExtensionRegistryDetail,
-  type ExtensionSource,
 } from "@wrapt/extension-contracts";
-import { canonicalCatalogProviderId } from "./catalog.js";
+import { detailFromRow, operationFromRow, reviewFromRow, defaultHealth as codecDefaultHealth } from "./database-codecs.js";
 
 interface ExtensionRow {
   id: string;
@@ -28,6 +23,7 @@ interface ExtensionRow {
   active_version: string | null;
   available_version: string | null;
   rollback_version: string | null;
+  rollback_asset_revision: string | null;
   active_asset_revision: string | null;
   manifest_json: string | null;
   granted_permissions_json: string;
@@ -61,18 +57,6 @@ interface RegistryStateRow {
   revision: number;
 }
 
-const defaultHealth: ExtensionHealth = Object.freeze({
-  status: "unknown",
-  consecutiveFailures: 0,
-});
-
-function sourceFromJson(value: string): ExtensionSource {
-  const source = JSON.parse(value) as ExtensionSource;
-  return source.kind === "catalog"
-    ? { ...source, providerId: canonicalCatalogProviderId(source.providerId) }
-    : source;
-}
-
 /**
  * Serverseitige Extension Registry. Sie hält installierte Versionen,
  * Enablement, Runtime-Fakten, Health, Permission Reviews und das
@@ -81,13 +65,15 @@ function sourceFromJson(value: string): ExtensionSource {
  */
 export class ExtensionDatabase {
   private readonly database: DatabaseSync;
+  private recoveredTransientOperations = 0;
 
   constructor(databasePath: string) {
     mkdirSync(dirname(databasePath), { recursive: true });
     this.database = new DatabaseSync(databasePath);
-    this.database.exec("PRAGMA journal_mode = WAL;");
+    this.database.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;");
     this.database.exec("PRAGMA foreign_keys = ON;");
     this.migrate();
+    this.recoveredTransientOperations = this.reconcileTransientOperations();
   }
 
   private migrate(): void {
@@ -113,6 +99,7 @@ export class ExtensionDatabase {
         active_version TEXT,
         available_version TEXT,
         rollback_version TEXT,
+        rollback_asset_revision TEXT,
         active_asset_revision TEXT,
         manifest_json TEXT,
         granted_permissions_json TEXT NOT NULL DEFAULT '[]',
@@ -144,11 +131,60 @@ export class ExtensionDatabase {
         created_at TEXT NOT NULL,
         resolved INTEGER NOT NULL DEFAULT 0
       );
+      CREATE TABLE IF NOT EXISTS extension_quarantine (
+        extension_id TEXT PRIMARY KEY,
+        reason TEXT NOT NULL,
+        first_seen_at TEXT NOT NULL,
+        last_seen_at TEXT NOT NULL,
+        observations INTEGER NOT NULL DEFAULT 1
+      ) STRICT;
     `);
+    const columns = this.database.prepare("PRAGMA table_info(extensions)").all() as Array<{ name: string }>;
+    if (!columns.some((column) => column.name === "rollback_asset_revision")) {
+      this.database.exec("ALTER TABLE extensions ADD COLUMN rollback_asset_revision TEXT");
+    }
   }
 
   close(): void {
     this.database.close();
+  }
+
+  serialize(): Uint8Array {
+    return this.database.serialize();
+  }
+
+  transaction<T>(callback: () => T): T {
+    this.database.exec("BEGIN IMMEDIATE");
+    try {
+      const result = callback();
+      this.database.exec("COMMIT");
+      return result;
+    } catch (error) {
+      if (this.database.isTransaction) this.database.exec("ROLLBACK");
+      throw error;
+    }
+  }
+
+  recoveredTransientOperationCount(): number {
+    return this.recoveredTransientOperations;
+  }
+
+  private reconcileTransientOperations(): number {
+    const transient = this.database.prepare(
+      "SELECT id FROM extension_operations WHERE status IN ('queued', 'running')",
+    ).all() as Array<{ id: string }>;
+    if (transient.length === 0) return 0;
+    const occurredAt = new Date().toISOString();
+    const error = JSON.stringify({ code: "internal-error", occurredAt });
+    this.transaction(() => {
+      for (const operation of transient) {
+        this.database.prepare(
+          "UPDATE extension_operations SET status = 'failed', completed_at = ?, error_json = ? WHERE id = ?",
+        ).run(occurredAt, error, operation.id);
+      }
+      this.database.prepare("UPDATE extension_registry_state SET revision = revision + 1 WHERE id = 1").run();
+    });
+    return transient.length;
   }
 
   revision(): number {
@@ -169,14 +205,21 @@ export class ExtensionDatabase {
     const row = this.database
       .prepare("SELECT * FROM extensions WHERE id = ?")
       .get(id) as ExtensionRow | undefined;
-    return row ? this.detailFromRow(row) : null;
+    return row ? this.decodeExtension(row) : null;
   }
 
   listExtensions(): ExtensionRegistryDetail[] {
     const rows = this.database
       .prepare("SELECT * FROM extensions ORDER BY id")
       .all() as unknown as ExtensionRow[];
-    return rows.map((row) => this.detailFromRow(row));
+    return rows
+      .map((row) => this.decodeExtension(row))
+      .filter((detail): detail is ExtensionRegistryDetail => detail !== null);
+  }
+
+  quarantinedExtensionCount(): number {
+    const row = this.database.prepare("SELECT COUNT(*) count FROM extension_quarantine").get() as { count: number };
+    return Number(row.count);
   }
 
   upsertExtension(detail: ExtensionRegistryDetail): void {
@@ -186,9 +229,9 @@ export class ExtensionDatabase {
           id, name, description, publisher, source_json, effective_trust,
           lifecycle, desired_enablement, runtime_active, required,
           installed_version, active_version, available_version,
-          rollback_version, active_asset_revision, manifest_json,
+          rollback_version, rollback_asset_revision, active_asset_revision, manifest_json,
           granted_permissions_json, health_json, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT (id) DO UPDATE SET
           name = excluded.name,
           description = excluded.description,
@@ -203,6 +246,7 @@ export class ExtensionDatabase {
           active_version = excluded.active_version,
           available_version = excluded.available_version,
           rollback_version = excluded.rollback_version,
+          rollback_asset_revision = excluded.rollback_asset_revision,
           active_asset_revision = excluded.active_asset_revision,
           manifest_json = excluded.manifest_json,
           granted_permissions_json = excluded.granted_permissions_json,
@@ -224,6 +268,7 @@ export class ExtensionDatabase {
         detail.activeVersion ?? null,
         detail.availableVersion ?? null,
         detail.rollbackVersion ?? null,
+        detail.rollbackAssetRevision ?? null,
         detail.activeAssetRevision ?? null,
         JSON.stringify(detail.manifest),
         JSON.stringify(detail.grantedPermissions),
@@ -231,19 +276,35 @@ export class ExtensionDatabase {
         new Date().toISOString(),
         new Date().toISOString(),
       );
+    this.database.prepare("DELETE FROM extension_quarantine WHERE extension_id = ?").run(detail.id);
   }
 
   removeExtension(id: string): void {
     this.database.prepare("DELETE FROM extensions WHERE id = ?").run(id);
+    this.database.prepare("DELETE FROM extension_quarantine WHERE extension_id = ?").run(id);
+  }
+
+  private decodeExtension(row: ExtensionRow): ExtensionRegistryDetail | null {
+    const detail = detailFromRow(row, this.openReview(row.id) ?? undefined);
+    if (detail !== null) return detail;
+    const now = new Date().toISOString();
+    this.database.prepare(`
+      INSERT INTO extension_quarantine(extension_id, reason, first_seen_at, last_seen_at, observations)
+      VALUES(?, 'schema-validation-failed', ?, ?, 1)
+      ON CONFLICT(extension_id) DO UPDATE SET last_seen_at = excluded.last_seen_at, observations = observations + 1
+    `).run(row.id, now, now);
+    return null;
   }
 
   listOperations(extensionId: string): ExtensionManagementOperation[] {
     const rows = this.database
       .prepare(
-        "SELECT * FROM extension_operations WHERE extension_id = ? ORDER BY requested_at DESC LIMIT 64",
+        "SELECT * FROM extension_operations WHERE extension_id = ? ORDER BY requested_at DESC, rowid DESC LIMIT 64",
       )
       .all(extensionId) as unknown as OperationRow[];
-    return rows.map((row) => this.operationFromRow(row));
+    return rows
+      .map((row) => operationFromRow(row))
+      .filter((operation): operation is ExtensionManagementOperation => operation !== null);
   }
 
   addOperation(extensionId: string, operation: ExtensionManagementOperation): void {
@@ -308,14 +369,7 @@ export class ExtensionDatabase {
     const row = this.database
       .prepare("SELECT * FROM extension_permission_reviews WHERE review_id = ? AND extension_id = ? AND resolved = 0")
       .get(reviewId, extensionId) as ReviewRow | undefined;
-    if (row === undefined) return null;
-    return {
-      reviewId: row.review_id,
-      reason: row.reason as "install" | "update",
-      requestedPermissions: JSON.parse(row.requested_json) as ExtensionPermissionReview["requestedPermissions"],
-      addedPermissions: JSON.parse(row.added_json) as ExtensionPermissionReview["addedPermissions"],
-      createdAt: row.created_at,
-    };
+    return row === undefined ? null : reviewFromRow(row) as ExtensionPermissionReview | null;
   }
 
   openReview(extensionId: string): ExtensionPermissionReview | null {
@@ -324,14 +378,7 @@ export class ExtensionDatabase {
         "SELECT * FROM extension_permission_reviews WHERE extension_id = ? AND resolved = 0 ORDER BY created_at DESC LIMIT 1",
       )
       .get(extensionId) as ReviewRow | undefined;
-    if (row === undefined) return null;
-    return {
-      reviewId: row.review_id,
-      reason: row.reason as "install" | "update",
-      requestedPermissions: JSON.parse(row.requested_json) as ExtensionPermissionReview["requestedPermissions"],
-      addedPermissions: JSON.parse(row.added_json) as ExtensionPermissionReview["addedPermissions"],
-      createdAt: row.created_at,
-    };
+    return row === undefined ? null : reviewFromRow(row) as ExtensionPermissionReview | null;
   }
 
   resolveReview(reviewId: string): void {
@@ -340,58 +387,6 @@ export class ExtensionDatabase {
       .run(reviewId);
   }
 
-  private detailFromRow(row: ExtensionRow): ExtensionRegistryDetail {
-    return {
-      id: extensionIdSchema.parse(row.id),
-      name: row.name,
-      description: row.description,
-      publisher: row.publisher,
-      source: sourceFromJson(row.source_json),
-      effectiveTrust: row.effective_trust as ExtensionRegistryDetail["effectiveTrust"],
-      lifecycle: row.lifecycle as ExtensionRegistryDetail["lifecycle"],
-      desiredEnablement: row.desired_enablement as ExtensionRegistryDetail["desiredEnablement"],
-      runtimeActive: row.runtime_active === 1,
-      required: row.required === 1,
-      ...(row.installed_version !== null
-        ? { installedVersion: semanticVersionSchema.parse(row.installed_version) }
-        : {}),
-      ...(row.active_version !== null
-        ? { activeVersion: semanticVersionSchema.parse(row.active_version) }
-        : {}),
-      ...(row.available_version !== null
-        ? { availableVersion: semanticVersionSchema.parse(row.available_version) }
-        : {}),
-      ...(row.rollback_version !== null
-        ? { rollbackVersion: semanticVersionSchema.parse(row.rollback_version) }
-        : {}),
-      ...(row.active_asset_revision !== null
-        ? { activeAssetRevision: sha256IntegritySchema.parse(row.active_asset_revision) }
-        : {}),
-      allowedOperations: [],
-      manifest: JSON.parse(row.manifest_json ?? "null"),
-      grantedPermissions: JSON.parse(
-        row.granted_permissions_json,
-      ) as ExtensionRegistryDetail["grantedPermissions"],
-      health: JSON.parse(row.health_json) as ExtensionHealth,
-    };
-  }
-
-  private operationFromRow(row: OperationRow): ExtensionManagementOperation {
-    return {
-      id: row.id,
-      type: row.type as ExtensionManagementOperation["type"],
-      status: row.status as ExtensionManagementOperation["status"],
-      requestedAt: row.requested_at,
-      ...(row.started_at !== null ? { startedAt: row.started_at } : {}),
-      ...(row.completed_at !== null ? { completedAt: row.completed_at } : {}),
-      ...(row.target_version !== null
-        ? { targetVersion: semanticVersionSchema.parse(row.target_version) }
-        : {}),
-      ...(row.error_json !== null
-        ? { error: JSON.parse(row.error_json) as ExtensionManagementOperation["error"] }
-        : {}),
-    };
-  }
 }
 
-export { defaultHealth };
+export { codecDefaultHealth as defaultHealth };

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, readdirSync, realpathSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 import {
   catalogEntrySchema,
@@ -12,6 +12,7 @@ import {
   type ExtensionManifestV1,
   type ExtensionPackageDescriptor,
   type ExtensionPackageFile,
+  type Sha256Integrity,
 } from "@wrapt/extension-contracts";
 import { AppError } from "../utils/errors.js";
 
@@ -31,12 +32,13 @@ export function canonicalCatalogProviderId(value: string): CatalogProviderId {
   return catalogProviderIdSchema.parse(value === LEGACY_CATALOG_PROVIDER_ID ? CURRENT_CATALOG_PROVIDER_ID : value);
 }
 
-function sha256Of(filePath: string): string {
+function fileIntegrity(filePath: string): string {
   return `sha256:${createHash("sha256").update(readFileSync(filePath)).digest("hex")}`;
 }
 
-function packageFiles(directory: string): ExtensionPackageFile[] {
+export function packageInventory(directory: string): { files: ExtensionPackageFile[]; integrity: Sha256Integrity } {
   const files: ExtensionPackageFile[] = [];
+  const canonicalRoot = realpathSync(directory);
   const walk = (current: string): void => {
     for (const entry of readdirSync(current, { withFileTypes: true })) {
       const absolute = join(current, entry.name);
@@ -44,18 +46,32 @@ function packageFiles(directory: string): ExtensionPackageFile[] {
         walk(absolute);
         continue;
       }
-      if (!entry.isFile()) continue;
-      const stats = statSync(absolute);
+      if (entry.isSymbolicLink() || !entry.isFile()) {
+        throw new Error(`Paket enthält keinen regulären Dateieintrag: ${relative(directory, absolute)}`);
+      }
+      const stats = lstatSync(absolute);
+      if (!stats.isFile() || stats.isSymbolicLink()) {
+        throw new Error(`Paket enthält keinen regulären Dateieintrag: ${relative(directory, absolute)}`);
+      }
+      const canonicalFile = realpathSync(absolute);
+      if (canonicalFile !== canonicalRoot && !canonicalFile.startsWith(`${canonicalRoot}${sep}`)) {
+        throw new Error(`Paketdatei verlässt die Paketwurzel: ${relative(directory, absolute)}`);
+      }
       const path = `./${relative(directory, absolute).split(sep).join("/")}`;
       files.push({
         path: path as ExtensionPackageFile["path"],
         bytes: stats.size,
-        integrity: sha256IntegritySchema.parse(sha256Of(absolute)),
+        integrity: sha256IntegritySchema.parse(fileIntegrity(absolute)),
       });
     }
   };
   walk(directory);
-  return files.sort((left, right) => left.path.localeCompare(right.path));
+  const sorted = files.sort((left, right) => left.path.localeCompare(right.path));
+  const canonical = sorted.map((file) => `${file.path}\0${file.bytes}\0${file.integrity}\n`).join("");
+  return {
+    files: sorted,
+    integrity: sha256IntegritySchema.parse(`sha256:${createHash("sha256").update(canonical).digest("hex")}`),
+  };
 }
 
 /**
@@ -73,7 +89,7 @@ export class LocalExtensionCatalog {
   private entries = new Map<string, CatalogEntry>();
   private manifests = new Map<string, ExtensionManifestV1>();
   private packageDirectories = new Map<string, string>();
-  private manifestIntegrity = new Map<string, string>();
+  private packageIntegrity = new Map<string, Sha256Integrity>();
 
   private readonly providerId: CatalogProviderId;
   private readonly logger: CatalogLogger | undefined;
@@ -97,7 +113,7 @@ export class LocalExtensionCatalog {
     const nextEntries = new Map<string, CatalogEntry>();
     const nextManifests = new Map<string, ExtensionManifestV1>();
     const nextDirectories = new Map<string, string>();
-    const nextIntegrity = new Map<string, string>();
+    const nextIntegrity = new Map<string, Sha256Integrity>();
     for (const source of this.sources) {
       if (!existsSync(source.directory)) continue;
       const directoryEntries = readdirSync(source.directory, { withFileTypes: true })
@@ -112,11 +128,8 @@ export class LocalExtensionCatalog {
           const manifest = extensionManifestV1Schema.parse(
             JSON.parse(readFileSync(manifestPath, "utf8")) as unknown,
           );
-          const files = packageFiles(packageDirectory);
-          const totalBytes = files.reduce((sum, file) => sum + file.bytes, 0);
-          const manifestIntegrity = sha256IntegritySchema.parse(
-            sha256Of(manifestPath),
-          );
+          const inventory = packageInventory(packageDirectory);
+          const totalBytes = inventory.files.reduce((sum, file) => sum + file.bytes, 0);
           const descriptor = extensionPackageDescriptorSchema.parse({
             formatVersion: 1,
             extensionId: manifest.id,
@@ -124,8 +137,8 @@ export class LocalExtensionCatalog {
             manifestPath: "./extension.json",
             archiveBytes: totalBytes,
             unpackedBytes: totalBytes,
-            integrity: manifestIntegrity,
-            files,
+            integrity: inventory.integrity,
+            files: inventory.files,
           } satisfies ExtensionPackageDescriptor);
 
           const entry = catalogEntrySchema.parse({
@@ -137,7 +150,7 @@ export class LocalExtensionCatalog {
           nextEntries.set(manifest.id, entry);
           nextManifests.set(manifest.id, manifest);
           nextDirectories.set(manifest.id, packageDirectory);
-          nextIntegrity.set(manifest.id, manifestIntegrity);
+          nextIntegrity.set(manifest.id, inventory.integrity);
         } catch (error) {
           this.logger?.warn(
             `Catalog-Paket ${directoryEntry.name} übersprungen: ${error instanceof Error ? error.message : String(error)}`,
@@ -148,7 +161,7 @@ export class LocalExtensionCatalog {
     this.entries = nextEntries;
     this.manifests = nextManifests;
     this.packageDirectories = nextDirectories;
-    this.manifestIntegrity = nextIntegrity;
+    this.packageIntegrity = nextIntegrity;
     this.scanned = true;
   }
 
@@ -173,8 +186,16 @@ export class LocalExtensionCatalog {
     extensionId: string,
     version: string,
     expectedIntegrity: string,
+    expectedCatalogRevision?: string,
   ): ExtensionManifestV1 {
     this.scan();
+    if (expectedCatalogRevision !== undefined && expectedCatalogRevision !== this.revision()) {
+      throw new AppError(
+        409,
+        "operation-conflict",
+        "Der Catalog wurde seit dem Laden geändert; bitte erneut laden.",
+      );
+    }
     const entry = this.entries.get(extensionId);
     if (entry === undefined) {
       throw new AppError(404, "not-found", `Catalog-Eintrag ${extensionId} fehlt.`);
@@ -186,25 +207,42 @@ export class LocalExtensionCatalog {
         `Catalog-Version ${entry.package.version} passt nicht zu ${version}.`,
       );
     }
-    const packageIntegrity = this.manifestIntegrity.get(extensionId);
-    if (packageIntegrity === undefined || packageIntegrity !== expectedIntegrity) {
+    const packageIntegrity = this.packageIntegrity.get(extensionId);
+    const packageDirectory = this.packageDirectories.get(extensionId);
+    if (packageIntegrity === undefined || packageIntegrity !== expectedIntegrity || packageDirectory === undefined) {
       throw new AppError(
         409,
         "integrity-mismatch",
         "Der Catalog-Integritätswert passt nicht zur Anfrage.",
       );
     }
-    const manifest = this.manifests.get(extensionId);
-    if (manifest === undefined) {
+    let freshInventory: ReturnType<typeof packageInventory>;
+    try {
+      freshInventory = packageInventory(packageDirectory);
+    } catch {
+      throw new AppError(409, "integrity-mismatch", "Das Catalog-Paket ist seit dem Scan nicht mehr unverändert.");
+    }
+    if (
+      freshInventory.integrity !== expectedIntegrity
+      || JSON.stringify(freshInventory.files) !== JSON.stringify(entry.package.files)
+    ) {
+      throw new AppError(409, "integrity-mismatch", "Das Catalog-Paket wurde seit dem Scan verändert.");
+    }
+    const manifest = extensionManifestV1Schema.parse(
+      JSON.parse(readFileSync(join(packageDirectory, entry.package.manifestPath), "utf8")) as unknown,
+    );
+    if (manifest.id !== entry.manifest.id || manifest.version !== entry.package.version) {
+      throw new AppError(409, "integrity-mismatch", "Das Catalog-Manifest passt nicht mehr zum Paket-Snapshot.");
+    }
+    if (this.manifests.get(extensionId) === undefined) {
       throw new AppError(404, "not-found", `Catalog-Manifest ${extensionId} fehlt.`);
     }
     return manifest;
   }
 
-  /** V1: Paketintegrität = SHA-256 der Catalog-Manifestdatei. */
-  integrityOf(extensionId: string): string | undefined {
+  integrityOf(extensionId: string): Sha256Integrity | undefined {
     this.scan();
-    return this.manifestIntegrity.get(extensionId);
+    return this.packageIntegrity.get(extensionId);
   }
 
   packageDirectoryOf(extensionId: string): string | undefined {

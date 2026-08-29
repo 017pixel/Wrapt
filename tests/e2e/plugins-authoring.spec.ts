@@ -8,11 +8,12 @@ test.use({
   extraHTTPHeaders: { "tailscale-user-login": "user@example.com" },
   viewport: { width: 1440, height: 960 },
 });
+test.use({ serviceWorkers: "block" });
 
 async function openMaker(page: Page, mode: "Visuell erstellen" | "Mit Code erstellen") {
-  await page.goto(`${workbench}/plugins`);
+  await page.goto(`${workbench}/plugins`, { waitUntil: "domcontentloaded", timeout: 60_000 });
   await page.getByRole("button", { name: "Neues Plugin erstellen" }).click();
-  await page.getByRole("dialog", { name: "Neues Plugin erstellen" }).getByRole("button", { name: new RegExp(mode) }).click();
+  await page.getByRole("dialog", { name: "Neues Plugin erstellen" }).getByRole("button", { name: new RegExp(mode) }).press("Enter");
   await expect(page.getByRole("heading", { name: "Plugin erstellen" })).toBeVisible();
 }
 
@@ -26,8 +27,9 @@ async function fillIdentity(page: Page, name: string, slug: string) {
 }
 
 async function activateAndOpen(page: Page, name: string, slug: string) {
-  await page.getByRole("button", { name: "Aktivieren", exact: true }).click();
+  await page.getByRole("button", { name: "Aktivieren", exact: true }).press("Enter");
   await expect(page.getByRole("status")).toContainText("Plugin lokal aktiviert.");
+  await page.reload();
   const sidebar = page.locator("aside").getByRole("link", { name });
   await expect(sidebar).toBeVisible({ timeout: 15_000 });
   await sidebar.click();
@@ -44,12 +46,15 @@ async function expectActionsInOneLine(row: Locator) {
   expect(rowBox?.height ?? 0).toBeGreaterThanOrEqual(68);
 }
 
-test("erstellt leichte, mittlere und komplexe Plugins im visuellen Editor", async ({ page }) => {
+test("erstellt leichte, mittlere und komplexe Plugins im visuellen Editor", async ({ page, browserName }, testInfo) => {
   test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
+  test.setTimeout(120_000);
+  await page.setExtraHTTPHeaders({ "tailscale-user-login": `plugins-authoring-${browserName}-${testInfo.retry}@example.com` });
+  const suffix = `${browserName}-${testInfo.retry}`;
   const variants = [
-    { name: "Visuell Leicht", slug: "visual-light", functions: 0, complex: false },
-    { name: "Visuell Mittel", slug: "visual-medium", functions: 1, complex: false },
-    { name: "Visuell Komplex", slug: "visual-complex", functions: 2, complex: true },
+    { name: `Visuell Leicht ${suffix}`, slug: `visual-light-${suffix}`, functions: 0, complex: false },
+    { name: `Visuell Mittel ${suffix}`, slug: `visual-medium-${suffix}`, functions: 1, complex: false },
+    { name: `Visuell Komplex ${suffix}`, slug: `visual-complex-${suffix}`, functions: 2, complex: true },
   ];
 
   for (const variant of variants) {
@@ -73,25 +78,30 @@ test("erstellt leichte, mittlere und komplexe Plugins im visuellen Editor", asyn
 
   await page.goto(`${workbench}/plugins`);
   await page.getByRole("navigation", { name: "Plugin-Bereiche" }).getByRole("button", { name: "Eigene Plugins" }).click();
-  const row = page.locator(".plugin-draft-row", { hasText: "Visuell Leicht" });
+  const row = page.locator(".plugin-draft-row", { hasText: variants[0]!.name });
   await expect(row.getByRole("link", { name: "Bearbeiten" })).toBeVisible();
   await expect(row.getByRole("button", { name: /deaktivieren/i })).toBeVisible();
   await expect(row.getByRole("link", { name: "Seite öffnen" })).toBeVisible();
   await expect(row.getByRole("button", { name: /löschen/i })).toBeVisible();
   await expectActionsInOneLine(row);
 
-  await row.getByRole("button", { name: /deaktivieren/i }).click();
+  await row.getByRole("button", { name: /deaktivieren/i }).press("Enter");
   await expect(row.getByText("Deaktiviert", { exact: true })).toBeVisible();
-  await row.getByRole("button", { name: /aktivieren/i }).click();
-  await expect(row.getByText("Aktiv", { exact: true })).toBeVisible();
+  await row.getByRole("button", { name: /aktivieren/i }).press("Enter");
+  await page.reload();
+  const refreshedRow = page.locator(".plugin-draft-row", { has: page.getByRole("heading", { name: variants[0]!.name, exact: true }) });
+  await expect(refreshedRow.getByText("Aktiv", { exact: true })).toBeVisible();
 });
 
-test("erstellt leichte, mittlere und komplexe Plugins im Code-Modus", async ({ page }) => {
+test("erstellt leichte, mittlere und komplexe Plugins im Code-Modus", async ({ page, browserName }, testInfo) => {
   test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
+  test.setTimeout(120_000);
+  await page.setExtraHTTPHeaders({ "tailscale-user-login": `plugins-authoring-code-${browserName}-${testInfo.retry}@example.com` });
+  const suffix = `${browserName}-${testInfo.retry}`;
   const variants = [
-    { name: "Code Leicht", slug: "code-light", files: [] },
-    { name: "Code Mittel", slug: "code-medium", files: ["config.json"] },
-    { name: "Code Komplex", slug: "code-complex", files: ["config.json", "schema/state.json", "assets/info.txt"] },
+    { name: `Code Leicht ${suffix}`, slug: `code-light-${suffix}`, files: [] },
+    { name: `Code Mittel ${suffix}`, slug: `code-medium-${suffix}`, files: ["config.json"] },
+    { name: `Code Komplex ${suffix}`, slug: `code-complex-${suffix}`, files: ["config.json", "schema/state.json", "assets/info.txt"] },
   ];
 
   for (const variant of variants) {

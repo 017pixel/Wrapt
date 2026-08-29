@@ -1,11 +1,14 @@
 import { constants as fsConstants } from "node:fs";
 import { access } from "node:fs/promises";
 import { operationalMetricsSchema, readinessResponseSchema } from "@wrapt/contracts";
+import multipart from "@fastify/multipart";
 import type { FastifyInstance } from "fastify";
 import { registerApiRoutes } from "../api/routes.js";
 import { registerBrowserRoutes } from "../browser/routes.js";
 import { settings } from "../config/settings.js";
 import { registerExtensionRoutes } from "../extensions/routes.js";
+import { extensionDatabaseBackupStatus } from "../extensions/backup.js";
+import { readWebBuildMetrics } from "../observability/web-build-metrics.js";
 import { registerHermesRoutes } from "../hermes/routes.js";
 import { registerNewsRoutes } from "../news/routes.js";
 import { registerNotificationRoutes } from "../notifications/routes.js";
@@ -20,26 +23,28 @@ import { AppError } from "../utils/errors.js";
 import type { AppDependencies } from "./dependencies.js";
 
 export async function registerApplicationRoutes(app: FastifyInstance, deps: AppDependencies) {
-  await app.register(registerApiRoutes, {
-    prefix: "/api/v1",
-    projects: deps.projects,
-    statuses: createServiceStatusService(deps.servicesConfig.services),
-    commands: createCommandService(deps.commandsConfig),
-    usage: deps.liveUsage,
-    analytics: deps.analytics,
-    accounts: deps.accounts,
-    usageTimeline: deps.usageTimeline,
-    orbit: deps.orbitDatabase,
-    orbitAssets: deps.orbitAssets,
-    fileGallery: deps.fileGallery,
-    projectBrowser: deps.projectBrowser,
-    fileManager: deps.fileManager,
-    skillEditor: deps.skillEditor,
-    projectFiles: deps.projectFiles,
-    localPorts: deps.localPorts,
-    previewSlots: deps.previewSlots,
-    proxyOrigins: deps.proxyOrigins,
-  });
+  await app.register(async (scope) => {
+    await scope.register(multipart, { limits: { files: 1, fileSize: settings.orbitAssetMaxFileBytes } });
+    await registerApiRoutes(scope, {
+      projects: deps.projects,
+      statuses: createServiceStatusService(deps.servicesConfig.services),
+      commands: createCommandService(deps.commandsConfig),
+      usage: deps.liveUsage,
+      analytics: deps.analytics,
+      accounts: deps.accounts,
+      usageTimeline: deps.usageTimeline,
+      orbit: deps.orbitDatabase,
+      orbitAssets: deps.orbitAssets,
+      fileGallery: deps.fileGallery,
+      projectBrowser: deps.projectBrowser,
+      fileManager: deps.fileManager,
+      skillEditor: deps.skillEditor,
+      projectFiles: deps.projectFiles,
+      localPorts: deps.localPorts,
+      previewSlots: deps.previewSlots,
+      proxyOrigins: deps.proxyOrigins,
+    });
+  }, { prefix: "/api/v1" });
   app.get("/api/v1/health/readiness", async (_request, reply) => {
     const checks = await Promise.all([
       ["database", settings.databasePath],
@@ -59,6 +64,8 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
   });
   app.get("/api/v1/system/operational-metrics", async () => operationalMetricsSchema.parse({
     ...deps.operationalMetrics.snapshot(),
+    push: deps.notificationPush.metrics(),
+    build: readWebBuildMetrics(settings.webDistDirectory),
     audit: deps.operationalAudit.verify(),
     orbit: deps.orbitDatabase.maintenanceStatus(),
     preview: (() => {
@@ -70,6 +77,11 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
         quarantinedSlots: slots.filter((slot) => slot.state === "quarantined").length,
       };
     })(),
+    extensions: {
+      quarantined: deps.extensionDatabase.quarantinedExtensionCount(),
+      recoveredTransientOperations: deps.extensionDatabase.recoveredTransientOperationCount(),
+      backup: extensionDatabaseBackupStatus(deps.extensionBackupDirectory),
+    },
   }));
   await app.register(registerPreviewRoutes, {
     prefix: "/api/v1",
@@ -102,8 +114,8 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
   });
   await app.register(registerNotificationRoutes, { prefix: "/api/v1", database: deps.notificationDatabase, push: deps.notificationPush, configDirectory: settings.configDirectory, identity: deps.identityOptions });
   await app.register(registerEditorOpenRoutes, { prefix: "/api/v1", secrets: deps.editorOpenSecrets });
-  await app.register(registerExtensionRoutes, { prefix: "/api/v1", manager: deps.extensionManager, catalog: deps.extensionCatalog });
-  await app.register(registerPluginRoutes, { prefix: "/api/v1", authoring: deps.pluginAuthoring, creatorSkillPath: settings.pluginCreatorSkillPath });
+  await app.register(registerExtensionRoutes, { prefix: "/api/v1", manager: deps.extensionManager, catalog: deps.extensionCatalog, identity: deps.identityOptions, runtime: deps.extensionRuntime });
+  await app.register(registerPluginRoutes, { prefix: "/api/v1", authoring: deps.pluginAuthoring, creatorSkillPath: settings.pluginCreatorSkillPath, identity: deps.identityOptions });
   await app.register(registerTerminalRoutes, {
     prefix: "/api/v1",
     manager: deps.terminals,

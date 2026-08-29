@@ -160,6 +160,23 @@ describe("Plugin-Authoring lokal", () => {
     await expect(readFile(join(root, "published", "lifecycle-test", "extension.json"))).rejects.toThrow();
   });
 
+  it("weist einen stale Draft-Write mit 409 zurück", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wrapt-plugin-authoring-"));
+    directories.push(root);
+    const service = new PluginAuthoringService(
+      join(root, "drafts"),
+      join(root, "examples"),
+      join(root, "published"),
+      { refresh: vi.fn() } as unknown as LocalExtensionCatalog,
+    );
+    const draft = await service.createDraft(draftContent("revision-test"));
+    const first = await service.updateDraft(draft.id, { ...contentOf(draft), description: "Erste Fassung." });
+
+    await expect(service.updateDraft(draft.id, { ...contentOf(draft), description: "Stale Fassung." }))
+      .rejects.toMatchObject({ statusCode: 409, code: "PLUGIN_REVISION_CONFLICT" });
+    await expect(service.getDraft(draft.id)).resolves.toMatchObject({ revision: first.revision, description: "Erste Fassung." });
+  });
+
   it("behält bei alten doppelten Slugs das Paket des tatsächlichen Besitzers", async () => {
     const root = await mkdtemp(join(tmpdir(), "wrapt-plugin-authoring-"));
     directories.push(root);

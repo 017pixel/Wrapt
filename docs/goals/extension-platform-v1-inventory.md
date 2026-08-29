@@ -1,5 +1,8 @@
 # Extension Platform V1: Phase-0-Inventar
 
+> Archiviertes Ausgangsinventar vom 2026-08-15. Es beschreibt keinen aktuellen Releasezustand;
+> für die heutige Reality-Matrix gilt [`extension-platform-v1.md`](extension-platform-v1.md).
+
 Stand: 2026-08-15
 
 Analysierter Ausgangscommit: `7662f2c`

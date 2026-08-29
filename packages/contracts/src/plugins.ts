@@ -208,6 +208,17 @@ export const pluginDraftSchema = pluginDraftContentSchema.extend({
   updatedAt: z.iso.datetime({ offset: true }),
 });
 
+/** Bedingter Write für den serverseitig gespeicherten Draft. */
+export const pluginDraftUpdateRequestSchema = z.union([
+  z.strictObject({
+    expectedRevision: z.number().int().nonnegative(),
+    content: pluginDraftContentSchema,
+  }),
+  // Alte Clients dürfen weiterhin den Content direkt senden; dessen Revision
+  // ist dann die implizite If-Match-Version.
+  pluginDraftContentSchema,
+]);
+
 export const pluginExampleSchema = pluginDraftContentSchema.extend({
   exampleId: slug,
   sourceDirectory: z.string().min(1).max(260),
@@ -216,6 +227,18 @@ export const pluginExampleSchema = pluginDraftContentSchema.extend({
 export const pluginExamplesResponseSchema = z.strictObject({
   examples: z.array(pluginExampleSchema),
   total: z.number().int().nonnegative(),
+});
+
+/** Inhalt, den der Server aus einem verifizierten Runtime-Release-Slot liest. */
+export const pluginRuntimeEntrySchema = z.strictObject({
+  extensionId: z.string().min(1).max(128),
+  version: z.string().regex(/^\d+\.\d+\.\d+$/),
+  packageIntegrity: z.string().regex(/^sha256:[0-9a-f]{64}$/),
+  content: pluginDraftContentSchema,
+});
+
+export const pluginRuntimeResponseSchema = z.strictObject({
+  runtimes: z.array(pluginRuntimeEntrySchema).max(1_024),
 });
 
 export const pluginDraftsResponseSchema = z.strictObject({
@@ -263,6 +286,8 @@ export type PluginPackageFile = z.infer<typeof pluginPackageFileSchema>;
 export type PluginWizardAnswers = z.infer<typeof pluginWizardAnswersSchema>;
 export type PluginDraftContent = z.infer<typeof pluginDraftContentSchema>;
 export type PluginDraft = z.infer<typeof pluginDraftSchema>;
+export type PluginDraftUpdateRequest = z.infer<typeof pluginDraftUpdateRequestSchema>;
 export type PluginExample = z.infer<typeof pluginExampleSchema>;
+export type PluginRuntimeEntry = z.infer<typeof pluginRuntimeEntrySchema>;
 export type PluginValidationIssue = z.infer<typeof pluginValidationIssueSchema>;
 export type PluginCreatorSkillResponse = z.infer<typeof pluginCreatorSkillResponseSchema>;

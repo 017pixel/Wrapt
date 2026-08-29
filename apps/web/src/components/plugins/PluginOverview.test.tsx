@@ -215,6 +215,7 @@ describe("PluginOverview", () => {
       name: "Fokus-Timer",
       lifecycle: "active",
       desiredEnablement: "enabled",
+      runtimeActive: true,
     }] as unknown as ExtensionRegistrySummary[];
     const onEdit = vi.fn();
     const onToggle = vi.fn();

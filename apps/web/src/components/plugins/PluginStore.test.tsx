@@ -11,8 +11,6 @@ const mocks = vi.hoisted(() => ({
   catalog: vi.fn(),
   registry: vi.fn(),
   dispatch: vi.fn(),
-  restartSystem: vi.fn(),
-  restartStatus: vi.fn(),
 }));
 
 vi.mock("../../lib/apiClient", () => ({
@@ -21,8 +19,6 @@ vi.mock("../../lib/apiClient", () => ({
     extensionCatalog: mocks.catalog,
     extensionRegistry: mocks.registry,
     dispatchExtensionOperation: mocks.dispatch,
-    restartSystem: mocks.restartSystem,
-    restartStatus: mocks.restartStatus,
   },
 }));
 
@@ -59,8 +55,6 @@ describe("PluginStore", () => {
     mocks.catalog.mockResolvedValue({ providerId: "wrapt-catalog", revision: "sha256:catalog", entries: [entry] });
     mocks.registry.mockResolvedValue({ revision: 0, generatedAt: new Date().toISOString(), extensions: [] });
     mocks.dispatch.mockResolvedValue({});
-    mocks.restartSystem.mockReturnValue(new Promise(() => undefined));
-    mocks.restartStatus.mockResolvedValue(null);
   });
 
   it("zeigt für ein Beispiel nur Installieren", async () => {
@@ -92,11 +86,8 @@ describe("PluginStore", () => {
         enableAfterInstall: true,
       });
     });
-    const restartButton = screen.getByRole("button", { name: "Wrapt neu starten" });
-    expect(screen.queryByRole("link", { name: "Wrapt neu starten" })).toBeNull();
-    fireEvent.click(restartButton);
-    expect(mocks.restartSystem).toHaveBeenCalledWith("both");
-    expect(screen.getByText("Neustart wird angestoßen …")).toBeTruthy();
+    expect(await screen.findByText(/Runtime bleibt bis zur verifizierten Aktivierung deaktiviert/)).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Wrapt neu starten" })).toBeNull();
   });
 
   it("lässt Installationshinweise schließen", async () => {
@@ -104,20 +95,9 @@ describe("PluginStore", () => {
     const installButton = await screen.findByRole("button", { name: "Installieren" });
     await waitFor(() => expect((installButton as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(installButton);
-    expect(await screen.findByText("„Fokus-Timer“ wurde hinzugefügt.")).toBeTruthy();
+    expect(await screen.findByText(/„Fokus-Timer“ wurde installiert/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Hinweis schließen" }));
-    expect(screen.queryByText("„Fokus-Timer“ wurde hinzugefügt.")).toBeNull();
-  });
-
-  it("zeigt einen fehlgeschlagenen Neustart im selben Plugin-Banner", async () => {
-    mocks.restartSystem.mockRejectedValue(new Error("Start fehlgeschlagen"));
-    renderStore();
-    const installButton = await screen.findByRole("button", { name: "Installieren" });
-    await waitFor(() => expect((installButton as HTMLButtonElement).disabled).toBe(false));
-    fireEvent.click(installButton);
-    fireEvent.click(await screen.findByRole("button", { name: "Wrapt neu starten" }));
-    expect(await screen.findByText("Der Neustart konnte nicht ausgelöst werden.")).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Erneut versuchen" })).toBeTruthy();
+    expect(screen.queryByText(/„Fokus-Timer“ wurde installiert/)).toBeNull();
   });
 
   it("deinstalliert ein installiertes Plugin mit explizitem Datenentscheid", async () => {
@@ -138,6 +118,20 @@ describe("PluginStore", () => {
       expectedRevision: 4,
       data: "delete",
     }));
+  });
+
+  it("zeigt installierte Catalog-Pakete ohne freigegebene Runtime fail-closed", async () => {
+    mocks.registry.mockResolvedValue({
+      revision: 6,
+      generatedAt: new Date().toISOString(),
+      extensions: [{ id: entry.manifest.id, name: "Fokus-Timer", lifecycle: "installed", allowedOperations: ["uninstall"] }],
+    });
+    renderStore();
+
+    const activateButton = await screen.findByRole("button", { name: "Aktivieren" });
+    expect((activateButton as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(/Runtime noch nicht freigegeben/)).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Deinstallieren" }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it("macht ein deinstalliertes Beispiel wieder installierbar", async () => {

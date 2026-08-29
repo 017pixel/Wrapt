@@ -18,8 +18,16 @@ async function directoryExists(path: string): Promise<boolean> {
   }
 }
 
-export async function registerStaticHosting(app: FastifyInstance) {
+export function t3LocalNetworkPermissionsPolicy(t3ClientUrl: string | null): string {
+  const allowlist = t3ClientUrl === null ? "self" : `self "${new URL(t3ClientUrl).origin}"`;
+  return ["local-network-access", "local-network", "loopback-network"]
+    .map((feature) => `${feature}=(${allowlist})`)
+    .join(", ");
+}
+
+export async function registerStaticHosting(app: FastifyInstance, t3ClientUrl: string | null) {
   const hasWebBuild = await directoryExists(join(settings.webDistDirectory, "index.html"));
+  const permissionsPolicy = t3LocalNetworkPermissionsPolicy(t3ClientUrl);
   if (hasWebBuild) {
     await app.register(fastifyStatic, {
       root: settings.webDistDirectory,
@@ -32,7 +40,7 @@ export async function registerStaticHosting(app: FastifyInstance) {
         }
         if (filePath.endsWith("index.html") || filePath.endsWith("sw.js")) {
           response.header("Cache-Control", "no-cache");
-          // Das gehostete T3-Web-UI (app.t3.codes) wird als Iframe eingebettet und
+          // Das gehostete T3-Web-UI wird als Iframe eingebettet und
           // verbindet sich per Private Network Access mit den T3-Backends im
           // Tailnet. Chrome verlangt dafür eine einmalige Bestätigung des
           // lokalen Netzwerkzugriffs (local-network-access), Firefox nutzt die
@@ -40,7 +48,7 @@ export async function registerStaticHosting(app: FastifyInstance) {
           // werden an den Iframe delegiert.
           response.header(
             "Permissions-Policy",
-            'local-network-access=(self "https://app.t3.codes"), local-network=(self "https://app.t3.codes"), loopback-network=(self "https://app.t3.codes")',
+            permissionsPolicy,
           );
           return;
         }
@@ -82,7 +90,7 @@ export async function registerStaticHosting(app: FastifyInstance) {
       return reply
         .header(
           "Permissions-Policy",
-          'local-network-access=(self "https://app.t3.codes"), local-network=(self "https://app.t3.codes"), loopback-network=(self "https://app.t3.codes")',
+          permissionsPolicy,
         )
         .type("text/html")
         .sendFile("index.html");

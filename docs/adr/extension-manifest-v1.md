@@ -458,10 +458,10 @@ Page für komplexe Oberflächen:
   Identity, Same-Origin, Revisionen, Audit und die serverseitige Scope-Autorisierung aus
   [`extension-server-authority.md`](extension-server-authority.md).
 
-Die elf festen Cards in `Settings.tsx` werden in diesem Subgoal nicht verändert. Version,
-Security, Extensions und Recovery bleiben Core. T3, Usage und andere Featurebereiche werden
-erst über Legacy Built-in Contributions adaptiert; browserlokale Präferenzen bleiben bis zur
-getesteten Dual-Read-Migration erhalten.
+Die Core-Einstellungen bleiben geschützt, sind aber in fachlich getrennte Module und Tabs
+aufgeteilt. Design, Navigation, System, Usage und Start-App werden weiterhin als eingebaute
+Workbench-Bereiche verwaltet; browserlokale Präferenzen bleiben bis zu einer getesteten
+Dual-Read-Migration kompatibel.
 
 #### Keyboard Shortcut Contributions
 

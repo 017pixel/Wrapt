@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import {
+  extensionIdSchema,
   extensionManifestV1Schema,
   extensionPublicErrorCodes,
   isExtensionLifecycleTransitionAllowed,
@@ -8,7 +9,6 @@ import {
   type ExtensionManagementOperation,
   type ExtensionManagementRequest,
   type ExtensionManifestV1,
-  type ExtensionPermissionRequests,
   type ExtensionPermissionReview,
   type ExtensionPublicError,
   type ExtensionRegistryDetail,
@@ -17,43 +17,34 @@ import {
   type ExtensionSource,
 } from "@wrapt/extension-contracts";
 import { AppError } from "../utils/errors.js";
+import { writeExtensionDatabaseBackup } from "./backup.js";
 import { canonicalCatalogProviderId, type LocalExtensionCatalog } from "./catalog.js";
 import { defaultHealth, type ExtensionDatabase } from "./database.js";
+import { allowedOperationsFor, runtimeCanActivate as baseRuntimeCanActivate } from "./manager-operations.js";
+import { LocalPluginRegistry } from "./local-plugin-registry.js";
+import { ExtensionRuntimeCoordinator } from "./manager-runtime.js";
+import { grantIsWithinRequest, reviewPermissions } from "./manager-permissions.js";
+import { rollbackExtension } from "./manager-rollback.js";
+import { commitActivePackage, reportHealth, syncCatalogUpdates } from "./manager-registry-sync.js";
+import { withOpenReview } from "./manager-views.js";
+import type { ExtensionReleaseStore } from "./release-store.js";
+import type { ExtensionRuntimeHost } from "./runtime-host.js";
 
 interface DiscoveredExtension {
   manifest: ExtensionManifestV1;
   source: ExtensionSource;
 }
 
-type PermissionLike = { permission: string; scope?: unknown };
-
-function grantIsWithinRequest(request: PermissionLike, grant: PermissionLike): boolean {
-  const requestedScope = request.scope as Record<string, unknown> | undefined;
-  if (requestedScope === undefined) return true;
-  const grantedScope = grant.scope as Record<string, unknown> | undefined;
-  if (grantedScope === undefined) return false;
-  for (const [key, grantedValues] of Object.entries(grantedScope)) {
-    const requestedValues = requestedScope[key];
-    if (!Array.isArray(requestedValues) || !Array.isArray(grantedValues)) {
-      return false;
-    }
-    const allowed = new Set<unknown>(requestedValues);
-    if (grantedValues.some((value) => !allowed.has(value))) return false;
-  }
-  return true;
-}
-
 interface ApplyResult {
   detail: ExtensionRegistryDetail | null;
   review?: ExtensionPermissionReview;
 }
-
 const errorFor = (code: ExtensionPublicError["code"]): ExtensionPublicError => ({
   code,
   occurredAt: new Date().toISOString(),
 });
 
-function summaryOf(detail: ExtensionRegistryDetail): ExtensionRegistrySummary {
+function summaryOf(detail: ExtensionRegistryDetail, canActivate = baseRuntimeCanActivate(detail.source)): ExtensionRegistrySummary {
   return {
     id: detail.id,
     name: detail.name,
@@ -69,11 +60,12 @@ function summaryOf(detail: ExtensionRegistryDetail): ExtensionRegistrySummary {
     ...(detail.activeVersion !== undefined ? { activeVersion: detail.activeVersion } : {}),
     ...(detail.availableVersion !== undefined ? { availableVersion: detail.availableVersion } : {}),
     ...(detail.rollbackVersion !== undefined ? { rollbackVersion: detail.rollbackVersion } : {}),
+    ...(detail.rollbackAssetRevision !== undefined ? { rollbackAssetRevision: detail.rollbackAssetRevision } : {}),
     ...(detail.activeAssetRevision !== undefined
       ? { activeAssetRevision: detail.activeAssetRevision }
       : {}),
-    allowedOperations: detail.allowedOperations,
-    ...(detail.permissionReview !== undefined
+    allowedOperations: allowedOperationsFor(detail, canActivate),
+    ...(detail.lifecycle === "permissions-pending" && detail.permissionReview !== undefined
       ? { permissionReview: detail.permissionReview }
       : {}),
   };
@@ -83,19 +75,52 @@ function summaryOf(detail: ExtensionRegistryDetail): ExtensionRegistrySummary {
  * Registry, serialisiert Operationen je Extension, prüft die erwartete
  * Revision und führt alle Lifecycle-Übergänge über die geschlossene
  * Zustandsmaschine. Die tatsächliche Code-Aktivierung der Entrypoints folgt
- * in Phase 6/7; bis dahin bleiben catalog- und paketbasierte Installationen
- * fail-closed, während system-, builtin- und developer-Quellen über die
- * Discovery registriert werden.
+ * Paketbasierte UI-Aktivierung läuft ausschließlich über den verifizierten
+ * Release-Slot und den injizierten Runtime-Host. Serverseitige Entrypoints
+ * ohne Sandbox bleiben fail-closed.
  */
 export class ExtensionManager {
   private readonly discovered = new Map<string, DiscoveredExtension>();
   private readonly queues = new Map<string, Promise<unknown>>();
   private catalog: LocalExtensionCatalog | undefined;
+  private readonly localPlugins: LocalPluginRegistry;
+  private readonly runtime: ExtensionRuntimeCoordinator;
 
-  constructor(private readonly database: ExtensionDatabase) {}
+  constructor(
+    private readonly database: ExtensionDatabase,
+    private readonly backupDirectory?: string,
+    private readonly releaseStore?: ExtensionReleaseStore,
+    runtimeHost?: ExtensionRuntimeHost,
+  ) {
+    this.runtime = new ExtensionRuntimeCoordinator({
+      database,
+      getCatalog: () => this.catalog,
+      releaseStore,
+      runtimeHost,
+    });
+    this.localPlugins = new LocalPluginRegistry({
+      database,
+      catalog: () => this.catalog,
+      register: (manifest, source) => this.registerDiscovered(manifest, source),
+      dispatch: (request) => this.dispatch(request),
+      commitActivePackage: (extensionId, manifest, integrity) => commitActivePackage(
+        database,
+        extensionId,
+        manifest,
+        integrity,
+        () => this.backupRegistry(),
+      ),
+    });
+  }
 
   attachCatalog(catalog: LocalExtensionCatalog): void {
     this.catalog = catalog;
+  }
+
+  /** Prüft beim Start Pointer, Release-Slot und Health erneut und fällt sonst zurück. */
+  reconcileRuntime(): void {
+    this.runtime.reconcile();
+    this.backupRegistry();
   }
 
   registerDiscovered(manifest: ExtensionManifestV1, source: ExtensionSource): void {
@@ -103,11 +128,21 @@ export class ExtensionManager {
     this.discovered.set(parsed.id, { manifest: parsed, source });
   }
 
-  private withOpenReview(detail: ExtensionRegistryDetail): ExtensionRegistryDetail {
-    if (detail.lifecycle !== "permissions-pending") return detail;
-    const review = this.database.openReview(detail.id);
-    if (review === null) return detail;
-    return { ...detail, permissionReview: review };
+  /**
+   * Synchronisiert ein vom Plugin-Authoring erzeugtes, permissionloses
+   * Declarative-Plugin mit der Registry. Der Frontend-Runtime darf lokale
+   * Inhalte erst nach diesem erfolgreichen Registry-Fakt anzeigen.
+   */
+  async syncLocalPlugin(extensionId: string): Promise<void> {
+    await this.localPlugins.sync(extensionIdSchema.parse(extensionId));
+  }
+
+  async disableLocalPlugin(extensionId: string): Promise<void> {
+    await this.localPlugins.disable(extensionIdSchema.parse(extensionId), (request) => this.dispatch(request));
+  }
+
+  async uninstallLocalPlugin(extensionId: string): Promise<void> {
+    await this.localPlugins.uninstall(extensionIdSchema.parse(extensionId), (request) => this.dispatch(request));
   }
 
   snapshot(): ExtensionRegistrySnapshot {
@@ -116,7 +151,10 @@ export class ExtensionManager {
       generatedAt: new Date().toISOString(),
       extensions: this.database
         .listExtensions()
-        .map((detail) => summaryOf(this.withOpenReview(detail))),
+        .map((detail) => {
+          const open = withOpenReview(this.database, detail);
+          return summaryOf(open, this.runtime.canActivateDetail(open));
+        }),
     };
   }
 
@@ -126,50 +164,33 @@ export class ExtensionManager {
       throw new AppError(404, "not-found", `Extension ${extensionId} ist nicht registriert.`);
     }
     const lastOperation = this.database.lastOperation(extensionId);
+    const open = withOpenReview(this.database, detail);
+    const derived = { ...open, allowedOperations: allowedOperationsFor(open, this.runtime.canActivateDetail(open)) };
     return {
-      ...this.withOpenReview(detail),
+      ...derived,
       ...(lastOperation !== undefined ? { lastOperation } : {}),
       ...(detail.lastError !== undefined ? { lastError: detail.lastError } : {}),
     };
   }
 
-  /** Gleicht installierte Versionen mit dem Local Catalog ab. */
   syncCatalogUpdates(): void {
-    if (this.catalog === undefined) return;
-    let changed = false;
-    for (const detail of this.database.listExtensions()) {
-      const entry = this.catalog.get(detail.id);
-      if (entry === undefined || detail.installedVersion === undefined) continue;
-      if (entry.package.version === detail.installedVersion) continue;
-      const next: ExtensionRegistryDetail = {
-        ...detail,
-        availableVersion: entry.package.version,
-        lifecycle: isExtensionLifecycleTransitionAllowed(
-          detail.lifecycle,
-          "update-available",
-        )
-          ? "update-available"
-          : detail.lifecycle,
-      };
-      this.database.upsertExtension(next);
-      changed = true;
+    syncCatalogUpdates(this.database, this.catalog);
+    this.backupRegistry();
+  }
+
+  private backupRegistry(): void {
+    if (this.backupDirectory === undefined) return;
+    try {
+      writeExtensionDatabaseBackup(this.database, this.backupDirectory, this.database.revision());
+    } catch {
+      // Die Registry ist bereits dauerhaft geschrieben. Ein späterer Start
+      // versucht den nächsten Snapshot erneut; ein Backupfehler darf keinen
+      // erfolgreichen Lifecycle-Request rückwirkend fehlschlagen lassen.
     }
-    if (changed) this.database.bumpRevision();
   }
 
   reportHealth(extensionId: string, status: ExtensionRegistryDetail["health"]["status"]): void {
-    const detail = this.database.getExtension(extensionId);
-    if (detail === null) {
-      throw new AppError(404, "not-found", `Extension ${extensionId} ist nicht registriert.`);
-    }
-    const nextHealth = {
-      status,
-      checkedAt: new Date().toISOString(),
-      consecutiveFailures:
-        status === "unhealthy" ? detail.health.consecutiveFailures + 1 : 0,
-    };
-    this.database.upsertExtension({ ...detail, health: nextHealth });
-    this.database.bumpRevision();
+    reportHealth(this.database, extensionId, status);
   }
 
   dispatch(request: ExtensionManagementRequest): Promise<ExtensionManagementAccepted> {
@@ -179,6 +200,10 @@ export class ExtensionManager {
       .catch(() => undefined)
       .then(() => this.execute(request));
     this.queues.set(extensionId, run);
+    void run.then(
+      () => { if (this.queues.get(extensionId) === run) this.queues.delete(extensionId); },
+      () => { if (this.queues.get(extensionId) === run) this.queues.delete(extensionId); },
+    );
     return run as Promise<ExtensionManagementAccepted>;
   }
 
@@ -190,80 +215,80 @@ export class ExtensionManager {
       status: "queued",
       requestedAt: new Date().toISOString(),
     };
-    const current = this.database.getExtension(request.extensionId);
-    if (current !== null) {
-      this.database.addOperation(request.extensionId, queued);
-    }
-
-    if (request.expectedRevision !== this.database.revision()) {
-      const conflicted: ExtensionManagementOperation = {
-        ...queued,
-        status: "failed",
-        completedAt: new Date().toISOString(),
-        error: errorFor("operation-conflict"),
-      };
-      if (current !== null) this.database.updateOperation(conflicted);
-      throw new AppError(
-        409,
-        "operation-conflict",
-        "Die Registry wurde inzwischen geändert; bitte erneut laden.",
-      );
-    }
-
-    const operation: ExtensionManagementOperation = {
-      ...queued,
-      status: "running",
-      startedAt: new Date().toISOString(),
-    };
-    if (current !== null) this.database.updateOperation(operation);
-
+    let current: ExtensionRegistryDetail | null = null;
+    let operation = queued;
+    let started = false;
+    const runtimeBefore = this.runtime.readPointer(request.extensionId);
     try {
-      const result = this.apply(request, current);
-      const completed: ExtensionManagementOperation = {
-        ...operation,
-        status: "succeeded",
-        completedAt: new Date().toISOString(),
-      };
-      if (result.detail !== null) {
-        this.database.upsertExtension(result.detail);
-        if (result.review !== undefined) {
-          this.database.addReview(request.extensionId, result.review);
+      const accepted = this.database.transaction(() => {
+        current = this.database.getExtension(request.extensionId);
+        if (current !== null) this.database.addOperation(request.extensionId, queued);
+
+        if (request.expectedRevision !== this.database.revision()) {
+          throw new AppError(
+            409,
+            "operation-conflict",
+            "Die Registry wurde inzwischen geändert; bitte erneut laden.",
+          );
         }
-        if (current !== null) {
-          this.database.updateOperation(completed);
-        } else {
-          this.database.addOperation(request.extensionId, completed);
+
+        operation = { ...queued, status: "running", startedAt: new Date().toISOString() };
+        started = true;
+        if (current !== null) this.database.updateOperation(operation);
+
+        const applied = this.apply(request, current);
+        const result = applied.detail === null
+          ? applied
+          : { ...applied, detail: this.runtime.finalize(applied.detail, current) };
+        const completed: ExtensionManagementOperation = {
+          ...operation,
+          status: "succeeded",
+          completedAt: new Date().toISOString(),
+        };
+        if (result.detail !== null) {
+          this.database.upsertExtension(result.detail);
+          if (result.review !== undefined) this.database.addReview(request.extensionId, result.review);
+          if (current !== null) this.database.updateOperation(completed);
+          else this.database.addOperation(request.extensionId, completed);
+          this.database.bumpRevision();
         }
-        this.database.bumpRevision();
-        this.syncCatalogUpdates();
-      }
-      return {
-        revision: this.database.revision(),
-        operation: completed,
-        extension: summaryOf(
-          this.withOpenReview(
-            result.detail ?? this.database.getExtension(request.extensionId)!,
+        return {
+          revision: this.database.revision(),
+          operation: completed,
+          extension: summaryOf(
+            withOpenReview(this.database, result.detail ?? this.database.getExtension(request.extensionId)!),
+            result.detail === null ? undefined : this.runtime.canActivateDetail(result.detail),
           ),
-        ),
-      };
+        };
+      });
+      // Catalog-Updates schreiben ebenfalls Registry-Zeilen und starten dafür
+      // eine eigene Transaktion. Das darf nicht innerhalb des gerade
+      // abgeschlossenen Zustandsübergangs passieren: SQLite unterstützt keine
+      // verschachtelten BEGIN-Statements. Die Rückgabeversion wird danach
+      // erneut gelesen, damit ein durch den Scan entdecktes Update sichtbar ist.
+      this.syncCatalogUpdates();
+      return { ...accepted, revision: this.database.revision() };
     } catch (error) {
+      this.runtime.restorePointer(request.extensionId, runtimeBefore);
       const publicError: ExtensionPublicError =
-        error instanceof AppError &&
-        extensionPublicErrorCodes.includes(
-          error.code as (typeof extensionPublicErrorCodes)[number],
-        )
+        error instanceof AppError && extensionPublicErrorCodes.includes(error.code as (typeof extensionPublicErrorCodes)[number])
           ? errorFor(error.code as ExtensionPublicError["code"])
           : errorFor("internal-error");
       const failed: ExtensionManagementOperation = {
         ...operation,
         status: "failed",
+        ...(started ? { startedAt: operation.startedAt } : {}),
         completedAt: new Date().toISOString(),
         error: publicError,
       };
       if (current !== null) {
-        this.database.updateOperation(failed);
-        this.database.upsertExtension({ ...current, lastError: publicError });
-        this.database.bumpRevision();
+        this.database.transaction(() => {
+          // Die Erfolgs-/Running-Transaktion wurde vollständig zurückgerollt;
+          // der fehlgeschlagene Journal-Eintrag wird atomar neu geschrieben.
+          this.database.addOperation(request.extensionId, failed);
+          this.database.upsertExtension({ ...current!, lastError: publicError });
+          this.database.bumpRevision();
+        });
       }
       throw error;
     }
@@ -285,11 +310,19 @@ export class ExtensionManager {
       case "update":
         return this.update(request, this.require(current));
       case "rollback":
-        return { detail: this.rollback(request, this.require(current)) };
+        return { detail: rollbackExtension(request, this.require(current), this.releaseStore, (candidate) => this.runtime.canActivateDetail(candidate)) };
       case "reload":
         return { detail: this.reload(request.extensionId, this.require(current)) };
       case "review-permissions":
-        return { detail: this.reviewPermissions(request, this.require(current)) };
+        return {
+          detail: reviewPermissions(
+            request,
+            this.require(current),
+            this.database,
+            (manifest, integrity, grants) => this.runtime.stageCatalogRelease(manifest, integrity, grants),
+            (candidate) => this.runtime.canActivateDetail(candidate),
+          ),
+        };
     }
   }
 
@@ -320,10 +353,8 @@ export class ExtensionManager {
     first: ExtensionLifecycleState,
     enable: boolean,
   ): ExtensionRegistryDetail {
-    // Der Pfad hängt vom Ausgangszustand ab: aktive und wartende Zustände
-    // erreichen ihr Ziel über die jeweils zulässigen Übergänge der Matrix,
-    // ohne dass ein Zustand wie `permissions-pending` einen unerlaubten
-    // Umweg über `deactivating` oder `enabling` nehmen muss.
+    const canActivate = this.runtime.canActivateDetail(detail);
+    if (enable && !canActivate) throw new AppError(409, "activation-failed", "Diese Paketquelle bleibt bis zur verifizierten Runtime deaktiviert.");
     const steps: ExtensionLifecycleState[] = [];
     if (enable) {
       if (isExtensionLifecycleTransitionAllowed(detail.lifecycle, "enabling")) {
@@ -358,14 +389,17 @@ export class ExtensionManager {
       this.assertTransition(extensionId, previous, step);
       previous = step;
     }
-    const target: ExtensionLifecycleState = enable ? "active" : "disabled";
+    const activates = enable && canActivate;
+    const target: ExtensionLifecycleState = enable
+      ? (activates ? "active" : "installed")
+      : "disabled";
     return {
       ...detail,
       lifecycle: target,
       desiredEnablement: enable ? "enabled" : "disabled",
-      runtimeActive: enable,
+      runtimeActive: activates,
       health: defaultHealth,
-      ...(enable ? { activeVersion: detail.installedVersion } : {}),
+      ...(activates ? { activeVersion: detail.installedVersion } : { activeVersion: undefined }),
     };
   }
 
@@ -395,6 +429,7 @@ export class ExtensionManager {
         request.extensionId,
         request.source.version,
         request.source.packageIntegrity,
+        request.source.catalogRevision,
       );
       // Die Registry-Quelle enthält nie Install-Artefakte wie die
       // Catalog-Revision; sie muss der `extensionSourceSchema` genügen.
@@ -406,6 +441,7 @@ export class ExtensionManager {
           packageIntegrity: request.source.packageIntegrity,
         },
       };
+      this.runtime.stageCatalogRelease(manifest, request.source.packageIntegrity, []);
     } else if (request.source.kind === "local-package") {
       throw new AppError(
         501,
@@ -420,17 +456,26 @@ export class ExtensionManager {
     if (request.source.kind !== discovered.source.kind) {
       throw new AppError(409, "operation-conflict", "Die Installationsquelle passt nicht zur Discovery.");
     }
-
     const manifest = discovered.manifest;
+    // Developer-Quellen materialisieren denselben lokalen Catalog-Snapshot,
+    // erhalten aber im aktiven Registry-Fakt den effektiven Developer-Trust.
+    const effectiveTrust = discovered.source.kind === "catalog" ? ("catalog-first-party" as const) : ("developer" as const);
+    const registryManifest = { ...manifest, trust: effectiveTrust };
+    if (discovered.source.packageIntegrity !== undefined && manifest.entrypoints.ui !== undefined) {
+      this.runtime.stageCatalogRelease(registryManifest, discovered.source.packageIntegrity, []);
+    }
     const needsReview = manifest.permissions.length > 0;
-    const desiredEnablement = request.enableAfterInstall ? "enabled" : "disabled";
+    const canActivate = this.runtime.canActivateSource(discovered.source, registryManifest);
+    const desiredEnablement = request.enableAfterInstall && canActivate ? "enabled" : "disabled";
+    const activeAssetRevision = canActivate && discovered.source.packageIntegrity !== undefined
+      ? discovered.source.packageIntegrity
+      : undefined;
+    const activates = desiredEnablement === "enabled"
+      && canActivate
+      && (manifest.entrypoints.ui === undefined || activeAssetRevision !== undefined);
     // Der effektive Trust folgt der Quelle, nicht der Selbstauskunft des
     // Manifests: Ein Catalog-Paket ist immer `catalog-first-party`, eine
     // Developer-Installation immer `developer`.
-    const effectiveTrust =
-      discovered.source.kind === "catalog"
-        ? ("catalog-first-party" as const)
-        : ("developer" as const);
     const detail: ExtensionRegistryDetail = {
       id: manifest.id,
       name: manifest.name,
@@ -445,9 +490,14 @@ export class ExtensionManager {
       // Request installiert; developer-Installationen sind nie required.
       required: false,
       installedVersion: manifest.version,
-      ...(needsReview ? {} : desiredEnablement === "enabled" ? { activeVersion: manifest.version } : {}),
+      ...(!needsReview && activates
+        ? {
+          activeVersion: manifest.version,
+          ...(activeAssetRevision !== undefined ? { activeAssetRevision } : {}),
+        }
+        : {}),
       allowedOperations: [],
-      manifest: { ...manifest, trust: effectiveTrust },
+      manifest: registryManifest,
       grantedPermissions: [],
       health: defaultHealth,
     };
@@ -466,7 +516,7 @@ export class ExtensionManager {
     }
 
     return {
-      detail: desiredEnablement === "enabled"
+      detail: activates
         ? { ...detail, lifecycle: "active", runtimeActive: true }
         : detail,
     };
@@ -498,8 +548,8 @@ export class ExtensionManager {
       request.extensionId,
       request.target.version,
       request.target.packageIntegrity,
+      request.target.catalogRevision,
     );
-
     // Grants behalten, die die neue Manifestfassung weiterhin abdeckt;
     // alles andere gehört nicht mehr in die Detail-Grants.
     const requestedById = new Map(
@@ -519,6 +569,9 @@ export class ExtensionManager {
       return granted === undefined || !grantIsWithinRequest(requested, granted);
     });
     const needsReview = addedPermissions.length > 0;
+    const targetSource = { ...detail.source, packageIntegrity: request.target.packageIntegrity };
+    this.runtime.stageCatalogRelease(manifest, request.target.packageIntegrity, grantedPermissions);
+    const canActivate = this.runtime.canActivateSource(targetSource, manifest);
 
     const steps: ExtensionLifecycleState[] = [];
     if (detail.lifecycle === "active") {
@@ -527,14 +580,15 @@ export class ExtensionManager {
       steps.push("staging");
     }
     steps.push(...(needsReview ? (["permissions-pending"] as const) : (["updating"] as const)));
+    const activates = detail.desiredEnablement === "enabled" && canActivate;
     const targetLifecycle = needsReview
       ? "permissions-pending"
-      : detail.desiredEnablement === "enabled"
+      : activates
         ? "active"
         : "installed";
     const targetSteps: ExtensionLifecycleState[] = needsReview
       ? []
-      : detail.desiredEnablement === "enabled"
+      : activates
         ? ["activating", "active"]
         : ["installed"];
     const walk: ExtensionLifecycleState[] = [...steps, ...targetSteps];
@@ -545,18 +599,28 @@ export class ExtensionManager {
     }
 
     const rollbackVersion = detail.activeVersion ?? detail.installedVersion;
+    const rollbackAssetRevision = detail.source.kind === "catalog"
+      ? detail.source.packageIntegrity
+      : detail.activeAssetRevision;
     const next: ExtensionRegistryDetail = {
       ...detail,
+      source: targetSource,
+      name: manifest.name,
+      description: manifest.description,
+      publisher: manifest.publisher,
       manifest,
       installedVersion: manifest.version,
       activeVersion:
-        !needsReview && detail.desiredEnablement === "enabled"
+        !needsReview && activates
           ? manifest.version
           : undefined,
+      ...(!needsReview && activates ? { activeAssetRevision: request.target.packageIntegrity } : { activeAssetRevision: undefined }),
       rollbackVersion,
+      rollbackAssetRevision,
       availableVersion: undefined,
       lifecycle: targetLifecycle,
-      runtimeActive: !needsReview && detail.desiredEnablement === "enabled",
+      runtimeActive: !needsReview && activates,
+      desiredEnablement: canActivate ? detail.desiredEnablement : "disabled",
       grantedPermissions,
       health: defaultHealth,
     };
@@ -594,6 +658,7 @@ export class ExtensionManager {
       runtimeActive: false,
       installedVersion: undefined,
       activeVersion: undefined,
+      rollbackAssetRevision: undefined,
       availableVersion: undefined,
       rollbackVersion: undefined,
       activeAssetRevision: undefined,
@@ -602,26 +667,9 @@ export class ExtensionManager {
     };
   }
 
-  private rollback(
-    request: Extract<ExtensionManagementRequest, { operation: "rollback" }>,
-    detail: ExtensionRegistryDetail,
-  ): ExtensionRegistryDetail {
-    if (detail.rollbackVersion === undefined) {
-      throw new AppError(409, "rollback-unavailable", "Es ist keine vorherige Version verfügbar.");
-    }
-    if (request.targetVersion !== detail.rollbackVersion) {
-      throw new AppError(409, "rollback-unavailable", "Die Zielversion liegt nicht für Rollback vor.");
-    }
-    return {
-      ...detail,
-      activeVersion: detail.rollbackVersion,
-      lifecycle: detail.desiredEnablement === "enabled" ? "active" : "installed",
-      runtimeActive: detail.desiredEnablement === "enabled",
-      health: defaultHealth,
-    };
-  }
-
   private reload(extensionId: string, detail: ExtensionRegistryDetail): ExtensionRegistryDetail {
+    const canActivate = this.runtime.canActivateDetail(detail);
+    if (!canActivate) throw new AppError(409, "activation-failed", "Diese Paketquelle bleibt bis zur verifizierten Runtime deaktiviert.");
     // `deactivating` → `activating` existiert in der Matrix nicht: Ein Reload
     // läuft deshalb über den vollständigen Pfad durch `disabled`, ein
     // abgestürzter Prozess startet direkt neu, alle übrigen Zustände nutzen
@@ -642,64 +690,13 @@ export class ExtensionManager {
       this.assertTransition(extensionId, previous, step);
       previous = step;
     }
+    const activates = canActivate;
     return {
       ...detail,
-      lifecycle: "active",
-      runtimeActive: true,
+      lifecycle: activates ? "active" : "installed",
+      runtimeActive: activates,
       health: defaultHealth,
     };
   }
 
-  private reviewPermissions(
-    request: Extract<ExtensionManagementRequest, { operation: "review-permissions" }>,
-    detail: ExtensionRegistryDetail,
-  ): ExtensionRegistryDetail {
-    if (detail.lifecycle !== "permissions-pending") {
-      throw new AppError(409, "operation-conflict", "Für diese Extension steht kein Review aus.");
-    }
-    const review = this.database.getReview(request.extensionId, request.reviewId);
-    if (review === null) {
-      throw new AppError(404, "not-found", "Das Permission Review ist nicht mehr offen.");
-    }
-
-    if (request.resolution.decision === "deny") {
-      this.database.resolveReview(request.reviewId);
-      return {
-        ...detail,
-        lifecycle: "installed",
-        desiredEnablement: "disabled",
-        runtimeActive: false,
-        grantedPermissions: [],
-      };
-    }
-
-    const grants = request.resolution.grants as ExtensionPermissionRequests;
-    const requestedIds = new Map(review.requestedPermissions.map((entry) => [entry.permission, entry]));
-    for (const grant of grants) {
-      const requestEntry = requestedIds.get(grant.permission);
-      if (requestEntry === undefined) {
-        throw new AppError(409, "permissions-denied", `Die Permission ${grant.permission} wurde nicht angefragt.`);
-      }
-      if (!grantIsWithinRequest(requestEntry, grant)) {
-        throw new AppError(
-          409,
-          "permissions-denied",
-          `Der Grant für ${grant.permission} erweitert den angefragten Scope.`,
-        );
-      }
-    }
-    this.database.resolveReview(request.reviewId);
-    return {
-      ...detail,
-      lifecycle: detail.desiredEnablement === "enabled" ? "active" : "installed",
-      runtimeActive: detail.desiredEnablement === "enabled",
-      grantedPermissions: grants,
-      health: defaultHealth,
-      // Ohne activeVersion wäre der Detail-Snapshot nach der Freigabe
-      // schema-invalid („Eine aktive Phase benötigt eine aktive Version").
-      ...(detail.desiredEnablement === "enabled" && detail.installedVersion !== undefined
-        ? { activeVersion: detail.installedVersion }
-        : {}),
-    };
-  }
 }

@@ -1,5 +1,9 @@
 # Phase 2: Frontend Registries und Legacy Built-in Contributions
 
+> Archivierter Phasenbericht vom 2026-08-15. „done“ bezieht sich nur auf die damalige Phase,
+> nicht auf die vollständige Extension-Platform-V1-Definition of Done. Der aktuelle Zustand steht
+> in [`extension-platform-v1.md`](extension-platform-v1.md).
+
 Stand: 2026-08-15
 
 Status: `done`; alle Subgoals 2.2 bis 2.9 abgeschlossen.

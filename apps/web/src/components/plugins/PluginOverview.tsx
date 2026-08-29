@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CatalogEntry, ExtensionRegistrySummary } from "@wrapt/extension-contracts";
 import type { PluginDraft, PluginExample } from "@wrapt/contracts";
 import { Link, useNavigate } from "react-router";
@@ -60,14 +60,20 @@ function draftLabel(status: PluginDraft["activationStatus"]): string {
 export function PluginOverview({ activeTab, examples, drafts, catalogEntries, installed, onCreate, onTabChange, onDeleteDraft, onActivateDraft = () => undefined, onDeactivateDraft, onEditInstalled = () => undefined, onToggleInstalled = () => undefined, onUninstallInstalled = () => undefined }: PluginOverviewProps) {
   const navigate = useNavigate();
   const navigation = useNavigationRegistry();
+  const tabsRef = useRef<HTMLElement>(null);
   const [deleteTarget, setDeleteTarget] = useState<PluginDraft | null>(null);
   const active = installed.filter((item) => item.lifecycle === "active").length;
   const disabled = installed.filter((item) => item.lifecycle === "disabled").length;
   const errors = installed.filter((item) => ["crashed", "quarantined", "incompatible", "migration-failed"].includes(item.lifecycle)).length;
 
+  useEffect(() => {
+    const activeTabElement = tabsRef.current?.querySelector<HTMLButtonElement>("[aria-pressed='true']");
+    activeTabElement?.scrollIntoView?.({ block: "nearest", inline: "center" });
+  }, [activeTab]);
+
   return <>
     <header className="plugins-hero"><div><span className="plugins-kicker">Lokale Erweiterungen · Beta</span><h1>Plugins</h1><p>Erweitere Wrapt mit eigenen Seiten, Panels, Aktionen und kleinen Werkzeugen. Die KI ist der empfohlene Startpunkt.</p></div><div className="plugins-hero-actions"><button type="button" className="quiet-button-primary" onClick={onCreate}><PlusIcon className="h-4 w-4" /> Neues Plugin erstellen</button></div></header>
-    <nav className="plugins-tabs" aria-label="Plugin-Bereiche">
+    <nav ref={tabsRef} className="plugins-tabs" aria-label="Plugin-Bereiche">
       {pluginTabs.map(({ id, label }) => <button key={id} type="button" aria-pressed={activeTab === id} className={`plugins-tab ${activeTab === id ? "is-active" : ""}`} onClick={() => onTabChange(id)}>{label}</button>)}
     </nav>
 
@@ -119,6 +125,7 @@ export function PluginOverview({ activeTab, examples, drafts, catalogEntries, in
         const isPlugin = plugin.id.startsWith("wrapt.example.") || plugin.id.startsWith("wrapt.local.");
         const source = drafts.find((item) => item.slug === slug) ?? examples.find((item) => item.slug === slug);
         const openPath = source ? pluginHostRoute(source) : `/plugins/view/${encodeURIComponent(slug)}`;
+        const runtimeReady = plugin.lifecycle === "active" && plugin.runtimeActive;
         const quickActionToolId = navigation.items.find((item) => item.ownerId === plugin.id)?.contributionId;
         return <div className="plugins-installed-row" key={plugin.id} onContextMenu={(event) => isPlugin && openGlobalContextMenu(event, {
           surface: "host.context-menu.extensions",
@@ -131,7 +138,7 @@ export function PluginOverview({ activeTab, examples, drafts, catalogEntries, in
             { id: hostContextMenuId("extensions.reload"), onSelect: () => window.location.reload() },
             { id: hostContextMenuId("extensions.uninstall"), icon: <TrashIcon className="h-4 w-4" />, danger: true, onSelect: () => onUninstallInstalled(plugin) },
           ],
-        })}><div className="plugins-installed-identity">{isPlugin ? <span className="plugins-installed-icon"><PluginIcon name={source?.icon} className="h-4 w-4" /></span> : null}<span><strong>{plugin.name}</strong><span>{plugin.id}</span></span></div><Badge tone={pluginLifecycleTone(plugin.lifecycle)}>{pluginLifecycleLabel(plugin.lifecycle)}</Badge><div className="plugins-installed-actions">{isPlugin ? <button type="button" className="quiet-button" onClick={() => onEditInstalled(plugin)} aria-label={`${plugin.name} bearbeiten`}><CodeFileIcon className="h-3.5 w-3.5" /> Bearbeiten</button> : null}{isPlugin && (plugin.lifecycle === "active" || plugin.lifecycle === "disabled") ? <button type="button" className="quiet-button" onClick={() => onToggleInstalled(plugin)} aria-label={`${plugin.name} ${plugin.lifecycle === "active" ? "deaktivieren" : "aktivieren"}`}><PowerIcon className="h-3.5 w-3.5" /> {plugin.lifecycle === "active" ? "Deaktivieren" : "Aktivieren"}</button> : null}{isPlugin ? <Link className="quiet-button" to={openPath}>Seite öffnen</Link> : null}{isPlugin ? <button type="button" className="quiet-button plugin-draft-delete" onClick={() => onUninstallInstalled(plugin)} aria-label={`${plugin.name} deinstallieren`}><TrashIcon className="h-3.5 w-3.5" /> Deinstallieren</button> : null}</div></div>;
+        })}><div className="plugins-installed-identity">{isPlugin ? <span className="plugins-installed-icon"><PluginIcon name={source?.icon} className="h-4 w-4" /></span> : null}<span><strong>{plugin.name}</strong><span>{plugin.id}</span></span></div><Badge tone={pluginLifecycleTone(plugin.lifecycle)}>{pluginLifecycleLabel(plugin.lifecycle)}</Badge><div className="plugins-installed-actions">{isPlugin ? <button type="button" className="quiet-button" onClick={() => onEditInstalled(plugin)} aria-label={`${plugin.name} bearbeiten`}><CodeFileIcon className="h-3.5 w-3.5" /> Bearbeiten</button> : null}{isPlugin && (plugin.lifecycle === "active" || plugin.lifecycle === "disabled") ? <button type="button" className="quiet-button" onClick={() => onToggleInstalled(plugin)} aria-label={`${plugin.name} ${plugin.lifecycle === "active" ? "deaktivieren" : "aktivieren"}`}><PowerIcon className="h-3.5 w-3.5" /> {plugin.lifecycle === "active" ? "Deaktivieren" : "Aktivieren"}</button> : null}{isPlugin && runtimeReady ? <Link className="quiet-button" to={openPath}>Seite öffnen</Link> : null}{isPlugin ? <button type="button" className="quiet-button plugin-draft-delete" onClick={() => onUninstallInstalled(plugin)} aria-label={`${plugin.name} deinstallieren`}><TrashIcon className="h-3.5 w-3.5" /> Deinstallieren</button> : null}</div></div>;
       })}</div> : <p className="plugins-muted">Noch kein Plugin installiert. Öffne den Tab „Installieren“, um ein lokales Beispiel hinzuzufügen.</p>}
     </section> : null}
 

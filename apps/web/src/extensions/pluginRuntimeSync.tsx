@@ -6,7 +6,7 @@ import { createPluginToolPage } from "../views/PluginRuntime";
 import { wraptQueries } from "../lib/queryOptions";
 import { navigationRegistry } from "./navigationRegistry";
 import { pageRouteRegistry } from "./pageRouteRegistry";
-import { pluginRuntimeOwnerId, pluginToolRoutePath, resolveActivePluginContents } from "./pluginRuntime";
+import { pluginRuntimeOwnerId, pluginToolRoutePath } from "./pluginRuntime";
 
 function registerToolPage(slug: string, name: string, description: string, icon: string): void {
   const ownerId = pluginRuntimeOwnerId(slug);
@@ -59,19 +59,11 @@ function registerToolPage(slug: string, name: string, description: string, icon:
 }
 
 export function PluginRuntimeSync() {
-  const drafts = useQuery(wraptQueries.pluginDrafts());
-  const examples = useQuery(wraptQueries.pluginExamples());
-  const registry = useQuery(wraptQueries.extensionRegistry());
-  const active = useMemo(() => resolveActivePluginContents(
-    drafts.data?.drafts ?? [],
-    examples.data?.examples ?? [],
-    registry.data?.extensions ?? [],
-  ).filter((item) => item.content.surfaces.includes("sidebar")), [
-    drafts.data?.drafts,
-    examples.data?.examples,
-    registry.data?.extensions,
-  ]);
-  const signature = active.map((item) => `${item.extensionId}:${item.content.slug}:${item.content.name}:${item.content.description}:${item.content.icon}`).join("|");
+  const runtimes = useQuery(wraptQueries.extensionRuntimes());
+  const active = useMemo(() => (runtimes.data?.runtimes ?? [])
+    .filter((item) => item.content.surfaces.includes("sidebar"))
+    .map((item) => ({ extensionId: item.extensionId, content: item.content })), [runtimes.data?.runtimes]);
+  const signature = active.map((item) => `${item.extensionId}:${item.content.version}:${item.content.name}:${item.content.description}:${item.content.icon}`).join("|");
 
   useEffect(() => {
     const activeOwners = new Set<string>();

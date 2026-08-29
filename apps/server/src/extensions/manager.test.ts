@@ -50,7 +50,6 @@ function requests(extensionId: string, revision: number): {
     disable: { operation: "disable", ...base } as ExtensionManagementRequest,
   };
 }
-
 describe("Extension Manager Registry", () => {
   let directory: string;
   let database: ExtensionDatabase;
@@ -61,7 +60,6 @@ describe("Extension Manager Registry", () => {
     database = new ExtensionDatabase(join(directory, "extensions.sqlite"));
     manager = new ExtensionManager(database);
   });
-
   it("installiert eine entdeckte Extension und aktiviert sie", async () => {
     manager.registerDiscovered(testManifest("workbench.test"), {
       kind: "developer",
@@ -204,7 +202,7 @@ describe("Extension Manager Registry", () => {
       source: {
         kind: "catalog",
         providerId: "wrapt-catalog",
-        catalogRevision: integrity!,
+        catalogRevision: catalog.revision(),
         version: "1.0.0",
         packageIntegrity: integrity!,
       },
@@ -239,7 +237,7 @@ describe("Extension Manager Registry", () => {
       source: {
         kind: "catalog",
         providerId: "wrapt-catalog",
-        catalogRevision: integrity!,
+        catalogRevision: catalog.revision(),
         version: "2.0.0",
         packageIntegrity: integrity!,
       },
@@ -250,9 +248,11 @@ describe("Extension Manager Registry", () => {
     const current = database.getExtension("workbench.agent-tasks");
     database.upsertExtension({
       ...current!,
+      manifest: { ...current!.manifest, version: "1.0.0" as never },
       installedVersion: "1.0.0" as never,
       activeVersion: "1.0.0" as never,
       lifecycle: "active",
+      runtimeActive: true,
     });
     manager.syncCatalogUpdates();
     expect(database.getExtension("workbench.agent-tasks")?.lifecycle).toBe("update-available");
@@ -263,14 +263,14 @@ describe("Extension Manager Registry", () => {
       expectedRevision: database.revision(),
       target: {
         providerId: "wrapt-catalog",
-        catalogRevision: integrity!,
+        catalogRevision: catalog.revision(),
         version: "2.0.0",
         packageIntegrity: integrity!,
       },
     } as ExtensionManagementRequest);
 
     expect(updated.operation.status).toBe("succeeded");
-    expect(updated.extension.lifecycle).toBe("active");
+    expect(updated.extension.lifecycle).toBe("installed");
     expect(updated.extension.installedVersion).toBe("2.0.0");
     expect(updated.extension.rollbackVersion).toBe("1.0.0");
   });
@@ -476,7 +476,7 @@ describe("Extension Manager Registry", () => {
       source: {
         kind: "catalog",
         providerId: "wrapt-catalog",
-        catalogRevision: integrity!,
+        catalogRevision: catalog.revision(),
         version: "1.0.0",
         packageIntegrity: integrity!,
       },
@@ -513,7 +513,7 @@ describe("Extension Manager Registry", () => {
       expectedRevision: database.revision(),
       target: {
         providerId: "wrapt-catalog",
-        catalogRevision: updateIntegrity!,
+        catalogRevision: catalog.revision(),
         version: "2.0.0",
         packageIntegrity: updateIntegrity!,
       },
@@ -535,8 +535,8 @@ describe("Extension Manager Registry", () => {
         grants: [{ permission: "projects.read" }, { permission: "storage.read" }],
       },
     } as ExtensionManagementRequest);
-    expect(approved.extension.lifecycle).toBe("active");
-    expect(approved.extension.activeVersion).toBe("2.0.0");
+    expect(approved.extension.lifecycle).toBe("installed");
+    expect(approved.extension.activeVersion).toBeUndefined();
     expect(database.getExtension("workbench.agent-tasks")?.grantedPermissions).toHaveLength(2);
   });
 
@@ -578,7 +578,7 @@ describe("Extension Manager Registry", () => {
       source: {
         kind: "catalog",
         providerId: "wrapt-catalog",
-        catalogRevision: integrity!,
+        catalogRevision: catalog.revision(),
         version: "1.0.0",
         packageIntegrity: integrity!,
       },

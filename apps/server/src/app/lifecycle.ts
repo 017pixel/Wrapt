@@ -7,15 +7,21 @@ export interface LifecycleState {
 }
 
 export async function startBackgroundServices(app: FastifyInstance, deps: AppDependencies, state: LifecycleState) {
-  deps.analytics.start();
-  deps.usageTimeline.start();
-  deps.news.start();
-  deps.hermesResultSync.start();
-  deps.t3StatusSync.start();
-  deps.terminalStatusSync.start();
-  deps.agentSessionSync.start();
+  const isolatedTest = settings.runtimeMode === "test";
+  if (isolatedTest && !settings.testIsolation) {
+    throw new Error("NODE_ENV=test benötigt WRAPT_E2E=true für einen isolierten Serverstart.");
+  }
+  if (!isolatedTest) {
+    deps.analytics.start();
+    deps.usageTimeline.start();
+    deps.news.start();
+    deps.hermesResultSync.start();
+    deps.t3StatusSync.start();
+    deps.terminalStatusSync.start();
+    deps.agentSessionSync.start();
+  }
   await deps.previewSlots.startListeners();
-  deps.previewDevServers.startWatchdog();
+  if (!isolatedTest) deps.previewDevServers.startWatchdog();
   if (settings.previews.diagnosticsEnabled) {
     // Tageswechsel: abgeschlossene Tage komprimieren, alte Tage entfernen.
     state.previewLogRotation = setInterval(() => {

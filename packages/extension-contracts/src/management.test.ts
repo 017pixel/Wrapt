@@ -62,6 +62,7 @@ const summary = {
   activeVersion: "1.0.0",
   availableVersion: "1.1.0",
   rollbackVersion: "0.9.0",
+  rollbackAssetRevision: integrity("a"),
   activeAssetRevision: integrity("b"),
   allowedOperations: ["disable", "update", "uninstall", "rollback"],
 } as const;

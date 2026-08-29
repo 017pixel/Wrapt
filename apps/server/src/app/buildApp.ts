@@ -36,12 +36,20 @@ export async function buildApp(options: BuildAppOptions = {}) {
   }
   registerShutdown(app, dependencies, lifecycle);
 
-  await registerEditorProxy(app);
-  await registerT3Proxy(app);
-  await registerOpenCodeWebProxy(app);
+  await registerEditorProxy(app, {
+    onEvent: (event) => dependencies.operationalMetrics.recordWebSocket("Editor", event),
+  });
+  await registerT3Proxy(app, {
+    onEvent: (event) => dependencies.operationalMetrics.recordWebSocket("T3 Code", event),
+  });
+  await registerOpenCodeWebProxy(app, {
+    onEvent: (event) => dependencies.operationalMetrics.recordWebSocket("OpenCode", event),
+  });
   await registerHermesDashboardProxy(app);
 
-  await registerStaticHosting(app);
+  const t3ClientUrl = dependencies.servicesConfig.services
+    .find((service) => service.id === "t3-code")?.publicUrl ?? null;
+  await registerStaticHosting(app, t3ClientUrl);
 
   return app;
 }

@@ -3,16 +3,15 @@ import { useMemo, useRef, useState } from "react";
 import type {
   CatalogEntry,
   ExtensionLifecycleState,
-  ExtensionPermissionId,
-  ExtensionPermissionRequest,
   ExtensionRegistrySummary,
   ExtensionTrustLevel,
 } from "@wrapt/extension-contracts";
-import { CheckIcon, CloseIcon, DownloadIcon, LoaderIcon, RefreshIcon, TrashIcon, WarningIcon } from "../icons";
+import { CheckIcon, DownloadIcon, LoaderIcon, RefreshIcon, TrashIcon, WarningIcon } from "../icons";
 import { Badge } from "../primitives";
 import { ConfirmDialog } from "../ModalDialog";
 import { apiClient, ApiClientError } from "../../lib/apiClient";
 import { wraptQueries } from "../../lib/queryOptions";
+import { ExtensionPermissionReviewDialog } from "./ExtensionPermissionReviewDialog";
 
 const lifecycleLabels: Record<ExtensionLifecycleState, string> = {
   available: "Im Catalog",
@@ -68,42 +67,6 @@ const trustLabels: Record<ExtensionTrustLevel, string> = {
   "sandboxed-webview": "Sandbox",
 };
 
-const permissionLabels: Record<ExtensionPermissionId, string> = {
-  "projects.read": "Projekte lesen",
-  "projects.write": "Projekte ändern",
-  "files.read": "Dateien lesen",
-  "files.write": "Dateien ändern",
-  "git.read": "Git lesen",
-  "git.write": "Git ändern",
-  "terminal.create": "Terminals öffnen",
-  "terminal.input": "Terminal-Eingaben senden",
-  "process.execute": "Prozesse ausführen",
-  "network.fetch": "Netzwerkzugriff",
-  "notifications.create": "Benachrichtigungen senden",
-  "browser.control": "Browser steuern",
-  "preview.read": "Previews lesen",
-  "preview.manage": "Previews verwalten",
-  "agents.invoke": "Agenten aufrufen",
-  "agents.tools.register": "Agenten-Werkzeuge registrieren",
-  "agents.skills.register": "Agenten-Skills registrieren",
-  "storage.read": "Speicher lesen",
-  "storage.write": "Speicher ändern",
-  "secrets.request": "Secrets anfordern",
-  "system.metrics.read": "System-Metriken lesen",
-  "system.services.read": "Dienste lesen",
-  "system.services.control": "Dienste steuern",
-};
-
-function permissionRequestLabel(request: ExtensionPermissionRequest): string {
-  const base = permissionLabels[request.permission] ?? request.permission;
-  const details: string[] = [];
-  for (const [key, value] of Object.entries(request)) {
-    if (key === "permission" || value === undefined || value === null) continue;
-    if (typeof value === "string" && value.length > 0) details.push(`${key}: ${value}`);
-  }
-  return details.length > 0 ? `${base} (${details.join(", ")})` : base;
-}
-
 export function ExtensionSettings() {
   const queryClient = useQueryClient();
   const catalog = useQuery(wraptQueries.extensionCatalog());
@@ -113,6 +76,7 @@ export function ExtensionSettings() {
   const [message, setMessage] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
   const [reviewExtension, setReviewExtension] = useState<ExtensionRegistrySummary | null>(null);
   const [uninstallExtension, setUninstallExtension] = useState<ExtensionRegistrySummary | null>(null);
+  const inFlight = useRef(new Set<string>());
 
   const installedById = useMemo(() => {
     const map = new Map<string, ExtensionRegistrySummary>();
@@ -136,6 +100,8 @@ export function ExtensionSettings() {
   };
 
   const runOperation = async (body: Parameters<typeof apiClient.dispatchExtensionOperation>[0]) => {
+    if (inFlight.current.has(body.extensionId)) return;
+    inFlight.current.add(body.extensionId);
     setBusyId(body.extensionId);
     setMessage(null);
     try {
@@ -152,6 +118,7 @@ export function ExtensionSettings() {
       setMessage({ tone: "bad", text: error instanceof ApiClientError ? error.message : "Die Aktion ist fehlgeschlagen." });
       refresh();
     } finally {
+      inFlight.current.delete(body.extensionId);
       setBusyId(null);
     }
   };
@@ -193,8 +160,10 @@ export function ExtensionSettings() {
   };
 
   const toggle = (extension: ExtensionRegistrySummary) => {
+    const operation = extension.desiredEnablement === "enabled" ? "disable" : "enable";
+    if (!extension.allowedOperations.includes(operation)) return;
     void runOperation({
-      operation: extension.desiredEnablement === "enabled" ? "disable" : "enable",
+      operation,
       extensionId: extension.id,
       expectedRevision: expectedRevision(),
     });
@@ -279,6 +248,8 @@ export function ExtensionSettings() {
           {installed.map((extension) => {
             const isBusy = busyId === extension.id;
             const pendingReview = extension.permissionReview;
+            const toggleOperation = extension.desiredEnablement === "enabled" ? "disable" : "enable";
+            const toggleAllowed = extension.allowedOperations.includes(toggleOperation);
             return (
               <div key={extension.id} className="extension-row">
                 <div className="extension-row-copy">
@@ -302,7 +273,7 @@ export function ExtensionSettings() {
                     <>
                       <button
                         type="button"
-                        disabled={isBusy}
+                        disabled={isBusy || !toggleAllowed}
                         onClick={() => toggle(extension)}
                         aria-label={`${extension.desiredEnablement === "enabled" ? "Deaktivieren" : "Aktivieren"}: ${extension.name}`}
                         className={`settings-toggle-switch ${extension.desiredEnablement === "enabled" ? "is-on" : ""}`}
@@ -340,7 +311,7 @@ export function ExtensionSettings() {
       </p>
 
       {reviewExtension?.permissionReview ? (
-        <PermissionReviewDialog
+        <ExtensionPermissionReviewDialog
           extension={reviewExtension}
           onClose={() => setReviewExtension(null)}
           onResolve={(resolution) => {
@@ -367,53 +338,6 @@ export function ExtensionSettings() {
         onConfirm={() => confirmUninstall("delete")}
         onClose={() => setUninstallExtension(null)}
       />
-    </div>
-  );
-}
-
-function PermissionReviewDialog({
-  extension,
-  onClose,
-  onResolve,
-}: {
-  extension: ExtensionRegistrySummary;
-  onClose: () => void;
-  onResolve: (resolution: { decision: "approve"; grants: ExtensionPermissionRequest[] } | { decision: "deny" }) => void;
-}) {
-  const review = extension.permissionReview;
-  if (review === undefined) return null;
-  const reasonLabel = review.reason === "install" ? "Installation" : "Update";
-  return (
-    <div className="extension-review-overlay" role="dialog" aria-modal="true" aria-label={`Berechtigungen für ${extension.name}`}>
-      <div className="extension-review-panel">
-        <header className="extension-review-header">
-          <div>
-            <h3>Berechtigungen für „{extension.name}"</h3>
-            <p>Die {reasonLabel} fordert neue Zugriffe an. Ohne Freigabe bleibt die Extension inaktiv.</p>
-          </div>
-          <button type="button" className="icon-button" aria-label="Schließen" onClick={onClose}>
-            <CloseIcon className="h-4 w-4" />
-          </button>
-        </header>
-        <ul className="extension-review-permissions">
-          {review.addedPermissions.map((request) => (
-            <li key={JSON.stringify(request)}>
-              <span>{permissionRequestLabel(request)}</span>
-              <Badge tone={request.permission === "process.execute" || request.permission === "browser.control" || request.permission === "secrets.request" || request.permission === "system.services.control" ? "bad" : "warn"}>
-                {request.permission}
-              </Badge>
-            </li>
-          ))}
-        </ul>
-        <footer className="extension-review-actions">
-          <button type="button" className="quiet-button" onClick={() => onResolve({ decision: "deny" })}>
-            <CloseIcon className="h-3.5 w-3.5" /> Ablehnen
-          </button>
-          <button type="button" className="quiet-button-primary" onClick={() => onResolve({ decision: "approve", grants: review.addedPermissions })}>
-            <CheckIcon className="h-3.5 w-3.5" /> Alle freigeben
-          </button>
-        </footer>
-      </div>
     </div>
   );
 }

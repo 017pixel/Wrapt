@@ -7,6 +7,7 @@ import {
   sha256IntegritySchema,
   type ExtensionManagementRequest,
 } from "@wrapt/extension-contracts";
+import { pluginRuntimeResponseSchema } from "@wrapt/contracts";
 import { z } from "zod";
 import { mutate, request } from "./transport.js";
 
@@ -19,6 +20,7 @@ const extensionCatalogResponseSchema = z.strictObject({
 export const extensionsApi = {
   extensionCatalog: (signal?: AbortSignal) => request("/extensions/catalog", extensionCatalogResponseSchema, signal),
   extensionRegistry: (signal?: AbortSignal) => request("/extensions", extensionRegistrySnapshotSchema, signal),
+  extensionRuntimes: (signal?: AbortSignal) => request("/extensions/runtime", pluginRuntimeResponseSchema, signal),
   extensionDetail: (id: string, signal?: AbortSignal) => request(`/extensions/${encodeURIComponent(id)}`, extensionRegistryDetailSchema, signal),
   dispatchExtensionOperation: (body: ExtensionManagementRequest) => mutate(`/extensions/${encodeURIComponent(body.extensionId)}/operations`, "POST", extensionManagementAcceptedSchema, body),
 };

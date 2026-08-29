@@ -1,7 +1,6 @@
 import { constants as zlibConstants } from "node:zlib";
 import compress from "@fastify/compress";
 import helmet from "@fastify/helmet";
-import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import websocket from "@fastify/websocket";
 import type { FastifyInstance } from "fastify";
@@ -30,6 +29,10 @@ export async function registerCorePlugins(app: FastifyInstance, deps: AppDepende
         scriptSrc: ["'self'"],
         styleSrc: ["'self'", "'unsafe-inline'"],
         frameAncestors: ["'self'"],
+        // Lokale Entwicklungs- und E2E-Server laufen bewusst über HTTP. Helmet
+        // aktiviert die Direktive standardmäßig und WebKit würde dadurch alle
+        // Assets auf HTTPS umschreiben, obwohl dort kein TLS-Listener existiert.
+        upgradeInsecureRequests: settings.runtimeMode === "production" ? [] : null,
       },
     },
   });
@@ -62,5 +65,4 @@ export async function registerCorePlugins(app: FastifyInstance, deps: AppDepende
     // input remains independently restricted by its Zod protocol schema.
     options: { maxPayload: settings.webSocketMaxPayloadBytes },
   });
-  await app.register(multipart, { limits: { files: 1, fileSize: settings.orbitAssetMaxFileBytes } });
 }

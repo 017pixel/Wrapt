@@ -5,6 +5,10 @@
 - Entscheider: Remote Workplace
 - Geltungsbereich: Extension Platform V1
 
+> Implementierungsstatus 2026-08-24: Permission Requests werden validiert und lokale Drafts mit
+> Permissions bleiben fail-closed. Ein Request ist noch kein Grant; die vollständige Review-/Grant-
+> UI und der Capability Broker sind für die ausführbare Plugin-Runtime weiterhin offen.
+
 ## Kontext
 
 Extensions benötigen Zugriff auf Projekte, Dateien, Prozesse, Netzwerk, Runtimes und weitere

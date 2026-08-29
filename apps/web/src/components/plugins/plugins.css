@@ -5,9 +5,9 @@
   .plugins-hero p, .plugins-maker-heading p, .plugins-runtime-heading p { max-width: 68ch; margin: 10px 0 0; color: var(--color-muted); font-size: 14px; line-height: 1.55; }
   .plugins-kicker { display: block; color: var(--color-faint); font: 500 10px var(--font-mono); letter-spacing: .06em; text-transform: uppercase; }
   .plugins-hero-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--space-2); }
-  .plugins-tabs { position: sticky; z-index: 20; top: 0; display: flex; gap: 6px; margin: 0 0 var(--space-6); overflow-x: auto; scrollbar-width: none; background: var(--surface-base); padding: var(--space-1) 0; }
+  .plugins-tabs { position: sticky; z-index: 20; top: 0; display: flex; gap: 6px; margin: 0 0 var(--space-6); overflow-x: auto; overscroll-behavior-inline: contain; scroll-padding-inline: var(--space-4); scroll-snap-type: x proximity; scrollbar-width: thin; background: var(--surface-base); padding: var(--space-1) 0; }
   .plugins-tabs::-webkit-scrollbar { display: none; }
-  .plugins-tab { flex: none; min-height: 44px; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-ink-900); padding: 8px 16px; color: var(--color-muted); font-size: var(--text-sm); font-weight: 500; cursor: pointer; transition: border-color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard); }
+  .plugins-tab { flex: none; min-height: 44px; scroll-snap-align: center; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-ink-900); padding: 8px 16px; color: var(--color-muted); font-size: var(--text-sm); font-weight: 500; cursor: pointer; transition: border-color var(--duration-fast) var(--ease-standard), background var(--duration-fast) var(--ease-standard), color var(--duration-fast) var(--ease-standard); }
   .plugins-tab:hover { background: var(--color-ink-800); color: var(--color-text); }
   .plugins-tab.is-active { border-color: var(--color-accent-line); background: var(--color-accent-soft); color: var(--color-accent); }
   .plugins-tab:active { transform: scale(.97); }

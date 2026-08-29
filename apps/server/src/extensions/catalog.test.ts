@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -75,6 +75,43 @@ describe("LocalExtensionCatalog", () => {
       catalog.resolvePackage("workbench.agent-tasks", "1.0.0", "sha256:00".padEnd(71, "0")),
     ).toThrow();
     expect(() => catalog.resolvePackage("workbench.fehlt", "1.0.0", integrity ?? "")).toThrow();
+  });
+
+  it("bindet alle Paketdateien in Integrität und Catalog-Revision ein", () => {
+    const fixture = catalogFixture();
+    cleanup = () => rmSync(fixture.directory, { recursive: true, force: true });
+    const catalog = new LocalExtensionCatalog(defaultCatalogProviderId());
+    catalog.addSourceDirectory(fixture.directory);
+    const firstIntegrity = catalog.integrityOf("workbench.agent-tasks");
+    const firstRevision = catalog.revision();
+
+    writeFileSync(join(fixture.directory, "agent-tasks", "server.js"), "// geänderter Einstieg\n");
+    catalog.refresh();
+
+    expect(catalog.integrityOf("workbench.agent-tasks")).not.toBe(firstIntegrity);
+    expect(catalog.revision()).not.toBe(firstRevision);
+    expect(() => catalog.resolvePackage("workbench.agent-tasks", "1.0.0", catalog.integrityOf("workbench.agent-tasks")!, firstRevision)).toThrow(/Catalog wurde/);
+  });
+
+  it("erkennt eine Änderung nach dem Scan beim Auflösen erneut", () => {
+    const fixture = catalogFixture();
+    cleanup = () => rmSync(fixture.directory, { recursive: true, force: true });
+    const catalog = new LocalExtensionCatalog(defaultCatalogProviderId());
+    catalog.addSourceDirectory(fixture.directory);
+    const integrity = catalog.integrityOf("workbench.agent-tasks")!;
+    writeFileSync(join(fixture.directory, "agent-tasks", "server.js"), "// manipuliert\n");
+
+    expect(() => catalog.resolvePackage("workbench.agent-tasks", "1.0.0", integrity)).toThrow(/verändert/);
+  });
+
+  it("überspringt Pakete mit symbolischen oder speziellen Dateieinträgen", () => {
+    const fixture = catalogFixture();
+    cleanup = () => rmSync(fixture.directory, { recursive: true, force: true });
+    symlinkSync("server.js", join(fixture.directory, "agent-tasks", "link.js"));
+    const catalog = new LocalExtensionCatalog(defaultCatalogProviderId());
+    catalog.addSourceDirectory(fixture.directory);
+
+    expect(catalog.list()).toHaveLength(0);
   });
 
   it("ignoriert Verzeichnisse ohne extension.json", () => {

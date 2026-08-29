@@ -14,6 +14,7 @@ import {
 } from "./manifest.js";
 import { extensionPermissionRequestsSchema } from "./permissions.js";
 import { semanticVersionSchema } from "./versioning.js";
+import { registrySummaryIssues } from "./management-validation.js";
 
 export const EXTENSION_REGISTRY_MAX_ENTRIES = 1_024;
 export const EXTENSION_ALLOWED_OPERATIONS_MAX_COUNT = 8;
@@ -93,6 +94,7 @@ export const extensionSourceSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("developer"),
     registrationId: z.uuid(),
+    packageIntegrity: sha256IntegritySchema.optional(),
   }),
   z.strictObject({
     kind: z.literal("local-package"),
@@ -295,6 +297,7 @@ const extensionRegistrySummaryShape = {
   activeVersion: semanticVersionSchema.optional(),
   availableVersion: semanticVersionSchema.optional(),
   rollbackVersion: semanticVersionSchema.optional(),
+  rollbackAssetRevision: sha256IntegritySchema.optional(),
   activeAssetRevision: sha256IntegritySchema.optional(),
   allowedOperations: extensionAllowedOperationsSchema,
   permissionReview: extensionPermissionReviewSchema.optional(),
@@ -303,78 +306,6 @@ const extensionRegistrySummaryShape = {
 const extensionRegistrySummaryBaseSchema = z.strictObject(
   extensionRegistrySummaryShape,
 );
-type ExtensionRegistrySummaryBase = z.infer<
-  typeof extensionRegistrySummaryBaseSchema
->;
-
-function registrySummaryIssues(summary: ExtensionRegistrySummaryBase) {
-  const issues: Array<{ message: string; path: PropertyKey[] }> = [];
-  const expectedTrustBySource = {
-    system: ["system"],
-    builtin: ["builtin"],
-    catalog: ["catalog-first-party"],
-    developer: ["developer"],
-    "local-package": ["developer", "sandboxed-webview"],
-  } as const;
-
-  if (
-    !(expectedTrustBySource[summary.source.kind] as readonly string[]).includes(
-      summary.effectiveTrust,
-    )
-  ) {
-    issues.push({
-      message: "Source und effektiver Trust passen nicht zusammen.",
-      path: ["effectiveTrust"],
-    });
-  }
-  if (summary.required !== (summary.source.kind === "system")) {
-    issues.push({
-      message: "Nur System Extensions sind in V1 verpflichtend.",
-      path: ["required"],
-    });
-  }
-  if (summary.activeVersion !== undefined && summary.installedVersion === undefined) {
-    issues.push({
-      message: "Eine aktive Version benötigt eine installierte Version.",
-      path: ["activeVersion"],
-    });
-  }
-  if (
-    summary.lifecycle === "available" &&
-    (summary.installedVersion !== undefined || summary.runtimeActive)
-  ) {
-    issues.push({
-      message: "Eine verfügbare Extension darf noch nicht installiert oder aktiv sein.",
-      path: ["lifecycle"],
-    });
-  }
-  if (
-    summary.lifecycle === "active" &&
-    (!summary.runtimeActive || summary.activeVersion === undefined)
-  ) {
-    issues.push({
-      message: "Eine aktive Phase benötigt eine aktive Runtime und Version.",
-      path: ["lifecycle"],
-    });
-  }
-  if (summary.lifecycle === "disabled" && summary.runtimeActive) {
-    issues.push({
-      message: "Eine deaktivierte Extension darf keine aktive Runtime melden.",
-      path: ["runtimeActive"],
-    });
-  }
-  if (
-    (summary.lifecycle === "permissions-pending") !==
-    (summary.permissionReview !== undefined)
-  ) {
-    issues.push({
-      message: "Permission Review und Lifecycle müssen übereinstimmen.",
-      path: ["permissionReview"],
-    });
-  }
-  return issues;
-}
-
 export const extensionRegistrySummarySchema = extensionRegistrySummaryBaseSchema
   .superRefine((summary, context) => {
     for (const issue of registrySummaryIssues(summary)) {
@@ -505,6 +436,7 @@ export const extensionInstallSourceSchema = z.discriminatedUnion("kind", [
   z.strictObject({
     kind: z.literal("developer"),
     registrationId: z.uuid(),
+    packageIntegrity: sha256IntegritySchema.optional(),
   }),
 ]);
 export type ExtensionInstallSource = z.infer<

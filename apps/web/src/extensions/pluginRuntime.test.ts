@@ -84,7 +84,12 @@ function example(slug: string): PluginExample {
 }
 
 function registry(...entries: Array<[id: string, lifecycle: ExtensionRegistrySummary["lifecycle"]]>) {
-  return entries.map(([id, lifecycle]) => ({ id, lifecycle })) as ExtensionRegistrySummary[];
+  return entries.map(([id, lifecycle]) => ({
+    id,
+    lifecycle,
+    runtimeActive: lifecycle === "active",
+    ...(lifecycle === "active" ? { activeVersion: "1.0.0", activeAssetRevision: `sha256:${"0".repeat(64)}` } : {}),
+  })) as ExtensionRegistrySummary[];
 }
 
 describe("deklarative Plugin-Runtime", () => {
@@ -93,13 +98,14 @@ describe("deklarative Plugin-Runtime", () => {
       [draft("focus", "active"), draft("paused", "disabled")],
       [example("focus"), example("paused"), example("store-only")],
       registry(
+        ["wrapt.local.focus", "active"],
         ["wrapt.example.focus", "active"],
         ["wrapt.example.paused", "active"],
         ["wrapt.example.store-only", "available"],
       ),
     );
 
-    expect(result.map((item) => item.content.slug)).toEqual(["focus"]);
+    expect(result.map((item) => item.content.slug)).toEqual(["focus", "paused"]);
     expect(result[0]?.extensionId).toBe("wrapt.local.focus");
   });
 
@@ -108,6 +114,29 @@ describe("deklarative Plugin-Runtime", () => {
       [],
       [example("focus"), example("timer")],
       registry(["wrapt.example.focus", "active"], ["wrapt.example.timer", "disabled"]),
+    );
+
+    expect(result.map((item) => item.extensionId)).toEqual(["wrapt.example.focus"]);
+  });
+
+  it("ignoriert einen Registry-Eintrag ohne verifizierte Runtime", () => {
+    const entry = registry(["wrapt.example.focus", "active"])[0]!;
+    const result = resolveActivePluginContents([], [example("focus")], [{ ...entry, runtimeActive: false }]);
+    expect(result).toEqual([]);
+  });
+
+  it("ignoriert einen aktiven Eintrag mit falscher Version oder fehlender Asset-Revision", () => {
+    const entry = registry(["wrapt.example.focus", "active"])[0]!;
+    const exampleContent = example("focus");
+    expect(resolveActivePluginContents([], [exampleContent], [{ ...entry, activeVersion: "2.0.0" as never }])).toEqual([]);
+    expect(resolveActivePluginContents([], [exampleContent], [{ ...entry, activeAssetRevision: undefined }])).toEqual([]);
+  });
+
+  it("lässt ein aktives Beispiel durch, wenn nur ein lokaler Draft deaktiviert ist", () => {
+    const result = resolveActivePluginContents(
+      [draft("focus", "disabled")],
+      [example("focus")],
+      registry(["wrapt.example.focus", "active"]),
     );
 
     expect(result.map((item) => item.extensionId)).toEqual(["wrapt.example.focus"]);
@@ -125,7 +154,7 @@ describe("deklarative Plugin-Runtime", () => {
         datedDraft("doppelt", "2026-08-22T08:00:00.000Z", "Alt"),
       ],
       [],
-      [],
+      registry(["wrapt.local.doppelt", "active"]),
     );
 
     expect(result).toHaveLength(1);
