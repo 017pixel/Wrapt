@@ -20,6 +20,7 @@ export const hostContextMenuSurfaces = [
   "host.context-menu.browser",
   "host.context-menu.tool",
   "host.context-menu.statusbar",
+  "host.context-menu.empty",
   "host.context-menu.extensions",
 ] as const;
 

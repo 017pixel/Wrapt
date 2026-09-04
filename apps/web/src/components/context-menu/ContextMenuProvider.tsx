@@ -11,8 +11,38 @@ import { apiClient } from "../../lib/apiClient";
 import { wraptQueries } from "../../lib/queryOptions";
 import { rankedToolIds, recordToolUsage, useToolUsage } from "../../stores/toolUsage";
 import { GlobalContextMenu, type ContextMenuQuickAction, type RenderedContextMenuItem } from "./GlobalContextMenu";
-import { GLOBAL_CONTEXT_MENU_EVENT, showGlobalContextMenu, type GlobalContextMenuAction, type GlobalContextMenuRequest } from "./contextMenuEvents";
+import { contextMenuEventWasClaimed, GLOBAL_CONTEXT_MENU_EVENT, showGlobalContextMenu, type GlobalContextMenuAction, type GlobalContextMenuRequest } from "./contextMenuEvents";
 import "./context-menu.css";
+
+const nonFreeContextMenuTargetSelector = [
+  "button",
+  "a",
+  "input",
+  "textarea",
+  "select",
+  "option",
+  "summary",
+  "img",
+  "video",
+  "audio",
+  "canvas",
+  "pre",
+  "code",
+  "[contenteditable]:not([contenteditable=\"false\"])",
+  "[data-context-menu-ignore]",
+  "[role=button]",
+  "[role=checkbox]",
+  "[role=link]",
+  "[role=menuitem]",
+  "[role=option]",
+  "[role=switch]",
+  "[role=tab]",
+].join(", ");
+
+function isFreeHostArea(target: Element): boolean {
+  return target.closest("iframe, .global-context-menu, .global-context-menu-backdrop") === null
+    && target.closest(nonFreeContextMenuTargetSelector) === null;
+}
 
 function surfaceEnabled(request: GlobalContextMenuRequest, config: typeof defaultContextMenuConfig): boolean {
   if (!config.enabled) return false;
@@ -44,17 +74,16 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const fallback = (event: MouseEvent) => {
-      if (event.defaultPrevented) return;
+      if (event.defaultPrevented || contextMenuEventWasClaimed(event)) return;
       const target = event.target instanceof Element ? event.target : null;
-      if (!target || target.closest("iframe")) return;
+      if (!target || !isFreeHostArea(target)) return;
       const host = target.closest<HTMLElement>("[data-context-menu-surface]");
       const parsed = contextMenuSurfaceSchema.safeParse(host?.dataset.contextMenuSurface);
-      if (!host || !parsed.success) return;
       const accepted = showGlobalContextMenu({
-        surface: parsed.data,
+        surface: parsed.success ? parsed.data : "host.context-menu.empty",
         x: event.clientX,
         y: event.clientY,
-        ...(host.dataset.contextMenuTitle ? { title: host.dataset.contextMenuTitle } : {}),
+        ...(parsed.success && host?.dataset.contextMenuTitle ? { title: host.dataset.contextMenuTitle } : {}),
       });
       if (accepted) event.preventDefault();
     };

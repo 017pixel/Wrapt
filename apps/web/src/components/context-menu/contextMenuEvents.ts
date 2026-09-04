@@ -4,6 +4,22 @@ import type { ShortcutContextValues } from "../../extensions/contextExpression";
 
 export const GLOBAL_CONTEXT_MENU_EVENT = "wrapt:context-menu";
 
+const claimedContextMenuEvents = new WeakSet<object>();
+
+function nativeEventOf(event: object): object {
+  const nativeEvent = (event as { nativeEvent?: unknown }).nativeEvent;
+  return typeof nativeEvent === "object" && nativeEvent !== null ? nativeEvent : event;
+}
+
+/**
+ * Merkt einen Event auch dann als featuregebunden, wenn dessen Surface gerade
+ * deaktiviert ist. Der zentrale Fallback darf dann nicht auf dieselbe Datei,
+ * Zeile oder Werkzeugfläche mit einer generischen Aktion reagieren.
+ */
+export function contextMenuEventWasClaimed(event: Event): boolean {
+  return claimedContextMenuEvents.has(event);
+}
+
 export interface GlobalContextMenuAction {
   id: string;
   label?: string;
@@ -43,6 +59,7 @@ export function openGlobalContextMenu(
   },
   request: Omit<GlobalContextMenuRequest, "x" | "y">,
 ): boolean {
+  claimedContextMenuEvents.add(nativeEventOf(event));
   const accepted = showGlobalContextMenu({ ...request, x: event.clientX, y: event.clientY });
   if (accepted) {
     event.preventDefault?.();

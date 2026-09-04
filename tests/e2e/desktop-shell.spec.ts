@@ -34,6 +34,56 @@ test("moves standalone T3 Code actions into the topbar", async ({ page }) => {
   await expect(page.locator("#topbar-tool-actions").getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
 });
 
+test("öffnet Schnellaktionen auf freien Bereichen der Shell", async ({ page }) => {
+  await page.goto("/wrapt/files");
+  const menu = page.locator('.global-context-menu[data-surface="host.context-menu.empty"]');
+  const topbar = page.locator(".topbar");
+  const topbarBox = await topbar.boundingBox();
+  await topbar.click({ button: "right", position: { x: Math.round((topbarBox?.width ?? 800) / 2), y: 24 } });
+  await expect(menu).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+
+  const statusBar = page.locator(".status-bar");
+  await statusBar.click({ button: "right", position: { x: 4, y: 20 } });
+  await expect(menu).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+});
+
+test("öffnet Schnellaktionen im freien Bereich der linken Sidebar", async ({ page }) => {
+  await page.goto("/wrapt/files");
+  await page.getByRole("button", { name: "Workspace einklappen" }).click();
+  await page.getByRole("button", { name: "Werkzeuge einklappen" }).click();
+
+  const menu = page.locator('.global-context-menu[data-surface="host.context-menu.empty"]');
+  await page.locator(".sidebar-scroll").click({ button: "right", position: { x: 120, y: 300 } });
+  await expect(menu).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveCount(0);
+});
+
+test("hält Plugin-Topbar und Werkzeugaktionen als rechte Gruppe zusammen", async ({ page }) => {
+  await page.goto("/wrapt/files");
+  const topbar = page.locator(".topbar");
+  const rightActions = topbar.locator(".topbar-right-actions");
+  const topbarBox = await topbar.boundingBox();
+  const rightActionsBox = await rightActions.boundingBox();
+  expect(rightActionsBox).not.toBeNull();
+  expect((rightActionsBox?.x ?? 0) + (rightActionsBox?.width ?? 0)).toBeCloseTo((topbarBox?.x ?? 0) + (topbarBox?.width ?? 0) - 24, 0);
+
+  const plugin = rightActions.locator(".plugin-topbar-stack");
+  if (await plugin.count()) {
+    const pluginBox = await plugin.boundingBox();
+    const toolActions = rightActions.locator(".tool-actions-menu.is-topbar");
+    const toolActionsBox = await toolActions.boundingBox();
+    expect(pluginBox).not.toBeNull();
+    expect(toolActionsBox).not.toBeNull();
+    expect(pluginBox!.x).toBeGreaterThan((topbarBox?.x ?? 0) + (topbarBox?.width ?? 0) / 2);
+    expect(pluginBox!.x + pluginBox!.width).toBeLessThanOrEqual(toolActionsBox!.x + 1);
+  }
+});
+
 test("keeps one standalone tool menu after switching between tool routes", async ({ page }) => {
   await page.goto("/wrapt/t3-code");
   const actions = page.locator("#topbar-tool-actions");

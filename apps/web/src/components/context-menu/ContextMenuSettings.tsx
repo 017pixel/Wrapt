@@ -27,6 +27,7 @@ const surfaceLabels: Record<ContextMenuConfigSurface, string> = {
   "host.context-menu.browser": "Chromium-Browser",
   "host.context-menu.tool": "Werkzeuge und Panels",
   "host.context-menu.statusbar": "Statusleiste",
+  "host.context-menu.empty": "Freie Host-Flächen",
   "host.context-menu.extensions": "Plugins und Extensions",
 };
 
