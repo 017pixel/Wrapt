@@ -35,7 +35,7 @@ const settingsSchema = z.object({
   WRAPT_E2E_ALLOW_DESTRUCTIVE_ORBIT_RESET: booleanFromEnvironment(false),
   HOST: z.string().default("127.0.0.1"),
   PORT: integerFromEnvironment(3010),
-  APP_VERSION: z.string().regex(/^\d+\.\d+\.\d+$/).default("1.0.2"),
+  APP_VERSION: z.string().regex(/^\d+\.\d+\.\d+$/).default("1.1.0"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   CONFIG_DIR: z.string().default("./config"),
   WEB_DIST_DIR: z.string().default("./apps/web/dist"),
