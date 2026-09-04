@@ -5,6 +5,7 @@ import WebSocket from "ws";
 import { settings } from "../config/settings.js";
 import { isWebSocketOriginAllowed } from "../security/same-origin.js";
 import { bridgeWebSockets, type WebSocketBridgeObserver } from "../utils/websocketBridge.js";
+import { t3RouteBridgeScript } from "./t3RouteBridge.js";
 
 const t3Prefix = "/t3";
 // Genau eine Instanz, unabhängig vom Kanal. Adresse aus der Config, damit Proxy,
@@ -13,85 +14,6 @@ const t3Authority = `${settings.t3Host}:${settings.t3Port}`;
 const t3HttpUpstream = `http://${t3Authority}`;
 const t3WebSocketUpstream = `ws://${t3Authority}`;
 const maxInjectedHtmlBytes = 4 * 1024 * 1024;
-
-/**
- * T3 Code läuft hinter dem Workbench-Präfix `/t3`, seine Browser-Routen liegen
- * aber am Root (`/$environmentId/$threadId`). Bei einem Deep-Link muss das
- * Präfix deshalb vor dem Router-Start aus der sichtbaren URL entfernt werden.
- * Frühere Workbench-Versionen erzeugten Tiefenlinks unter dem `/_chat`-Layout;
- * diese werden zusätzlich auf die Root-Thread-Route umgeschrieben.
- *
- * Die Bridge meldet außerdem den aktuell geöffneten T3-Thread nach oben:
- * Im iframe an die Workbench per `postMessage`, im eigenständigen Fenster
- * direkt per `PUT /api/v1/notifications/presence`. So gelten Benachrichtigungen
- * für einen Thread als gesehen, sobald der Nutzer genau diesen Chat öffnet.
- */
-export const t3RouteBridgeScript = `<script data-wrapt-t3-route="1">
-(() => {
-  const prefix = "/t3";
-  const pathname = window.location.pathname;
-  if (pathname === prefix || pathname.startsWith(prefix + "/")) {
-    const nextPath = pathname.slice(prefix.length) || "/";
-    // Die T3-Thread-Route liegt am Root (/$environmentId/$threadId). Alte
-    // Tiefenlinks unter dem /_chat-Layout (/_chat/<environmentId>/<threadId>
-    // aus früheren Workbench-Versionen) werden vor dem Router-Start auf die
-    // korrekte Form umgeschrieben. UUID-Paare sind eindeutig.
-    const segments = nextPath.split("/").filter(Boolean);
-    const legacyChatThread = segments.length >= 3
-      && segments[0] === "_chat"
-      && /^[0-9a-fA-F-]{36}$/.test(segments[1] ?? "")
-      && /^[0-9a-fA-F-]{36}$/.test(segments[2] ?? "");
-    const normalized = legacyChatThread ? "/" + segments.slice(1).join("/") : nextPath;
-    window.history.replaceState(window.history.state, "", normalized + window.location.search + window.location.hash);
-  }
-  const historyIndexKey = "__wraptT3Index";
-  let historyIndex = Number.isInteger(window.history.state?.[historyIndexKey]) ? window.history.state[historyIndexKey] : 0;
-  window.history.replaceState({ ...window.history.state, [historyIndexKey]: historyIndex }, "", window.location.href);
-  const presence = () => {
-    const segments = window.location.pathname.split("/").filter(Boolean);
-    // Threads liegen am Root (/$environmentId/$threadId); ältere Pfade unter
-    // dem _chat-Layout gelten als /_chat/<environmentId>/<threadId>.
-    const threadId = segments[0] === "_chat" ? segments[2] ?? null : segments.length >= 2 ? segments[1] ?? null : null;
-    return { source: "t3", threadId };
-  };
-  const report = () => {
-    const path = window.location.pathname + window.location.search + window.location.hash;
-    if (window.parent === window) {
-      try {
-        fetch("/api/v1/notifications/presence", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(presence()) });
-      } catch { /* Presence ist Best Effort. */ }
-    } else {
-      window.parent.postMessage({ source: "wrapt-t3", version: 1, type: "route.changed", path }, window.location.origin);
-    }
-  };
-  const originalPushState = history.pushState.bind(history);
-  const originalReplaceState = history.replaceState.bind(history);
-  const originalGo = history.go.bind(history);
-  history.pushState = function (state, title, url) {
-    historyIndex += 1;
-    const result = originalPushState({ ...state, [historyIndexKey]: historyIndex }, title, url);
-    report();
-    return result;
-  };
-  history.replaceState = function (state, title, url) {
-    const result = originalReplaceState({ ...state, [historyIndexKey]: historyIndex }, title, url);
-    report();
-    return result;
-  };
-  history.go = function (delta) {
-    if (window.parent !== window && typeof delta === "number" && delta < 0 && historyIndex + delta < 0) return;
-    originalGo(delta);
-  };
-  history.back = function () { history.go(-1); };
-  addEventListener("popstate", (event) => {
-    const nextIndex = event.state?.[historyIndexKey];
-    if (Number.isInteger(nextIndex)) historyIndex = nextIndex;
-    report();
-  });
-  addEventListener("focus", report);
-  report();
-})();
-</script>`;
 
 // T3 Code deaktiviert seine integrierte Browser-Preview im Web-Modus, weil
 // dort die Electron-API `window.desktopBridge.preview` fehlt. Innerhalb der

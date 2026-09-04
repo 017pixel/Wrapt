@@ -58,7 +58,7 @@ describe("standalone T3 Code actions", () => {
     expect(screen.getByRole("menuitem", { name: "Neu laden" })).not.toBeNull();
     expect(screen.getByRole("menuitem", { name: "In neuem Tab öffnen" })).not.toBeNull();
     const firstFrame = screen.getByTitle("T3 Code");
-    // Das gehostete T3-UI braucht lokalen Netzwerkzugriff (Permissions-Policy).
+    // Das eingebettete T3 braucht lokalen Netzwerkzugriff (Permissions-Policy).
     expect(firstFrame.getAttribute("allow")).toBe(
       "local-network-access; local-network; loopback-network",
     );
@@ -120,8 +120,50 @@ describe("standalone T3 Code actions", () => {
   });
 });
 
-describe("eingebettete Werkzeug-Eingaben", () => {
-  it("lässt Pointer-Gesten im Werkzeug nicht bis zum Canvas durch", () => {
+describe("T3-Einbettung über den Proxy", () => {
+  function t3Project(): Project {
+    return {
+      id: "wrapt", name: "Wrapt", description: "Workbench", path: "/tmp/wrapt", enabled: true, sortOrder: 1,
+      availability: "available", activity: { lastWorkbenchUseAt: null, lastFilesystemChangeAt: null, lastGitCommitAt: null, effectiveAt: null },
+      previews: [], links: { t3Code: "https://t3.example.test", codeServer: null },
+    };
+  }
+
+  it("bettet T3 same-origin über /t3 ein, damit Zurück im iframe bleibt", () => {
+    const project = t3Project();
+    const panel = { id: "standalone-t3-code", type: "t3-code", projectId: project.id, previewId: null, reloadKey: 0 } satisfies Panel;
+
+    render(createElement(ToolPanel, { panel, project, isFocused: true, standalone: true }));
+
+    expect(screen.getByTitle("T3 Code").getAttribute("src")).toBe("/t3");
+  });
+
+  it("hängt den T3-Threadpfad an den Proxy an", () => {
+    const project = t3Project();
+    const panel = { id: "standalone-t3-code", type: "t3-code", projectId: project.id, previewId: null, reloadKey: 0, t3Path: "/env-1/thread-1" } satisfies Panel;
+
+    render(createElement(ToolPanel, { panel, project, isFocused: true, standalone: true }));
+
+    expect(screen.getByTitle("T3 Code").getAttribute("src")).toBe("/t3/env-1/thread-1");
+  });
+
+  it("öffnet Extern auf der gehosteten App mit allen Backends", async () => {
+    const target = document.createElement("div");
+    target.id = "topbar-tool-actions";
+    document.body.append(target);
+    const project = t3Project();
+    const panel = { id: "standalone-t3-code", type: "t3-code", projectId: project.id, previewId: null, reloadKey: 0 } satisfies Panel;
+
+    render(createElement(ToolPanel, { panel, project, isFocused: true, standalone: true, actionPlacement: "topbar" }));
+
+    await waitFor(() => expect(target.querySelector(".tool-actions-menu.is-topbar")).not.toBeNull());
+    fireEvent.click(within(target).getByRole("button", { name: "Werkzeugaktionen" }));
+    expect(screen.getByRole("menuitem", { name: "In neuem Tab öffnen" }).getAttribute("href")).toBe("https://t3.example.test");
+    target.remove();
+  });
+});
+
+describe("eingebettete Werkzeug-Eingaben", () => {  it("lässt Pointer-Gesten im Werkzeug nicht bis zum Canvas durch", () => {
     const project = {
       id: "wrapt", name: "Wrapt", description: "Workbench", path: "/tmp/wrapt", enabled: true, sortOrder: 1,
       availability: "available", activity: { lastWorkbenchUseAt: null, lastFilesystemChangeAt: null, lastGitCommitAt: null, effectiveAt: null },

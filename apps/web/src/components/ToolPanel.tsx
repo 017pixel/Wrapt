@@ -88,12 +88,10 @@ function resolvePanel(panel: Panel, project: Project | undefined, codeServerMode
       url,
       mode: "hybrid",
       embed: url !== null,
-      // Das gehostete T3-Web-UI (app.t3.codes) wird direkt eingebettet statt über
-      // den /t3-Proxy: Dort sind mehrere Backends/Umgebungen verfügbar und der
-      // Browser verbindet sich selbst mit jedem T3-Server (lokal und CHAPPiEs).
-      // Die frühere Route-Bridge des Proxys (Thread-Presence, Deep-Links) greift
-      // damit nicht mehr — bewusste Entscheidung für das Hosted-UI.
-      proxyUrl: null,
+      // T3 Code läuft same-origin über den /t3-Proxy: Nur so kann die
+      // injizierte Route-Bridge Zurück im iframe abfangen und T3-intern
+      // navigieren. Die gehostete App bleibt über „Extern öffnen" erreichbar.
+      proxyUrl: url === null ? null : "/t3",
       reason: url === null ? "T3 Code ist für dieses Projekt nicht verfügbar." : null,
       targetPort: null,
       path: "/",
@@ -255,6 +253,8 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
 
   const configuredPanel = resolvePanel(panel, project, codeServerMode);
   const resolved = panel.type === "preview" && localPreview ? localPreview : configuredPanel;
+  // Extern-Öffnen führt bei T3 auf die gehostete App; eingebettet läuft der /t3-Proxy.
+  const externalToolUrl = panel.type === "t3-code" ? (resolved?.url ?? resolved?.proxyUrl) : (resolved?.proxyUrl ?? resolved?.url);
 
   const [loaded, setLoaded] = useState(false);
   const effectiveReloadKey = panel.reloadKey + standaloneReloadKey;
@@ -322,7 +322,7 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
     else closePanel(panel.id);
   };
   const openPanelMenu = (event: React.MouseEvent) => {
-    const externalUrl = resolved?.proxyUrl ?? resolved?.url ?? null;
+    const externalUrl = externalToolUrl ?? null;
     openGlobalContextMenu(event, {
       surface: "host.context-menu.tool",
       title: `${panelTitles[panel.type]}${project ? ` · ${project.name}` : ""}`,
@@ -349,7 +349,7 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
       ) : null}
       <ToolActionMenu
         className={actionPlacement === "topbar" ? "is-topbar" : ""}
-        externalHref={resolved.proxyUrl ?? resolved.url ?? window.location.href}
+        externalHref={externalToolUrl ?? window.location.href}
         isFullscreen={isMaximized}
         onFullscreen={() => onMaximizedChange ? onMaximizedChange(!isMaximized) : standalone ? setStandaloneMaximized(!isMaximized) : restorePanels()}
         onReload={reload}
@@ -361,7 +361,7 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
       {panel.type === "preview" && deviceId !== "responsive" ? <button type="button" title="Ausrichtung drehen" aria-label="Ausrichtung drehen" onClick={() => setOrientation((current) => current === "portrait" ? "landscape" : "portrait")} className="icon-button"><DeviceRotateIcon className="h-4 w-4" /></button> : null}
       {panel.type === "preview" && resolved?.targetPort ? <span className="preview-slot-badge">{previewSlotId ? `SLOT ${previewSlotId}` : "SLOT"}</span> : null}
       {resolved.url ? <button type="button" title="Neu laden" aria-label="Neu laden" onClick={reload} className="icon-button"><RefreshIcon className="h-4 w-4" /></button> : null}
-      {resolved.url ? <a href={previewPublicUrl ?? resolved.proxyUrl ?? resolved.url} target="_blank" rel="noopener noreferrer" title="In neuem Tab öffnen" aria-label="In neuem Tab öffnen" className="icon-button"><ExternalLinkIcon className="h-4 w-4" /></a> : null}
+      {resolved.url ? <a href={previewPublicUrl ?? externalToolUrl ?? resolved.url} target="_blank" rel="noopener noreferrer" title="In neuem Tab öffnen" aria-label="In neuem Tab öffnen" className="icon-button"><ExternalLinkIcon className="h-4 w-4" /></a> : null}
       {isMaximized ? <button type="button" title="Wiederherstellen" aria-label="Wiederherstellen" onClick={() => onMaximizedChange ? onMaximizedChange(false) : standalone ? setStandaloneMaximized(false) : restorePanels()} className="icon-button"><RestoreIcon className="h-4 w-4" /></button> : <button type="button" title="Vollbild" aria-label="Vollbild" onClick={() => onMaximizedChange ? onMaximizedChange(true) : standalone ? setStandaloneMaximized(true) : maximizePanel(panel.id)} className="icon-button"><FullscreenIcon className="h-4 w-4" /></button>}
       {!standalone ? <button type="button" title="Schließen" aria-label="Schließen" onClick={close} className="icon-button danger"><CloseIcon className="h-4 w-4" /></button> : null}
     </div>
