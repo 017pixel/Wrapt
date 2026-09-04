@@ -111,7 +111,7 @@ pnpm extension:create beispiel.mein-plugin
 pnpm extension:validate extensions/beispiel.mein-plugin
 ```
 
-### `$plugin-creator` für Codex installieren
+### `$wrapt-plugins` für Codex installieren
 
 Dieses Repository enthält einen vollständigen Codex-Marktplatz unter `.agents/plugins`.
 Nach dem Klonen lässt sich der Wrapt-spezifische Creator so installieren:
@@ -124,12 +124,13 @@ codex plugin add wrapt-extension-creator@wrapt
 Danach kann Codex den enthaltenen Skill direkt verwenden:
 
 ```text
-$plugin-creator Erstelle ein persönliches Wrapt-Plugin für eine kompakte Projektstatus-Seite.
+$wrapt-plugins Erstelle ein persönliches Wrapt-Plugin für eine kompakte Projektstatus-Seite.
 ```
 
-Der Skill trennt persönliche Drafts von versionierten Extensions, arbeitet bei Drafts über
-die Authoring-API, verlangt explizite Permissions und aktiviert nur erfolgreich validierte
-Pakete. Aufbau, Installation und Veröffentlichung sind in
+Der Skill erstellt und verwaltet persönliche Drafts ausschließlich über die Authoring-API,
+verlangt explizite Permissions und aktiviert nur erfolgreich validierte Pakete. Persönliche
+Plugins erscheinen nur unter „Eigene Plugins“ und niemals unter „Installieren“. Aufbau,
+Installation und API sind in
 [Plugins und Extensions](docs/extensions/plugin-marketplace.md) sowie im
 [Authoring-Guide](docs/extensions/authoring.md) beschrieben.
 
@@ -147,9 +148,9 @@ Beispielkonten und neutrale Projektdaten sichtbar; T3 Code ist im Dark Mode darg
 | :--: | :--: |
 | ![T3 Code im Dark Mode ohne angemeldetes Konto](docs/screenshots/04-t3-code.png) | ![code-server ohne persönliche Dateien](docs/screenshots/05-code-server.png) |
 
-| Plugin-Verwaltung | Plugin Creator |
+| Plugin-Verwaltung | Wrapt-Plugins |
 | :--: | :--: |
-| ![Lokale Plugin-Verwaltung](docs/screenshots/12-plugins.png) | ![Auswahl des Plugin-Creators](docs/screenshots/13-plugin-creator.png) |
+| ![Lokale Plugin-Verwaltung](docs/screenshots/12-plugins.png) | ![Auswahl des Wrapt-Plugins-Skills](docs/screenshots/13-plugin-creator.png) |
 
 | Dateimanager | Terminal |
 | :--: | :--: |

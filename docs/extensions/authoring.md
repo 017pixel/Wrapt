@@ -60,7 +60,7 @@ Ein Agent darf bei einer bestehenden Extension Permissions nicht stillschweigend
 
 ## Lokaler Catalog
 
-Die Server-Runtime verwendet ihren konfigurierten `dataDirectory` und darunter `extension-catalog` als lokalen Catalog. Der Repository-Ordner `extensions/` ist dagegen der versionierbare Authoring-Ort für First-Party- und Entwicklungs-Extensions.
+Die Server-Runtime verwendet ihren konfigurierten `dataDirectory` und darunter `extension-catalog` als lokale Paketablage. Der Repository-Ordner `extensions/` ist dagegen der versionierbare Authoring-Ort für First-Party- und Entwicklungs-Extensions. Intern trennt Wrapt den allgemeinen Catalog vom persönlichen Prüf-Catalog: Der allgemeine Endpoint `/extensions/catalog` liefert niemals `wrapt.local.*`, während die private Runtime-Prüfung diese Pakete weiterhin verifizieren kann.
 
 Der Build-/Installationsschritt darf beide Orte nicht verwechseln. Erst validieren, dann das fertige Paket kontrolliert in den Runtime-Catalog übernehmen und über die bestehende Extension-Verwaltung installieren oder aktualisieren.
 
@@ -72,7 +72,7 @@ Persönliche Drafts liegen unter `<dataDirectory>/plugin-drafts`, aktivierte Pak
 
 Der KI-Prompt beschreibt Ziel, Host-Flächen, Contributions, Permissions, Orbit, Theme-Tokens, Tests und Neustart-Verhalten. Kleine Erweiterungen gehören in kontrollierte Slots wie Topbar, Bottom-Bar, Dashboard, Orbit, Kontextmenü, Overlay, Bottom Sheet oder rechte Seitenleiste. Freie Änderungen am Host-DOM sind nicht erlaubt.
 
-Alternativ kann ein Coding-Agent den lokalen Skill `$plugin-creator` verwenden. Er fragt dieselben Angaben wie der Setup-Wizard ab, prüft vorhandene Drafts und Slugs vor dem Schreiben und aktualisiert persönliche Plugins über die Authoring-API. Für ein vorhandenes Plugin muss der Agent dessen Draft-ID weiterverwenden, statt ein gleichnamiges Duplikat anzulegen. Unter Plugins → Allgemein lässt sich die verwendete Skill-Anleitung direkt lesen oder als `plugin-creator-SKILL.md` herunterladen. Die Quelle wird über `plugins.creatorSkillPath` konfiguriert und bleibt auf genau diese lokale Textdatei begrenzt.
+Alternativ kann ein Coding-Agent den lokalen Skill `$wrapt-plugins` verwenden. Ein grober Ein-Satz-Auftrag genügt. Der Skill prüft vorhandene Drafts und Slugs vor dem Schreiben und aktualisiert persönliche Plugins über die Authoring-API. Für ein vorhandenes Plugin muss der Agent dessen Draft-ID und Revision weiterverwenden, statt ein gleichnamiges Duplikat anzulegen. Unter Plugins → Allgemein lässt sich die verwendete Skill-Anleitung direkt lesen oder als `wrapt-plugins-SKILL.md` herunterladen. Die Quelle wird über `plugins.wraptPluginsSkillPath` konfiguriert; `plugins.creatorSkillPath` bleibt als alter Schlüssel kompatibel.
 
 Der Wrapt-spezifische Skill wird im Repository als Codex-Plugin unter `.agents/plugins`
 ausgeliefert. Ohne lokale Überschreibung verwendet auch die Wrapt-Oberfläche genau diese
@@ -87,12 +87,12 @@ Für mobile Geräte muss dieselbe Route über die mobile Navigation erreichbar s
 
 ### Neustarts und Agenten
 
-Ein Plugin-Agent darf Frontend oder Backend nicht eigenständig neu starten. Der KI-Prompt verlangt zuerst Tests und weist auf die Freigabe durch den Benutzer hin. Nach Store- oder Draft-Änderungen zeigt Wrapt auf der Plugin-Seite einen schließbaren Hinweis. Erst der Benutzer startet dort Frontend und Backend gemeinsam neu und sieht Build, Backend, T3-Kanal sowie Fehler direkt im selben Flow. Laufende Panels, Arbeitsflächen, Terminals und persistierte Daten bleiben erhalten.
+Ein Plugin-Agent darf Frontend oder Backend nach ausdrücklicher Freigabe des Benutzers selbst neu starten. Vorher verlangt der Skill Tests und Build und nennt den nötigen Zielbereich. Nach dem Neustart prüft der Agent Health- und Restart-Status. Laufende Panels, Arbeitsflächen, Terminals und persistierte Daten bleiben erhalten; aktive Previews und Slots werden nicht verändert.
 
 ### Öffentliche Verträge
 
 Wrapt hält Plugin- und Agentenpakete bewusst getrennt. Das Codex-Plugin verteilt den
-`$plugin-creator`-Skill; das erzeugte Wrapt-Paket folgt anschließend ausschließlich
+`$wrapt-plugins`-Skill; das erzeugte Wrapt-Paket folgt anschließend ausschließlich
 `@wrapt/extension-contracts`. Manifest, Contributions, Permissions, Aktivierung und
 Rollback bleiben dadurch unabhängig vom verwendeten Coding-Agenten reproduzierbar.
 

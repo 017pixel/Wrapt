@@ -17,8 +17,8 @@ README, Installation und Konfiguration.
 
 | Ziel | Dokument |
 | --- | --- |
-| Codex-Marktplatz und `$plugin-creator` installieren | [Plugin-Marktplatz](extensions/plugin-marketplace.md) |
-| Persönliche Plugins und versionierte Extensions erstellen | [Extension Authoring](extensions/authoring.md) |
+| Codex-Marktplatz und `$wrapt-plugins` installieren | [Plugin-Marktplatz](extensions/plugin-marketplace.md) |
+| Persönliche Plugins und versionierte Extensions verstehen | [Extension Authoring](extensions/authoring.md) |
 | Öffentliche Extension-Verträge verstehen | [Manifest ADR](adr/extension-manifest-v1.md) |
 | Berechtigungsmodell verstehen | [Permission ADR](adr/extension-permission-model.md) |
 | Laufzeit und atomare Aktivierung verstehen | [Runtime ADR](adr/extension-runtime-v1.md) |

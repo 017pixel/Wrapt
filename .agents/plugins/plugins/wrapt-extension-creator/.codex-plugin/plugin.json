@@ -1,7 +1,7 @@
 {
   "name": "wrapt-extension-creator",
   "version": "1.0.0",
-  "description": "Erstellt und aktualisiert sichere persönliche Plugins und versionierte Extensions für Wrapt.",
+  "description": "Verwaltet persönliche Wrapt-Plugins sicher und ausschließlich lokal.",
   "author": {
     "name": "017pixel",
     "url": "https://github.com/017pixel"
@@ -12,13 +12,13 @@
   "keywords": ["wrapt", "extensions", "plugins", "authoring"],
   "skills": "./skills/",
   "interface": {
-    "displayName": "Wrapt Extension Creator",
-    "shortDescription": "Erstellt sichere Plugins für Wrapt.",
-    "longDescription": "Führt durch persönliche Plugin-Drafts und versionierte Wrapt-Extensions, prüft Verträge und aktiviert nur validierte Pakete.",
+    "displayName": "Wrapt-Plugins",
+    "shortDescription": "Erstellt und verwaltet persönliche Plugins für Wrapt.",
+    "longDescription": "Erstellt, bearbeitet, validiert, aktiviert, deaktiviert und entfernt persönliche Wrapt-Plugins ausschließlich in der lokalen Datenablage.",
     "developerName": "017pixel",
     "category": "Developer Tools",
     "capabilities": ["Read", "Write"],
     "websiteURL": "https://github.com/017pixel/Wrapt",
-    "defaultPrompt": "Erstelle ein neues Wrapt-Plugin und validiere es vollständig."
+    "defaultPrompt": "Erstelle oder bearbeite ein persönliches Wrapt-Plugin und validiere es vollständig."
   }
 }

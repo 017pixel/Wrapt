@@ -66,7 +66,7 @@ Antworten aus Schritt 1 ein. Bedeutung der Felder:
 | `paths.codexSharedHome` / `claudeSharedHome` / `opencodeSharedHome` | Optional. Gemeinsame Homes der KI-Werkzeuge für den Accountwechsel (Standard: `<home>/.codex`, `<home>/.claude`, `<home>/.local/share/opencode`). |
 | `cli.*` | Pfade zu `codexbar`, `codex`, `opencode`, `claude`, `tmux`, `chromium`. |
 | `codexbar.configPath` / `oauthProfileHomes` | CodexBar-Konfiguration und optionale OAuth-Profile. |
-| `plugins.creatorSkillPath` | Optionaler absoluter Ersatzpfad. Ohne Wert nutzt Wrapt den mitgelieferten `$plugin-creator`. |
+| `plugins.wraptPluginsSkillPath` | Optionaler absoluter Ersatzpfad für die `$wrapt-plugins`-Anleitung. Ohne Wert nutzt Wrapt den mitgelieferten Skill; `creatorSkillPath` bleibt als alter Schlüssel kompatibel. |
 
 ### b) `.env`
 Kopiere `.env.example` nach `.env`. Hier gehören **nur Secrets und neutrale Runtime-Knöpfe**

@@ -187,7 +187,7 @@ curl -f -H 'Host: 127.0.0.1:9119' http://127.0.0.1:9119/api/status
 curl -f http://127.0.0.1:3010/api/v1/health
 ```
 
-Die Antwort muss `status: "ok"`, `version: "1.0.1"`, eine `bootId` und eine
+Die Antwort muss `status: "ok"`, `version: "1.1.0"`, eine `bootId` und eine
 `webBuildId` enthalten. Prüfe anschließend:
 
 - `http://127.0.0.1:3010/wrapt/` lädt,

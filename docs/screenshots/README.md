@@ -14,7 +14,7 @@ Die öffentliche README verwendet PNG-Aufnahmen mit 1280 × 720 Pixeln.
 | `08-usage.png` | Nutzung ohne konfigurierte Accounts |
 | `09-settings.png` | Einstellungen |
 | `12-plugins.png` | Plugin-Verwaltung |
-| `13-plugin-creator.png` | Auswahl des Plugin-Creators |
+| `13-plugin-creator.png` | Auswahl des Wrapt-Plugins-Skills |
 
 `10-hermes-chat.png` und `11-hermes-system.png` bleiben als sichere
 Kompatibilitätsdateien erhalten, werden aber nicht öffentlich eingebunden. Hermes kann

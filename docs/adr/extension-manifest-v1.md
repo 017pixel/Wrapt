@@ -569,8 +569,9 @@ dieselbe Registry:
 ```
 
 - V1 definiert Host-Surfaces für Project, File, Directory, Orbit Node, Orbit Pane, Preview,
-  Terminal, Git, Agent Session, Browser und generische Tool-Flächen. Ihre stabilen IDs beginnen
-  mit `host.context-menu.`. Unbekannte Host-Surfaces werden fail-closed abgewiesen.
+  Terminal, Git, Agent Session, Browser, generische Tool-Flächen und freie Host-Flächen ohne
+  eigene Rechtsklick-Funktion. Ihre stabilen IDs beginnen mit `host.context-menu.`. Unbekannte
+  Host-Surfaces werden fail-closed abgewiesen.
 - Native Extension-UIs können eine eigene Surface-ID in ihrem Namespace an den Host übergeben.
   Eine Extension darf weder eine fremde Surface verwenden noch eine Host-Surface vortäuschen.
 - Jedes Item referenziert ein tatsächlich deklariertes Command. Titel, Disabled Reason,

@@ -16,7 +16,7 @@ Konfigurationsquelle für alles Umgebungsspezifische:
 - `dashboard` — serverseitige Sichtbarkeitsdefaults für Dashboard-Bereiche und Polling-Intervalle. Die lokale Oberfläche kann diese Bereiche zusätzlich pro Browser ausblenden.
 - `appearance` — projektweite Akzent-, Hintergrund-, Sidebar-, Topbar- und Bottom-Bar-Farben. Lokale Plugins lesen dieselben semantischen Theme-Tokens.
 - `contextMenu` — globale Rechtsklick-Menüs, Schnellaktionen, Surface-Schalter und Statusleisten-Darstellung.
-- `plugins` — optionale lokale Dateiquellen für Plugin-Werkzeuge, insbesondere `creatorSkillPath` für die in der Oberfläche lesbare und herunterladbare `$plugin-creator`-Anleitung.
+- `plugins` — optionale lokale Dateiquellen für Plugin-Werkzeuge, insbesondere `wraptPluginsSkillPath` für die in der Oberfläche lesbare und herunterladbare `$wrapt-plugins`-Anleitung.
 - `notifications` — Aufbewahrung, Erkennungsschwellen sowie Toast- und Push-Regeln pro Quelle.
 - `previews` — interne Loopback-Listener, zugehörige öffentliche Tailscale-HTTPS-Ports und die Feature-Flags der Preview-Laufzeit (siehe unten).
 - `hermes` — Loopback-Dashboard, ACP-Chat, User-Units, Updatezeit und serverseitige Betriebsgrenzen.
@@ -27,11 +27,11 @@ lesen diese Datei beim Start; fehlt sie, wird auf `config/wrapt.example.json` zu
 Die Werte aus dieser Config bilden die **Defaults**; eine gesetzte Umgebungsvariable in `.env`
 überschreibt den jeweiligen Einzelwert.
 
-`plugins.creatorSkillPath` ist ein optionaler absoluter Pfad auf eine UTF-8-Textdatei.
-Ohne Angabe verwendet Wrapt den mitgelieferten Skill unter
-`.agents/plugins/plugins/wrapt-extension-creator/skills/plugin-creator/SKILL.md`.
-Eine absolute lokale Überschreibung bleibt möglich. Die API liefert ausschließlich die
-aufgelöste Skill-Datei und erlaubt kein freies Lesen anderer lokaler Pfade.
+`plugins.wraptPluginsSkillPath` ist ein optionaler absoluter Pfad auf eine UTF-8-Textdatei.
+Ohne Angabe verwendet Wrapt den mitgelieferten Skill unter `.agents/plugins/plugins/wrapt-extension-creator/skills/wrapt-plugins/SKILL.md`.
+Eine absolute lokale Überschreibung bleibt möglich; `plugins.creatorSkillPath` wird als
+Kompatibilitätsname gelesen, wenn der neue Schlüssel fehlt. Die API liefert ausschließlich
+die aufgelöste Skill-Datei und erlaubt kein freies Lesen anderer lokaler Pfade.
 
 ## Hermes Agent
 
@@ -213,8 +213,8 @@ sichtbar. Die Community-Historie ist keine Bestätigung für den persönlichen C
 `contextMenu.enabled` schaltet die Host-Menüs global. Unter `surfaces` kann jede Host-Surface
 separat deaktiviert werden; fehlende Einträge sind aktiviert. `quickActions.mode` wählt zwischen
 der ausschließlich im Browser gezählten automatischen Top 3 und bis zu drei manuellen
-Navigation-IDs. `statusBar.fontSizePx` erlaubt 10 bis 20 Pixel, `alwaysShowLimits` blendet die
-Limitdetails dauerhaft ein. Änderungen über Einstellungen → Rechtsklick werden atomar in
+Navigation-IDs. Die Surface `host.context-menu.empty` steht für freie Host-Flächen ohne eigene Rechtsklick-Funktion, zum Beispiel in Sidebar, Topbar, Statusleiste oder Seiteninhalt.
+`statusBar.fontSizePx` erlaubt 10 bis 20 Pixel, `alwaysShowLimits` blendet die Limitdetails dauerhaft ein. Änderungen über Einstellungen → Rechtsklick werden atomar in
 `config/wrapt.local.json` gespeichert und wirken ohne Neustart.
 
 Eingebettete Anwendungen wie T3 Code, Hermes, Code-Server, Preview-Runtime und Plugin-Frames
