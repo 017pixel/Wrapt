@@ -4,6 +4,7 @@
 @import "@fontsource/jetbrains-mono/500.css";
 @import "@fontsource/jetbrains-mono/600.css";
 @import "@fontsource/jetbrains-mono/700.css";
+@import "./components/plugins/plugin-topbar.css";
 
 /* --- Palette: T3 Code Nightly (dark) ----------------------------------------
    Übernommen aus dem Design von T3 Code Nightly (0.0.29-nightly). Die Token-
@@ -2060,10 +2061,11 @@ a:hover .app-icon,
   .status-limits:hover { background: var(--color-ink-800); color: var(--color-text); }
   .status-limits strong { color: var(--color-text); font-weight: 600; }
   .topbar { position: relative; z-index: 40; display: flex; height: 48px; flex: none; align-items: center; gap: 12px; padding: 0 24px; border-bottom: 1px solid var(--color-line); background: var(--wrapt-surface-topbar); backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-saturation)); }
-  .topbar-project-picker { display: inline-flex; flex: none; align-items: center; margin-left: auto; }
-  .topbar-tool-actions { min-width: 0; display: flex; flex: none; align-items: center; justify-content: flex-end; margin-left: auto; }
-  .topbar > .project-picker + .topbar-tool-actions { margin-left: 0; }
-  .topbar-tool-actions + .project-picker { margin-left: 0; }
+  .topbar-right-actions { min-width: 0; display: flex; flex: none; align-items: center; justify-content: flex-end; gap: 8px; margin-left: auto; }
+  .topbar-right-actions > .project-picker,
+  .topbar-right-actions > .topbar-tool-actions,
+  .topbar-right-actions > .tool-actions-menu.is-topbar { margin-left: 0; }
+  .topbar-tool-actions { min-width: 0; display: flex; flex: none; align-items: center; justify-content: flex-end; }
   .topbar-project-picker select { min-height: 36px; max-width: 52vw; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-ink-850); padding: 5px 28px 5px 8px; color: var(--color-text); font-size: 13px; }
   .page-crumb { display: flex; min-width: 0; align-items: center; gap: 6px; }
   .page-crumb-root { flex: none; color: var(--color-faint); font-size: 13px; transition: color var(--duration-base) var(--ease-standard); }
@@ -2158,11 +2160,6 @@ a:hover .app-icon,
   .tool-actions-popover { position: absolute; z-index: 120; top: calc(100% + 6px); right: 0; display: grid; width: min(232px, calc(100vw - 24px)); gap: 2px; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-ink-900); padding: 5px; box-shadow: var(--shadow-overlay); }
   .tool-actions-popover button, .tool-actions-popover a { display: flex; min-height: 38px; align-items: center; gap: 9px; border-radius: var(--radius-sm); padding: 0 10px; color: var(--color-muted); font-size: var(--text-xs); text-align: left; text-decoration: none; }
   .tool-actions-popover button:hover, .tool-actions-popover a:hover, .tool-actions-popover button:focus-visible, .tool-actions-popover a:focus-visible { background: var(--color-ink-800); color: var(--color-text); outline: none; }
-  .topbar > .tool-actions-menu.is-topbar { margin-left: auto; }
-  /* Direkt nebeneinander: Der Projekt-Picker schiebt beide Elemente nach
-     rechts; das Aktionen-Menü schließt bündig mit der Topbar-Kante ab. */
-  .tool-actions-menu.is-topbar + .project-picker { margin-left: 0; }
-  .topbar > .project-picker + .tool-actions-menu.is-topbar { margin-left: var(--space-2); }
   .topbar-tool-actions .tool-actions-trigger { width: 36px; min-height: 36px; }
   .panel-device-picker-wrapper { position: relative; }
   .panel-device-picker { display: flex; height: 32px; min-width: 0; max-width: 180px; align-items: center; gap: 5px; border: 0; border-radius: var(--radius-sm); background: transparent; padding: 0 8px; color: var(--color-muted); font-size: 12px; cursor: pointer; }

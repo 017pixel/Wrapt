@@ -105,6 +105,7 @@ export const pluginFunctionActionSchema = z.enum([
   "save-state",
   "load-state",
   "run-command",
+  "activate-account",
   "refresh-data",
   "start-timer",
   "stop-timer",

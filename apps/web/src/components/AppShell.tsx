@@ -24,8 +24,8 @@ import { ToolActionMenu } from "./ToolActionMenu";
 import { NotificationCenter } from "./NotificationCenter";
 import { WraptNotice } from "./WraptNotice";
 import { useViewPresence } from "../lib/useViewPresence";
-import { ContextMenuProvider } from "./context-menu/ContextMenuProvider";
 import { recordToolUsage } from "../stores/toolUsage";
+import { PluginTopbar } from "./plugins/PluginTopbar";
 
 function ContextProjectPicker() {
   const location = useLocation();
@@ -262,7 +262,7 @@ export function AppShell() {
   }, [terminalFocus]);
 
   return (
-    <ContextMenuProvider><div
+    <div
       className={`app-shell ${isOrbit ? "is-orbit" : ""}`}
       data-shell-mode={responsive.mode}
       data-input-mode={responsive.inputMode}
@@ -321,8 +321,11 @@ export function AppShell() {
               {isProjectDetail ? decodeURIComponent(location.pathname.split("/").at(-1) ?? "Projekt") : title}
             </span>
           </div>
-          {!isStandaloneT3 && !isStandaloneOpenCode ? <ContextProjectPicker /> : null}
-          {(isStandaloneT3 || isStandaloneOpenCode || location.pathname === "/code-editor") ? <div id="topbar-tool-actions" className="topbar-tool-actions" aria-label={`${title} Aktionen`} /> : hasStandaloneToolMenu ? <StandaloneRouteActions terminalFocus={terminalFocus} onTerminalFocusChange={setTerminalFocus} /> : null}
+          <div className="topbar-right-actions">
+            {!isStandaloneT3 && !isStandaloneOpenCode ? <ContextProjectPicker /> : null}
+            <PluginTopbar />
+            {(isStandaloneT3 || isStandaloneOpenCode || location.pathname === "/code-editor") ? <div id="topbar-tool-actions" className="topbar-tool-actions" aria-label={`${title} Aktionen`} /> : hasStandaloneToolMenu ? <StandaloneRouteActions terminalFocus={terminalFocus} onTerminalFocusChange={setTerminalFocus} /> : null}
+          </div>
         </header> : isOrbit ? (showNavigationTrigger ? <button ref={navigationTriggerRef} type="button" className="orbit-app-menu mobile-nav-trigger" onClick={() => setMobileNavigationOpen(true)} aria-label="Navigation öffnen"><MenuIcon className="h-[18px] w-[18px]" /></button> : null) : (showNavigationTrigger ? <button ref={navigationTriggerRef} type="button" className="news-app-menu mobile-nav-trigger" onClick={() => setMobileNavigationOpen(true)} aria-label="Navigation öffnen"><MenuIcon className="h-[18px] w-[18px]" /></button> : null)}
         {!online ? <div className="connection-banner" role="status"><span>Offline</span><strong>Live-Daten und Remote-Werkzeuge sind vorübergehend nicht verfügbar.</strong></div> : null}
         <main ref={mainRef} id="main-content" tabIndex={-1} className="relative min-h-0 flex-1 overflow-hidden">
@@ -332,6 +335,6 @@ export function AppShell() {
       </div>
       {terminalFocus ? <button type="button" className="terminal-focus-exit" onClick={() => setTerminalFocus(false)} aria-label="Vollbild verlassen" title="Vollbild verlassen"><RestoreIcon className="h-4 w-4" /></button> : null}
       <MobileNav open={mobileNavigationOpen} onClose={closeMobileNavigation} triggerRef={navigationTriggerRef} />
-    </div></ContextMenuProvider>
+    </div>
   );
 }

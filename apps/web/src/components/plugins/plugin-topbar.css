@@ -1,0 +1,27 @@
+@layer components {
+  .plugin-topbar-stack { min-width: 0; max-width: min(54vw, 520px); display: flex; flex: none; align-items: center; gap: 8px; margin-left: 0; overflow-x: auto; scrollbar-width: none; }
+  .plugin-topbar-stack::-webkit-scrollbar { display: none; }
+  .plugin-topbar-group { min-width: 0; display: flex; align-items: center; gap: 6px; }
+  .plugin-topbar-name { max-width: 96px; overflow: hidden; color: var(--color-faint); font-family: var(--font-mono); font-size: 10px; letter-spacing: .04em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+  .plugin-topbar-options { display: flex; min-width: 0; gap: 2px; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-ink-900); padding: 2px; }
+  .plugin-topbar-button { display: flex; min-width: 0; min-height: 34px; align-items: center; gap: 6px; border: 0; border-radius: var(--radius-sm); background: transparent; padding: 4px 7px; color: var(--color-muted); text-align: left; transition: background var(--duration-base) var(--ease-standard), color var(--duration-base) var(--ease-standard); }
+  .plugin-topbar-button:hover:not(:disabled) { background: var(--color-ink-800); color: var(--color-text); }
+  .plugin-topbar-button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+  .plugin-topbar-button.is-active { background: var(--color-accent-soft); color: var(--color-accent); }
+  .plugin-topbar-button:disabled { cursor: default; opacity: .72; }
+  .plugin-topbar-index { display: grid; width: 20px; height: 20px; flex: none; place-items: center; border: 1px solid var(--color-line); border-radius: var(--radius-sm); color: var(--color-faint); font-family: var(--font-mono); font-size: 10px; }
+  .plugin-topbar-button.is-active .plugin-topbar-index { border-color: var(--color-accent-line); color: var(--color-accent); }
+  .plugin-topbar-copy { display: grid; min-width: 0; gap: 1px; line-height: 1.1; }
+  .plugin-topbar-copy strong, .plugin-topbar-copy small { max-width: 128px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .plugin-topbar-copy strong { color: inherit; font-size: 11px; font-weight: 600; }
+  .plugin-topbar-copy small { color: var(--color-faint); font-size: 9px; }
+  .plugin-topbar-error { max-width: 90px; overflow: hidden; color: var(--color-bad); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+  @media (max-width: 1180px) {
+    .plugin-topbar-stack { max-width: min(58vw, 420px); gap: 4px; }
+    .plugin-topbar-name { display: none; }
+    .plugin-topbar-button { min-height: 44px; padding-inline: 6px; }
+    .plugin-topbar-index { width: 24px; height: 24px; }
+    .plugin-topbar-copy strong { max-width: 76px; font-size: 10px; }
+    .plugin-topbar-copy small { max-width: 76px; }
+  }
+}

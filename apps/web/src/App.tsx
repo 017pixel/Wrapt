@@ -9,6 +9,7 @@ import { isPageVisibleIn, useSidebarPreferences } from "./stores/sidebarPreferen
 import { EditorOpenBridge } from "./components/EditorOpenBridge";
 import { ThemeRuntimeSync } from "./components/ThemeRuntimeSync";
 import { PluginRuntimeSync } from "./extensions/pluginRuntimeSync";
+import { ContextMenuProvider } from "./components/context-menu/ContextMenuProvider";
 
 /**
  * Der statische Router ist durch den Route Host ersetzt: Pages und Routes
@@ -27,11 +28,13 @@ export function App() {
     <PwaInstallProvider>
       <BrowserRouter basename={basename}>
         {/* Global, außerhalb der Routen: gilt auch auf Standalone-Werkzeugseiten. */}
-        <EditorOpenBridge />
-        <ThemeRuntimeSync />
-        <PluginRuntimeSync />
-        <HomeRedirect />
-        <Routes>{routes}</Routes>
+        <ContextMenuProvider>
+          <EditorOpenBridge />
+          <ThemeRuntimeSync />
+          <PluginRuntimeSync />
+          <HomeRedirect />
+          <Routes>{routes}</Routes>
+        </ContextMenuProvider>
       </BrowserRouter>
     </PwaInstallProvider>
   );
