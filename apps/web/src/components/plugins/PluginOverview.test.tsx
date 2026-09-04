@@ -73,8 +73,8 @@ describe("PluginOverview", () => {
     expect(screen.getByRole("button", { name: "Allgemein" }).getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Eigene Plugins" }));
     expect(onTabChange).toHaveBeenCalledWith("eigene");
-    expect(screen.getByText("Plugin Creator")).toBeTruthy();
-    expect(screen.getByText("$plugin-creator")).toBeTruthy();
+    expect(screen.getByText("Wrapt-Plugins")).toBeTruthy();
+    expect(screen.getByText("$wrapt-plugins")).toBeTruthy();
   });
 
   it("zeigt beim eigenen aktiven Plugin Deaktivieren und Löschen", () => {

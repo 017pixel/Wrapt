@@ -92,8 +92,10 @@ export const wraptConfigSchema = z.object({
   // sicheren Defaults ergänzt, damit bestehende lokale Configs gültig bleiben.
   contextMenu: contextMenuConfigSchema,
   // Plugin-spezifische, lokale Dateiquellen. Persönliche Pfade bleiben in
-  // wrapt.local.json; ohne Wert wird der Codex-System-Skill verwendet.
+  // wrapt.local.json; ohne Wert wird der Wrapt-Plugins-Skill verwendet.
   plugins: z.object({
+    wraptPluginsSkillPath: absolutePath.optional(),
+    // Alte lokale Configs bleiben lesbar; der neue Schlüssel hat Vorrang.
     creatorSkillPath: absolutePath.optional(),
   }).prefault({}),
   hermes: z.object({

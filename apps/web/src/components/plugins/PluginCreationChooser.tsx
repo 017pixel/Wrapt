@@ -22,7 +22,7 @@ const modes: Array<{
   {
     mode: "ai",
     title: "Mit KI erstellen",
-    description: "Beantworte einige Fragen und erhalte einen vollständigen Prompt für deinen Agenten.",
+    description: "Ein grober Satz genügt. Der Skill erstellt daraus einen vollständigen persönlichen Draft.",
     icon: SparklesIcon,
     recommended: true,
   },
@@ -35,7 +35,7 @@ const modes: Array<{
   {
     mode: "code",
     title: "Mit Code erstellen",
-    description: "Erstelle ein lokales Extension-Paket mit Manifest, Entry-Points und Validierung.",
+    description: "Definiere dein persönliches Plugin direkt mit dem lokalen Draft-Editor.",
     icon: CodeFileIcon,
   },
 ];

@@ -81,7 +81,7 @@ export function ExtensionSettings() {
   const installedById = useMemo(() => {
     const map = new Map<string, ExtensionRegistrySummary>();
     for (const entry of registry.data?.extensions ?? []) {
-      if (entry.lifecycle !== "available") map.set(entry.id, entry);
+      if (entry.lifecycle !== "available" && !entry.id.startsWith("wrapt.local.")) map.set(entry.id, entry);
     }
     return map;
   }, [registry.data]);
@@ -181,7 +181,9 @@ export function ExtensionSettings() {
     });
   };
 
-  const installed = (registry.data?.extensions ?? []).filter((extension) => extension.lifecycle !== "available");
+  const installed = (registry.data?.extensions ?? []).filter((extension) =>
+    extension.lifecycle !== "available" && !extension.id.startsWith("wrapt.local."),
+  );
 
   return (
     <div className="space-y-3">

@@ -62,9 +62,11 @@ export function PluginOverview({ activeTab, examples, drafts, catalogEntries, in
   const navigation = useNavigationRegistry();
   const tabsRef = useRef<HTMLElement>(null);
   const [deleteTarget, setDeleteTarget] = useState<PluginDraft | null>(null);
-  const active = installed.filter((item) => item.lifecycle === "active").length;
-  const disabled = installed.filter((item) => item.lifecycle === "disabled").length;
-  const errors = installed.filter((item) => ["crashed", "quarantined", "incompatible", "migration-failed"].includes(item.lifecycle)).length;
+  const active = installed.filter((item) => item.lifecycle === "active").length + drafts.filter((draft) => draft.activationStatus === "active").length;
+  const disabled = installed.filter((item) => item.lifecycle === "disabled").length + drafts.filter((draft) => draft.activationStatus === "disabled").length;
+  const errors = installed.filter((item) => ["crashed", "quarantined", "incompatible", "migration-failed"].includes(item.lifecycle)).length + drafts.filter((draft) => draft.activationStatus === "error").length;
+  const storeCatalogEntries = catalogEntries.filter((entry) => entry.manifest.id.startsWith("wrapt.example."));
+  const storeCount = examples.length > 0 ? examples.length : storeCatalogEntries.length;
 
   useEffect(() => {
     const activeTabElement = tabsRef.current?.querySelector<HTMLButtonElement>("[aria-pressed='true']");
@@ -72,7 +74,7 @@ export function PluginOverview({ activeTab, examples, drafts, catalogEntries, in
   }, [activeTab]);
 
   return <>
-    <header className="plugins-hero"><div><span className="plugins-kicker">Lokale Erweiterungen · Beta</span><h1>Plugins</h1><p>Erweitere Wrapt mit eigenen Seiten, Panels, Aktionen und kleinen Werkzeugen. Die KI ist der empfohlene Startpunkt.</p></div><div className="plugins-hero-actions"><button type="button" className="quiet-button-primary" onClick={onCreate}><PlusIcon className="h-4 w-4" /> Neues Plugin erstellen</button></div></header>
+    <header className="plugins-hero"><div><span className="plugins-kicker">Persönliche Erweiterungen</span><h1>Plugins</h1><p>Erweitere deine Workbench mit eigenen Seiten, Panels, Aktionen und kleinen Werkzeugen. Die KI ist der empfohlene Startpunkt.</p></div><div className="plugins-hero-actions"><button type="button" className="quiet-button-primary" onClick={onCreate}><PlusIcon className="h-4 w-4" /> Neues Plugin erstellen</button></div></header>
     <nav ref={tabsRef} className="plugins-tabs" aria-label="Plugin-Bereiche">
       {pluginTabs.map(({ id, label }) => <button key={id} type="button" aria-pressed={activeTab === id} className={`plugins-tab ${activeTab === id ? "is-active" : ""}`} onClick={() => onTabChange(id)}>{label}</button>)}
     </nav>
@@ -82,18 +84,18 @@ export function PluginOverview({ activeTab, examples, drafts, catalogEntries, in
         {stat("Aktiv", active, "läuft in Wrapt", "is-ok")}
         {stat("Deaktiviert", disabled, "installiert, aber pausiert", "is-warn")}
         {stat("Mit Fehlern", errors, errors > 0 ? "Prüfung nötig" : "keine kritischen Zustände", errors > 0 ? "is-bad" : "")}
-        {stat("Im lokalen Store", catalogEntries.length, "Catalog-Pakete verfügbar", "is-accent")}
+        {stat("Im lokalen Store", storeCount, "mitgelieferte Beispiele", "is-accent")}
       </section>
       <section className="plugins-quick-grid" aria-label="Plugin-Bereiche öffnen">
-        <article className="plugins-quick-card"><span className="plugins-kicker">Arbeitsbereich</span><h2>Eigene Plugins</h2><p>{drafts.length} gespeicherte Drafts und lokal aktivierte Seiten.</p><button type="button" className="quiet-button" onClick={() => onTabChange("eigene")}>Eigene Plugins öffnen</button></article>
-        <article className="plugins-quick-card"><span className="plugins-kicker">Lokaler Beta-Store</span><h2>Plugins installieren</h2><p>{examples.length} lokale Beispiele stehen direkt zum Installieren bereit.</p><button type="button" className="quiet-button" onClick={() => onTabChange("store")}>Store öffnen</button></article>
+        <article className="plugins-quick-card"><span className="plugins-kicker">Arbeitsbereich</span><h2>Eigene Plugins</h2><p>{drafts.length} persönliche Drafts. Sie bleiben lokal und erscheinen nur hier.</p><button type="button" className="quiet-button" onClick={() => onTabChange("eigene")}>Eigene Plugins öffnen</button></article>
+        <article className="plugins-quick-card"><span className="plugins-kicker">Mitgelieferte Beispiele</span><h2>Plugins installieren</h2><p>{examples.length} versionierte Beispiele stehen direkt zum Installieren bereit.</p><button type="button" className="quiet-button" onClick={() => onTabChange("store")}>Beispiele öffnen</button></article>
         <article className="plugins-quick-card"><span className="plugins-kicker">Verwaltung</span><h2>Installierte Plugins</h2><p>{installed.length} installierte Erweiterungen und ihre aktuellen Zustände.</p><button type="button" className="quiet-button" onClick={() => onTabChange("installiert")}>Installierte Plugins öffnen</button></article>
       </section>
       <PluginCreatorInfo />
     </> : null}
 
     {activeTab === "eigene" ? <section className="plugins-section plugins-tab-section" aria-labelledby="own-plugins-title">
-      <header className="plugins-section-heading"><div><span className="plugins-kicker">Arbeitsbereich</span><h2 id="own-plugins-title">Eigene Plugins</h2><p>Deine gespeicherten Drafts und lokal aktivierten Seiten.</p></div><span className="plugins-section-count">{drafts.length}</span></header>
+      <header className="plugins-section-heading"><div><span className="plugins-kicker">Arbeitsbereich</span><h2 id="own-plugins-title">Eigene Plugins</h2><p>Deine gespeicherten Drafts und lokal aktivierten Seiten. Agenten legen persönliche Plugins ausschließlich hier an.</p></div><span className="plugins-section-count">{drafts.length}</span></header>
       {drafts.length > 0 ? <div className="plugins-draft-list">{drafts.map((draft) => {
         const ownerId = `wrapt.local.${draft.slug}`;
         const quickActionToolId = navigation.items.find((item) => item.ownerId === ownerId)?.contributionId;
@@ -139,7 +141,7 @@ export function PluginOverview({ activeTab, examples, drafts, catalogEntries, in
             { id: hostContextMenuId("extensions.uninstall"), icon: <TrashIcon className="h-4 w-4" />, danger: true, onSelect: () => onUninstallInstalled(plugin) },
           ],
         })}><div className="plugins-installed-identity">{isPlugin ? <span className="plugins-installed-icon"><PluginIcon name={source?.icon} className="h-4 w-4" /></span> : null}<span><strong>{plugin.name}</strong><span>{plugin.id}</span></span></div><Badge tone={pluginLifecycleTone(plugin.lifecycle)}>{pluginLifecycleLabel(plugin.lifecycle)}</Badge><div className="plugins-installed-actions">{isPlugin ? <button type="button" className="quiet-button" onClick={() => onEditInstalled(plugin)} aria-label={`${plugin.name} bearbeiten`}><CodeFileIcon className="h-3.5 w-3.5" /> Bearbeiten</button> : null}{isPlugin && (plugin.lifecycle === "active" || plugin.lifecycle === "disabled") ? <button type="button" className="quiet-button" onClick={() => onToggleInstalled(plugin)} aria-label={`${plugin.name} ${plugin.lifecycle === "active" ? "deaktivieren" : "aktivieren"}`}><PowerIcon className="h-3.5 w-3.5" /> {plugin.lifecycle === "active" ? "Deaktivieren" : "Aktivieren"}</button> : null}{isPlugin && runtimeReady ? <Link className="quiet-button" to={openPath}>Seite öffnen</Link> : null}{isPlugin ? <button type="button" className="quiet-button plugin-draft-delete" onClick={() => onUninstallInstalled(plugin)} aria-label={`${plugin.name} deinstallieren`}><TrashIcon className="h-3.5 w-3.5" /> Deinstallieren</button> : null}</div></div>;
-      })}</div> : <p className="plugins-muted">Noch kein Plugin installiert. Öffne den Tab „Installieren“, um ein lokales Beispiel hinzuzufügen.</p>}
+      })}</div> : <p className="plugins-muted">Keine installierten Store-Beispiele. Öffne den Tab „Installieren“, um ein lokales Beispiel hinzuzufügen.</p>}
     </section> : null}
 
     <ConfirmDialog open={deleteTarget !== null} title={`„${deleteTarget?.name ?? "Plugin"}“ löschen?`} description="Der Draft und das lokal erzeugte Plugin-Paket werden entfernt. Diese Aktion kann nicht rückgängig gemacht werden." confirmLabel="Endgültig löschen" danger onConfirm={() => { if (deleteTarget) onDeleteDraft(deleteTarget.id); setDeleteTarget(null); }} onClose={() => setDeleteTarget(null)} />

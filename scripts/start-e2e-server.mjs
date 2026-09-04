@@ -48,8 +48,8 @@ function assertTemporary(value, label) {
 
 assertTemporary(webDistDirectory, "WEB_DIST_DIR");
 if (requestedRoot) assertTemporary(temporaryRoot, "E2E_ROOT");
-const creatorSkillPath = join(dataDirectory, "plugin-creator-SKILL.md");
-await writeFile(creatorSkillPath, "# Plugin Creator\n\nIsolierte Anleitung für den Plugin-Creator-Test.\n", { mode: 0o600 });
+const creatorSkillPath = join(dataDirectory, "wrapt-plugins-SKILL.md");
+await writeFile(creatorSkillPath, "# Wrapt-Plugins\n\nIsolierte Anleitung für den Wrapt-Plugins-Test.\n", { mode: 0o600 });
 
 const config = JSON.parse(await readFile(join(repositoryRoot, "config/wrapt.example.json"), "utf8"));
 config.system = { user: "e2e", homeDirectory: temporaryRoot };
@@ -114,7 +114,7 @@ for (const name of [
 ]) assertInside(temporaryRoot, config.paths[name], `paths.${name}`);
 config.codexbar.configPath = join(dataDirectory, "codexbar.json");
 config.codexbar.oauthProfileHomes = [];
-config.plugins = { creatorSkillPath };
+config.plugins = { wraptPluginsSkillPath: creatorSkillPath };
 config.previews = {
   ...config.previews,
   gatewayV2Enabled: true,

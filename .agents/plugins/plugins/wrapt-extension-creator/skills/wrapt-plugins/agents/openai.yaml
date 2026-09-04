@@ -1,0 +1,4 @@
+interface:
+  display_name: "Wrapt-Plugins"
+  short_description: "Erstellt und verwaltet persönliche Wrapt-Plugins."
+  default_prompt: "Erstelle oder bearbeite ein persönliches Wrapt-Plugin für dieses Projekt."

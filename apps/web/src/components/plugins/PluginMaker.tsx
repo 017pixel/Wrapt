@@ -19,7 +19,7 @@ function Field({ label, children, help, className = "" }: { label: string; child
 }
 
 const blockTypes: PluginBlock["type"][] = ["heading", "text", "button", "stat", "list", "divider", "input", "select", "checkbox", "tabs", "notice", "progress", "table", "filter", "timer"];
-const functionActions: PluginFunction["action"][] = ["notify", "open-route", "copy-text", "toggle-panel", "open-overlay", "open-bottom-sheet", "set-filter", "save-state", "load-state", "run-command", "refresh-data", "start-timer", "stop-timer", "reset-timer"];
+const functionActions: PluginFunction["action"][] = ["notify", "open-route", "copy-text", "toggle-panel", "open-overlay", "open-bottom-sheet", "set-filter", "save-state", "load-state", "run-command", "activate-account", "refresh-data", "start-timer", "stop-timer", "reset-timer"];
 
 export function PluginMaker() {
   const [search, setSearch] = useSearchParams();
@@ -116,28 +116,10 @@ export function PluginMaker() {
       if (!result) throw new Error("Die Deaktivierung hat keine Antwort geliefert.");
       setDraft(result.draft);
       await queryClient.invalidateQueries({ queryKey: ["plugins"] });
+      await queryClient.invalidateQueries({ queryKey: ["extensions"] });
       setMessage("Plugin lokal deaktiviert.");
     } catch (error) {
       setMessage(error instanceof ApiClientError ? error.message : "Das Plugin konnte nicht deaktiviert werden.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const publish = async () => {
-    const saved = await saveDraft();
-    const id = saved?.id ?? draftId;
-    if (!id) return;
-    setBusy(true);
-    try {
-      const result = await apiClient.publishPluginDraft(id);
-      if (!result) throw new Error("Die lokale Veröffentlichung hat keine Antwort geliefert.");
-      setDraft(result.draft);
-      await queryClient.invalidateQueries({ queryKey: ["plugins"] });
-      await queryClient.invalidateQueries({ queryKey: ["extensions"] });
-      setMessage(`Lokales Paket veröffentlicht: ${result.extensionId}.`);
-    } catch (error) {
-      setMessage(error instanceof ApiClientError ? error.message : "Das lokale Paket konnte nicht veröffentlicht werden.");
     } finally {
       setBusy(false);
     }
@@ -162,7 +144,7 @@ export function PluginMaker() {
   if (mode === "ai") return <div className="page-scroll"><div className="page-frame plugins-page"><PluginAiWizard {...(draftId ? { draftId } : {})} purpose={editing ? "edit" : "create"} draft={draft} onChange={setDraft} onClose={() => openMode("visual")} onComplete={finishAiSetup} /></div></div>;
 
   return <div className="page-scroll"><div className="page-frame plugins-page">
-    <header className="plugins-maker-heading"><div><Link to="/plugins" className="plugins-back-link"><ArrowLeftIcon className="h-3.5 w-3.5" /> Plugins</Link><span className="plugins-kicker">{editing ? "Plugin-Bearbeitung" : mode === "code" ? "Lokales Paket" : "Visueller Editor"}</span><h1>{editing ? "Plugin bearbeiten" : "Plugin erstellen"}</h1><p>{editing ? "Prüfe zuerst den bestehenden Draft und beschreibe dann jede gewünschte Änderung. Die Preview zeigt den aktuellen Stand." : "Definiere zuerst Einsatzort und Fähigkeiten. Die Preview zeigt nur den aktuellen Draft."}</p></div><div className="plugins-hero-actions"><button type="button" className="quiet-button" onClick={() => openMode("ai")}><SparklesIcon className="h-4 w-4" /> KI-Prompt {editing ? "bearbeiten" : "öffnen"}</button><button type="button" className="quiet-button" onClick={() => openMode(mode === "code" ? "visual" : "code")}><CodeFileIcon className="h-4 w-4" /> {mode === "code" ? "Visuell bearbeiten" : "Code-Modus"}</button><button type="button" className="quiet-button" disabled={busy} onClick={() => void saveDraft()}><CheckIcon className="h-4 w-4" /> {busy ? "Speichert" : "Speichern"}</button>{draft.activationStatus === "active" ? <button type="button" className="quiet-button-primary" disabled={busy} onClick={() => void deactivate()}>Deaktivieren</button> : <button type="button" className="quiet-button-primary" disabled={busy} onClick={() => void activate()}>Aktivieren</button>}<button type="button" className="quiet-button" disabled={busy} onClick={() => void publish()} title="Nur für den späteren Export relevant">Veröffentlichen</button></div></header>
+    <header className="plugins-maker-heading"><div><Link to="/plugins" className="plugins-back-link"><ArrowLeftIcon className="h-3.5 w-3.5" /> Plugins</Link><span className="plugins-kicker">{editing ? "Plugin-Bearbeitung" : mode === "code" ? "Lokaler Draft-Code" : "Visueller Editor"}</span><h1>{editing ? "Plugin bearbeiten" : "Plugin erstellen"}</h1><p>{editing ? "Prüfe zuerst den bestehenden Draft und beschreibe dann jede gewünschte Änderung. Die Preview zeigt den aktuellen Stand." : "Definiere zuerst Einsatzort und Fähigkeiten. Die Preview zeigt nur den aktuellen Draft."}</p></div><div className="plugins-hero-actions"><button type="button" className="quiet-button" onClick={() => openMode("ai")}><SparklesIcon className="h-4 w-4" /> KI-Prompt {editing ? "bearbeiten" : "öffnen"}</button><button type="button" className="quiet-button" onClick={() => openMode(mode === "code" ? "visual" : "code")}><CodeFileIcon className="h-4 w-4" /> {mode === "code" ? "Visuell bearbeiten" : "Code-Modus"}</button><button type="button" className="quiet-button" disabled={busy} onClick={() => void saveDraft()}><CheckIcon className="h-4 w-4" /> {busy ? "Speichert" : "Speichern"}</button>{draft.activationStatus === "active" ? <button type="button" className="quiet-button-primary" disabled={busy} onClick={() => void deactivate()}>Deaktivieren</button> : <button type="button" className="quiet-button-primary" disabled={busy} onClick={() => void activate()}>Aktivieren</button>}</div></header>
     <div className="plugin-maker-statusbar"><span className={`plugin-status-dot is-${draft.activationStatus}`}></span><strong>{draft.activationStatus === "active" ? "Aktiv" : draft.activationStatus === "ready" ? "Bereit" : draft.activationStatus === "error" ? "Prüfung nötig" : "Lokaler Draft"}</strong><span>Autosave nach kurzer Pause</span>{message ? <span role="status">{message}</span> : null}<button type="button" className="quiet-button" onClick={() => void validate()}>Prüfen</button><button type="button" className="quiet-button" onClick={() => document.querySelector<HTMLElement>(".plugin-preview-shell")?.scrollIntoView({ behavior: "smooth", block: "center" })}>Vorschau öffnen</button></div>
     <div className="plugins-maker-layout">
       <main className="plugin-editor-column">

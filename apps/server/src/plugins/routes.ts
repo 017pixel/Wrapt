@@ -12,7 +12,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { requireWorkbenchAdmin, type WorkbenchIdentityOptions } from "../security/workbench-identity.js";
 import type { PluginAuthoringService } from "./authoring.js";
-import { readPluginCreatorSkill } from "./creator-skill.js";
+import { readWraptPluginsSkill } from "./creator-skill.js";
 
 const idParams = z.object({ id: z.string().min(1).max(64) });
 
@@ -26,11 +26,17 @@ export async function registerPluginRoutes(app: FastifyInstance, options: { auth
     return pluginExamplesResponseSchema.parse({ examples, total: examples.length });
   });
 
-  app.get("/plugins/drafts", async () => pluginDraftsResponseSchema.parse({ drafts: await authoring.listDrafts() }));
+  app.get("/plugins/drafts", async (request) => {
+    requireAdmin(request);
+    return pluginDraftsResponseSchema.parse({ drafts: await authoring.listDrafts() });
+  });
 
-  app.get("/plugins/creator-skill", async () => pluginCreatorSkillResponseSchema.parse(await readPluginCreatorSkill(options.creatorSkillPath)));
+  const readSkill = async () => pluginCreatorSkillResponseSchema.parse(await readWraptPluginsSkill(options.creatorSkillPath));
+  app.get("/plugins/wrapt-plugins-skill", readSkill);
+  app.get("/plugins/creator-skill", readSkill);
 
   app.get("/plugins/drafts/:id", async (request) => {
+    requireAdmin(request);
     const { id } = idParams.parse(request.params);
     return pluginDraftResponseSchema.parse({ draft: await authoring.getDraft(id) });
   });

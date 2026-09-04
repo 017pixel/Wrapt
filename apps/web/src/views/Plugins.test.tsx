@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   catalog: vi.fn(),
   registry: vi.fn(),
   deactivate: vi.fn(),
-  creatorSkill: vi.fn(),
+  wraptPluginsSkill: vi.fn(),
 }));
 
 vi.mock("../lib/apiClient", () => ({
@@ -22,7 +22,7 @@ vi.mock("../lib/apiClient", () => ({
     extensionCatalog: mocks.catalog,
     extensionRegistry: mocks.registry,
     deactivatePluginDraft: mocks.deactivate,
-    pluginCreatorSkill: mocks.creatorSkill,
+    wraptPluginsSkill: mocks.wraptPluginsSkill,
   },
 }));
 

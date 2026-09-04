@@ -189,4 +189,21 @@ describe("LocalExtensionCatalog", () => {
     catalog.addSourceDirectory(join(tmpdir(), "gibt-es-nicht"));
     expect(catalog.list()).toHaveLength(0);
   });
+
+  it("kann persönliche Laufzeitpakete aus dem allgemeinen Catalog ausblenden", () => {
+    const fixture = catalogFixture();
+    cleanup = () => rmSync(fixture.directory, { recursive: true, force: true });
+    writeFileSync(
+      join(fixture.directory, "agent-tasks", "extension.json"),
+      JSON.stringify({
+        ...JSON.parse(fixture.manifest) as Record<string, unknown>,
+        id: "wrapt.local.agent-tasks",
+      }),
+    );
+
+    const catalog = new LocalExtensionCatalog(defaultCatalogProviderId());
+    catalog.addSourceDirectory(fixture.directory, { include: (manifest) => !manifest.id.startsWith("wrapt.local.") });
+
+    expect(catalog.list()).toEqual([]);
+  });
 });

@@ -126,6 +126,7 @@ export function PluginPreview({ draft, compact = false }: { draft: PluginDraftCo
     if (item.action === "save-state") setMessage("Lokaler Plugin-Zustand gespeichert.");
     if (item.action === "load-state") setMessage("Lokaler Plugin-Zustand geladen.");
     if (item.action === "run-command") setMessage(`Command vorbereitet: ${item.value || "ohne Namen"}.`);
+    if (item.action === "activate-account") setMessage("Account-Aktionen werden in der aktiven Plugin-Topbar ausgeführt.");
     if (item.action === "refresh-data") setMessage("Plugin-Daten werden aktualisiert.");
     if (item.action === "save-state") {
       try {

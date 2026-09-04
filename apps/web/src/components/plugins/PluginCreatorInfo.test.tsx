@@ -6,7 +6,7 @@ import { PluginCreatorInfo } from "./PluginCreatorInfo";
 const mocks = vi.hoisted(() => ({ read: vi.fn() }));
 
 vi.mock("../../lib/apiClient", () => ({
-  apiClient: { pluginCreatorSkill: mocks.read },
+  apiClient: { wraptPluginsSkill: mocks.read },
 }));
 
 describe("PluginCreatorInfo", () => {
@@ -14,7 +14,7 @@ describe("PluginCreatorInfo", () => {
     vi.clearAllMocks();
     mocks.read.mockResolvedValue({
       fileName: "SKILL.md",
-      content: "---\nname: plugin-creator\n---\n\n# Plugin Creator",
+      content: "---\nname: wrapt-plugins\n---\n\n# Wrapt-Plugins",
       modifiedAt: "2026-08-23T12:00:00.000Z",
       sizeBytes: 58,
     });
@@ -27,12 +27,13 @@ describe("PluginCreatorInfo", () => {
   it("erklärt den Agenten-Flow und zeigt die echte Skill-Datei", async () => {
     render(<PluginCreatorInfo />);
     fireEvent.click(screen.getByRole("button", { name: "Mehr erfahren" }));
-    expect(screen.getByRole("dialog", { name: "Plugin Creator" })).toBeTruthy();
-    expect(screen.getByText("$plugin-creator Erstelle ein Plugin für …")).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: "Wrapt-Plugins" })).toBeTruthy();
+    expect(screen.getByText("$wrapt-plugins Erstelle ein Plugin für ...")).toBeTruthy();
+    expect(screen.getByText(/persönliche Plugins lokal/)).toBeTruthy();
     const viewButton = await screen.findByRole("button", { name: "Skill ansehen" });
     await waitFor(() => expect((viewButton as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(viewButton);
-    expect(screen.getByText(/name: plugin-creator/)).toBeTruthy();
+    expect(screen.getByText(/name: wrapt-plugins/)).toBeTruthy();
   });
 
   it("lädt die SKILL.md als normale Datei herunter", async () => {
@@ -49,10 +50,10 @@ describe("PluginCreatorInfo", () => {
   });
 
   it("zeigt eine fehlende konfigurierte Skill-Datei verständlich an", async () => {
-    mocks.read.mockRejectedValue(new Error("Der Plugin-Creator-Skill wurde nicht gefunden."));
+    mocks.read.mockRejectedValue(new Error("Der Wrapt-Plugins-Skill wurde nicht gefunden."));
     render(<PluginCreatorInfo />);
     fireEvent.click(screen.getByRole("button", { name: "Mehr erfahren" }));
-    expect((await screen.findByRole("alert")).textContent).toContain("Der Plugin-Creator-Skill wurde nicht gefunden.");
+    expect((await screen.findByRole("alert")).textContent).toContain("Der Wrapt-Plugins-Skill wurde nicht gefunden.");
     expect((screen.getByRole("button", { name: "Skill ansehen" }) as HTMLButtonElement).disabled).toBe(true);
   });
 });

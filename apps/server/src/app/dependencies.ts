@@ -189,9 +189,11 @@ export async function createAppDependencies(app: FastifyInstance) {
   const extensionRuntime = new ExtensionRuntimeHost(join(settings.dataDirectory, "extension-runtime"), extensionReleaseStore);
   const extensionManager = new ExtensionManager(extensionDatabase, extensionBackupDirectory, extensionReleaseStore, extensionRuntime);
   const extensionCatalog = new LocalExtensionCatalog(defaultCatalogProviderId(), app.log);
+  const localPluginCatalog = new LocalExtensionCatalog(defaultCatalogProviderId(), app.log);
   extensionManager.attachCatalog(extensionCatalog);
+  extensionManager.attachLocalPluginCatalog(localPluginCatalog);
   extensionManager.reconcileRuntime();
-  const pluginAuthoring = createPluginAuthoring(extensionCatalog, extensionManager);
+  const pluginAuthoring = createPluginAuthoring(extensionCatalog, localPluginCatalog, extensionManager);
   extensionManager.syncCatalogUpdates();
   const notificationPush = new NotificationPushService({
     databasePath: settings.databasePath,

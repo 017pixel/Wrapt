@@ -52,6 +52,7 @@ export class PluginAuthoringService {
           const content = pluginDraftContentSchema.parse(
             await readJson(join(this.examplesDirectory, entry.name, "plugin.json")),
           );
+          if (content.sourceExampleId !== entry.name) return null;
           return pluginExampleSchema.parse({
             ...content,
             exampleId: entry.name,

@@ -76,7 +76,7 @@ export function draftFromExample(example: PluginExample): PluginDraftContent {
     functions: example.functions,
     orbit: example.orbit,
     wizard: example.wizard,
-    sourceExampleId: example.exampleId,
+    sourceExampleId: null,
     status: "draft",
     capabilities: example.capabilities,
     surfaces: example.surfaces,

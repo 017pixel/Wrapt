@@ -18,8 +18,9 @@ export function resolveAgentHomeSettings(
 
   return {
     pluginCreatorSkillPath: resolve(
-      plugins.creatorSkillPath
-        ?? join(projectRoot, ".agents/plugins/plugins/wrapt-extension-creator/skills/plugin-creator/SKILL.md"),
+      plugins.wraptPluginsSkillPath
+        ?? plugins.creatorSkillPath
+        ?? join(projectRoot, ".agents/plugins/plugins/wrapt-extension-creator/skills/wrapt-plugins/SKILL.md"),
     ),
     sharedHomes: {
       codex: { sharedHome: codexSharedHome, authFileName: "auth.json" },

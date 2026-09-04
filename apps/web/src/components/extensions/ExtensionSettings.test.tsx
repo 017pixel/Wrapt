@@ -174,4 +174,17 @@ describe("ExtensionSettings", () => {
       );
     });
   });
+
+  it("zeigt persönliche Plugin-Pakete nicht im allgemeinen Extension-Tab", async () => {
+    mocks.registry.mockResolvedValue({
+      revision: 1,
+      generatedAt: new Date().toISOString(),
+      extensions: [installedSummary({ id: "wrapt.local.eigenes-plugin" as ExtensionRegistrySummary["id"], name: "Eigenes Plugin" })],
+    });
+    renderWithClient();
+    fireEvent.click(screen.getByRole("button", { name: /Installiert/ }));
+
+    expect(await screen.findByText(/Noch keine Extensions installiert/)).toBeTruthy();
+    expect(screen.queryByText("Eigenes Plugin")).toBeNull();
+  });
 });

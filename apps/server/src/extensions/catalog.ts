@@ -19,6 +19,7 @@ import { AppError } from "../utils/errors.js";
 interface CatalogSource {
   providerId: CatalogProviderId;
   directory: string;
+  include?: (manifest: ExtensionManifestV1) => boolean;
 }
 
 interface CatalogLogger {
@@ -99,8 +100,11 @@ export class LocalExtensionCatalog {
     this.logger = logger;
   }
 
-  addSourceDirectory(directory: string): void {
-    this.sources.push({ providerId: this.providerId, directory });
+  addSourceDirectory(
+    directory: string,
+    options: { include?: (manifest: ExtensionManifestV1) => boolean } = {},
+  ): void {
+    this.sources.push({ providerId: this.providerId, directory, ...options });
     this.scanned = false;
   }
 
@@ -128,6 +132,7 @@ export class LocalExtensionCatalog {
           const manifest = extensionManifestV1Schema.parse(
             JSON.parse(readFileSync(manifestPath, "utf8")) as unknown,
           );
+          if (source.include !== undefined && !source.include(manifest)) continue;
           const inventory = packageInventory(packageDirectory);
           const totalBytes = inventory.files.reduce((sum, file) => sum + file.bytes, 0);
           const descriptor = extensionPackageDescriptorSchema.parse({

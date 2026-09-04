@@ -122,7 +122,7 @@ export function Plugins() {
     setEditTarget(null);
     navigate(`/plugins/maker?draft=${encodeURIComponent(target.id)}&mode=${mode}&edit=1`);
   };
-  const pluginInstalled = registry.data?.extensions.filter((item) => item.lifecycle !== "available" && (item.id.startsWith("wrapt.example.") || item.id.startsWith("wrapt.local."))) ?? [];
+  const pluginInstalled = registry.data?.extensions.filter((item) => item.lifecycle !== "available" && item.id.startsWith("wrapt.example.")) ?? [];
   return <div className="page-scroll"><div className="page-frame plugins-page">
     {notice ? <PluginNotice tone={notice.tone} onClose={() => setNotice(null)}><span>{notice.text}</span></PluginNotice> : null}
     <PluginOverview activeTab={tab as PluginTabId} examples={examples.data?.examples ?? []} drafts={drafts.data?.drafts ?? []} catalogEntries={catalog.data?.entries ?? []} installed={pluginInstalled} onCreate={() => setChooserOpen(true)} onTabChange={setTab} onDeleteDraft={(id) => void deleteDraft(id)} onActivateDraft={(id) => void activateDraft(id)} onDeactivateDraft={(id) => void deactivateDraft(id)} onEditInstalled={(plugin) => void editInstalled(plugin)} onToggleInstalled={(plugin) => void runInstalledOperation(plugin, plugin.lifecycle === "active" ? "disable" : "enable")} onUninstallInstalled={setUninstallTarget} />

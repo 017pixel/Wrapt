@@ -83,6 +83,7 @@ export class ExtensionManager {
   private readonly discovered = new Map<string, DiscoveredExtension>();
   private readonly queues = new Map<string, Promise<unknown>>();
   private catalog: LocalExtensionCatalog | undefined;
+  private localPluginCatalog: LocalExtensionCatalog | undefined;
   private readonly localPlugins: LocalPluginRegistry;
   private readonly runtime: ExtensionRuntimeCoordinator;
 
@@ -94,13 +95,13 @@ export class ExtensionManager {
   ) {
     this.runtime = new ExtensionRuntimeCoordinator({
       database,
-      getCatalog: () => this.catalog,
+      getCatalog: () => this.localPluginCatalog ?? this.catalog,
       releaseStore,
       runtimeHost,
     });
     this.localPlugins = new LocalPluginRegistry({
       database,
-      catalog: () => this.catalog,
+      catalog: () => this.localPluginCatalog ?? this.catalog,
       register: (manifest, source) => this.registerDiscovered(manifest, source),
       dispatch: (request) => this.dispatch(request),
       commitActivePackage: (extensionId, manifest, integrity) => commitActivePackage(
@@ -116,6 +117,8 @@ export class ExtensionManager {
   attachCatalog(catalog: LocalExtensionCatalog): void {
     this.catalog = catalog;
   }
+
+  attachLocalPluginCatalog(catalog: LocalExtensionCatalog): void { this.localPluginCatalog = catalog; }
 
   /** Prüft beim Start Pointer, Release-Slot und Health erneut und fällt sonst zurück. */
   reconcileRuntime(): void {
@@ -698,5 +701,4 @@ export class ExtensionManager {
       health: defaultHealth,
     };
   }
-
 }

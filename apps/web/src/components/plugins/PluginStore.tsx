@@ -138,7 +138,7 @@ export function PluginStore({ examples }: PluginStoreProps) {
 
   return (
     <section className="plugins-section plugins-tab-section" aria-labelledby="plugin-store-title">
-      <header className="plugins-section-heading"><div><span className="plugins-kicker">Lokaler Beta-Store</span><h2 id="plugin-store-title">Plugins installieren</h2><p>{examples.length} lokale Plugins aus <code>extensions/plugins</code>. Installiere ein Beispiel direkt für deine lokale Workbench.</p></div><button type="button" className="icon-button" onClick={refresh} aria-label="Plugin-Store aktualisieren" title="Aktualisieren"><RefreshIcon className="h-4 w-4" /></button></header>
+      <header className="plugins-section-heading"><div><span className="plugins-kicker">Mitgelieferte Beispiele</span><h2 id="plugin-store-title">Plugins installieren</h2><p>{examples.length} bewusst versionierte Beispiele aus <code>extensions/plugins</code>. Persönliche Agenten-Plugins erscheinen ausschließlich unter „Eigene Plugins“.</p></div><button type="button" className="icon-button" onClick={refresh} aria-label="Plugin-Store aktualisieren" title="Aktualisieren"><RefreshIcon className="h-4 w-4" /></button></header>
       {loadError && !loadErrorDismissed ? <PluginNotice tone="bad" onClose={() => setLoadErrorDismissed(true)}><span>Der Plugin-Store konnte nicht vollständig geladen werden.</span><button type="button" className="quiet-button" onClick={refresh}>Erneut laden</button></PluginNotice> : null}
       {notice ? <PluginNotice tone={notice.tone} onClose={() => setNotice(null)}><span>{notice.text}</span></PluginNotice> : null}
       <div className="plugins-store-grid">

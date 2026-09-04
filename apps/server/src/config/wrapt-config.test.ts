@@ -12,12 +12,14 @@ function exampleConfig(): WraptConfig {
 }
 
 describe("Workbench-Preview-Konfiguration", () => {
-  it("hält den Plugin-Creator-Pfad zentral und optional", () => {
+  it("hält den Wrapt-Plugins-Pfad zentral und optional", () => {
+    expect(exampleConfig().plugins.wraptPluginsSkillPath).toBeUndefined();
     expect(exampleConfig().plugins.creatorSkillPath).toBeUndefined();
     const config = exampleConfig() as unknown as Record<string, unknown>;
     delete config.plugins;
     expect(wraptConfigSchema.parse(config).plugins).toEqual({});
     expect(() => wraptConfigSchema.parse({ ...config, plugins: { creatorSkillPath: "relativ/SKILL.md" } })).toThrowError();
+    expect(() => wraptConfigSchema.parse({ ...config, plugins: { wraptPluginsSkillPath: "relativ/SKILL.md" } })).toThrowError();
   });
 
   it("lädt fehlende Hermes- und OpenCode-Web-Konfiguration mit sicheren Defaults", () => {

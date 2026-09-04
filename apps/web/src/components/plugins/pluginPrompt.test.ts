@@ -31,7 +31,7 @@ describe("Plugin-Agenten-Prompt", () => {
     expect(prompt).toContain("Werkzeugseite");
     expect(prompt).toContain("group: tools");
     expect(prompt).toContain("/plugins/tool/projekt-filter");
-    expect(prompt).toContain("vorher fragen");
+    expect(prompt).toContain("frage den User unmittelbar davor");
     expect(prompt).toContain("Verändere keine Repository-Datei");
     expect(prompt).toContain("GET /api/v1/plugins/drafts/");
     expect(prompt).toContain("/validate");
@@ -77,7 +77,8 @@ describe("Plugin-Agenten-Prompt", () => {
     expect(prompt).toContain("Iframe-URL: https://example.com/release");
     expect(prompt).toContain("Eigene Plugins");
     expect(prompt).toContain("Veröffentlichung in einen externen Store");
-    expect(prompt).toContain("keinen Frontend- oder Backend-Neustart");
+    expect(prompt).toContain("ausdrückliche Freigabe");
+    expect(prompt).toContain("Restart-Skript");
   });
 
   it("enthält die verbindlichen Bearbeitungsregeln für einen kopierten Prompt", () => {

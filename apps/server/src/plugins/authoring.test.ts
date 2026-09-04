@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -59,10 +59,29 @@ describe("Plugin-Authoring lokal", () => {
     expect(examples).toHaveLength(11);
     for (const example of examples) {
       expect(example.icon).not.toBe("extensions");
-      expect(example.surfaces).toContain("page");
       expect(example.functions.length).toBeGreaterThan(0);
-      expect(example.pageMode === "blocks" ? example.blocks.length : example.pageMode === "html" ? example.html.length : example.iframeUrl).toBeTruthy();
+      if (example.surfaces.includes("page")) {
+        expect(example.pageMode === "blocks" ? example.blocks.length : example.pageMode === "html" ? example.html.length : example.iframeUrl).toBeTruthy();
+      } else {
+        expect(example.surfaces).toContain("topbar");
+      }
     }
+  });
+
+  it("blendet nicht markierte persönliche Inhalte aus dem Store aus", async () => {
+    const root = await mkdtemp(join(tmpdir(), "wrapt-plugin-store-"));
+    directories.push(root);
+    const examplesDirectory = join(root, "examples");
+    await mkdir(join(examplesDirectory, "persoenlich"), { recursive: true });
+    await writeFile(join(examplesDirectory, "persoenlich", "plugin.json"), `${JSON.stringify(draftContent("persoenlich"))}\n`, "utf8");
+    const service = new PluginAuthoringService(
+      join(root, "drafts"),
+      examplesDirectory,
+      join(root, "published"),
+      { refresh: vi.fn() } as unknown as LocalExtensionCatalog,
+    );
+
+    await expect(service.listExamples()).resolves.toEqual([]);
   });
 
   it("validiert einen Draft vor der Aktivierung und erzeugt kein Placeholder-Entrypoint", async () => {

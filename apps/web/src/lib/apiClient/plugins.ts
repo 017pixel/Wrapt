@@ -13,6 +13,8 @@ import { mutate, request } from "./transport.js";
 export const pluginsApi = {
   pluginExamples: (signal?: AbortSignal) => request("/plugins/examples", pluginExamplesResponseSchema, signal),
   pluginDrafts: (signal?: AbortSignal) => request("/plugins/drafts", pluginDraftsResponseSchema, signal),
+  wraptPluginsSkill: (signal?: AbortSignal) => request("/plugins/wrapt-plugins-skill", pluginCreatorSkillResponseSchema, signal),
+  /** Kompatibilitätsalias für ältere lokale UI-Integrationen. */
   pluginCreatorSkill: (signal?: AbortSignal) => request("/plugins/creator-skill", pluginCreatorSkillResponseSchema, signal),
   pluginDraft: (id: string, signal?: AbortSignal) => request(`/plugins/drafts/${encodeURIComponent(id)}`, pluginDraftResponseSchema, signal),
   createPluginDraft: (body: PluginDraftContent) => mutate("/plugins/drafts", "POST", pluginDraftResponseSchema, body),
