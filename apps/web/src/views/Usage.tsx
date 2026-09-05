@@ -7,6 +7,7 @@ import { WebTerminal } from "../components/terminal/WebTerminal";
 import { Badge } from "../components/primitives";
 import { apiClient } from "../lib/apiClient";
 import { formatRelativeTime } from "../lib/format";
+import { useNow } from "../lib/useNow";
 import { formatUsageReset } from "../lib/orbitUsage";
 import { wraptQueries } from "../lib/queryOptions";
 import { ConfirmDialog, ModalFrame, PromptDialog } from "../components/ModalDialog";
@@ -22,6 +23,11 @@ const ranges: UsageRange[] = ["7d","30d","90d","365d","all"];
 const rangeLabel: Record<UsageRange, string> = { "7d": "7 T", "30d": "30 T", "90d": "90 T", "365d": "365 T", all: "Gesamt" };
 const number = new Intl.NumberFormat("de-DE", { notation: "compact", maximumFractionDigits: 1 });
 const money = new Intl.NumberFormat("de-DE", { style: "currency", currency: "USD", maximumFractionDigits: 2 });
+
+function LiveDatenstand({ iso }: { iso: string }) {
+  const now = useNow(undefined, 1000);
+  return <span style={{ fontVariantNumeric: "tabular-nums" }}>{`Datenstand ${formatRelativeTime(iso, now)}`}</span>;
+}
 
 function providerName(provider: UsageProviderId): string {
   return provider === "codex" ? "Codex" : provider === "claude" ? "Claude Code" : "OpenCode Go";
@@ -134,16 +140,22 @@ export function Usage() {
   },[backgroundSyncing,client]);
   const timelineQuery=useQuery({ ...wraptQueries.usageTimeline(), enabled: routeActive && tab==="overview" });
   const codexResetHistoryQuery=useQuery({ ...wraptQueries.codexResetHistory(), enabled: routeActive && tab==="overview" });
-  // Einmaliger Auto-Sync beim ersten Öffnen der Seite: Die Limits kommen so
-  // auf den aktuellsten Stand, ohne dass der Nutzer manuell synchronisieren muss.
+  // Auto-Sync bei jedem Betreten der Seite: Die Routen bleiben geparkt
+  // gemountet, deshalb wird der Marker beim Verlassen zurückgesetzt und beim
+  // nächsten Aktivieren erneut synchronisiert. So sind immer Live-Limits zu sehen.
   const autoSynced=useRef(false);
+  const syncingRef=useRef(false);
+  syncingRef.current=sync.isPending||backgroundSyncing;
   useEffect(()=>{
-    if(!autoSynced.current&&routeActive){autoSynced.current=true;syncUsage();}
+    if(!routeActive){autoSynced.current=false;return;}
+    if(autoSynced.current||syncingRef.current)return;
+    autoSynced.current=true;
+    syncUsage();
   },[routeActive,syncUsage]);
   const prefs=useUsagePreferences();
   const activeDays=useMemo(()=>query.data?.daily.filter((d)=>d.totalTokens>0).length??0,[query.data]);
-  return <div className="page-scroll"><div className="page-frame usage-page"><header className="usage-hero"><p className="usage-eyebrow">Lokale Nutzungsanalyse</p><h1>Nutzung und Limits</h1></header><nav className="settings-tabs" aria-label="Nutzungsbereiche">{tabs.map((item)=><button className={`settings-tab ${tab===item.id?"is-active":""}`} key={item.id} onClick={()=>setTab(item.id)}>{item.label}</button>)}</nav>
-  {tab!=="accounts"?<QueryBoundary {...query} loadingLabel="Statistiken werden geladen…">{(data)=><><section className="usage-toolbar"><div><DatabaseIcon className="h-4 w-4"/><span>{data.live.lastSuccessfulFetchAt?`Datenstand ${formatRelativeTime(data.live.lastSuccessfulFetchAt)}`:"Noch kein erfolgreicher Abruf"}</span></div><div className="usage-range">{ranges.map((item)=><button className={range===item?"is-active":""} key={item} onClick={()=>setRange(item)}>{rangeLabel[item]}</button>)}</div><button className="icon-button usage-sync-button" disabled={sync.isPending||backgroundSyncing} aria-busy={sync.isPending||backgroundSyncing} aria-label="Synchronisieren" title="Synchronisieren" onClick={()=>syncUsage()}><RefreshIcon className="h-4 w-4"/></button></section>
+  return <div className="page-scroll"><div className="page-frame usage-page"><header className="usage-hero"><h1>Nutzung und Limits</h1></header><nav className="settings-tabs" aria-label="Nutzungsbereiche">{tabs.map((item)=><button className={`settings-tab ${tab===item.id?"is-active":""}`} key={item.id} onClick={()=>setTab(item.id)}>{item.label}</button>)}</nav>
+  {tab!=="accounts"?<QueryBoundary {...query} loadingLabel="Statistiken werden geladen…">{(data)=><><section className="usage-toolbar"><div><DatabaseIcon className="h-4 w-4"/>{data.live.lastSuccessfulFetchAt?<LiveDatenstand iso={data.live.lastSuccessfulFetchAt}/> :<span>Noch kein erfolgreicher Abruf</span>}</div>{(tab==="history"||tab==="breakdown")?<div className="usage-range">{ranges.map((item)=><button className={range===item?"is-active":""} key={item} onClick={()=>setRange(item)}>{rangeLabel[item]}</button>)}</div>:null}<button className="icon-button usage-sync-button" disabled={sync.isPending||backgroundSyncing} aria-busy={sync.isPending||backgroundSyncing} aria-label="Synchronisieren" title="Synchronisieren" onClick={()=>syncUsage()}><RefreshIcon className="h-4 w-4"/></button></section>
   {tab==="overview"?<>{prefs.showUsageKpis?<section className="usage-kpis"><article><ActivityIcon/><span>Tokens heute</span><strong>{number.format(data.totals.todayTokens)}</strong></article><article><DatabaseIcon/><span>Tokens im Zeitraum</span><strong>{number.format(data.totals.totalTokens)}</strong></article><article><CoinsIcon/><span>Kosten im Zeitraum</span><strong>{money.format(data.totals.totalCost)}</strong></article><article><NutzungIcon/><span>Aktive Tage</span><strong>{activeDays}</strong></article></section>:null}<QueryBoundary {...timelineQuery} loadingLabel="Limits werden geladen…">{(timeline)=><UsageOverview timeline={timeline} codexResetHistory={{data:codexResetHistoryQuery.data,isPending:codexResetHistoryQuery.isPending,isError:codexResetHistoryQuery.isError}}/>}</QueryBoundary>{prefs.showDetailedProviderCards?<div className="usage-providers">{data.live.providers.filter((provider)=>provider.status!=="disabled").map((provider)=><section className="usage-provider" key={provider.providerId}><header className="usage-provider-heading"><div><p className="usage-provider-kicker">{providerStatusLabel(provider.status)}</p><h2 className="usage-provider-title">{provider.providerName}</h2></div><Badge tone={provider.status==="available"?"ok":provider.status==="partial"?"warn":provider.status==="disabled"?"default":"bad"}>{provider.accounts.length} Accounts</Badge></header>{provider.error?provider.status==="disabled"?<p className="usage-disabled-note"><EyeOffIcon className="h-4 w-4"/>{provider.error.message}</p>:<div className="usage-alert"><WarningIcon className="h-4 w-4"/>{provider.error.message}</div>:null}<div className="usage-accounts">{provider.accounts.map((account)=><section className="usage-account" key={account.id}><header className="usage-account-heading"><p className="usage-account-name">{account.email??account.label}</p>{account.plan?<Badge>{account.plan}</Badge>:null}</header><div className="usage-windows">{account.windows.map((window)=><WindowCard key={window.id} window={window}/>)}</div></section>)}</div></section>)}</div>:null}{prefs.showForecasts?<section className="usage-forecast"><div className="usage-section-heading"><div><p className="usage-provider-kicker">Vorausschau</p><h2>Limitprognosen</h2></div></div>{data.forecasts.length?data.forecasts.map((forecast)=><ForecastCard key={`${forecast.providerId}-${forecast.accountId}-${forecast.windowId}`} forecast={forecast}/>):<p className="usage-empty">Mindestens drei Messpunkte desselben aktuellen Limitfensters werden für eine Prognose benötigt.</p>}</section>:null}</>:null}
   {tab==="history"?<section className="usage-chart-card"><div className="usage-section-heading"><div><p className="usage-provider-kicker">Zeitreihe</p><h2>Tokens nach Tag</h2></div><div className="usage-chart-legend"><span>Gesamt</span><span>Output</span></div></div><TokenChart data={data.daily}/><div className="usage-projection"><span>30-Tage-Hochrechnung</span><strong>{number.format(data.totals.projected30DayTokens)} Tokens · {money.format(data.totals.projected30DayCost)}</strong></div></section>:null}
   {tab==="breakdown"?<div className="usage-breakdown-grid"><Breakdown title={data.projectRange==="all"?"Projekte (alle Zeit)":`Projekte (letzte ${data.projectRange.replace("d", " Tage")})`} items={data.projects}/><Breakdown title={range==="all"?"Modelle (alle Zeit)":"Modelle im gewählten Zeitraum"} items={data.models}/></div>:null}</>}</QueryBoundary>:<AccountManager/>}</div></div>;

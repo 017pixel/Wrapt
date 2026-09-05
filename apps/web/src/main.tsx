@@ -11,6 +11,7 @@ import { synchronizeExistingPushDevice } from "./lib/webPushDevice";
 import "./index.css";
 import "./visual-system.css";
 import "./components/usage/usage-mobile.css";
+import "./components/usage/usage-filters.css";
 
 // Muss vor dem ersten Render stehen, sonst gehen frühe Fehler verloren.
 installGlobalErrorHandlers();

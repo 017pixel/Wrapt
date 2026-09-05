@@ -8,8 +8,8 @@ test.use({
 test("ordnet die Einstellungsbereiche und den allgemeinen Schnellzugriff", async ({ page }) => {
   await page.goto("/wrapt/settings");
 
-  await expect(page.getByRole("heading", { name: "Einstellungen", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Design", exact: true })).toBeVisible();
+  await expect(page.getByRole("searchbox", { name: "Einstellungen durchsuchen" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Design", exact: true }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Navigation", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Start-App", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Frontend/ })).toBeVisible();

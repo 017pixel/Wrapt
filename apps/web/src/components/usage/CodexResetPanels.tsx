@@ -62,11 +62,11 @@ export function CodexResetCreditsPanel({ lanes, visible, now: nowProp }: { lanes
       {credits.length === 0 ? <p className="usage-empty">Aktuell sind keine Banked Resets für die überwachten Codex-Accounts bekannt.</p> : (
         <ul className="usage-reset-list">
           {credits.map(({ account, credit }) => (
-            <li key={`${account}-${credit.id}`}>
-              <CoinsIcon />
+            <li key={`${account}-${credit.id}`} data-credit-status={creditStatus(credit, now)}>
+              <span className="usage-reset-icon" aria-hidden><CoinsIcon /></span>
               <div className="usage-reset-copy">
                 <div className="usage-reset-title"><strong>{creditTitle(credit)}</strong><Badge tone={creditTone(credit, now)}>{creditStatus(credit, now)}</Badge></div>
-                <p>{account} · vergeben am {formatDate(credit.grantedAt)}</p>
+                <p className="usage-reset-account">{account} · vergeben am {formatDate(credit.grantedAt)}</p>
                 <small>{creditExpiry(credit, now)}{credit.description ? ` · ${creditDescription(credit)}` : ""}</small>
               </div>
             </li>
@@ -97,15 +97,15 @@ export function CodexResetHistoryPanel({ data, isPending, isError }: { data: Cod
         <p className="usage-reset-warning"><WarningIcon />Die externe Reset-Historie ist momentan nicht erreichbar.</p>
       ) : (
         <>
-          <div className="usage-reset-stats">
-            <span>Letzter Reset<strong>{formatDate(data.stats.lastResetAt)}</strong></span>
-            <span>Erfasst<strong>{data.stats.total}</strong></span>
-            <span>Ø Abstand<strong>{data.stats.averageIntervalDays === null ? "unbekannt" : `${data.stats.averageIntervalDays.toFixed(1)} Tage`}</strong></span>
-          </div>
+          <dl className="usage-reset-stats">
+            <div><dt>Letzter Reset</dt><dd>{formatDate(data.stats.lastResetAt)}</dd></div>
+            <div><dt>Erfasst</dt><dd>{data.stats.total}</dd></div>
+            <div><dt>Ø Abstand</dt><dd>{data.stats.averageIntervalDays === null ? "unbekannt" : `${data.stats.averageIntervalDays.toFixed(1)} Tage`}</dd></div>
+          </dl>
           {data.error ? <p className="usage-reset-warning"><WarningIcon />{data.error}</p> : null}
           {data.resets.length > 0 ? <ul className="usage-reset-list usage-reset-history-list">
             {data.resets.slice(0, 8).map((reset) => (
-              <li key={reset.id}>
+              <li key={reset.id} data-reset-type={reset.resetType}>
                 <div className="usage-reset-history-date"><strong>{formatDate(reset.announcedAt)}</strong><Badge tone={reset.resetType === "banked" ? "accent" : "default"}>{reset.resetType === "banked" ? "Banked" : "Regulär"}</Badge></div>
                 <div className="usage-reset-copy"><p>{reset.text}</p><a href={reset.sourceUrl} target="_blank" rel="noreferrer">Quelle auf X <ExternalLinkIcon /></a></div>
               </li>

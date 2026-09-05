@@ -83,13 +83,14 @@ function timelineData(over: Partial<UsageTimelineResponse> = {}): UsageTimelineR
 }
 
 describe("UsageOverview", () => {
-  it("zeigt die Statuszeile mit Accounts, niedrigen und nächstem Reset", () => {
+  it("zeigt die Statuszeile mit Accounts, niedrigen und Aktualisierung", () => {
     render(<UsageOverview timeline={timelineData()} now={now} />);
     const summary = screen.getByLabelText("Zusammenfassung der Limits");
     expect(within(summary).getByText("4")).toBeTruthy();
     // Bei 20 % Schwelle ist nur Arbeit (4 %) niedrig; OpenCode hat keine Daten.
     expect(within(summary).getByText("1")).toBeTruthy();
-    expect(within(summary).getByText(/nächster Reset/)).toBeTruthy();
+    expect(within(summary).getByText(/aktualisiert/)).toBeTruthy();
+    expect(within(summary).queryByText(/nächster Reset/)).toBeNull();
   });
 
   it("zeigt die kompakte Account-Liste mit allen Limits (Limits jetzt)", () => {

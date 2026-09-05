@@ -6,7 +6,6 @@ import {
   accountLimitViews,
   bestAvailableAccount,
   filterLanes,
-  formatCountdown,
   groupLanesByProvider,
   shortWindowLabel,
   sortLanes,
@@ -46,14 +45,9 @@ function LimitSummary({ data, warningThreshold, now }: { data: UsageTimelineResp
         {" · "}
         <strong className={summary.low > 0 ? "usage-summary-low" : undefined}>{summary.low}</strong>{" "}
         {summary.low === 1 ? "niedrig" : "niedrig"}
-        {summary.nextResetAt !== null ? (
-          <>
-            {" · "}nächster Reset in <strong>{formatCountdown(summary.nextResetAt, now)}</strong>
-          </>
-        ) : null}
         {data.lastSuccessfulFetchAt ? (
           <>
-            {" · "}aktualisiert {formatRelativeTime(data.lastSuccessfulFetchAt)}
+            {" · "}aktualisiert <span style={{ fontVariantNumeric: "tabular-nums" }}>{formatRelativeTime(data.lastSuccessfulFetchAt, now)}</span>
           </>
         ) : null}
       </p>
@@ -82,7 +76,7 @@ function NoAccounts({ hasActiveFilters, onReset }: { hasActiveFilters: boolean; 
 
 export function UsageOverview({ timeline, codexResetHistory, now: nowProp }: UsageOverviewProps) {
   const prefs = useUsagePreferences();
-  const tick = useNow();
+  const tick = useNow(undefined, 1000);
   const now = nowProp ?? tick;
 
   // Deaktivierte Anbieter („Limitüberwachung aus") und einzelne Accounts
@@ -127,18 +121,17 @@ export function UsageOverview({ timeline, codexResetHistory, now: nowProp }: Usa
   return (
     <div className="usage-overview">
       {prefs.showLimitSummary ? <LimitSummary data={trackedTimeline} warningThreshold={prefs.warningThreshold} now={now} /> : null}
-      <div className="usage-overview-toolbar">
-        <UsageFilters lanes={baseLanes} prefs={prefs} />
-        <div className="usage-overview-actions"><UsageViewSettings prefs={prefs} /></div>
-      </div>
       {showTable ? (
         <section className="usage-accounts-now">
           <header className="usage-section-heading">
             <div>
-              <p className="usage-provider-kicker">Sofortübersicht</p>
               <h2>Limits jetzt</h2>
             </div>
           </header>
+          <div className="usage-overview-toolbar">
+            <UsageFilters lanes={baseLanes} prefs={prefs} />
+            <div className="usage-overview-actions"><UsageViewSettings prefs={prefs} /></div>
+          </div>
           {sortedLanes.length === 0 ? (
             <NoAccounts hasActiveFilters={hasActiveFilters} onReset={resetFilters} />
           ) : prefs.groupByProvider ? (

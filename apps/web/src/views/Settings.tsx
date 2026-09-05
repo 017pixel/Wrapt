@@ -67,15 +67,6 @@ export function Settings() {
   return (
     <div className="page-scroll">
       <div className="page-frame max-w-4xl settings-page">
-        <header className="settings-page-heading">
-          <div>
-            <span className="settings-eyebrow">Workbench verwalten</span>
-            <h1>Einstellungen</h1>
-            <p>Finde Bereiche schnell, ändere sie direkt und behalte den Überblick.</p>
-          </div>
-          <span className="settings-heading-version">{health.data?.version ?? "Version wird geladen"}</span>
-        </header>
-
         <SettingsSearch
           value={query}
           results={results}

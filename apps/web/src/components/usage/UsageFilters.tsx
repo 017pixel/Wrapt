@@ -19,10 +19,17 @@ export interface UsageFiltersProps {
 export function UsageFilters({ lanes, prefs }: UsageFiltersProps) {
   const store = useUsagePreferences();
   const [open, setOpen] = useState(false);
+  const [hideOpen, setHideOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const hideRootRef = useRef<HTMLDivElement>(null);
+  const hideTriggerRef = useRef<HTMLButtonElement>(null);
   const activeCount = Number(prefs.providerFilter !== "all") + Number(prefs.onlyActive) + Number(prefs.onlyProblematic) + Number(prefs.hideAccountsWithoutData) + Number(prefs.hiddenAccountIds.length > 0);
-  const reset = () => store.set({ providerFilter: "all", onlyActive: false, onlyProblematic: false, hideAccountsWithoutData: false, hiddenAccountIds: [] });
+  const hiddenCount = prefs.hiddenAccountIds.length;
+  const reset = () => {
+    store.set({ providerFilter: "all", onlyActive: false, onlyProblematic: false, hideAccountsWithoutData: false, hiddenAccountIds: [] });
+    setHideOpen(false);
+  };
   useEffect(() => {
     if (!open) return;
     panelRef.current?.querySelector<HTMLElement>("button,select")?.focus();
@@ -30,6 +37,36 @@ export function UsageFilters({ lanes, prefs }: UsageFiltersProps) {
     document.addEventListener("keydown", key);
     return () => document.removeEventListener("keydown", key);
   }, [open]);
+
+  useEffect(() => {
+    if (!hideOpen) return;
+    const closeOnPointerDown = (event: PointerEvent) => {
+      if (!hideRootRef.current?.contains(event.target as Node)) setHideOpen(false);
+    };
+    const closeOnKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setHideOpen(false);
+        hideTriggerRef.current?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", closeOnPointerDown);
+    document.addEventListener("keydown", closeOnKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnPointerDown);
+      document.removeEventListener("keydown", closeOnKeyDown);
+    };
+  }, [hideOpen]);
+
+  const toggleHidden = (accountId: string) => {
+    const hidden = prefs.hiddenAccountIds.includes(accountId);
+    store.set({
+      hiddenAccountIds: hidden
+        ? prefs.hiddenAccountIds.filter((id) => id !== accountId)
+        : [...prefs.hiddenAccountIds, accountId],
+    });
+  };
+
+  const sortedLanes = [...lanes].sort((a, b) => a.accountLabel.localeCompare(b.accountLabel, "de"));
 
   return (
     <div className="uf-shell"><div className="uf-mobile-bar" role="group" aria-label="Filter und Sortierung">
@@ -66,29 +103,45 @@ export function UsageFilters({ lanes, prefs }: UsageFiltersProps) {
       {([["onlyActive", "Aktiv", "Nur aktiv"], ["onlyProblematic", "Problematisch", "Nur problematische"], ["hideAccountsWithoutData", "Ohne Daten", "Ohne Daten ausblenden"]] as const).map(([key, label, ariaLabel]) => <button key={key} type="button" className="uf-chip" aria-label={ariaLabel} aria-pressed={prefs[key]} onClick={() => store.set({ [key]: !prefs[key] })}>{label}</button>)}
 
       {lanes.length > 1 ? (
-        <label className="uf-select uf-account-select">
-          <span className="uf-label">Account</span>
-          <select
-            value=""
-            onChange={(event) => {
-              const accountId = event.target.value;
-              if (!accountId) return;
-              store.set({ hiddenAccountIds: [...prefs.hiddenAccountIds, accountId] });
-              // Auswahl zurücksetzen, damit derselbe Account erneut gewählt werden kann.
-              event.target.value = "";
-            }}
+        <div className="uf-hide" ref={hideRootRef}>
+          <button
+            ref={hideTriggerRef}
+            type="button"
+            className="uf-hide-trigger"
+            aria-expanded={hideOpen}
+            aria-label={`Accounts ausblenden${hiddenCount ? `, ${hiddenCount} ausgeblendet` : ""}`}
+            onClick={() => setHideOpen((value) => !value)}
           >
-            <option value="">Ausblenden…</option>
-            {lanes
-              .filter((lane) => !prefs.hiddenAccountIds.includes(lane.accountId))
-              .map((lane) => (
-                <option key={lane.accountId} value={lane.accountId}>{lane.accountLabel}</option>
-              ))}
-          </select>
-        </label>
+            <span>Ausblenden</span>
+            {hiddenCount ? <span className="uf-hide-count">{hiddenCount}</span> : null}
+          </button>
+          {hideOpen ? (
+            <div className="uf-hide-panel" role="dialog" aria-label="Accounts ausblenden">
+              <header className="uf-hide-head">
+                <strong>Accounts ausblenden</strong>
+                {hiddenCount ? <button type="button" onClick={() => store.set({ hiddenAccountIds: [] })}>Alle einblenden</button> : null}
+              </header>
+              <ul className="uf-hide-list">
+                {sortedLanes.map((lane) => {
+                  const hidden = prefs.hiddenAccountIds.includes(lane.accountId);
+                  return (
+                    <li key={lane.accountId}>
+                      <label>
+                        <input type="checkbox" checked={!hidden} onChange={() => toggleHidden(lane.accountId)} />
+                        <span className="uf-hide-label">{lane.accountLabel}</span>
+                        <span className="uf-hide-provider">{providerName[lane.providerId]}</span>
+                        <span className={hidden ? "uf-hide-state is-hidden" : "uf-hide-state"}>{hidden ? "ausgeblendet" : "sichtbar"}</span>
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ) : null}
+        </div>
       ) : null}
 
-      {activeCount ? <button type="button" className="uf-reset" onClick={reset}>Alle Filter löschen</button> : null}
+      <span className="uf-reset-wrap">{activeCount ? <button type="button" className="uf-reset" onClick={reset}>Alle Filter löschen</button> : null}</span>
     </div></div>
   );
 }
