@@ -2,6 +2,14 @@
 
 Alle Änderungen werden in fünf kurzen Stichpunkten pro Kategorie dokumentiert.
 
+## [1.5.1] - 2026-09-05
+
+### Verändert
+- Produktversion auf 1.5.1 angehoben (Root, Server und Web)
+
+### Behoben
+- Keine funktionalen Änderungen
+
 ## [1.1.1] - 2026-09-05
 
 ### Erstellt
