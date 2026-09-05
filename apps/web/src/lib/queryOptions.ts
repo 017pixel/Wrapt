@@ -161,4 +161,5 @@ export const wraptQueries = {
   news: (params:URLSearchParams, refetchInterval = 60_000) => queryOptions({queryKey:["news",params.toString()],queryFn:({signal})=>apiClient.news(params,signal),refetchInterval,staleTime:60_000}),
   newsItem:(id:string)=>queryOptions({queryKey:["news","item",id],queryFn:({signal})=>apiClient.newsItem(id,signal),staleTime:60_000}),
   newsCollections:()=>queryOptions({queryKey:["news","collections"],queryFn:({signal})=>apiClient.newsCollections(signal),staleTime:15_000}),
+  newsSettings:()=>queryOptions({queryKey:["news","settings"],queryFn:({signal})=>apiClient.newsSettings(signal),staleTime:15_000}),
 };

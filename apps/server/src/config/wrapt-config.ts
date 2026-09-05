@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { ensureWraptLocalConfig, migrateLegacyConfigValue, migrateLegacyPersistentData, WRAPT_EXAMPLE_CONFIG, WRAPT_LOCAL_CONFIG } from "./legacy-migration.js";
 import { join } from "node:path";
-import { appearanceThemeSchema, codexResetHistorySettingsSchema, contextMenuConfigSchema, dashboardConfigSchema, defaultAppearanceTheme, notificationPreferencesSchema, t3ChannelSchema, usageMonitoringSchema, type AppearanceTheme, type CodexResetHistorySettings, type ContextMenuConfig, type NotificationPreferences, type T3Channel, type UsageMonitoring } from "@wrapt/contracts";
+import { appearanceThemeSchema, codexResetHistorySettingsSchema, contextMenuConfigSchema, dashboardConfigSchema, defaultAppearanceTheme, newsSettingsSchema, notificationPreferencesSchema, t3ChannelSchema, usageMonitoringSchema, type AppearanceTheme, type CodexResetHistorySettings, type ContextMenuConfig, type NewsSettings, type NotificationPreferences, type T3Channel, type UsageMonitoring } from "@wrapt/contracts";
 import { z } from "zod";
 import { persistLocalConfig } from "./config-persistence.js";
 import { isLoopbackHost } from "./loopback.js";
@@ -61,6 +61,11 @@ export const wraptConfigSchema = z.object({
   // Workbench-Konfiguration. Die Oberfläche kann einzelne Bereiche lokal
   // ausblenden, diese Werte definieren die serverseitigen Defaults und Grenzen.
   dashboard: dashboardConfigSchema,
+  // Tech-News Hintergrund-Sync (Feeds plus Mistral-Aufbereitung). Steht enabled auf
+  // false, lädt der Server nichts mehr nach und ruft Mistral nicht mehr auf. Der
+  // Bestand bleibt lesbar. Wird zur Laufzeit über die Einstellungen umgeschaltet,
+  // ganz ohne Neustart.
+  news: newsSettingsSchema.prefault({}),
   appearance: appearanceThemeSchema.default(defaultAppearanceTheme),
   notifications: z.object({
     preferences: notificationPreferencesSchema.prefault({}),
@@ -351,4 +356,13 @@ export function readAppearanceTheme(configDirectory: string): AppearanceTheme {
 export function persistAppearanceTheme(configDirectory: string, theme: AppearanceTheme): void {
   const parsedTheme = appearanceThemeSchema.parse(theme);
   persistLocalConfig(configDirectory, (base) => ({ ...base, appearance: parsedTheme }), (value) => wraptConfigSchema.parse(value));
+}
+
+export function readNewsSettings(configDirectory: string): NewsSettings {
+  return loadWraptConfig(configDirectory).news;
+}
+
+export function persistNewsSettings(configDirectory: string, settings: NewsSettings): void {
+  const parsed = newsSettingsSchema.parse(settings);
+  persistLocalConfig(configDirectory, (base) => ({ ...base, news: parsed }), (value) => wraptConfigSchema.parse(value));
 }

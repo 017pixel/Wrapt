@@ -4,10 +4,12 @@ import {
   newsCollectionsResponseSchema,
   newsItemResponseSchema,
   newsListResponseSchema,
+  newsSettingsResponseSchema,
   newsSyncResponseSchema,
   type CreateNewsCollectionRequest,
   type MarkNewsReadRequest,
   type NewsChatRequest,
+  type NewsSettings,
   type SaveNewsItemRequest,
 } from "@wrapt/contracts";
 import { mutate, request } from "./transport.js";
@@ -22,4 +24,6 @@ export const newsApi = {
   markNewsRead: (id: string, body: MarkNewsReadRequest) => mutate(`/news/${encodeURIComponent(id)}/read`, "PATCH", newsItemResponseSchema, body),
   syncNews: () => mutate("/news/sync", "POST", newsSyncResponseSchema),
   chatNews: (body: NewsChatRequest) => mutate("/news/chat", "POST", newsChatResponseSchema, body),
+  newsSettings: (signal?: AbortSignal) => request("/news/settings", newsSettingsResponseSchema, signal),
+  saveNewsSettings: (settings: NewsSettings) => mutate("/news/settings", "PUT", newsSettingsResponseSchema, { settings }),
 };

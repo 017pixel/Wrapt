@@ -1995,7 +1995,16 @@ export const newsItemSchema = z.object({
 });
 export const newsListResponseSchema = z.object({
   items: z.array(newsItemSchema), nextCursor: z.string().nullable(), total: z.number().int().nonnegative(),
-  sync: z.object({ running: z.boolean(), lastSyncedAt: isoDateSchema.nullable(), lastError: z.string().nullable(), aiEnabled: z.boolean() }),
+  sync: z.object({ running: z.boolean(), lastSyncedAt: isoDateSchema.nullable(), lastError: z.string().nullable(), aiEnabled: z.boolean(), enabled: z.boolean() }),
+});
+// Hintergrund-Sync der Tech-News (Feeds plus Mistral-Aufbereitung). Steht enabled auf
+// false, lädt der Server nichts mehr nach und ruft Mistral nicht mehr auf. Der Bestand
+// bleibt lesbar. Default: true.
+export const newsSettingsSchema = z.object({
+  enabled: z.boolean().default(true),
+});
+export const newsSettingsResponseSchema = z.object({
+  settings: newsSettingsSchema,
 });
 export const newsItemResponseSchema = z.object({ item: newsItemSchema });
 export const newsCollectionSchema = z.object({ id: z.string().uuid(), name: z.string().trim().min(1).max(80), itemCount: z.number().int().nonnegative(), createdAt: isoDateSchema, updatedAt: isoDateSchema });
@@ -2248,6 +2257,7 @@ export type NewsImportanceBand = z.infer<typeof newsImportanceBandSchema>;
 export type NewsSource = z.infer<typeof newsSourceSchema>;
 export type NewsItem = z.infer<typeof newsItemSchema>;
 export type NewsListResponse = z.infer<typeof newsListResponseSchema>;
+export type NewsSettings = z.infer<typeof newsSettingsSchema>;
 export type NewsCollection = z.infer<typeof newsCollectionSchema>;
 export type CreateNewsCollectionRequest = z.infer<typeof createNewsCollectionRequestSchema>;
 export type SaveNewsItemRequest = z.infer<typeof saveNewsItemRequestSchema>;

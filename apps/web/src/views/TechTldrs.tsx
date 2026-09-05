@@ -23,6 +23,7 @@ import { useMediaQuery } from "../lib/useMediaQuery";
 import { writeClipboardText } from "../lib/clipboard";
 import { ConfirmDialog, ModalFrame } from "../components/ModalDialog";
 import { useRouteActivity } from "../lib/routeActivity";
+import { NewsSyncNotice } from "./NewsSyncNotice";
 
 const COMPACT_QUERY = "(max-width: 1180px)";
 const MODEL_STORAGE_KEY = "wrapt.news.chatModel";
@@ -1780,9 +1781,9 @@ export function TechTldrs() {
           <button
             className="news-sync-button"
             onClick={() => sync.mutate()}
-            disabled={sync.isPending || syncState?.running}
+            disabled={sync.isPending || syncState?.running || syncState?.enabled === false}
             aria-label="Nachrichten aktualisieren"
-            title="Nachrichten aktualisieren"
+            title={syncState?.enabled === false ? "Hintergrund-Sync ist pausiert" : "Nachrichten aktualisieren"}
           >
             <RefreshIcon
               className={
@@ -1797,6 +1798,7 @@ export function TechTldrs() {
             <span>{syncError}</span>
           </p>
         ) : null}
+        <NewsSyncNotice sync={syncState} syncPending={sync.isPending} requestSync={() => sync.mutate()} />
         <section className="news-command-row">
           <div
             className={`news-category-rail ${listTab === "saved" ? "news-collection-rail" : ""}`}

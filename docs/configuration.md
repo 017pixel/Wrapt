@@ -498,6 +498,15 @@ NEWS_AI_CONCURRENCY=1
 
 Free-Mode-Limits sind organisations- und modellabhängig. Die Wrapt speichert keine festen Mistral-Limits, sondern verarbeitet Beiträge seriell, respektiert Rate-Limit-Antworten und lässt unverarbeitete Meldungen mit regelbasiertem TLDR sichtbar. Nach einer Änderung der Modell-IDs ist ein Neustart des Backends erforderlich.
 
+### Hintergrund-Sync pausieren
+
+Wer die Tech-News nicht nutzt, schaltet sie in den Einstellungen unter Navigation ab (Tech-News Hintergrund-Sync). Das wirkt sofort und ohne Neustart: Der Server fragt keine Feeds mehr ab und ruft Mistral weder für Zusammenfassungen noch für Embeddings oder den KI-Chat auf. Der gespeicherte Bestand bleibt lesbar. Nach dem Reaktivieren lädt der nächste Sync alles wieder nach. Das Ausblenden unter Seiten-Sichtbarkeit versteckt dagegen nur die Navigation in diesem Browser und stoppt den Server nicht.
+
+```jsonc
+// config/wrapt.local.json
+{ "news": { "enabled": false } }
+```
+
 ## Codex- und OpenCode-Terminals
 
 Die Agent-Terminals verwenden feste serverseitige CLI-Pfade und getrennte Prozesslimits. Diese Werte gehören in `.env`; der Browser kann sie weder lesen noch überschreiben.

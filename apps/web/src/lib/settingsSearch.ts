@@ -21,7 +21,7 @@ export const settingsSearchCatalog: readonly SettingsSearchEntry[] = [
   {
     id: "general",
     title: "Allgemein",
-    description: "Überblick, Schnellzugriffe und grundlegende Informationen",
+    description: "Bereiche und Systemaktionen",
     category: "Allgemein",
     tab: "allgemein",
     anchor: "settings-general",
@@ -29,21 +29,12 @@ export const settingsSearchCatalog: readonly SettingsSearchEntry[] = [
   },
   {
     id: "general-restart",
-    title: "Schnellzugriff auf Systemfunktionen",
+    title: "Systemfunktionen",
     description: "Frontend, Backend oder beide Dienste neu bauen und starten",
     category: "Allgemein",
     tab: "allgemein",
     anchor: "settings-general-restart",
     aliases: ["System", "Dienst", "Neustart", "Restart", "Reload", "Server", "Frontend", "Backend", "Beides"],
-  },
-  {
-    id: "app-install",
-    title: "App installieren",
-    description: "Wrapt auf dem Homescreen oder Desktop ablegen",
-    category: "Allgemein",
-    tab: "allgemein",
-    anchor: "settings-general-install",
-    aliases: ["PWA", "Homescreen", "Desktop", "Verknüpfung", "Browser-App"],
   },
   {
     id: "version",
@@ -52,7 +43,7 @@ export const settingsSearchCatalog: readonly SettingsSearchEntry[] = [
     category: "Allgemein",
     tab: "allgemein",
     anchor: "settings-general-version",
-    aliases: ["Release", "Build", "App-Version", "Versionierung", "Changelog"],
+    aliases: ["Release", "Build", "App-Version", "Versionierung", "Changelog", "PWA", "App installieren", "Update", "Aktualisieren"],
   },
   {
     id: "design",
@@ -116,6 +107,15 @@ export const settingsSearchCatalog: readonly SettingsSearchEntry[] = [
     tab: "navigation",
     anchor: "settings-navigation-pages",
     aliases: ["Seiten anzeigen", "Navigationselemente", "sichtbar", "ausblenden"],
+  },
+  {
+    id: "news-sync",
+    title: "Tech-News Hintergrund-Sync",
+    description: "Feed-Abfragen und Mistral-Aufbereitung serverseitig pausieren",
+    category: "Navigation",
+    tab: "navigation",
+    anchor: "settings-navigation-news",
+    aliases: ["Tech-News", "Tech TLDRs", "Mistral", "News deaktivieren", "Hintergrund-Sync", "429"],
   },
   {
     id: "context-menu",

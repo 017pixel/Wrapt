@@ -5,6 +5,7 @@ import { Card } from "../../components/Card";
 import { useNavigationRegistry } from "../../extensions/useNavigationRegistry";
 import { useDashboardPreferences, useDashboardSections } from "../../stores/dashboardPreferences";
 import { allPageRoutes, useSidebarPreferences, type OrbitPaletteItem } from "../../stores/sidebarPreferences";
+import { SettingsNews } from "./SettingsNews";
 
 const orbitItemLabels: Record<OrbitPaletteItem, string> = {
   "tool:terminal": "Terminal",
@@ -95,6 +96,7 @@ export function SettingsNavigation({ config }: { config: DashboardConfig | undef
           <PageVisibilityToggles />
         </Card>
       </div>
+      <SettingsNews />
     </div>
   );
 }

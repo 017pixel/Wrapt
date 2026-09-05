@@ -3,10 +3,12 @@ import { z } from "zod";
 import {
   createNewsCollectionRequestSchema, markNewsReadRequestSchema, newsCategorySchema, newsChatRequestSchema,
   newsChatResponseSchema, newsCollectionResponseSchema, newsCollectionsResponseSchema, newsItemResponseSchema,
-  newsListResponseSchema, newsSyncResponseSchema, saveNewsItemRequestSchema,
+  newsListResponseSchema, newsSettingsResponseSchema, newsSyncResponseSchema, saveNewsItemRequestSchema,
 } from "@wrapt/contracts";
 import type { NewsDatabase } from "./database.js";
 import type { NewsService } from "./news-service.js";
+import { newsSettingsService } from "../services/newsSettingsService.js";
+import { AppError } from "../utils/errors.js";
 import { fetchPublic, readBodyLimited } from "../security/public-http.js";
 
 const idParams=z.object({id:z.string().uuid()});
@@ -26,8 +28,10 @@ export async function registerNewsRoutes(app:FastifyInstance,services:{news:News
   app.get("/news/collections",async()=>newsCollectionsResponseSchema.parse({collections:services.newsDatabase.collections()}));
   app.post("/news/collections",async(request,reply)=>reply.status(201).send(newsCollectionResponseSchema.parse({collection:services.newsDatabase.createCollection(createNewsCollectionRequestSchema.parse(request.body).name)})));
   app.delete("/news/collections/:id",async(request,reply)=>{services.newsDatabase.deleteCollection(idParams.parse(request.params).id);return reply.status(204).send();});
-  app.post("/news/sync",{config:{rateLimit:{max:3,timeWindow:"1 minute"}}},async()=>{const running=services.news.state().running;if(!running)void services.news.sync();return newsSyncResponseSchema.parse({accepted:!running,running:true});});
+  app.post("/news/sync",{config:{rateLimit:{max:3,timeWindow:"1 minute"}}},async()=>{if(!newsSettingsService.isEnabled())throw new AppError(409,"NEWS_DISABLED","Die Tech-News sind deaktiviert. Aktiviere den Hintergrund-Sync in den Einstellungen, um erneut zu laden.");const running=services.news.state().running;if(!running)void services.news.sync();return newsSyncResponseSchema.parse({accepted:!running,running:true});});
   app.post("/news/chat",{config:{rateLimit:{max:12,timeWindow:"1 minute"}}},async request=>newsChatResponseSchema.parse(await services.news.chat(...((input)=>[input.question,input.itemId,input.history,input.model] as const)(newsChatRequestSchema.parse(request.body)))));
+  app.get("/news/settings",async()=>newsSettingsResponseSchema.parse({settings:newsSettingsService.get()}));
+  app.put("/news/settings",async request=>{const {settings}=newsSettingsResponseSchema.parse(request.body);return newsSettingsResponseSchema.parse({settings:newsSettingsService.update(settings)});});
   app.get("/news/image/:id",{config:{rateLimit:{max:120,timeWindow:"1 minute"}}},async(request,reply)=>{const item=services.newsDatabase.get(idParams.parse(request.params).id);if(!item.coverUrl)return imageUnavailable(reply);const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),8_000);try{const response=await fetchPublic(item.coverUrl,{signal:controller.signal,headers:{"User-Agent":"Wrapt-TechTLDRs/0.20",Accept:"image/avif,image/webp,image/*;q=0.9"}});if(!response.ok)return imageUnavailable(reply);const data=await readBodyLimited(response,6_000_000);if(data.byteLength===0)return imageUnavailable(reply);const detected=detectedImageType(data);if(!detected)return imageUnavailable(reply);const declaredType=response.headers.get("content-type")?.split(";")[0]?.trim()??"";const type=declaredType.startsWith("image/")&&declaredType===detected?declaredType:detected;return reply.header("Cache-Control","public, max-age=86400, stale-while-revalidate=604800").header("Content-Security-Policy","default-src 'none'").header("X-Content-Type-Options","nosniff").type(type).send(data);}catch{return imageUnavailable(reply);}finally{clearTimeout(timer);}});
   app.get("/news/:id",async request=>newsItemResponseSchema.parse({item:services.newsDatabase.get(idParams.parse(request.params).id)}));
   app.patch("/news/:id/read",async request=>newsItemResponseSchema.parse({item:services.newsDatabase.setRead(idParams.parse(request.params).id,markNewsReadRequestSchema.parse(request.body).read)}));
