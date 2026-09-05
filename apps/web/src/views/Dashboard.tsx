@@ -1,27 +1,22 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { useMutation, useQuery, type UseQueryResult } from "@tanstack/react-query";
+import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
 import type {
   DashboardSection,
   CommandsResponse,
   HealthResponse,
   LocalPort,
-  LocalPortsResponse,
   OperationalMetricsResponse,
-  ProjectsResponse,
   ReadinessResponse,
   ServiceMode,
   ServicesResponse,
   ServerMetrics,
   ServerSummary,
-  TerminalSession,
-  TerminalSessionsResponse,
   UsageDashboardResponse,
   NewsListResponse,
 } from "@wrapt/contracts";
 import {
   CheckIcon,
-  CloseIcon,
   CommandIcon,
   CopyIcon,
   ExternalLinkIcon,
@@ -35,14 +30,12 @@ import {
   T3CodeIcon,
   TechTldrsIcon,
   TerminalIcon,
-  TrashIcon,
   WarningIcon,
   WorkbenchIcon,
 } from "../components/icons";
 import { Badge, StateDot } from "../components/primitives";
 import { Meter, Sparkline, TrendChart, loadTone } from "../components/charts";
-import { formatBytes, formatClockTime, formatRelativeTime, formatUptime } from "../lib/format";
-import { groupDashboardRuntime, type DashboardRuntimeGroup } from "../lib/dashboardRuntime";
+import { formatBytes, formatRelativeTime, formatUptime } from "../lib/format";
 import { computeTrend, useMetricsHistory, type MetricsSample } from "../stores/metricsHistory";
 import { wraptQueries } from "../lib/queryOptions";
 import { useDashboardPreferences, isDashboardSectionVisible } from "../stores/dashboardPreferences";
@@ -50,10 +43,11 @@ import { useTerminalWorkspaceStore } from "../stores/terminalWorkspace";
 import { useWorkspaceStore } from "../stores/workspace";
 import { useRouteActivity } from "../lib/routeActivity";
 import { writeClipboardText } from "../lib/clipboard";
-import { ContentDialog, ConfirmDialog } from "../components/ModalDialog";
+import { ContentDialog } from "../components/ModalDialog";
 import { runWithViewTransition } from "../lib/viewTransition";
-import { apiClient } from "../lib/apiClient";
 import { DashboardMobileDetails, DashboardMobileSummary } from "./DashboardMobileSummary";
+import { Panel, PanelError, PanelSkeleton, formatDashboardPath, queryMessage, statusTone } from "./DashboardPanels";
+import { RuntimePanel } from "./DashboardRuntime";
 
 const integer = new Intl.NumberFormat("de-DE");
 const decimal = new Intl.NumberFormat("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -73,21 +67,6 @@ const dashboardSections: DashboardSection[] = [
 
 type Query<T> = UseQueryResult<T, Error>;
 
-const terminalKindLabels: Record<TerminalSession["kind"], string> = {
-  shell: "Shell",
-  codex: "Codex",
-  opencode: "OpenCode",
-  claude: "Claude Code",
-};
-
-const terminalStatusLabels: Record<TerminalSession["status"], string> = {
-  starting: "Startet",
-  running: "Läuft",
-  exited: "Beendet",
-  interrupted: "Unterbrochen",
-  closed: "Geschlossen",
-};
-
 const readinessCheckLabels: Record<string, string> = {
   database: "Datenbank",
   "data-directory": "Datenverzeichnis",
@@ -97,36 +76,12 @@ function serverModeLabel(mode: ServiceMode): string {
   return mode === "embedded" ? "eingebettet" : mode === "external" ? "extern" : "hybrid";
 }
 
-function statusTone(state: string): "default" | "ok" | "warn" | "bad" {
-  if (state === "active" || state === "running" || state === "ready") return "ok";
-  if (state === "checking" || state === "starting" || state === "degraded" || state === "interrupted") return "warn";
-  if (state === "error" || state === "exited" || state === "closed" || state === "failed") return "bad";
-  return "default";
-}
-
 function formatDateTime(value: string | null): string {
   if (!value) return "nicht verfügbar";
   const date = new Date(value);
   return Number.isFinite(date.getTime())
     ? date.toLocaleString("de-DE", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })
     : "nicht verfügbar";
-}
-
-function formatPath(path: string): string {
-  const parts = path.split("/").filter(Boolean);
-  return parts.length > 3 ? `…/${parts.slice(-2).join("/")}` : path;
-}
-
-function terminalDotState(status: TerminalSession["status"]): string {
-  if (status === "running") return "active";
-  if (status === "starting") return "checking";
-  if (status === "interrupted") return "unknown";
-  if (status === "exited" || status === "closed") return "inactive";
-  return "unknown";
-}
-
-function queryMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
 }
 
 function percentOf(used: number, total: number): number {
@@ -144,64 +99,6 @@ function realDisks(disks: ServerMetrics["disks"]): ServerMetrics["disks"] {
 }
 
 /* ---------------------------------------------------------------- Bausteine */
-
-function Panel({
-  name,
-  title,
-  subtitle,
-  icon,
-  meta,
-  children,
-  className = "",
-}: {
-  /** Eindeutiger Name für die Übergangsanimation im Bento-Raster. */
-  name: string;
-  title: string;
-  subtitle?: string;
-  icon?: ReactNode;
-  meta?: ReactNode;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <section
-      className={`dash-panel ${className}`}
-      style={{ viewTransitionName: `dash-panel-${name}` } as CSSProperties}
-    >
-      <header className="dash-panel-head">
-        <div className="dash-panel-title">
-          {icon ? <span className="dash-panel-icon">{icon}</span> : null}
-          <div>
-            <h2>{title}</h2>
-            {subtitle ? <p>{subtitle}</p> : null}
-          </div>
-        </div>
-        {meta ? <div className="dash-panel-meta">{meta}</div> : null}
-      </header>
-      {children}
-    </section>
-  );
-}
-
-function PanelError({ message }: { message: string }) {
-  return (
-    <div className="dash-notice is-bad" role="alert">
-      <WarningIcon className="h-4 w-4 shrink-0" />
-      <span>{message}</span>
-    </div>
-  );
-}
-
-function PanelSkeleton({ label, rows = 3 }: { label: string; rows?: number }) {
-  return (
-    <div className="dash-skeleton" role="status">
-      {Array.from({ length: rows }, (_, index) => (
-        <span key={index} className="dash-skeleton-line" />
-      ))}
-      <span className="sr-only">{label}</span>
-    </div>
-  );
-}
 
 /**
  * Das Raster füllt die verfügbare Breite selbst auf. `min` ist die
@@ -418,7 +315,7 @@ function VitalsBand({
           label="Datenträger"
           value={busiestDisk ? busiestDisk.usedPercent.toFixed(0) : "—"}
           unit={busiestDisk ? "%" : undefined}
-          caption={busiestDisk ? `${formatPath(busiestDisk.mount)} · ${formatBytes(busiestDisk.availableBytes)} frei` : "Keine Laufwerke erkannt"}
+          caption={busiestDisk ? `${formatDashboardPath(busiestDisk.mount)} · ${formatBytes(busiestDisk.availableBytes)} frei` : "Keine Laufwerke erkannt"}
           band={<Meter value={busiestDisk?.usedPercent ?? 0} tone={loadTone(busiestDisk?.usedPercent ?? 0, 75, 90)} label="Belegung des vollsten Laufwerks" />}
         />,
       );
@@ -565,7 +462,7 @@ function ServerDiagnosticsPanel({
                 {disks.map((disk) => (
                   <li key={disk.mount}>
                     <div>
-                      <span className="font-mono">{formatPath(disk.mount)}</span>
+                      <span className="font-mono">{formatDashboardPath(disk.mount)}</span>
                       <strong className="font-mono">{disk.usedPercent.toFixed(0)} %</strong>
                     </div>
                     <Meter value={disk.usedPercent} tone={loadTone(disk.usedPercent, 75, 90)} label={`Belegung ${disk.mount}`} />
@@ -784,184 +681,6 @@ function ServicesPanel({ services }: { services: Query<ServicesResponse> }) {
   );
 }
 
-/** Ein Bereich zeigt höchstens so viele Ports und Sessions, bevor er kürzt. */
-const RUNTIME_ROW_LIMIT = 3;
-
-function RuntimeGroup({
-  group,
-  onOpenPort,
-  onCloseSession,
-  onDismissSession,
-}: {
-  group: DashboardRuntimeGroup;
-  onOpenPort: (port: LocalPort) => void;
-  onCloseSession: (session: TerminalSession) => void;
-  onDismissSession: (sessionId: string) => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const ports = expanded ? group.ports : group.ports.slice(0, RUNTIME_ROW_LIMIT);
-  const sessions = expanded ? group.sessions : group.sessions.slice(0, RUNTIME_ROW_LIMIT);
-  const hidden = group.ports.length - ports.length + (group.sessions.length - sessions.length);
-
-  return (
-    <li className="dash-runtime-group">
-      <header>
-        <strong>{group.projectName}</strong>
-        <span className="font-mono">{group.ports.length} Ports · {group.sessions.length} Sessions</span>
-      </header>
-      <ul>
-        {ports.map((port) => (
-          <li key={`port-${port.port}`}>
-            <button type="button" onClick={() => onOpenPort(port)}>
-              <span className={`dash-port-dot is-${port.protocol}`} aria-hidden />
-              <span className="dash-runtime-main">
-                <strong className="font-mono">:{port.port}</strong>
-                <small className="font-mono">{port.process ?? "Lokaler Dienst"} · PID {port.pid ?? "?"}</small>
-              </span>
-              <ExternalLinkIcon className="h-3.5 w-3.5" />
-            </button>
-          </li>
-        ))}
-        {sessions.map((session) => (
-          <li key={`session-${session.id}`} className="is-static">
-            <StateDot state={terminalDotState(session.status)} />
-            <span className="dash-runtime-main">
-              <strong>{terminalKindLabels[session.kind]}</strong>
-              <small className="font-mono">{formatPath(session.cwd)} · PID {session.pid || "?"} · {session.connectedClients} verbunden</small>
-            </span>
-            {session.status === "exited" || session.status === "closed" ? (
-              <button
-                type="button"
-                className="dash-runtime-action dash-runtime-dismiss"
-                title="Aus der Ansicht entfernen"
-                aria-label={`${terminalKindLabels[session.kind]} aus der Ansicht entfernen`}
-                onClick={() => onDismissSession(session.id)}
-              >
-                <CloseIcon className="h-3 w-3" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="dash-runtime-action dash-runtime-delete"
-                title="Terminal beenden und löschen"
-                aria-label={`${terminalKindLabels[session.kind]} beenden und löschen`}
-                onClick={() => onCloseSession(session)}
-              >
-                <TrashIcon className="h-3 w-3" />
-              </button>
-            )}
-            <Badge tone={statusTone(session.status)}>{terminalStatusLabels[session.status]}</Badge>
-          </li>
-        ))}
-        {hidden > 0 || expanded ? (
-          <li className="is-static dash-runtime-toggle">
-            <button type="button" onClick={() => runWithViewTransition(() => setExpanded((value) => !value))}>
-              {expanded ? "Weniger anzeigen" : `${hidden} weitere Einträge`}
-            </button>
-          </li>
-        ) : null}
-      </ul>
-    </li>
-  );
-}
-
-function RuntimePanel({
-  ports,
-  sessions,
-  projects,
-  onOpenPort,
-}: {
-  ports: Query<LocalPortsResponse>;
-  sessions: Query<TerminalSessionsResponse>;
-  projects: Query<ProjectsResponse>;
-  onOpenPort: (port: LocalPort) => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const [dismissedSessionIds, setDismissedSessionIds] = useState<Set<string>>(() => new Set());
-  const [sessionToClose, setSessionToClose] = useState<TerminalSession | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
-  const pending = ports.isPending || sessions.isPending || projects.isPending;
-  const error = ports.error ?? sessions.error ?? projects.error;
-  const closeSession = useMutation({
-    mutationFn: (session: TerminalSession) => apiClient.closeTerminalSession(session.id),
-    onSuccess: () => {
-      setActionError(null);
-      void sessions.refetch();
-    },
-    onError: (mutationError: unknown) => {
-      setActionError(queryMessage(mutationError, "Die Terminalsitzung konnte nicht gelöscht werden."));
-    },
-  });
-
-  const dismissSession = (sessionId: string) => {
-    setDismissedSessionIds((current) => {
-      const next = new Set(current);
-      next.add(sessionId);
-      return next;
-    });
-  };
-
-  const groups = useMemo(
-    () => groupDashboardRuntime(
-      ports.data?.ports ?? [],
-      (sessions.data?.sessions ?? []).filter((session) => !dismissedSessionIds.has(session.id)),
-      projects.data?.projects ?? [],
-    ),
-    [dismissedSessionIds, ports.data, sessions.data, projects.data],
-  );
-  const visibleGroups = expanded ? groups : groups.slice(0, 3);
-  const portCount = groups.reduce((total, group) => total + group.ports.length, 0);
-  const sessionCount = groups.reduce((total, group) => total + group.sessions.length, 0);
-
-  return (
-    <Panel
-      title="Laufende Arbeit"
-      subtitle={pending ? "Ports und Sessions werden gelesen" : `${portCount} offene Ports · ${sessionCount} Terminal-Sessions`}
-      icon={<TerminalIcon className="h-4 w-4" />}
-      name="runtime"
-      className="is-span-7"
-      meta={ports.data ? <span className="dash-meta-time">Portscan {formatClockTime(ports.data.scannedAt)}</span> : null}
-    >
-      {error ? (
-        <PanelError message={queryMessage(error, "Laufzeitdaten konnten nicht geladen werden.")} />
-      ) : pending ? (
-        <PanelSkeleton label="Laufzeitdaten laden" rows={3} />
-      ) : groups.length === 0 ? (
-        <p className="dash-muted">Momentan läuft kein Projektprozess. Ports und Sessions erscheinen hier automatisch.</p>
-      ) : (
-        <>
-          {actionError ? <PanelError message={actionError} /> : null}
-          <ul className="dash-runtime-list">
-            {visibleGroups.map((group) => (
-              <RuntimeGroup
-                key={group.key}
-                group={group}
-                onOpenPort={onOpenPort}
-                onCloseSession={(session) => { setActionError(null); setSessionToClose(session); }}
-                onDismissSession={dismissSession}
-              />
-            ))}
-          </ul>
-          {groups.length > 3 ? (
-            <button type="button" className="dash-more" onClick={() => runWithViewTransition(() => setExpanded((value) => !value))}>
-              {expanded ? "Weniger anzeigen" : `${groups.length - 3} weitere Bereiche anzeigen`}
-            </button>
-          ) : null}
-        </>
-      )}
-      <ConfirmDialog
-        open={sessionToClose !== null}
-        title="Terminal beenden und löschen?"
-        description={`${sessionToClose ? terminalKindLabels[sessionToClose.kind] : "Diese Terminalsitzung"} wird beendet und aus der Session-Liste entfernt.`}
-        confirmLabel={closeSession.isPending ? "Wird gelöscht …" : "Beenden und löschen"}
-        danger
-        onConfirm={() => { if (sessionToClose) closeSession.mutate(sessionToClose); }}
-        onClose={() => setSessionToClose(null)}
-      />
-    </Panel>
-  );
-}
-
 /* ------------------------------------------------------------- Nebenwerte */
 
 function UsagePanel({ usage }: { usage: Query<UsageDashboardResponse> }) {
@@ -1045,8 +764,8 @@ function NewsPanel({ news }: { news: Query<NewsListResponse> }) {
             {integer.format(data!.total)}
             <span>{data!.total === 1 ? "ungelesener Beitrag" : "ungelesene Beiträge"}</span>
           </p>
-          <Badge tone={data!.sync.running ? "warn" : data!.sync.lastError ? "bad" : "ok"}>
-            {data!.sync.running ? "Sync läuft" : data!.sync.lastError ? "Sync-Fehler" : "Aktuell"}
+          <Badge tone={data!.sync.enabled === false ? "default" : data!.sync.running ? "warn" : data!.sync.lastError ? "bad" : "ok"}>
+            {data!.sync.enabled === false ? "Pausiert" : data!.sync.running ? "Sync läuft" : data!.sync.lastError ? "Sync-Fehler" : "Aktuell"}
           </Badge>
           {data!.sync.lastError ? <p className="dash-muted">{data!.sync.lastError}</p> : null}
         </div>
