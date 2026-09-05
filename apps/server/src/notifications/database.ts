@@ -55,6 +55,14 @@ const selection = `id, source, category, source_icon sourceIcon, kind, severity,
   remote_id remoteId, created_at createdAt, read_at readAt, acknowledged_at acknowledgedAt,
   deleted_at deletedAt, resolved_at resolvedAt, metadata_json metaJson, report_json reportJson`;
 
+/**
+ * Nur flüchtige Anforderungen dürfen nach dem Erledigen erneut aufleben.
+ * Finale Meldungen (fertig, fehlgeschlagen) gehören zu genau einem Durchlauf:
+ * Ein neuer Durchlauf bekommt von der Quelle eine neue remoteId. Ohne diese
+ * Sperre würden alte Chats nach einem Cursor-Reset erneut als Toast erscheinen.
+ */
+const renewableKinds = new Set(["agent.input-required", "agent.plan-ready"]);
+
 export class NotificationDatabase {
   private readonly db: DatabaseSync;
   private readonly listeners = new Set<(event: NotificationEvent) => void>();
@@ -125,6 +133,9 @@ export class NotificationDatabase {
       // Quellen müssen für einen späteren, neuen Zustand eine neue remoteId
       // liefern. Sonst würde ein Dienstneustart dieselbe Meldung erneut pushen.
       if (existing?.state === "active" || existing?.state === "dismissed") return existing;
+      // Finale Meldungen leben nicht wieder auf. Ein erledigter Abschluss
+      // bleibt erledigt, auch wenn die Quelle ihn erneut liefert.
+      if (existing && !renewableKinds.has(parsed.kind)) return existing;
       if (existing) {
         const readAt = this.presenceMatches(parsed) ? new Date().toISOString() : null;
         this.db.prepare(`UPDATE notifications SET category=?,source_icon=?,severity=?,state='active',title=?,body=?,link=?,created_at=?,

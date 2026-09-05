@@ -53,6 +53,28 @@ describe("Benachrichtigungsdatenbank", () => {
     database.close();
   });
 
+  it("lebt erledigte Abschlüsse und Fehler nicht wieder auf", () => {
+    const directory = mkdtempSync(join(tmpdir(), "wrapt-notifications-"));
+    temporaryDirectories.push(directory);
+    const database = new NotificationDatabase(join(directory, "wrapt.sqlite"));
+    const events: string[] = [];
+    const done = database.create({ source: "t3", category: "coding-agent", sourceIcon: "t3", kind: "agent.completed", severity: "success", title: "Fertig", body: "fertig", remoteId: "thread:9:complete:turn-1" });
+    const failed = database.create({ source: "t3", category: "coding-agent", sourceIcon: "t3", kind: "agent.failed", severity: "error", title: "Fehler", body: "fehlgeschlagen", remoteId: "thread:9:failed:turn-2" });
+    database.resolveByRemoteId("t3", "agent.completed", "thread:9:complete:turn-1");
+    database.resolveByRemoteId("t3", "agent.failed", "thread:9:failed:turn-2");
+    database.subscribe((event) => { if (event.type === "notification.created") events.push(event.notification.id); });
+    // Alte Chats nach einem Cursor-Reset: dieselbe remoteId, kein neuer Toast.
+    const repeatedDone = database.create({ source: "t3", category: "coding-agent", sourceIcon: "t3", kind: "agent.completed", severity: "success", title: "Fertig", body: "fertig", remoteId: "thread:9:complete:turn-1" });
+    const repeatedFailed = database.create({ source: "t3", category: "coding-agent", sourceIcon: "t3", kind: "agent.failed", severity: "error", title: "Fehler", body: "fehlgeschlagen", remoteId: "thread:9:failed:turn-2" });
+    expect(repeatedDone.id).toBe(done.id);
+    expect(repeatedDone.state).toBe("resolved");
+    expect(repeatedFailed.id).toBe(failed.id);
+    expect(repeatedFailed.state).toBe("resolved");
+    expect(events).toEqual([]);
+    expect(database.list().notifications).toEqual([]);
+    database.close();
+  });
+
   it("löscht alle aktiven Einträge gemeinsam und behält sie als verworfen", () => {
     const directory = mkdtempSync(join(tmpdir(), "wrapt-notifications-"));
     temporaryDirectories.push(directory);

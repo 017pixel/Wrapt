@@ -143,7 +143,11 @@ export class T3StatusSync {
       const columns = new Set((db.prepare("PRAGMA table_info(projection_threads)").all() as unknown as Array<{ name: string }>).map((item) => item.name));
       if (!["thread_id", "title", "pending_approval_count", "pending_user_input_count", "has_actionable_proposed_plan"].every((name) => columns.has(name))) return;
       const currentSequence = Number((db.prepare("SELECT COALESCE(MAX(sequence),0) sequence FROM orchestration_events").get() as { sequence: number }).sequence);
-      if (currentSequence < this.lastSequence) this.lastSequence = 0;
+      // Die T3-Datenbank wurde neu angelegt oder ein Kanalwechsel hat sie
+      // migriert: Der alte Cursor zeigt ins Leere. Dieser Durchlauf setzt nur
+      // eine neue Baseline und meldet keine alten Abschlüsse erneut.
+      let allowCompletion = this.initialized;
+      if (currentSequence < this.lastSequence) { this.lastSequence = 0; allowCompletion = false; }
       const touched = this.initialized
         ? (db.prepare("SELECT DISTINCT stream_id threadId FROM orchestration_events WHERE sequence > ? AND aggregate_kind = 'thread'").all(this.lastSequence) as unknown as Array<{ threadId: string }>).map((item) => item.threadId)
         : [];
@@ -164,7 +168,7 @@ export class T3StatusSync {
       for (const row of rows) this.process(row, environmentId, (threadId) => {
         const logs = (database.prepare("SELECT summary FROM projection_thread_activities WHERE thread_id=? ORDER BY created_at DESC LIMIT 20").all(threadId) as unknown as Array<{ summary: string }>).map((item) => redactText(item.summary, 1_000)).reverse();
         return logs;
-      }, this.initialized);
+      }, allowCompletion);
       this.initialized = true;
       this.lastSequence = currentSequence;
       this.saveCursor();
@@ -187,9 +191,12 @@ export class T3StatusSync {
         const snapshot = JSON.parse(stdout) as RemoteSnapshot;
         const environmentId = snapshot.environmentId;
         const currentSequence = snapshot.currentSequence;
-        if (currentSequence < state.lastSequence) state.lastSequence = 0;
+        // Gleicher Baseline-Schutz wie lokal: Nach einem Sprung zurück meldet
+        // dieser Durchlauf keine alten Abschlüsse erneut.
+        let allowCompletion = state.initialized;
+        if (currentSequence < state.lastSequence) { state.lastSequence = 0; allowCompletion = false; }
         for (const row of snapshot.rows) {
-          this.process(row, environmentId, (threadId) => snapshot.activities[threadId] ?? [], state.initialized);
+          this.process(row, environmentId, (threadId) => snapshot.activities[threadId] ?? [], allowCompletion);
         }
         state.initialized = true;
         state.lastSequence = currentSequence;

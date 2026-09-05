@@ -88,6 +88,32 @@ describe("T3-Status-Synchronisation", () => {
     notifications.close();
   });
 
+  it("meldet nach einem Sequenz-Reset keine gelöschten alten Abschlüsse erneut", async () => {
+    const { dbPath, notifications, sync, completed } = fixture();
+    await sync.poll();
+    const db = new DatabaseSync(dbPath);
+    db.prepare("UPDATE projection_threads SET pending_user_input_count=0, settled_at=?, updated_at=? WHERE thread_id='thread-1'").run(completed, completed);
+    db.prepare("UPDATE projection_thread_sessions SET status='stopped' WHERE thread_id='thread-1'").run();
+    db.prepare("UPDATE projection_turns SET state='completed',completed_at=? WHERE row_id=1").run(completed);
+    db.prepare("INSERT INTO orchestration_events VALUES(2,'thread','thread-1')").run(); db.close();
+    await sync.poll();
+    const done = notifications.list().notifications.find((item) => item.kind === "agent.completed")!;
+    expect(done).toBeDefined();
+    // Eintrag erledigen und aus der Aufbewahrung löschen, danach die
+    // T3-Datenbank neu anlegen: Die Sequenz springt zurück und der alte
+    // Thread liegt wieder im Lesefenster.
+    notifications.resolveByRemoteId("t3", "agent.completed", done.remoteId!);
+    notifications.prune(Date.now() + 49 * 3_600_000);
+    expect(notifications.get(done.id)).toBeNull();
+    const fresh = new DatabaseSync(dbPath);
+    fresh.exec("DELETE FROM orchestration_events");
+    fresh.prepare("INSERT INTO orchestration_events VALUES(1,'thread','thread-1')").run();
+    fresh.close();
+    await sync.poll();
+    expect(notifications.list().notifications).toEqual([]);
+    notifications.close();
+  });
+
   it("liest entfernte T3-Instanzen über das Python-Skript und meldet deren Threads", async () => {
     const { dbPath, notifications } = fixture();
     const environmentIdPath = join(dirname(dbPath), "environment-id");

@@ -15,6 +15,18 @@ const SEEN_RETENTION = 50;
 type ToastEntry = { notification: Notification; leaving: boolean };
 type UiToastEntry = { toast: UiToast; leaving: boolean };
 
+/**
+ * Sichtbare Toasts: Standard genau einer, der neueste gewinnt. Nur wenn zwei
+ * Quellen gleichzeitig melden (etwa T3 und Terminal), bleiben zwei stehen.
+ * Reine Auswahl ohne Seiteneffekte, damit sie testbar bleibt.
+ */
+export function selectVisibleToasts(entries: ToastEntry[]): ToastEntry[] {
+  if (entries.length <= 1) return entries;
+  const newest = entries[entries.length - 1]!;
+  const otherSource = [...entries.slice(0, -1)].reverse().find((entry) => entry.notification.source !== newest.notification.source);
+  return otherSource ? [otherSource, newest] : [newest];
+}
+
 /** Wegwischen nach rechts schließt den Toast; die Geste ist für beide
  *  Toast-Arten dieselbe (F04-09). */
 function useToastSwipe(onDismiss: () => void) {
@@ -69,6 +81,15 @@ export function NotificationCenter() {
     uiLifecycleTimers.current.clear();
   }, []);
 
+  useEffect(() => {
+    // Verdrängte Toasts hinterlassen weder Timer noch Abgangsmarken.
+    const visible = new Set(toasts.map((toast) => toast.notification.id));
+    lifecycleTimers.current.forEach((timer, id) => {
+      if (!visible.has(id)) { window.clearTimeout(timer); lifecycleTimers.current.delete(id); }
+    });
+    leaving.current.forEach((id) => { if (!visible.has(id)) leaving.current.delete(id); });
+  }, [toasts]);
+
   const showToast = useCallback((item: Notification) => {
     // WebSocket-Ereignisse während des ersten Abrufs gehören zum Bestand.
     // Sie werden nach dem erfolgreichen Abruf nicht erneut als Start-Toast gezeigt.
@@ -79,7 +100,7 @@ export function NotificationCenter() {
     if (seen.current.size > SEEN_RETENTION) {
       seen.current = new Set([...seen.current].slice(-SEEN_RETENTION));
     }
-    setToasts((current) => [...current.filter((toast) => toast.notification.id !== item.id), { notification: item, leaving: false }].slice(-3));
+    setToasts((current) => selectVisibleToasts([...current.filter((toast) => toast.notification.id !== item.id), { notification: item, leaving: false }]));
     const timer = window.setTimeout(() => { lifecycleTimers.current.delete(item.id); dismissToast(item.id); }, TOAST_LIFETIME);
     lifecycleTimers.current.set(item.id, timer);
   }, [dismissToast, settings.data?.preferences]);
