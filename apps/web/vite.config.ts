@@ -54,6 +54,7 @@ export default defineConfig(({mode}) => {
       "/.well-known/t3": proxyOptions,
       "/favicon.ico": proxyOptions,
       "/apple-touch-icon.png": proxyOptions,
+      "/manifest.webmanifest": proxyOptions,
       "/ws": proxyOptions,
       "/wrapt/api": {
         target: backendTarget,

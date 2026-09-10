@@ -25,12 +25,17 @@ export interface HeadlessSnapshot {
  * Hält den autoritativen Terminalzustand einer Runtime auf dem Server. Jedes
  * Byte aus der PTY fließt hier zuerst hinein. Reconnect-Clients bekommen den
  * serialisierten Zustand plus Deltas — nie einen rohen History-Ausschnitt.
+ *
+ * Die Sequenz folgt der Session-Sequenz des Managers: Jeder Write trägt die
+ * Sequenz, die der Manager synchron beim PTY-Input vergeben hat. So sprechen
+ * Snapshot und Live-Output dieselbe Basis und der Client kann nach einem
+ * Snapshot lückenlos mit Deltas fortfahren.
  */
 export class HeadlessTerminal {
   private readonly terminal: InstanceType<typeof Terminal>;
   private readonly serialize: InstanceType<typeof SerializeAddon>;
   private parsed = 0;
-  private submitted = 0;
+  private generation = 0;
 
   constructor(cols: number, rows: number) {
     this.terminal = new Terminal({
@@ -51,21 +56,27 @@ export class HeadlessTerminal {
   get alternate(): boolean { return this.terminal.buffer.active.type === "alternate"; }
   get mouseTracking(): boolean { return this.terminal.modes.mouseTrackingMode !== "none"; }
 
-  /** Anzahl der bereits vollständig geparsten Schreibvorgänge. Ein Snapshot
-   *  mit dieser Sequenz enthält garantiert genau diesen Zustand — xterm 6
-   *  puffert `write` asynchron. */
-  get parsedCount(): number { return this.parsed; }
+  /** Höchste lückenlos geparste Session-Sequenz. Ein Snapshot mit dieser
+   *  Sequenz enthält garantiert genau diesen Zustand — xterm puffert `write`
+   *  asynchron, die Callbacks feuern aber in Write-Reihenfolge. */
+  get parsedSequence(): number { return this.parsed; }
 
-  write(data: string): void {
-    const sequence = ++this.submitted;
-    this.terminal.write(data, () => { this.parsed = sequence; });
+  write(data: string, sequence: number): void {
+    const generation = this.generation;
+    this.terminal.write(data, () => {
+      // Callbacks aus einer älteren Generation (vor reset/restart) dürfen den
+      // Stand nicht mehr verändern, sonst läuft die Sequenz der Session davon.
+      if (generation !== this.generation) return;
+      if (sequence > this.parsed) this.parsed = sequence;
+    });
   }
 
   resize(cols: number, rows: number): void { this.terminal.resize(cols, rows); }
 
-  reset(): void {
+  reset(sequence: number): void {
+    this.generation += 1;
     this.terminal.reset();
-    this.parsed = this.submitted;
+    this.parsed = sequence;
   }
 
   /** Serialisiert den kompletten Terminalzustand inklusive Cursor. */

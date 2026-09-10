@@ -274,6 +274,11 @@ export class TerminalManager {
     const session = this.owned(userId, sessionId);
     if (session.status === "closed") throw new TerminalFailure("SESSION_ALREADY_CLOSED", "Die Terminalsitzung wurde bereits beendet.");
     session.history = ""; session.sequence += 1; session.updatedAt = Date.now();
+    // Der Verlauf ist weg: Altes aus Journal und Headless-Zustand entfernen,
+    // damit Reconnects denselben leeren Stand sehen wie live geclearte Clients.
+    session.journal.clear();
+    session.headless?.reset(session.sequence);
+    this.persist(session);
     this.emit(session, { type: "terminal.cleared", sessionId, sequence: session.sequence });
   }
 
@@ -286,7 +291,7 @@ export class TerminalManager {
     // Terminalzustand, leeres Journal.
     session.epoch += 1;
     session.sequence = 0;
-    session.headless?.reset();
+    session.headless?.reset(session.sequence);
     session.journal.clear();
     this.persist(session); this.process.spawn(session);
     broadcastSnapshot(session, this.options.supervisor);

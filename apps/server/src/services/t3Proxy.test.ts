@@ -6,6 +6,15 @@ describe("T3-Proxy", () => {
     expect(t3HttpRoutes).toContain("/api/assets/*");
   });
 
+  it("leitet Bild-Uploads (rohe Bytes per XHR) an T3 weiter", () => {
+    expect(t3HttpRoutes).toContain("/api/attachments/*");
+  });
+
+  it("leitet Pull-Request-Diffs und das Webmanifest an T3 weiter", () => {
+    expect(t3HttpRoutes).toContain("/api/pull-requests/*");
+    expect(t3HttpRoutes).toContain("/manifest.webmanifest");
+  });
+
   it("leitet die T3-API-Gruppen für Threads und Connect weiter", () => {
     expect(t3HttpRoutes).toContain("/api/orchestration/*");
     expect(t3HttpRoutes).toContain("/api/connect/*");

@@ -228,6 +228,28 @@ test("renders background output and new input immediately after a browser-tab sw
   await otherTab.close();
 });
 
+test("shows typed input immediately after leaving and returning to the terminal route", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.goto(`${workbench}/terminal`);
+  await openFirstTerminal(page);
+
+  // Route verlassen (parkt das Terminal) und zurückkehren. Danach muss
+  // getippte Eingabe sofort sichtbar sein — ohne hartes Neuladen.
+  await page.locator(".workspace-sidebar").getByRole("link", { name: "Dashboard", exact: true }).click();
+  await expect(page).not.toHaveURL(/\/terminal$/);
+  await page.locator(".workspace-sidebar").getByRole("link", { name: "Terminal", exact: true }).click();
+  await expect(page).toHaveURL(/\/terminal$/);
+
+  const pane = page.locator(".terminal-session-pane.is-visible");
+  await expect(pane.locator(".xterm-helper-textarea")).toBeVisible({ timeout: 15_000 });
+  const marker = `__INPUT_AFTER_ROUTE_${Date.now()}__`;
+  const input = pane.locator(".xterm-helper-textarea");
+  await input.focus();
+  await input.pressSequentially(`printf '${marker}\\n'`);
+  await input.press("Enter");
+  await expect(pane.locator(".xterm-screen")).toContainText(marker, { timeout: 15_000 });
+});
+
 test("uses a touch drawer, focused pane and safe bottom controls on phone portrait", async ({ page }) => {
   test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   await page.setViewportSize({ width: 390, height: 844 });

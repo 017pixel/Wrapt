@@ -8,7 +8,7 @@ function waitForParse(): Promise<void> {
 describe("HeadlessTerminal", () => {
   it("parst Output asynchron und serialisiert den geparsten Stand", async () => {
     const terminal = createHeadlessTerminal(20, 5);
-    terminal.write("zeile eins\r\nzeile zwei");
+    terminal.write("zeile eins\r\nzeile zwei", 1);
     await waitForParse();
     const snapshot = terminal.snapshot();
     expect(snapshot.serialized).toContain("zeile eins");
@@ -20,8 +20,8 @@ describe("HeadlessTerminal", () => {
 
   it("erkennt den Alternate Screen und Maus-Reporting aus echten Sequenzen", async () => {
     const terminal = createHeadlessTerminal(20, 5);
-    terminal.write("\x1b[?1049hfullscreen");
-    terminal.write("\x1b[?1000h");
+    terminal.write("\x1b[?1049hfullscreen", 1);
+    terminal.write("\x1b[?1000h", 2);
     await waitForParse();
     const snapshot = terminal.snapshot();
     expect(snapshot.alternate).toBe(true);
@@ -30,20 +30,33 @@ describe("HeadlessTerminal", () => {
 
   it("setzt den Zustand bei reset zurück und lässt den Epoch-Wechsel zu", async () => {
     const terminal = createHeadlessTerminal(20, 5);
-    terminal.write("alt");
+    terminal.write("alt", 1);
     await waitForParse();
     expect(terminal.snapshot().serialized).toContain("alt");
-    terminal.reset();
+    terminal.reset(2);
     expect(terminal.snapshot().serialized).not.toContain("alt");
+    expect(terminal.parsedSequence).toBe(2);
   });
 
-  it("zählt die geparsten Schreibvorgänge für die Snapshot-Sequenz", async () => {
+  it("zählt die geparsten Schreibvorgänge in Session-Sequenz-Basis", async () => {
     const terminal = createHeadlessTerminal(20, 5);
-    expect(terminal.parsedCount).toBe(0);
-    terminal.write("a");
-    terminal.write("b");
+    expect(terminal.parsedSequence).toBe(0);
+    terminal.write("a", 1);
+    terminal.write("b", 2);
     await waitForParse();
-    expect(terminal.parsedCount).toBe(2);
+    expect(terminal.parsedSequence).toBe(2);
+  });
+
+  it("lässt alte Callbacks nach einem reset die Sequenz nicht davonlaufen", async () => {
+    const terminal = createHeadlessTerminal(20, 5);
+    terminal.write("alt", 41);
+    terminal.reset(0);
+    expect(terminal.parsedSequence).toBe(0);
+    await waitForParse();
+    expect(terminal.parsedSequence).toBe(0);
+    terminal.write("neu", 1);
+    await waitForParse();
+    expect(terminal.parsedSequence).toBe(1);
   });
 
   it("behält die Geometrie beim resize", async () => {
@@ -54,7 +67,7 @@ describe("HeadlessTerminal", () => {
 
   it("serialisiert den Scrollback vollständig für Browser-Reconnects", async () => {
     const terminal = createHeadlessTerminal(30, 4);
-    terminal.write(Array.from({ length: 20 }, (_, index) => `verlauf-${index.toString().padStart(2, "0")}\r\n`).join(""));
+    terminal.write(Array.from({ length: 20 }, (_, index) => `verlauf-${index.toString().padStart(2, "0")}\r\n`).join(""), 1);
     await waitForParse();
 
     const snapshot = terminal.snapshot();

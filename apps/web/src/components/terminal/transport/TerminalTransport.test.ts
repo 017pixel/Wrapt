@@ -93,3 +93,30 @@ test("meldet einem neuen Renderer den bereits offenen Socket", async () => {
   expect(statuses).toEqual([true]);
   subscription.dispose();
 });
+
+test("stellt Live-Output nach Socket-Neuaufbau mit Fast Reconnect zu (kein Created)", async () => {
+  vi.stubGlobal("WebSocket", FakeWebSocket);
+  const { terminalTransport } = await import("./TerminalTransport");
+  const first = terminalTransport.subscribe("runtime-3");
+  const firstMessages: string[] = [];
+  first.onMessage((message) => firstMessages.push(message.type));
+  FakeWebSocket.instances[0]!.open();
+  FakeWebSocket.instances[0]!.emit({ type: "terminal.created", requestId: "r1", sessionId: "session-3", runtimeId: "runtime-3", kind: "shell", projectId: null, status: "running", cwd: "/tmp", pid: 1 });
+  FakeWebSocket.instances[0]!.emit({ type: "terminal.output", sessionId: "session-3", data: "a", sequence: 1 });
+  expect(firstMessages).toContain("terminal.output");
+  first.dispose();
+
+  // Zurückkehren auf die Route: neuer Socket, Resubscribe mit Stand, der
+  // Server antwortet nur mit Deltas (kein erneutes Created).
+  const second = terminalTransport.subscribe("runtime-3");
+  const secondMessages: string[] = [];
+  second.onMessage((message) => secondMessages.push(message.type));
+  expect(FakeWebSocket.instances).toHaveLength(2);
+  FakeWebSocket.instances[1]!.open();
+  FakeWebSocket.instances[1]!.emit({ type: "terminal.deltas", sessionId: "session-3", runtimeId: "runtime-3", epoch: 0, startSequence: 2, deltas: [] });
+  // Reine Session-Nachrichten (ohne Runtime-ID) müssen trotzdem ankommen:
+  // Getippte Eingaben wären sonst erst nach einem Reload sichtbar.
+  FakeWebSocket.instances[1]!.emit({ type: "terminal.output", sessionId: "session-3", data: "b", sequence: 2 });
+  expect(secondMessages).toContain("terminal.output");
+  second.dispose();
+});

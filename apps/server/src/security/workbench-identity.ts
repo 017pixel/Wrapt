@@ -35,6 +35,7 @@ const protectedExactPaths = new Set([
   "/",
   "/favicon.ico",
   "/apple-touch-icon.png",
+  "/manifest.webmanifest",
 ]);
 
 export function firstHeader(value: string | string[] | undefined): string | undefined {

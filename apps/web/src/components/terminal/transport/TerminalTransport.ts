@@ -146,6 +146,14 @@ class TerminalTransport {
         ? this.sessionToRuntime.get(message.sessionId)
         : undefined;
     if (!runtimeId) return;
+    // Jede Nachricht, die beide IDs trägt (Snapshot, Deltas, Created),
+    // frischt die Session-Zuordnung auf. Ohne das bliebe die Map nach einem
+    // Socket-Neuaufbau mit Fast Reconnect (nur Deltas, kein Created) leer und
+    // alle reinen Session-Nachrichten (Live-Output, Geometrie) würden still
+    // verworfen — getippte Eingaben wären erst nach einem Reload sichtbar.
+    if ("sessionId" in message && typeof message.sessionId === "string") {
+      this.sessionToRuntime.set(message.sessionId, runtimeId);
+    }
     const state = this.subscriptions.get(runtimeId);
     if (!state) return;
     if ("sessionId" in message && typeof message.sessionId === "string") state.sessionId = message.sessionId;

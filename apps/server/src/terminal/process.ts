@@ -87,8 +87,10 @@ export function createProcessRuntime(deps: ProcessRuntimeDependencies): ProcessR
       session.history = limitHistory(session.history + data);
       session.sequence += 1;
       session.updatedAt = Date.now();
-      // Jedes Byte fließt zuerst in den autoritativen Terminalzustand.
-      session.headless?.write(data);
+      // Jedes Byte fließt zuerst in den autoritativen Terminalzustand — mit
+      // der synchron vergebenen Session-Sequenz, damit Snapshot und Deltas
+      // dieselbe Basis sprechen.
+      session.headless?.write(data, session.sequence);
       session.journal.push({ sequence: session.sequence, data });
       persist(session);
       emit(session, { type: "terminal.output", sessionId: session.id, data, sequence: session.sequence });

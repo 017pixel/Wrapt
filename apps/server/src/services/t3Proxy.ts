@@ -1,6 +1,7 @@
 import type { IncomingHttpHeaders } from "node:http";
 import type { Readable } from "node:stream";
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import replyFrom from "@fastify/reply-from";
 import WebSocket from "ws";
 import { settings } from "../config/settings.js";
 import { isWebSocketOriginAllowed } from "../security/same-origin.js";
@@ -215,8 +216,8 @@ export function t3OpenInCwdFromFiber(element: unknown): string | null {
 
 export const t3HttpRoutes = [
   "/", "/t3/*", "/assets/*", "/.well-known/t3/*", "/api/auth/*",
-  "/api/assets/*", "/api/orchestration/*", "/api/connect/*", "/api/t3-connect/*", "/api/observability/*", "/oauth/*",
-  "/favicon.ico", "/apple-touch-icon.png",
+  "/api/assets/*", "/api/attachments/*", "/api/orchestration/*", "/api/connect/*", "/api/t3-connect/*", "/api/observability/*", "/api/pull-requests/*", "/oauth/*",
+  "/favicon.ico", "/apple-touch-icon.png", "/manifest.webmanifest",
 ] as const;
 
 function contentType(headers: IncomingHttpHeaders): string {
@@ -349,10 +350,25 @@ function proxyWebSocket(source: WebSocket, request: FastifyRequest, observer?: W
 }
 
 export async function registerT3Proxy(app: FastifyInstance, observer?: WebSocketBridgeObserver) {
-  app.route({ method: "GET", url: "/t3", config: { rateLimit: false }, helmet: false, handler: proxyIndex });
-  for (const url of t3HttpRoutes) {
-    app.route({ method: "GET", url, config: { rateLimit: false }, helmet: false, handler: proxyHttp });
-    app.route({ method: ["DELETE", "PATCH", "POST", "PUT", "OPTIONS"], url, config: { rateLimit: false }, helmet: false, handler: proxyHttp });
-  }
-  app.route({ method: "GET", url: "/ws", config: { rateLimit: false }, helmet: false, handler: proxyHttp, wsHandler: (source, request) => proxyWebSocket(source, request, observer) });
+  await app.register(async (scope) => {
+    // T3 lädt Anhänge per XHR als rohe Bytes hoch (Content-Type ist der
+    // MIME-Typ der Datei, z. B. image/png). Ohne Buffer-Parser antwortet
+    // Fastify mit 415, bevor reply-from die Bytes an T3 weiterreichen kann.
+    // JSON bleibt beim Standard-Parser; nur Binärtypen werden als Buffer
+    // durchgereicht (Muster aus dem Editor-Proxy für multipart).
+    for (const contentType of ["application/octet-stream", "application/pdf"] as const) {
+      scope.addContentTypeParser(contentType, { parseAs: "buffer" }, (_request, body, done) => done(null, body));
+    }
+    for (const contentType of [/^image\/.*$/, /^video\/.*$/, /^audio\/.*$/] as const) {
+      scope.addContentTypeParser(contentType, { parseAs: "buffer" }, (_request, body, done) => done(null, body));
+    }
+    await scope.register(replyFrom);
+
+    scope.route({ method: "GET", url: "/t3", config: { rateLimit: false }, helmet: false, handler: proxyIndex });
+    for (const url of t3HttpRoutes) {
+      scope.route({ method: "GET", url, config: { rateLimit: false }, helmet: false, handler: proxyHttp });
+      scope.route({ method: ["DELETE", "PATCH", "POST", "PUT", "OPTIONS"], url, config: { rateLimit: false }, helmet: false, handler: proxyHttp });
+    }
+    scope.route({ method: "GET", url: "/ws", config: { rateLimit: false }, helmet: false, handler: proxyHttp, wsHandler: (source, request) => proxyWebSocket(source, request, observer) });
+  });
 }

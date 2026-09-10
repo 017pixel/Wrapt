@@ -38,9 +38,11 @@ export function snapshotForClient(session: TerminalSession, supervisor: TmuxSupe
  *  vorliegt (etwa direkt nach einem Backend-Neustart). */
 export function snapshotMessage(session: TerminalSession, clientId: string, supervisor: TmuxSupervisor | undefined): ServerTerminalMessage {
   const serialized = session.headless?.snapshot() ?? null;
-  // Die Snapshot-Sequenz ist der zuletzt geparste Stand des Headless-Terminals,
-  // damit Inhalt und Sequenz immer zusammenpassen (xterm puffert asynchron).
-  const sequence = session.headless ? session.headless.parsedCount : session.sequence;
+  // Die Snapshot-Sequenz ist der zuletzt lückenlos geparste Stand des
+  // Headless-Terminals in Session-Sequenz-Basis, damit Inhalt und Sequenz
+  // immer zusammenpassen (xterm puffert asynchron). Der Client fordert alles
+  // danach per Deltas oder Resync an — dieselbe Basis wie die Live-Outputs.
+  const sequence = session.headless ? session.headless.parsedSequence : session.sequence;
   return {
     type: "terminal.snapshot",
     sessionId: session.id,
@@ -79,7 +81,11 @@ export function sendSync(
 ): void {
   if (sync && sync.epoch === session.epoch) {
     const deltas = session.journal.deltasAfter(sync.lastSequence);
-    if (deltas !== null) {
+    // Leere Deltas bestätigen einen aktuellen Stand nur, wenn der Client
+    // wirklich auf der Session-Sequenz steht. Dahinter und bei leerem Journal
+    // (Clear, Restart, wiederhergestellte Session) braucht es einen Snapshot,
+    // sonst hängt der Client unsichtbar hinterher.
+    if (deltas !== null && (deltas.length > 0 || sync.lastSequence === session.sequence)) {
       // Auch eine leere Delta-Liste wird gesendet: Sie bestätigt dem Client,
       // dass sein Stand aktuell ist und der Sync abgeschlossen ist.
       client({
