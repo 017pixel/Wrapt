@@ -94,6 +94,7 @@ function ContextProjectPicker() {
   if (!context || !data) return null;
 
   const change = (projectId: string) => {
+    addBreadcrumb(`Projekt gewählt: ${projectId} [${context ?? "allgemein"}]`);
     selectProject(projectId);
     if (terminalKind) {
       const areaId = terminalKind === "shell" ? "standalone" : `${terminalKind}-standalone`;

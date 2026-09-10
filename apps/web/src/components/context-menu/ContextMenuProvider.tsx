@@ -12,7 +12,37 @@ import { wraptQueries } from "../../lib/queryOptions";
 import { rankedToolIds, recordToolUsage, useToolUsage } from "../../stores/toolUsage";
 import { GlobalContextMenu, type ContextMenuQuickAction, type RenderedContextMenuItem } from "./GlobalContextMenu";
 import { contextMenuEventWasClaimed, GLOBAL_CONTEXT_MENU_EVENT, showGlobalContextMenu, type GlobalContextMenuAction, type GlobalContextMenuRequest } from "./contextMenuEvents";
+import { addBreadcrumb, describeClickTarget, formatStepsReport, getRecentSteps } from "../../lib/crashReport";
+import { writeClipboardText } from "../../lib/clipboard";
+import { CopyIcon } from "../icons";
 import "./context-menu.css";
+
+async function loadStepsEnvironment() {
+  try {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 4_000);
+    const response = await fetch("/api/v1/health", { signal: controller.signal });
+    window.clearTimeout(timeout);
+    if (!response.ok) return { appVersion: null, bootId: null, webBuildId: null, backendReachable: false };
+    const body = await response.json() as { version?: string; bootId?: string; webBuildId?: number | null };
+    return {
+      appVersion: body.version ?? null,
+      bootId: body.bootId ?? null,
+      webBuildId: body.webBuildId ?? null,
+      backendReachable: true,
+    };
+  } catch {
+    return { appVersion: null, bootId: null, webBuildId: null, backendReachable: false };
+  }
+}
+
+async function copyRecentSteps() {
+  const steps = getRecentSteps();
+  const environment = await loadStepsEnvironment();
+  const text = formatStepsReport(steps, environment);
+  await writeClipboardText(text);
+  addBreadcrumb(`Schritte-Protokoll kopiert (${steps.length} Schritte)`);
+}
 
 const nonFreeContextMenuTargetSelector = [
   "button",
@@ -66,11 +96,22 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
       const customEvent = event as CustomEvent<GlobalContextMenuRequest>;
       if (!customEvent.detail || !surfaceEnabled(customEvent.detail, config)) return;
       customEvent.preventDefault();
+      addBreadcrumb(`Kontextmenü geöffnet: ${customEvent.detail.surface}${customEvent.detail.title ? ` (${customEvent.detail.title})` : ""}`);
       setRequest(customEvent.detail);
     };
     window.addEventListener(GLOBAL_CONTEXT_MENU_EVENT, receive);
     return () => window.removeEventListener(GLOBAL_CONTEXT_MENU_EVENT, receive);
   }, [config]);
+
+  useEffect(() => {
+    const onClick = (event: MouseEvent) => {
+      if (event.target instanceof Element && event.target.closest(".global-context-menu")) return;
+      const description = describeClickTarget(event.target instanceof Element ? event.target : null);
+      if (description) addBreadcrumb(description);
+    };
+    document.addEventListener("click", onClick);
+    return () => document.removeEventListener("click", onClick);
+  }, []);
 
   useEffect(() => {
     const fallback = (event: MouseEvent) => {
@@ -97,20 +138,34 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
   const quickToolIds = config.quickActions.mode === "manual"
     ? config.quickActions.manual
     : rankedToolIds(usageEntries, availableTools.map((item) => item.contributionId));
-  const quickActions: ContextMenuQuickAction[] = quickToolIds.flatMap((id) => {
-    const item = availableTools.find((candidate) => candidate.contributionId === id);
-    if (!item) return [];
-    const Icon = item.value.runtime.icon;
-    return [{
-      id,
-      label: item.value.contribution.label,
-      ...(Icon ? { icon: <Icon className="h-4 w-4" /> } : {}),
+  const quickActions: ContextMenuQuickAction[] = useMemo(() => {
+    const tools: ContextMenuQuickAction[] = quickToolIds.flatMap((id) => {
+      const item = availableTools.find((candidate) => candidate.contributionId === id);
+      if (!item) return [];
+      const Icon = item.value.runtime.icon;
+      return [{
+        id,
+        label: item.value.contribution.label,
+        ...(Icon ? { icon: <Icon className="h-4 w-4" /> } : {}),
+        run: () => {
+          addBreadcrumb(`Schnellaktion gewählt: ${item.value.contribution.label} → ${item.value.route.path}`);
+          recordToolUsage(id);
+          navigate(item.value.route.path);
+        },
+      }];
+    });
+    tools.push({
+      id: "wrapt.steps.copy",
+      label: "Letzte Schritte kopieren",
+      icon: <CopyIcon className="h-4 w-4" />,
       run: () => {
-        recordToolUsage(id);
-        navigate(item.value.route.path);
+        void copyRecentSteps().catch(() => {
+          addBreadcrumb("Schritte-Protokoll kopieren fehlgeschlagen");
+        });
       },
-    }];
-  });
+    });
+    return tools;
+  }, [availableTools, navigate, quickToolIds]);
 
   const pinQuickAction = useCallback(async (toolId: string) => {
     const fallback = rankedToolIds(usageEntries, availableTools.map((item) => item.contributionId));
@@ -142,15 +197,20 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
       const command = commandRegistry.get(item.value.contribution.commandId);
       if (!command) return [];
       const Icon = item.value.runtime.icon;
+      const label = override?.label ?? command.value.contribution.title;
+      const baseRun = override?.onSelect ?? (() => { void commandRegistry.execute(item.value.contribution.commandId); });
       return [{
         id: item.contributionId,
-        label: override?.label ?? command.value.contribution.title,
+        label,
         ...(override?.icon !== undefined ? { icon: override.icon } : Icon ? { icon: <Icon className="h-4 w-4" /> } : {}),
         disabled: override?.disabled ?? false,
         danger: override?.danger ?? item.value.contribution.group === "danger",
         ...(override?.checked === undefined ? {} : { checked: override.checked }),
         group: item.value.contribution.group,
-        run: override?.onSelect ?? (() => { void commandRegistry.execute(item.value.contribution.commandId); }),
+        run: () => {
+          addBreadcrumb(`Menüaktion gewählt: ${label} [${request.surface}]`);
+          void baseRun();
+        },
       }];
     });
   }, [pinQuickAction, registry, request]);

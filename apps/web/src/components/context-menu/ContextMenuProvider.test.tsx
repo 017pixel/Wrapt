@@ -77,6 +77,34 @@ describe("ContextMenuProvider", () => {
     expect(fireEvent.contextMenu(screen.getByTestId("freie-flaeche"), { clientX: 40, clientY: 60 })).toBe(false);
     expect(screen.getByRole("menu").getAttribute("data-surface")).toBe("host.context-menu.empty");
     expect(screen.getByRole("menuitem", { name: "Dateien" })).toBeTruthy();
+    expect(screen.getByRole("menuitem", { name: "Letzte Schritte kopieren" })).toBeTruthy();
+  });
+
+  it("kopiert das Schritte-Protokoll über die Schnellaktion", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(globalThis.navigator, "clipboard", {
+      value: { writeText },
+      configurable: true,
+    });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(
+      JSON.stringify({ version: "1.6.0", bootId: "boot-1", webBuildId: 2 }),
+      { status: 200, headers: { "Content-Type": "application/json" } },
+    ));
+    const { addBreadcrumb, getRecentSteps, resetBreadcrumbsForTest } = await import("../../lib/crashReport");
+    resetBreadcrumbsForTest();
+    addBreadcrumb("Seitenwechsel: / → /projekte");
+
+    renderProvider(<div data-testid="freie-flaeche">Freier Bereich</div>);
+    fireEvent.contextMenu(screen.getByTestId("freie-flaeche"), { clientX: 40, clientY: 60 });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Letzte Schritte kopieren" }));
+
+    await vi.waitFor(() => expect(writeText).toHaveBeenCalledOnce());
+    const copied = writeText.mock.calls[0]?.[0] as string;
+    expect(copied).toContain("# Schritte-Protokoll — Wrapt");
+    expect(copied).toContain("Seitenwechsel: / → /projekte");
+    expect(copied).toContain("Auftrag an den KI-Agenten");
+    expect(getRecentSteps().join("\n")).toContain("Schritte-Protokoll kopiert");
+    vi.restoreAllMocks();
   });
 
   it("überlässt interaktiven Elementen das native Kontextmenü", () => {

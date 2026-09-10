@@ -1,8 +1,12 @@
+// @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   addBreadcrumb,
+  describeClickTarget,
   dismissCrash,
+  formatStepsReport,
   getCurrentCrash,
+  getRecentSteps,
   isBenignError,
   reportCrash,
   resetBreadcrumbsForTest,
@@ -76,13 +80,48 @@ describe("Verlauf", () => {
   });
 
   it("behält nur die jüngsten Einträge", () => {
-    for (let index = 0; index < 40; index += 1) addBreadcrumb(`Schritt ${index}`);
+    for (let index = 0; index < 70; index += 1) addBreadcrumb(`Schritt ${index}`);
 
     reportCrash({ kind: "error", error: new Error("Ausloeser") });
     const breadcrumbs = getCurrentCrash()?.breadcrumbs ?? [];
 
-    expect(breadcrumbs).toHaveLength(25);
-    expect(breadcrumbs.at(-1)).toContain("Schritt 39");
-    expect(breadcrumbs.at(0)).toContain("Schritt 15");
+    expect(breadcrumbs).toHaveLength(50);
+    expect(breadcrumbs.at(-1)).toContain("Schritt 69");
+    expect(breadcrumbs.at(0)).toContain("Schritt 20");
+  });
+
+  it("gibt die letzten 50 Schritte für das manuelle Protokoll zurück", () => {
+    for (let index = 0; index < 60; index += 1) addBreadcrumb(`Aktion ${index}`);
+
+    const steps = getRecentSteps();
+
+    expect(steps).toHaveLength(50);
+    expect(steps.at(-1)).toContain("Aktion 59");
+    expect(steps.at(0)).toContain("Aktion 10");
+  });
+
+  it("formatiert ein kopierbares Schritte-Protokoll mit Arbeitsauftrag", () => {
+    addBreadcrumb("Seitenwechsel: / → /projekte");
+    addBreadcrumb("Klick: <button> Speichern");
+
+    const text = formatStepsReport(getRecentSteps(), {
+      appVersion: "1.6.0",
+      bootId: "boot-123",
+      webBuildId: 456,
+      backendReachable: true,
+    });
+
+    expect(text).toContain("# Schritte-Protokoll — Wrapt");
+    expect(text).toContain("Seitenwechsel: / → /projekte");
+    expect(text).toContain("Auftrag an den KI-Agenten");
+    expect(text).toContain("Antworte auf Deutsch.");
+  });
+
+  it("beschreibt Klickziele kurz und ohne Rauschen", () => {
+    const button = document.createElement("button");
+    button.textContent = "  Speichern   Entwurf  ";
+    expect(describeClickTarget(button)).toBe("Klick: <button> Speichern Entwurf");
+    expect(describeClickTarget(document.createElement("div"))).toBeNull();
+    expect(describeClickTarget(null)).toBeNull();
   });
 });

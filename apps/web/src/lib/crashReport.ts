@@ -22,7 +22,7 @@ export interface CrashEnvironment {
   backendReachable: boolean;
 }
 
-const BREADCRUMB_LIMIT = 25;
+const BREADCRUMB_LIMIT = 50;
 
 interface Breadcrumb {
   at: string;
@@ -55,6 +55,27 @@ function snapshotBreadcrumbs(): string[] {
 /** Nur für Tests: setzt den Ringpuffer zurück. */
 export function resetBreadcrumbsForTest() {
   breadcrumbs.length = 0;
+}
+
+/** Die letzten bis zu 50 Schritte für das manuelle Kopieren per Schnellaktion. */
+export function getRecentSteps(): string[] {
+  return snapshotBreadcrumbs();
+}
+
+/** Beschreibt ein geklicktes Element kurz für das Schritte-Protokoll. */
+export function describeClickTarget(target: Element | null): string | null {
+  if (!target) return null;
+  const labelled = target.closest<HTMLElement>(
+    "button, a, [role=button], [role=menuitem], [role=tab], input, select, textarea, summary",
+  );
+  if (!labelled) return null;
+  const label = (labelled.getAttribute("aria-label")
+    ?? labelled.textContent
+    ?? labelled.getAttribute("placeholder")
+    ?? labelled.tagName).trim().replace(/\s+/g, " ");
+  if (!label) return null;
+  const shortened = label.length > 80 ? `${label.slice(0, 80)}…` : label;
+  return `Klick: <${labelled.tagName.toLowerCase()}> ${shortened}`;
 }
 
 type Listener = (report: CrashReport | null) => void;
@@ -195,6 +216,44 @@ export function formatCrashReport(report: CrashReport, environment: CrashEnviron
     "",
     "Antworte auf Deutsch.",
   );
+
+  return lines.join("\n");
+}
+
+/** Das manuell kopierte Schritte-Protokoll — gleiche Form wie der Crash-Report. */
+export function formatStepsReport(steps: readonly string[], environment: CrashEnvironment): string {
+  const lines = [
+    "# Schritte-Protokoll — Wrapt",
+    "",
+    `- Zeitpunkt: ${new Date().toISOString()}`,
+    `- Route: ${currentRoute()}`,
+    `- App-Version: ${environment.appVersion ?? "unbekannt"}`,
+    `- Backend erreichbar: ${environment.backendReachable ? "ja" : "nein"}`,
+    `- bootId: ${environment.bootId ?? "unbekannt"}`,
+    `- webBuildId: ${environment.webBuildId ?? "unbekannt"}`,
+    `- User-Agent: ${globalThis.navigator?.userAgent ?? "unbekannt"}`,
+    `- Viewport: ${globalThis.innerWidth ?? "?"}x${globalThis.innerHeight ?? "?"}`,
+    "",
+    "## Letzte Schritte (bis zu 50)",
+    "",
+    "```",
+    ...(steps.length ? steps : ["(noch keine Schritte aufgezeichnet)"]),
+    "```",
+    "",
+    "## Auftrag an den KI-Agenten",
+    "",
+    "Du arbeitest im Wrapt-Repository (pnpm-Monorepo: `apps/server` Fastify,",
+    "`apps/web` React/Vite, `packages/contracts` Zod). Der Nutzer hat diese Schritte",
+    "kurz vor einem Fehler oder einer Auffälligkeit kopiert. Bitte:",
+    "",
+    "1. Nutze das Protokoll, um den Ablauf bis zur Auffälligkeit nachzuvollziehen.",
+    "2. Finde die auslösende Stelle im Quellcode und erkläre kurz die Ursache.",
+    "3. Behebe die Ursache und achte auf gleichartige Stellen im Projekt.",
+    "4. Prüfe mit `pnpm typecheck` (nach Schema-Änderungen zuerst",
+    "   `pnpm --filter @wrapt/contracts build`) und mit `pnpm test`.",
+    "",
+    "Antworte auf Deutsch.",
+  ];
 
   return lines.join("\n");
 }
