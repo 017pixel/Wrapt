@@ -5,6 +5,7 @@ export * from "./codex-resets.js";
 export * from "./context-menu.js";
 export * from "./operational-metrics.js";
 export * from "./plugins.js";
+export * from "./update.js";
 
 export const isoDateSchema = z.iso.datetime({ offset: true });
 export const serviceModeSchema = z.enum(["embedded", "external", "hybrid"]);

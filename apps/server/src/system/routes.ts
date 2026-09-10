@@ -13,6 +13,8 @@ import {
   serverSummarySchema,
   servicesResponseSchema,
   t3ChannelRequestSchema,
+  updateStatusResponseSchema,
+  updateTriggerResponseSchema,
   usageMonitoringResponseSchema,
 } from "@wrapt/contracts";
 import type { FastifyInstance } from "fastify";
@@ -24,6 +26,7 @@ import { t3ChannelService } from "../services/t3ChannelService.js";
 import { usageMonitoringService } from "../services/usageMonitoringService.js";
 import { codexResetHistoryService } from "../services/codexResetHistoryService.js";
 import { bootId, readRestartStatus, RestartError, triggerRestart, webBuildId } from "./restart.js";
+import { getUpdateStatus, triggerUpdate, UpdateError } from "./update.js";
 import { AppError } from "../utils/errors.js";
 
 export async function registerSystemRoutes(app: FastifyInstance, services: RouteServices) {
@@ -67,6 +70,21 @@ export async function registerSystemRoutes(app: FastifyInstance, services: Route
   app.get("/system/restart/status", async () =>
     restartStatusResponseSchema.parse({ ...readRestartStatus(), bootId, webBuildId: webBuildId() }),
   );
+  app.get("/system/update/status", async () =>
+    updateStatusResponseSchema.parse(await getUpdateStatus()),
+  );
+  app.post("/system/update", { config: { rateLimit: { max: 2, timeWindow: "5 minutes" } } }, async (request, reply) => {
+    try {
+      const { jobId, logFile, fromHash, toHash } = await triggerUpdate();
+      return reply.status(202).send(updateTriggerResponseSchema.parse({ status: "accepted", jobId, target: "both", bootId, webBuildId: webBuildId(), logFile, fromHash, toHash }));
+    } catch (error) {
+      if (error instanceof UpdateError) {
+        request.log.warn({ err: error }, "Update abgelehnt");
+        throw new AppError(409, "UPDATE_REJECTED", `${error.message} ${error.hint}`, null, true);
+      }
+      throw error;
+    }
+  });
   app.get("/system/t3-channel", async () => t3ChannelService.status());
   // Setzt nur den Wunschkanal. Angewendet wird er beim nächsten Backend-Neustart
   // (Einstellungen → Dienst neu starten), damit der Nutzer den Zeitpunkt bestimmt.

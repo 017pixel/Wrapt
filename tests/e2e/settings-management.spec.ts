@@ -5,16 +5,16 @@ test.use({
   serviceWorkers: "block",
 });
 
-test("ordnet die Einstellungsbereiche und den allgemeinen Schnellzugriff", async ({ page }) => {
+test("ordnet die Einstellungsbereiche und den Neustart auf Allgemein", async ({ page }) => {
   await page.goto("/wrapt/settings");
 
   await expect(page.getByRole("searchbox", { name: "Einstellungen durchsuchen" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Design", exact: true }).first()).toBeVisible();
-  await expect(page.getByRole("button", { name: "Navigation", exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Start-App", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Neustart", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Frontend/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Backend/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Beides/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Nach Updates suchen" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Update installieren" })).toBeVisible();
   await expect(page.getByText("DARK ONLY", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Alle Themes bleiben dunkel.", { exact: false })).toHaveCount(0);
 });
@@ -44,7 +44,7 @@ test("öffnet den verschobenen Start-App-Bereich", async ({ page }) => {
 test("erreicht jeden Einstellungs-Tab und rendert seinen Fachbereich", async ({ page }) => {
   await page.goto("/wrapt/settings");
   const tabs = [
-    ["Allgemein", "settings-general"],
+    ["Allgemein", "settings-general-restart"],
     ["Design", "settings-design"],
     ["Navigation", "settings-navigation"],
     ["Rechtsklick", "settings-context-menu"],

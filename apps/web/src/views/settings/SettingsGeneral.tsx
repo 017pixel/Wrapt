@@ -1,69 +1,23 @@
-import type { ReactNode } from "react";
 import { usePwaInstall } from "../../lib/usePwaInstall";
 import { Card } from "../../components/Card";
 import { DownloadIcon, GitBranchIcon, RefreshIcon } from "../../components/icons";
 import { SystemRestartControls } from "../../components/SystemRestartControls";
-import type { SettingsNavigationTarget } from "./settingsTabs";
+import { SystemUpdateControls } from "../../components/SystemUpdateControls";
 
 interface SettingsGeneralProps {
   readonly version: string | undefined;
   readonly healthStatus: string | undefined;
-  readonly onNavigate: (target: SettingsNavigationTarget) => void;
 }
 
-const quickLinks: readonly {
-  readonly title: string;
-  readonly description: string;
-  readonly target: SettingsNavigationTarget;
-  readonly icon: ReactNode;
-}[] = [
-  {
-    title: "Design",
-    description: "Themes und eigene Farben",
-    target: { tab: "design", anchor: "settings-design" },
-    icon: <span aria-hidden="true">01</span>,
-  },
-  {
-    title: "Navigation",
-    description: "Sidebar und sichtbare Seiten",
-    target: { tab: "navigation", anchor: "settings-navigation" },
-    icon: <span aria-hidden="true">02</span>,
-  },
-  {
-    title: "Benachrichtigungen",
-    description: "Toasts und Push",
-    target: { tab: "benachrichtigungen", anchor: "settings-notifications" },
-    icon: <span aria-hidden="true">03</span>,
-  },
-  {
-    title: "Start-App",
-    description: "Seite beim Öffnen",
-    target: { tab: "start-app", anchor: "settings-start-app" },
-    icon: <span aria-hidden="true">04</span>,
-  },
-];
-
-export function SettingsGeneral({ version, healthStatus, onNavigate }: SettingsGeneralProps) {
+export function SettingsGeneral({ version, healthStatus }: SettingsGeneralProps) {
   const pwa = usePwaInstall();
   const showInstall = pwa.canInstall && !pwa.isInstalled;
   return (
     <>
-      <div id="settings-general">
-        <Card title="Allgemein">
-          <div className="settings-quick-links" aria-label="Schnellzugriff auf Einstellungsbereiche">
-            {quickLinks.map((link) => (
-              <button key={link.title} type="button" className="settings-quick-link" onClick={() => onNavigate(link.target)}>
-                <span className="settings-quick-link-index">{link.icon}</span>
-                <span><strong>{link.title}</strong><small>{link.description}</small></span>
-              </button>
-            ))}
-          </div>
-        </Card>
-      </div>
-
       <div id="settings-general-restart">
         <Card
-          title="Systemfunktionen"
+          title="Neustart"
+          subtitle="Frontend, Backend oder beides neu bauen"
           action={<RefreshIcon className="h-4 w-4 text-faint" />}
         >
           <SystemRestartControls />
@@ -93,6 +47,9 @@ export function SettingsGeneral({ version, healthStatus, onNavigate }: SettingsG
               <button type="button" onClick={() => void pwa.install()} className="quiet-button-primary"><DownloadIcon className="h-3.5 w-3.5" /> App installieren</button>
             </div>
           ) : null}
+          <div className="settings-subsection">
+            <SystemUpdateControls />
+          </div>
         </Card>
       </div>
     </>

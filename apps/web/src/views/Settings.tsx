@@ -93,7 +93,6 @@ export function Settings() {
             <SettingsGeneral
               version={health.data?.version}
               healthStatus={health.data?.status}
-              onNavigate={navigateTo}
             />
           ) : null}
           {activeTab === "design" ? (
