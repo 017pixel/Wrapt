@@ -82,8 +82,17 @@ export class TerminalStatusSync {
         const previous = this.seen.get(row.id); this.seen.set(row.id, fingerprint);
         if (!emit || previous === fingerprint || (row.status !== "exited" && row.status !== "interrupted" && row.status !== "closed")) continue;
         this.resolveWaiting(row.kind, row.id);
+        // Vom Nutzer geschlossene oder vom Supervisor abgebrochene Läufe sind
+        // kein Erfolg. Nur ein echter Exit (oder das Schließen nach einem
+        // sauberen Exit) wird gemeldet; ohne Exit-Code bleibt es still.
+        if (row.status === "interrupted") continue;
+        if (row.status === "closed" && row.exitCode === null) continue;
         const durationSeconds = Math.max(0, Math.round((row.updatedAt - row.createdAt) / 1_000));
         const failed = row.exitCode !== null && row.exitCode !== 0;
+        // Erfolge von OpenCode- und Codex-Läufen meldet der Agenten-Sync;
+        // sonst entstünde für denselben Lauf eine zweite Meldung. Fehler mit
+        // Exit-Code bleiben hier, weil nur der Terminal-Sync ihn kennt.
+        if (!failed && (row.kind === "opencode" || row.kind === "codex")) continue;
         const minimum = row.kind === "shell" ? this.options.terminalMinimumSeconds : this.options.agentMinimumSeconds;
         if (!failed && durationSeconds < minimum) continue;
         const title = failed ? `${label(row.kind)} fehlgeschlagen` : row.kind === "shell" ? "Befehl abgeschlossen" : `${label(row.kind)} abgeschlossen`;

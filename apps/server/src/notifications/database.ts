@@ -129,6 +129,14 @@ export class NotificationDatabase {
     });
     if (parsed.remoteId) {
       const existing = this.findByRemoteId(parsed.source, parsed.kind, parsed.remoteId);
+      // Finale Meldungen gehören zu genau einem Ereignis, nicht zu einem
+      // einzelnen Kind: Liefert dieselbe Quelle zum selben Remote-Zustand
+      // erst einen Fehler und später einen Abschluss, bleibt die erste
+      // finale Meldung bestehen und es entsteht kein zweiter Toast.
+      if (!existing && !renewableKinds.has(parsed.kind)) {
+        const sameEvent = this.findByRemoteIdAnyKind(parsed.source, parsed.remoteId);
+        if (sameEvent) return sameEvent;
+      }
       // Ein verworfener Eintrag bleibt für denselben Remote-Zustand verworfen.
       // Quellen müssen für einen späteren, neuen Zustand eine neue remoteId
       // liefern. Sonst würde ein Dienstneustart dieselbe Meldung erneut pushen.
@@ -290,6 +298,12 @@ export class NotificationDatabase {
 
   private findByRemoteId(source: NotificationSource, kind: string, remoteId: string): Notification | null {
     const row = this.db.prepare(`SELECT ${selection} FROM notifications WHERE source = ? AND kind = ? AND remote_id = ?`).get(source, kind, remoteId) as NotificationRow | undefined;
+    return row ? rowToNotification(row) : null;
+  }
+
+  /** Jüngste Meldung zu einem Remote-Zustand, unabhängig vom Kind. */
+  private findByRemoteIdAnyKind(source: NotificationSource, remoteId: string): Notification | null {
+    const row = this.db.prepare(`SELECT ${selection} FROM notifications WHERE source = ? AND remote_id = ? ORDER BY created_at DESC LIMIT 1`).get(source, remoteId) as NotificationRow | undefined;
     return row ? rowToNotification(row) : null;
   }
 

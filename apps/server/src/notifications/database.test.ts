@@ -75,6 +75,32 @@ describe("Benachrichtigungsdatenbank", () => {
     database.close();
   });
 
+  it("meldet ein finales Ereignis nur einmal, auch wenn die Quelle erst Fehler und dann Erfolg liefert", () => {
+    const directory = mkdtempSync(join(tmpdir(), "wrapt-notifications-"));
+    temporaryDirectories.push(directory);
+    const database = new NotificationDatabase(join(directory, "wrapt.sqlite"));
+    const failed = database.create({ source: "t3", category: "coding-agent", sourceIcon: "t3", kind: "agent.failed", severity: "error", title: "Fehler", body: "fehlgeschlagen", remoteId: "thread:1:turn:turn-1" });
+    const completed = database.create({ source: "t3", category: "coding-agent", sourceIcon: "t3", kind: "agent.completed", severity: "success", title: "Fertig", body: "fertig", remoteId: "thread:1:turn:turn-1" });
+    expect(completed.id).toBe(failed.id);
+    expect(completed.state).toBe("active");
+    expect(completed.kind).toBe("agent.failed");
+    expect(database.list({ limit: 100 }).notifications).toHaveLength(1);
+    database.close();
+  });
+
+  it("lässt erledigte finale Meldungen nicht durch einen anderen Ausgang wieder aufleben", () => {
+    const directory = mkdtempSync(join(tmpdir(), "wrapt-notifications-"));
+    temporaryDirectories.push(directory);
+    const database = new NotificationDatabase(join(directory, "wrapt.sqlite"));
+    const failed = database.create({ source: "t3", category: "coding-agent", sourceIcon: "t3", kind: "agent.failed", severity: "error", title: "Fehler", body: "fehlgeschlagen", remoteId: "thread:2:turn:turn-1" });
+    database.resolveByRemoteId("t3", "agent.failed", "thread:2:turn:turn-1");
+    const completed = database.create({ source: "t3", category: "coding-agent", sourceIcon: "t3", kind: "agent.completed", severity: "success", title: "Fertig", body: "fertig", remoteId: "thread:2:turn:turn-1" });
+    expect(completed.id).toBe(failed.id);
+    expect(completed.state).toBe("resolved");
+    expect(database.list({ limit: 100 }).notifications).toEqual([]);
+    database.close();
+  });
+
   it("löscht alle aktiven Einträge gemeinsam und behält sie als verworfen", () => {
     const directory = mkdtempSync(join(tmpdir(), "wrapt-notifications-"));
     temporaryDirectories.push(directory);

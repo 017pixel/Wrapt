@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HermesResultSync, shouldNotifyHermesMessage, shouldNotifyHermesSession } from "./result-sync.js";
@@ -20,7 +20,17 @@ function testSync(pollEnabled = true) {
   return { sync, notifications, sessions, manager, emit: (message: HermesServerMessage) => subscriber?.(message) };
 }
 
-afterEach(() => { vi.useRealTimers(); });
+const cursorPath = (): string => join(settings.dataDirectory, "hermes/result-cursor.json");
+
+function seedCursor(value: Record<string, unknown>): void {
+  mkdirSync(dirname(cursorPath()), { recursive: true });
+  writeFileSync(cursorPath(), JSON.stringify({ initialized: true, lastUpdatedAt: "2026-08-11T07:00:00.000Z", seenIds: [], startedIds: [], updateFinishedAt: null, dashboardReachable: null, gatewayState: null, ...value }));
+}
+
+afterEach(() => {
+  vi.useRealTimers();
+  rmSync(cursorPath(), { force: true });
+});
 
 describe("Hermes-Benachrichtigungsfilter", () => {
   it("unterdrückt kurze Web- und ACP-Antworten ohne Werkzeuge", () => {
@@ -64,6 +74,42 @@ describe("Hermes Task-Lebenszyklus-Benachrichtigungen", () => {
       request: { requestId: "req-2", sessionId: "sess-2", toolCallId: null, title: "Datei lesen", description: "", command: null, risk: "low", options: ["allow_once", "deny"], expiresAt: new Date(Date.now() + 60_000).toISOString() },
     });
     expect(notifications.create).toHaveBeenCalledWith(expect.objectContaining({ kind: "hermes.approval", severity: "warning" }));
+    sync.stop();
+  });
+
+  it("meldet eine ACP-Antwort nicht zusätzlich über den Session-Poll", async () => {
+    seedCursor({});
+    const { sync, notifications, sessions, manager, emit } = testSync(false);
+    const tenMinutesAgo = new Date(Date.now() - 600_000).toISOString();
+    (manager.session as unknown as ReturnType<typeof vi.fn>).mockReturnValue({ createdAt: tenMinutesAgo });
+    (manager.hasConnections as unknown as ReturnType<typeof vi.fn>).mockReturnValue(true);
+    sync.start();
+    emit({
+      v: 1,
+      type: "message.complete",
+      sessionId: "sess-poll",
+      message: { id: "msg-1", role: "assistant", content: "Fertig.", toolCalls: [{ id: "tool-1", name: "bash", kind: "terminal", status: "completed", title: "bash", arguments: {}, result: "ok", command: null, cwd: null, exitCode: 0, startedAt: null, durationMs: 5, truncated: false }], createdAt: new Date().toISOString(), truncated: false },
+    });
+    await vi.waitFor(() => expect(notifications.create).toHaveBeenCalledTimes(1));
+    sessions.listSessions.mockResolvedValue({ sessions: [{ id: "sess-poll", title: "Antwort", source: "web", status: "completed", updatedAt: new Date().toISOString(), createdAt: tenMinutesAgo }], nextCursor: null });
+    await (sync as unknown as { poll(): Promise<void> }).poll();
+    expect(notifications.create).toHaveBeenCalledTimes(1);
+    sync.stop();
+  });
+
+  it("misst die Meldepause an der Antwort statt am Alter der Sitzung", async () => {
+    seedCursor({});
+    const { sync, notifications, manager, emit } = testSync(false);
+    const tenMinutesAgo = new Date(Date.now() - 600_000).toISOString();
+    (manager.session as unknown as ReturnType<typeof vi.fn>).mockReturnValue({ createdAt: tenMinutesAgo });
+    sync.start();
+    emit({
+      v: 1,
+      type: "message.complete",
+      sessionId: "sess-kurz",
+      message: { id: "msg-2", role: "assistant", content: "Kurze Antwort.", toolCalls: [], createdAt: new Date().toISOString(), truncated: false },
+    });
+    expect(notifications.create).not.toHaveBeenCalled();
     sync.stop();
   });
 

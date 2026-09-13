@@ -76,6 +76,14 @@ export const wraptConfigSchema = z.object({
     terminalInputIdleMilliseconds: z.number().int().min(1_000).max(120_000).default(8_000),
     t3CompletionMinimumSeconds: z.number().int().min(5).max(86_400).default(120),
     t3MiniTaskSeconds: z.number().int().min(1).max(300).default(30),
+    // Agenten-Läufe (OpenCode) werden pro Sitzung gebündelt und erst gemeldet,
+    // wenn so viele Sekunden keine neue Antwort mehr kam. Das verhindert eine
+    // Meldung pro Assistant-Nachricht und damit Flut und Doppelmeldungen.
+    agentRunIdleSeconds: z.number().int().min(5).max(3_600).default(45),
+    // Ein finaler T3-Turn wird erst gemeldet, wenn sein Zustand so lange
+    // unverändert bleibt. T3 korrigiert transiente Fehler innerhalb weniger
+    // Sekunden; ohne dieses Fenster entstehen falsche „fehlgeschlagen"-Toasts.
+    finalSettleSeconds: z.number().int().min(0).max(300).default(10),
     // Weitere T3-Instanzen, deren Thread-Status über SSH mitgelesen wird. Jede
     // Quelle braucht passwortlosen SSH-Zugang (Key) und python3 auf dem Ziel.
     t3RemoteSyncs: z.array(z.object({

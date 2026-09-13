@@ -121,6 +121,8 @@
     "agentMinimumSeconds": 180,
     "t3CompletionMinimumSeconds": 120,
     "t3MiniTaskSeconds": 30,
+    "agentRunIdleSeconds": 45,
+    "finalSettleSeconds": 10,
     "hermesCompletionMinimumSeconds": 120,
     "pushSubject": "mailto:admin@localhost"
   },

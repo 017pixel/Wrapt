@@ -115,9 +115,9 @@ Nach Änderungen an Port oder Binary ist ein Backend-Neustart erforderlich.
 Die Inbox liest T3 Code defensiv aus dessen eigener SQLite-Projektion und ergänzt die Ergebnisse
 um Hermes- sowie Terminal-/CLI-Ereignisse. `notifications.pollSeconds` steuert das serverseitige
 Intervall. Die Mindestlaufzeiten liegen zentral in `terminalMinimumSeconds`,
-`agentMinimumSeconds`, `t3CompletionMinimumSeconds`, `t3MiniTaskSeconds` und
-`hermesCompletionMinimumSeconds`. Aktive ungelesene Einträge bleiben erhalten; erledigte,
-verworfene und normale gelesene Einträge werden nach `pruneAfterHours` entfernt.
+`agentMinimumSeconds`, `t3CompletionMinimumSeconds`, `t3MiniTaskSeconds`, `agentRunIdleSeconds` (Bündelung),
+`finalSettleSeconds` und `hermesCompletionMinimumSeconds`; aktive ungelesene Einträge
+bleiben erhalten, erledigte, verworfene und gelesene Einträge werden nach `pruneAfterHours` entfernt.
 
 Unter `notifications.preferences` lassen sich Toasts und Web-Push global sowie pro Quelle
 schalten. `pushEnabled` ist ausschließlich der globale Server-Master-Schalter. Ob das gerade

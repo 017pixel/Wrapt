@@ -15,6 +15,8 @@ interface ResultCursor {
   updateFinishedAt: string | null;
   dashboardReachable: boolean | null;
   gatewayState: string | null;
+  /** Sitzungen, deren Live-Antwort bereits über ACP gemeldet wurde. */
+  acpNotified: Record<string, string>;
 }
 
 const defaultCursor: ResultCursor = {
@@ -25,6 +27,7 @@ const defaultCursor: ResultCursor = {
   updateFinishedAt: null,
   dashboardReachable: null,
   gatewayState: null,
+  acpNotified: {},
 };
 
 function cursorPath(): string { return join(settings.dataDirectory, "hermes/result-cursor.json"); }
@@ -40,8 +43,9 @@ async function loadCursor(): Promise<ResultCursor> {
       updateFinishedAt: typeof value.updateFinishedAt === "string" ? value.updateFinishedAt : null,
       dashboardReachable: typeof value.dashboardReachable === "boolean" ? value.dashboardReachable : null,
       gatewayState: typeof value.gatewayState === "string" ? value.gatewayState : null,
+      acpNotified: value.acpNotified && typeof value.acpNotified === "object" ? value.acpNotified as Record<string, string> : {},
     };
-  } catch { return { ...defaultCursor }; }
+  } catch { return { ...defaultCursor, acpNotified: {} }; }
 }
 
 async function saveCursor(cursor: ResultCursor): Promise<void> {
@@ -49,7 +53,7 @@ async function saveCursor(cursor: ResultCursor): Promise<void> {
   try {
     await mkdir(dirname(path), { recursive: true });
     const temporary = `${path}.${process.pid}.tmp`;
-    await writeFile(temporary, `${JSON.stringify({ ...cursor, seenIds: cursor.seenIds.slice(-200), startedIds: cursor.startedIds.slice(-200) }, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
+    await writeFile(temporary, `${JSON.stringify({ ...cursor, seenIds: cursor.seenIds.slice(-200), startedIds: cursor.startedIds.slice(-200), acpNotified: Object.fromEntries(Object.entries(cursor.acpNotified).slice(-200)) }, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
     await rename(temporary, path);
   } catch { /* Best Effort — der Sync kommt beim nächsten Poll erneut. */ }
 }
@@ -73,10 +77,15 @@ export function shouldNotifyHermesMessage(durationSeconds: number, toolCallCount
   return toolCallCount > 0 || durationSeconds >= minimumSeconds;
 }
 
+/** Ein Poll kurz nach der ACP-Meldung darf dieselbe Sitzung nicht erneut
+ *  melden, obwohl sie technisch schon wieder ein neues `updatedAt` hat. */
+const ACP_POLL_TOLERANCE_MS = 5_000;
+
 export class HermesResultSync {
   private timer: NodeJS.Timeout | null = null;
   private cursor: ResultCursor | null = null;
   private unsubscribe: (() => void) | null = null;
+  private readonly acpNotified = new Map<string, string>();
 
   constructor(
     private readonly sessions: HermesSessionService,
@@ -104,6 +113,7 @@ export class HermesResultSync {
     if (!this.manager.hasConnections()) return;
     if (!this.cursor) this.cursor = await loadCursor();
     const cursor = this.cursor;
+    for (const [sessionId, at] of Object.entries(cursor.acpNotified)) if (!this.acpNotified.has(sessionId)) this.acpNotified.set(sessionId, at);
     try {
       const response = await this.sessions.listSessions({ limit: 100, offset: 0 });
       if (!cursor.initialized) {
@@ -141,6 +151,14 @@ export class HermesResultSync {
           if (cursor.seenIds.includes(remoteId)) continue;
           if (cursor.lastUpdatedAt && Date.parse(session.updatedAt) <= Date.parse(cursor.lastUpdatedAt)) {
             cursor.seenIds.push(remoteId);
+            continue;
+          }
+          // Hat ACP dieselbe Antwort schon live gemeldet, entfällt die
+          // zweite Meldung aus dem Sitzungs-Poll.
+          const notifiedAt = this.acpNotified.get(session.id);
+          if (notifiedAt && Date.parse(session.updatedAt) <= Date.parse(notifiedAt) + ACP_POLL_TOLERANCE_MS) {
+            cursor.seenIds.push(remoteId);
+            cursor.lastUpdatedAt = later(cursor.lastUpdatedAt, session.updatedAt);
             continue;
           }
           const durationSeconds = session.createdAt ? Math.max(0, (Date.parse(session.updatedAt) - Date.parse(session.createdAt)) / 1_000) : 0;
@@ -191,6 +209,7 @@ export class HermesResultSync {
       }
       cursor.updateFinishedAt = update.lastFinishedAt;
     }
+    cursor.acpNotified = Object.fromEntries(this.acpNotified);
     await saveCursor(cursor);
   }
 
@@ -213,8 +232,12 @@ export class HermesResultSync {
       return;
     }
     if (message.type !== "message.complete") return;
-    const session = this.manager.session(message.sessionId);
-    const durationSeconds = session?.createdAt ? Math.max(0, (Date.now() - Date.parse(session.createdAt)) / 1_000) : 0;
+    // Auch eine unterdrückte kurze Antwort gilt als behandelt: Der
+    // Sitzungs-Poll soll nicht später dieselbe Nachricht melden.
+    this.acpNotified.set(message.sessionId, new Date().toISOString());
+    // Die Meldepause misst die Antwort selbst, nicht das Alter der Sitzung.
+    // Sonst würde in einem langen Chat jede kurze Nachricht gemeldet.
+    const durationSeconds = Math.max(0, (Date.now() - Date.parse(message.message.createdAt)) / 1_000);
     if (!shouldNotifyHermesMessage(durationSeconds, message.message.toolCalls.length, settings.notifications.hermesCompletionMinimumSeconds)) return;
     this.notifications.create({
       source: "hermes",

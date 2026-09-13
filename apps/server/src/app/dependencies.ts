@@ -211,6 +211,7 @@ export async function createAppDependencies(app: FastifyInstance) {
     pollSeconds: settings.notifications.pollSeconds,
     completionMinimumSeconds: settings.notifications.t3CompletionMinimumSeconds,
     miniTaskSeconds: settings.notifications.t3MiniTaskSeconds,
+    finalSettleSeconds: settings.notifications.finalSettleSeconds,
     cursorPath: join(settings.dataDirectory, "notifications/t3-status-cursor.json"),
     remoteSources: settings.notifications.t3RemoteSyncs,
   });
@@ -223,13 +224,16 @@ export async function createAppDependencies(app: FastifyInstance) {
     inputIdleMilliseconds: settings.notifications.terminalInputIdleMilliseconds,
   });
   const agentSessionSync = new AgentSessionSync({
-    opencodeDatabasePath: join(settings.systemHomeDirectory, ".local/share/opencode/opencode.db"),
+    // Die konfigurierten gemeinsamen Homes gelten auch für die Verlaufsquellen;
+    // sonst würden abweichende Pfade (Config oder Profil) ins Leere lesen.
+    opencodeDatabasePath: join(settings.sharedHomes.opencode.sharedHome, "opencode.db"),
     t3DatabasePath: join(settings.systemHomeDirectory, ".t3/userdata/state.sqlite"),
-    codexSessionsPath: join(settings.systemHomeDirectory, ".codex/sessions"),
+    codexSessionsPath: join(settings.sharedHomes.codex.sharedHome, "sessions"),
     cursorPath: join(settings.dataDirectory, "notifications/agent-session-cursor.json"),
     notifications: notificationDatabase,
     pollSeconds: settings.notifications.pollSeconds,
     completionMinimumSeconds: settings.notifications.agentMinimumSeconds,
+    runIdleSeconds: settings.notifications.agentRunIdleSeconds,
   });
   const hermesClient = new HermesDashboardClient();
   const hermesManager = new HermesAcpManager({
