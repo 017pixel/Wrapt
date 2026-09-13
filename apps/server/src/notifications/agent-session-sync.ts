@@ -53,13 +53,17 @@ export function runBody(directory: string, responses: number, durationSeconds: n
 /**
  * Ordnet eine OpenCode-Session einem T3-Turn zu. T3 benennt seine Threads um
  * und speichert die OpenCode-Session-ID nicht in der Projektion; verlässlich
- * ist deshalb der Startzeitpunkt: Eine Session, die im selben Projektverzeichnis
- * nahe am Start eines aktiven T3-Turns entstand, stammt von T3. Läuft der
- * Turn schon länger, gehören nur noch Subagenten der bekannten Session dazu —
- * neue Roots gelten als manueller Lauf und werden gemeldet.
+ * sind zwei Signale im selben Projektverzeichnis:
+ * 1. Die Session entstand nahe am Start des T3-Turns.
+ * 2. Die Session war während des Turns aktiv (wichtig nach einem Neustart,
+ *    wenn die zugehörige T3-Session schon länger besteht).
+ * Neue Läufe, die erst nach dem Turn-Start beginnen und nichts mit T3 zu tun
+ * haben, werden nicht dauerhaft unterdrückt.
  */
-export function matchesT3Directory(session: Pick<OpenCodeSession, "directory" | "timeCreated">, entry: T3Directory, toleranceMilliseconds = T3_DIRECTORY_TOLERANCE_MS): boolean {
-  return session.timeCreated >= entry.activeSince - toleranceMilliseconds && session.timeCreated <= entry.activeSince + toleranceMilliseconds;
+export function matchesT3Directory(session: Pick<OpenCodeSession, "directory" | "timeCreated" | "timeUpdated">, entry: T3Directory, toleranceMilliseconds = T3_DIRECTORY_TOLERANCE_MS): boolean {
+  const startsNearTurn = session.timeCreated >= entry.activeSince - toleranceMilliseconds && session.timeCreated <= entry.activeSince + toleranceMilliseconds;
+  const activeDuringTurn = session.timeCreated <= entry.activeSince + toleranceMilliseconds && session.timeUpdated >= entry.activeSince;
+  return startsNearTurn || activeDuringTurn;
 }
 
 /** Liest ausschließlich neue Abschlussereignisse aus den lokalen CLI-Verläufen. */

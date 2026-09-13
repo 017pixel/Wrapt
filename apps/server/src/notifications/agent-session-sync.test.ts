@@ -226,10 +226,14 @@ describe("Agent-Session-Synchronisation", () => {
 
   it("ordnet nur Sessions im Zeitfenster des aktiven T3-Turns zu", () => {
     const now = Date.now();
-    expect(matchesT3Directory({ directory: "/workspace", timeCreated: now }, { directory: "/workspace", activeSince: now })).toBe(true);
+    expect(matchesT3Directory({ directory: "/workspace", timeCreated: now, timeUpdated: now }, { directory: "/workspace", activeSince: now })).toBe(true);
     // Ein seit Stunden offener T3-Thread darf neue manuelle Läufe nicht schlucken.
-    expect(matchesT3Directory({ directory: "/workspace", timeCreated: now }, { directory: "/workspace", activeSince: now - 3 * 3_600_000 })).toBe(false);
-    expect(matchesT3Directory({ directory: "/workspace", timeCreated: now - 60_000 }, { directory: "/workspace", activeSince: now })).toBe(true);
+    expect(matchesT3Directory({ directory: "/workspace", timeCreated: now, timeUpdated: now }, { directory: "/workspace", activeSince: now - 3 * 3_600_000 })).toBe(false);
+    expect(matchesT3Directory({ directory: "/workspace", timeCreated: now - 60_000, timeUpdated: now }, { directory: "/workspace", activeSince: now })).toBe(true);
+    // Bestehende T3-Session nach einem Neustart: alt erstellt, aber während des Turns aktiv.
+    expect(matchesT3Directory({ directory: "/workspace", timeCreated: now - 7_200_000, timeUpdated: now }, { directory: "/workspace", activeSince: now - 3_600_000 })).toBe(true);
+    // Alte, inaktive Session bleibt ein manueller Lauf.
+    expect(matchesT3Directory({ directory: "/workspace", timeCreated: now - 7_200_000, timeUpdated: now - 7_200_000 }, { directory: "/workspace", activeSince: now - 3_600_000 })).toBe(false);
   });
 
   it("setzt beim ersten Lauf nur den Cursor und erzeugt keine Toast-Kandidaten für den Bestand", () => {
