@@ -12,8 +12,21 @@ const TOAST_LIFETIME = 2_600;
 const TOAST_EXIT_DURATION = 320;
 /** Dedup-Gedächtnis: nur die letzten IDs zählen, damit das Set nicht unbegrenzt wächst (F04-08). */
 const SEEN_RETENTION = 50;
-type ToastEntry = { notification: Notification; leaving: boolean };
+type ToastEntry = { identity: string; notification: Notification; leaving: boolean };
 type UiToastEntry = { toast: UiToast; leaving: boolean };
+
+/**
+ * Dieselbe Benachrichtigungszeile kann erneut aktiv werden (z. B. eine neue
+ * Input-Anforderung nach dem Erledigen). Der Erstellungszeitpunkt
+ * unterscheidet den neuen Vorgang von der alten, bereits gesehenen Meldung.
+ */
+export function toastIdentity(notification: Notification): string {
+  return `${notification.id}:${notification.createdAt}`;
+}
+
+export function shouldToastNotification(notification: Notification, options: { toastsEnabled: boolean; sourceToastEnabled: boolean; alreadySeen: boolean }): boolean {
+  return options.toastsEnabled && options.sourceToastEnabled && important(notification) && !options.alreadySeen;
+}
 
 /**
  * Sichtbare Toasts: Standard genau einer, der neueste gewinnt. Nur wenn zwei
@@ -52,27 +65,34 @@ export function NotificationCenter() {
   const lifecycleTimers = useRef(new Map<string, number>());
   const uiLeaving = useRef(new Set<string>());
   const uiLifecycleTimers = useRef(new Map<string, number>());
+  const toastsRef = useRef<ToastEntry[]>([]);
   const queryClient = useQueryClient();
   const query = useQuery(wraptQueries.notifications());
   const settings = useQuery(wraptQueries.notificationSettings());
 
-  const clearLifecycleTimer = useCallback((id: string) => {
-    const timer = lifecycleTimers.current.get(id);
-    if (timer !== undefined) { window.clearTimeout(timer); lifecycleTimers.current.delete(id); }
+  const clearLifecycleTimer = useCallback((identity: string) => {
+    const timer = lifecycleTimers.current.get(identity);
+    if (timer !== undefined) { window.clearTimeout(timer); lifecycleTimers.current.delete(identity); }
   }, []);
-  const removeToast = useCallback((id: string) => {
-    clearLifecycleTimer(id);
-    leaving.current.delete(id);
-    setToasts((current) => current.filter((toast) => toast.notification.id !== id));
+  const removeToast = useCallback((identity: string) => {
+    clearLifecycleTimer(identity);
+    leaving.current.delete(identity);
+    setToasts((current) => current.filter((toast) => toast.identity !== identity));
   }, [clearLifecycleTimer]);
-  const dismissToast = useCallback((id: string) => {
-    if (leaving.current.has(id)) return;
-    clearLifecycleTimer(id);
-    leaving.current.add(id);
-    setToasts((current) => current.map((toast) => toast.notification.id === id ? { ...toast, leaving: true } : toast));
-    const timer = window.setTimeout(() => removeToast(id), TOAST_EXIT_DURATION);
-    lifecycleTimers.current.set(id, timer);
+  const dismissToast = useCallback((identity: string) => {
+    if (leaving.current.has(identity)) return;
+    clearLifecycleTimer(identity);
+    leaving.current.add(identity);
+    setToasts((current) => current.map((toast) => toast.identity === identity ? { ...toast, leaving: true } : toast));
+    const timer = window.setTimeout(() => removeToast(identity), TOAST_EXIT_DURATION);
+    lifecycleTimers.current.set(identity, timer);
   }, [clearLifecycleTimer, removeToast]);
+  // Der Server entfernt Benachrichtigungen über ihre Datenbank-ID; die
+  // Toast-Liste wird über die Ereignis-Identität geführt.
+  const dismissToastByNotificationId = useCallback((id: string) => {
+    const entry = toastsRef.current.find((item) => item.notification.id === id);
+    if (entry) dismissToast(entry.identity);
+  }, [dismissToast]);
 
   useEffect(() => () => {
     lifecycleTimers.current.forEach((timer) => window.clearTimeout(timer));
@@ -82,27 +102,33 @@ export function NotificationCenter() {
   }, []);
 
   useEffect(() => {
+    toastsRef.current = toasts;
     // Verdrängte Toasts hinterlassen weder Timer noch Abgangsmarken.
-    const visible = new Set(toasts.map((toast) => toast.notification.id));
-    lifecycleTimers.current.forEach((timer, id) => {
-      if (!visible.has(id)) { window.clearTimeout(timer); lifecycleTimers.current.delete(id); }
+    const visible = new Set(toasts.map((toast) => toast.identity));
+    lifecycleTimers.current.forEach((timer, identity) => {
+      if (!visible.has(identity)) { window.clearTimeout(timer); lifecycleTimers.current.delete(identity); }
     });
-    leaving.current.forEach((id) => { if (!visible.has(id)) leaving.current.delete(id); });
+    leaving.current.forEach((identity) => { if (!visible.has(identity)) leaving.current.delete(identity); });
   }, [toasts]);
 
   const showToast = useCallback((item: Notification) => {
     // WebSocket-Ereignisse während des ersten Abrufs gehören zum Bestand.
     // Sie werden nach dem erfolgreichen Abruf nicht erneut als Start-Toast gezeigt.
     if (!initialized.current) return;
-    const preferences = settings.data?.preferences;
-    if (!preferences?.toastsEnabled || !(preferences.sources[item.source] ?? preferences.sources.wrapt).toast || !important(item) || seen.current.has(item.id)) return;
-    seen.current.add(item.id);
+    const identity = toastIdentity(item);
+    const alreadySeen = seen.current.has(identity);
+    // Auch unterdrückte Ereignisse gelten als gesehen: Solange die
+    // Einstellungen noch laden, darf daraus kein späterer Toast-Schwall werden.
+    seen.current.add(identity);
     if (seen.current.size > SEEN_RETENTION) {
       seen.current = new Set([...seen.current].slice(-SEEN_RETENTION));
     }
-    setToasts((current) => selectVisibleToasts([...current.filter((toast) => toast.notification.id !== item.id), { notification: item, leaving: false }]));
-    const timer = window.setTimeout(() => { lifecycleTimers.current.delete(item.id); dismissToast(item.id); }, TOAST_LIFETIME);
-    lifecycleTimers.current.set(item.id, timer);
+    const preferences = settings.data?.preferences;
+    const source = preferences ? preferences.sources[item.source] ?? preferences.sources.wrapt : undefined;
+    if (!shouldToastNotification(item, { toastsEnabled: preferences?.toastsEnabled ?? false, sourceToastEnabled: source?.toast ?? false, alreadySeen })) return;
+    setToasts((current) => selectVisibleToasts([...current.filter((toast) => toast.identity !== identity), { identity, notification: item, leaving: false }]));
+    const timer = window.setTimeout(() => { lifecycleTimers.current.delete(identity); dismissToast(identity); }, TOAST_LIFETIME);
+    lifecycleTimers.current.set(identity, timer);
   }, [dismissToast, settings.data?.preferences]);
 
   const removeUiToast = useCallback((id: string) => {
@@ -133,7 +159,7 @@ export function NotificationCenter() {
     // neue Einträge aus Polling oder WebSocket als Toast-Kandidaten.
     if (!query.isSuccess || !query.data) return;
     const notifications = query.data.notifications ?? [];
-    if (!initialized.current) { notifications.forEach((item) => seen.current.add(item.id)); initialized.current = true; return; }
+    if (!initialized.current) { notifications.forEach((item) => seen.current.add(toastIdentity(item))); initialized.current = true; return; }
     notifications.forEach(showToast);
   }, [query.data, query.isSuccess, showToast]);
 
@@ -156,24 +182,24 @@ export function NotificationCenter() {
         if (!parsed.success) return;
         const message: NotificationEvent = parsed.data;
         if (message.type === "notification.created") showToastRef.current(message.notification);
-        if (message.type === "notification.removed") dismissToast(message.id);
+        if (message.type === "notification.removed") dismissToastByNotificationId(message.id);
         void queryClient.invalidateQueries({ queryKey: ["notifications"] });
       };
       socket.onclose = () => { if (!closed) timer = window.setTimeout(connect, Math.min(15_000, 1_000 * 2 ** retry++)); };
     };
     connect();
     return () => { closed = true; window.clearTimeout(timer); socket?.close(); };
-  }, [dismissToast, queryClient]);
+  }, [dismissToastByNotificationId, queryClient]);
 
   const open = async (notification: Notification) => {
-    dismissToast(notification.id);
+    dismissToast(toastIdentity(notification));
     await apiClient.patchNotification(notification.id, { read: true });
     void queryClient.invalidateQueries({ queryKey: ["notifications"] });
     if (notification.link) window.location.assign(notification.link);
   };
   return <>
     <div className="notification-toasts" aria-live="polite">
-      {toasts.map(({ notification, leaving: isLeaving }) => <Toast key={notification.id} notification={notification} leaving={isLeaving} onOpen={() => void open(notification)} onDismiss={() => dismissToast(notification.id)} />)}
+      {toasts.map(({ identity, notification, leaving: isLeaving }) => <Toast key={identity} notification={notification} leaving={isLeaving} onOpen={() => void open(notification)} onDismiss={() => dismissToast(identity)} />)}
       {uiToasts.map(({ toast, leaving: isLeaving }) => <UiToastItem key={toast.id} toast={toast} leaving={isLeaving} onDismiss={() => dismissUiToast(toast.id)} />)}
     </div>
   </>;

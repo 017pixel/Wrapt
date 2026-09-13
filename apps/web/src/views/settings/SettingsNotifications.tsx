@@ -76,6 +76,13 @@ function NotificationControls() {
 
   return (
     <div className="notification-settings">
+      <div className="notification-channel-note">
+        <span>
+          <strong>Inbox</strong>
+          <small>Jedes Ereignis landet in der Inbox, auch wenn Toasts und Push ausgeschaltet sind.</small>
+        </span>
+        <Badge tone="accent">Immer an</Badge>
+      </div>
       <button
         type="button"
         className="settings-toggle-row"
@@ -84,7 +91,7 @@ function NotificationControls() {
       >
         <span>
           <strong>Toasts</strong>
-          <small>Wichtige Ereignisse kurz oben rechts anzeigen</small>
+          <small>Kurze Einblendung für neue wichtige Ereignisse; die Inbox sammelt trotzdem alles</small>
         </span>
         <span
           className={`settings-toggle-switch ${preferences.toastsEnabled ? "is-on" : ""}`}
@@ -147,7 +154,7 @@ function NotificationControls() {
       >
         <span>
           <strong>Server-Push für wichtige Ereignisse</strong>
-          <small>Globaler Master-Schalter, verändert keine Geräte-Abos</small>
+          <small>Globaler Schalter für System-Benachrichtigungen; verändert keine Geräte-Abos und nicht die Inbox</small>
         </span>
         <span
           className={`settings-toggle-switch ${preferences.pushEnabled ? "is-on" : ""}`}
