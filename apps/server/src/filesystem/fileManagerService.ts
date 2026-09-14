@@ -1,10 +1,10 @@
 import { constants } from "node:fs";
 import type { Dirent, Stats } from "node:fs";
 import { createReadStream, createWriteStream } from "node:fs";
-import { access, lstat, mkdir, open, readdir, realpath, rename, rm } from "node:fs/promises";
+import { access, copyFile, link, lstat, mkdir, open, readdir, realpath, rename, rmdir, rm, unlink } from "node:fs/promises";
 import { Transform, type Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
+import { isAbsolute, join, normalize, resolve, sep } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import {
   fileManagerOperationResponseSchema,
@@ -18,6 +18,9 @@ import {
   type FileManagerSearchResponse,
 } from "@wrapt/contracts";
 import { AppError } from "../utils/errors.js";
+import { contained, entryFor, filesystemFailure, mimeTypeFor, sanitizeName, utf8SafeCut } from "./fileSystemHelpers.js";
+
+export { languageForName } from "./fileSystemHelpers.js";
 
 const DEFAULT_TEXT_PREVIEW_BYTES = 300 * 1024;
 const SEARCH_LIMIT = 250;
@@ -32,129 +35,7 @@ interface StateRow {
   updated_at: string;
 }
 
-function contained(root: string, target: string): boolean {
-  const pathFromRoot = relative(root, target);
-  return pathFromRoot === "" || (!pathFromRoot.startsWith(`..${sep}`) && pathFromRoot !== ".." && !isAbsolute(pathFromRoot));
-}
 
-function filesystemFailure(error: unknown): never {
-  const code = (error as NodeJS.ErrnoException).code;
-  if (code === "ENOENT") throw new AppError(404, "FILESYSTEM_PATH_NOT_FOUND", "Der angegebene Pfad wurde nicht gefunden.");
-  if (code === "EACCES" || code === "EPERM") throw new AppError(403, "FILESYSTEM_PATH_INACCESSIBLE", "Der angegebene Pfad ist nicht lesbar.");
-  throw error;
-}
-
-const MIME_TYPES: Record<string, string> = {
-  ".txt": "text/plain", ".md": "text/markdown", ".markdown": "text/markdown", ".log": "text/plain",
-  ".json": "application/json", ".jsonc": "application/json", ".yaml": "text/yaml", ".yml": "text/yaml",
-  ".html": "text/html", ".htm": "text/html", ".xml": "text/xml", ".svg": "image/svg+xml",
-  ".css": "text/css", ".scss": "text/scss", ".less": "text/less",
-  ".js": "text/javascript", ".mjs": "text/javascript", ".cjs": "text/javascript", ".jsx": "text/javascript",
-  ".ts": "text/typescript", ".mts": "text/typescript", ".cts": "text/typescript", ".tsx": "text/typescript",
-  ".py": "text/x-python", ".rb": "text/x-ruby", ".php": "text/x-php", ".sh": "text/x-shellscript",
-  ".bash": "text/x-shellscript", ".zsh": "text/x-shellscript", ".sql": "text/x-sql",
-  ".java": "text/x-java", ".go": "text/x-go", ".rs": "text/x-rust", ".c": "text/x-c", ".h": "text/x-c",
-  ".cpp": "text/x-cpp", ".hpp": "text/x-cpp", ".cs": "text/x-csharp", ".swift": "text/x-swift",
-  ".kt": "text/x-kotlin", ".kts": "text/x-kotlin", ".toml": "text/toml", ".ini": "text/plain",
-  ".env": "text/plain", ".gitignore": "text/plain", ".dockerignore": "text/plain", ".npmrc": "text/plain",
-  ".csv": "text/csv", ".diff": "text/x-diff", ".patch": "text/x-diff",
-  ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif",
-  ".webp": "image/webp", ".avif": "image/avif", ".ico": "image/x-icon", ".bmp": "image/bmp",
-  ".mp4": "video/mp4", ".webm": "video/webm", ".mov": "video/quicktime", ".mkv": "video/x-matroska",
-  ".avi": "video/x-msvideo", ".mp3": "audio/mpeg", ".wav": "audio/wav", ".ogg": "audio/ogg",
-  ".oga": "audio/ogg", ".flac": "audio/flac", ".m4a": "audio/mp4", ".opus": "audio/opus",
-  ".pdf": "application/pdf", ".zip": "application/zip", ".tar": "application/x-tar",
-  ".gz": "application/gzip", ".tgz": "application/gzip", ".7z": "application/x-7z-compressed",
-  ".woff": "font/woff", ".woff2": "font/woff2", ".ttf": "font/ttf", ".otf": "font/otf",
-};
-
-function mimeTypeFor(name: string): string {
-  const extension = name.slice(name.lastIndexOf(".")).toLowerCase();
-  return MIME_TYPES[extension] ?? "application/octet-stream";
-}
-
-export function languageForName(name: string): string | null {
-  const extension = name.slice(name.lastIndexOf(".")).toLowerCase();
-  const languages: Record<string, string> = {
-    ".ts": "typescript", ".mts": "typescript", ".cts": "typescript", ".tsx": "tsx",
-    ".js": "javascript", ".mjs": "javascript", ".cjs": "javascript", ".jsx": "jsx",
-    ".json": "json", ".jsonc": "json", ".css": "css", ".scss": "scss", ".less": "less",
-    ".html": "xml", ".htm": "xml", ".svg": "xml", ".xml": "xml",
-    ".md": "markdown", ".markdown": "markdown",
-    ".py": "python", ".sh": "bash", ".bash": "bash", ".zsh": "bash",
-    ".sql": "sql", ".yaml": "yaml", ".yml": "yaml", ".toml": "ini", ".ini": "ini",
-    ".java": "java", ".go": "go", ".rs": "rust", ".c": "c", ".h": "c", ".cpp": "cpp", ".hpp": "cpp",
-    ".cs": "csharp", ".rb": "ruby", ".php": "php", ".swift": "swift", ".kt": "kotlin",
-    ".diff": "diff", ".patch": "diff", ".dockerfile": "dockerfile",
-  };
-  if (name.toLowerCase() === "dockerfile") return "dockerfile";
-  return languages[extension] ?? null;
-}
-
-function sanitizeName(value: string): string {
-  return value.replace(/[\\/\0]/g, "_").trim().slice(0, 255) || "datei";
-}
-
-/**
- * Länge des längsten gültigen UTF-8-Präfixes eines Buffers mit höchstens
- * `maxBytes` Bytes. Eine abgeschnittene Multibyte-Sequenz am Ende wird komplett
- * entfernt, damit eine Textdatei nicht fälschlich als Binärdaten gilt, nur weil
- * die Vorschau-Grenze mitten durch ein Zeichen läuft. Rückgabe -1, wenn der
- * Präfix offensichtlich ungültige Byte-Sequenzen enthält.
- */
-function utf8SafeCut(buffer: Buffer, maxBytes: number): number {
-  const available = buffer.length;
-  if (available === 0) return 0;
-  let cursor = available - 1;
-  let continuationBytes = 0;
-  while (cursor >= 0 && continuationBytes < 4 && (buffer[cursor]! & 0xc0) === 0x80) {
-    cursor -= 1;
-    continuationBytes += 1;
-  }
-  if (cursor < 0) return -1;
-  const lead = buffer[cursor]!;
-  let expectedLength: number;
-  if (lead < 0x80) {
-    if (continuationBytes === 0) return Math.min(maxBytes, available);
-    return -1;
-  }
-  if ((lead & 0xe0) === 0xc0) expectedLength = lead >= 0xc2 ? 2 : 0;
-  else if ((lead & 0xf0) === 0xe0) expectedLength = 3;
-  else if ((lead & 0xf8) === 0xf0) expectedLength = lead <= 0xf4 ? 4 : 0;
-  else expectedLength = 0;
-  if (expectedLength === 0) return -1;
-  if (continuationBytes > expectedLength - 1) return -1;
-  if (continuationBytes < expectedLength - 1) {
-    // Sequenz im Puffer unvollständig. Beginnt sie vor der Grenze, ist die Datei
-    // wirklich kaputt; beginnt sie dahinter, wird sie einfach verworfen.
-    return cursor < maxBytes ? -1 : Math.min(maxBytes, cursor);
-  }
-  // Vollständige Sequenz. Beginnt sie jenseits der Grenze, wird sie verworfen;
-  // beginnt sie davor, aber sie endet dahinter, wird sie vervollständigt.
-  if (cursor >= maxBytes) return maxBytes;
-  const sequenceEnd = cursor + expectedLength;
-  if (sequenceEnd > maxBytes && sequenceEnd <= available) return sequenceEnd;
-  return maxBytes;
-}
-
-async function entryFor(path: string, name: string): Promise<FilesystemEntry> {
-  const details = await lstat(path);
-  if (details.isSymbolicLink()) return { name, path, kind: "symlink", sizeBytes: null, modifiedAt: null, readable: false };
-  const kindValue: FilesystemEntry["kind"] = details.isDirectory() ? "directory" : details.isFile() ? "file" : "other";
-  try {
-    await access(path, kindValue === "directory" ? constants.R_OK | constants.X_OK : constants.R_OK);
-    return {
-      name,
-      path,
-      kind: kindValue,
-      sizeBytes: kindValue === "file" ? details.size : null,
-      modifiedAt: details.mtime.toISOString(),
-      readable: true,
-    };
-  } catch {
-    return { name, path, kind: kindValue, sizeBytes: null, modifiedAt: null, readable: false };
-  }
-}
 
 export class FileManagerService {
   private readonly db: DatabaseSync;
@@ -364,17 +245,7 @@ export class FileManagerService {
     }
     const target = join(parentCanonical, name);
     if (requested === target) throw new AppError(400, "FILESYSTEM_SAME_NAME", "Der Name ist unverändert.");
-    try {
-      await lstat(target);
-      throw new AppError(409, "FILE_EXISTS", "Ein Eintrag mit diesem Namen existiert bereits.");
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    }
-    try {
-      await rename(requested, target);
-    } catch (error) {
-      filesystemFailure(error);
-    }
+    await this.moveNoReplace(requested, target);
     return target;
   }
 
@@ -400,17 +271,7 @@ export class FileManagerService {
     if (target.startsWith(`${canonical}${sep}`)) {
       throw new AppError(400, "FILESYSTEM_MOVE_INTO_SELF", "Ein Ordner kann nicht in sich selbst verschoben werden.");
     }
-    try {
-      await lstat(target);
-      throw new AppError(409, "FILE_EXISTS", "Im Zielordner existiert bereits ein Eintrag mit diesem Namen.");
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    }
-    try {
-      await rename(requested, target);
-    } catch (error) {
-      filesystemFailure(error);
-    }
+    await this.moveNoReplace(requested, target);
     return target;
   }
 
@@ -432,15 +293,11 @@ export class FileManagerService {
       filesystemFailure(error);
     }
     if (details.isDirectory()) {
-      const children = await readdir(canonical).catch(filesystemFailure);
-      if (children.length > 0) {
-        throw new AppError(409, "FILESYSTEM_DIRECTORY_NOT_EMPTY", "Der Ordner ist nicht leer und kann nicht gelöscht werden.");
-      }
-    }
-    try {
-      await rm(canonical, { force: false, recursive: details.isDirectory() });
-    } catch (error) {
-      filesystemFailure(error);
+      // rmdir ist atomar: ein zwischen Prüfung und Löschung neu befüllter
+      // Ordner endet als ENOTEMPTY-Konflikt statt als stiller Datenverlust.
+      try { await rmdir(canonical); } catch (error) { filesystemFailure(error); }
+    } else {
+      try { await unlink(canonical); } catch (error) { filesystemFailure(error); }
     }
     return canonical;
   }
@@ -489,7 +346,7 @@ export class FileManagerService {
     });
     try {
       await pipeline(input.stream, counter, createWriteStream(temporary, { flags: "wx", mode: 0o600 }));
-      await rename(temporary, target);
+      await this.pushFileNoReplace(temporary, target);
     } catch (error) {
       await rm(temporary, { force: true }).catch(() => undefined);
       if (error instanceof AppError) throw error;
@@ -497,6 +354,60 @@ export class FileManagerService {
     }
     const entry = await entryFor(target, name);
     return entry;
+  }
+
+  /**
+   * Veröffentlicht eine temporäre Datei atomar, ohne ein inzwischen entstandenes
+   * Ziel zu überschreiben. Hardlink + Unlink ersetzt das prüfende Rename; auf
+   * Dateisystemen ohne Hardlinks wird exklusiv kopiert.
+   */
+  private async pushFileNoReplace(temporary: string, target: string): Promise<void> {
+    try {
+      await link(temporary, target);
+      await unlink(temporary).catch(() => undefined);
+      return;
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "EEXIST") throw new AppError(409, "FILE_EXISTS", "Ein Eintrag mit diesem Namen existiert bereits.");
+      if (code !== "EPERM" && code !== "EOPNOTSUPP" && code !== "ENOSYS" && code !== "EXDEV") filesystemFailure(error);
+    }
+    try {
+      await copyFile(temporary, target, constants.COPYFILE_EXCL);
+    } catch (error) {
+      filesystemFailure(error);
+    }
+    await unlink(temporary).catch(() => undefined);
+  }
+
+  /**
+   * Verschiebt Dateien atomar per Hardlink und Ordner über eine exklusive
+   * Reservierung, sodass kein vorhandenes Ziel überschrieben wird.
+   */
+  private async moveNoReplace(source: string, target: string): Promise<void> {
+    let details: Stats;
+    try { details = await lstat(source); } catch (error) { filesystemFailure(error); }
+    if (!details.isDirectory()) {
+      await this.pushFileNoReplace(source, target);
+      return;
+    }
+    try {
+      await mkdir(target, { mode: 0o700 });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "EEXIST") {
+        throw new AppError(409, "FILE_EXISTS", "Im Zielordner existiert bereits ein Eintrag mit diesem Namen.");
+      }
+      filesystemFailure(error);
+    }
+    try {
+      await rmdir(target);
+      await rename(source, target);
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code === "EEXIST" || code === "ENOTEMPTY") {
+        throw new AppError(409, "FILE_EXISTS", "Im Zielordner existiert bereits ein Eintrag mit diesem Namen.");
+      }
+      filesystemFailure(error);
+    }
   }
 
   /** Namenssuche rekursiv mit Tiefen-, Treffer- und Zeitlimit. */
@@ -551,20 +462,40 @@ export class FileManagerService {
   }
 
   async saveState(input: { document: FileManagerState; expectedRevision: number | null }): Promise<FileManagerStateResponse> {
-    const current = this.readState();
-    if (input.expectedRevision === null && current.revision === 0) {
-      // Erstinitialisierung ohne vorhandenen Stand ist erlaubt.
-    } else if (input.expectedRevision !== current.revision) {
-      throw new AppError(409, "FILE_MANAGER_STATE_CONFLICT", "Der Dateimanager-Zustand wurde parallel geändert. Bitte neu laden.", {
-        revision: current.revision,
-      });
+    let revision: number;
+    let updatedAt: string;
+    let committed = false;
+    try {
+      this.db.exec("BEGIN IMMEDIATE");
+    } catch (error) {
+      if (String((error as Error).message).includes("SQLITE_BUSY")) {
+        throw new AppError(409, "FILE_MANAGER_STATE_BUSY", "Der Dateimanager-Zustand wird gerade von einem anderen Schreiber geändert.", { revision: null }, true);
+      }
+      throw error;
     }
-    const updatedAt = new Date().toISOString();
-    const revision = current.revision + 1;
-    this.db.prepare(
-      `INSERT INTO file_manager_state (id, document_json, revision, updated_at) VALUES (1, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET document_json = excluded.document_json, revision = excluded.revision, updated_at = excluded.updated_at`,
-    ).run(JSON.stringify(input.document), revision, updatedAt);
+    try {
+      // Revision lesen und schreiben müssen unter derselben Schreibsperre
+      // laufen. Sonst können zwei Schreiber denselben Stand lesen und der
+      // spätere Save überschreibt die Änderung des ersten (Lost Update).
+      const current = this.readState();
+      const matches = input.expectedRevision === null ? current.revision === 0 : input.expectedRevision === current.revision;
+      if (!matches) {
+        throw new AppError(409, "FILE_MANAGER_STATE_CONFLICT", "Der Dateimanager-Zustand wurde parallel geändert. Bitte neu laden.", {
+          revision: current.revision,
+        });
+      }
+      revision = current.revision + 1;
+      updatedAt = new Date().toISOString();
+      this.db.prepare(
+        `INSERT INTO file_manager_state (id, document_json, revision, updated_at) VALUES (1, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET document_json = excluded.document_json, revision = excluded.revision, updated_at = excluded.updated_at`,
+      ).run(JSON.stringify(input.document), revision, updatedAt);
+      this.db.exec("COMMIT");
+      committed = true;
+    } catch (error) {
+      if (!committed && this.db.isTransaction) this.db.exec("ROLLBACK");
+      throw error;
+    }
     return fileManagerStateResponseSchema.parse({ document: input.document, revision, updatedAt });
   }
 

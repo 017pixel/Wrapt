@@ -66,7 +66,7 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
     ...deps.operationalMetrics.snapshot(),
     push: deps.notificationPush.metrics(),
     build: readWebBuildMetrics(settings.webDistDirectory),
-    audit: deps.operationalAudit.verify(),
+    audit: { ...deps.operationalAudit.verify(), outboxPending: deps.operationalAudit.outboxPending() },
     orbit: deps.orbitDatabase.maintenanceStatus(),
     preview: (() => {
       const slots = deps.previewSlots.list().slots;

@@ -74,15 +74,18 @@ export function registerCoreHooks(app: FastifyInstance, deps: AppDependencies) {
     );
     if (!isAuditedMutation(request.method, request.url)) return;
     try {
-      deps.operationalAudit.record({
+      const outcome = deps.operationalAudit.recordDurable({
         requestId: request.id,
         actor: requestIdentity(request) ?? "unbekannt",
         action: `${request.method} ${request.routeOptions.url}`,
         target: request.url.split("?", 1)[0] ?? request.url,
         statusCode: reply.statusCode,
       });
+      if (outcome === "outbox") {
+        request.log.warn({ requestId: request.id }, "Auditstore nicht verfügbar; Ereignis liegt in der Outbox.");
+      }
     } catch (error) {
-      request.log.error({ err: error }, "Audit-Eintrag konnte nicht geschrieben werden");
+      request.log.error({ err: error }, "Audit-Eintrag konnte weder geschrieben noch zwischengespeichert werden");
     }
   });
 

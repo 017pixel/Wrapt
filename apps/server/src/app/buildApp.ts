@@ -18,7 +18,23 @@ export interface BuildAppOptions {
 
 export async function buildApp(options: BuildAppOptions = {}) {
   const app = Fastify({
-    logger: { level: settings.logLevel },
+    logger: {
+      level: settings.logLevel,
+      // Secrets dürfen auch bei Fehler- und Debug-Logs nie im Klartext landen.
+      redact: {
+        paths: [
+          "req.headers.authorization",
+          "req.headers.cookie",
+          "req.headers['x-api-key']",
+          "res.headers['set-cookie']",
+          "*.token",
+          "*.apiKey",
+          "*.password",
+          "*.secret",
+        ],
+        censor: "[redacted]",
+      },
+    },
     genReqId: () => randomUUID(),
     bodyLimit: Math.max(settings.orbitDocumentMaxBytes + 65_536, settings.orbitAssetMaxFileBytes + 1_048_576),
     trustProxy: ["127.0.0.1", "::1"],

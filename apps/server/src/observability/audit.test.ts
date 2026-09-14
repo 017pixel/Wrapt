@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -36,8 +36,39 @@ describe("OperationalAuditDatabase", () => {
     expect(isAuditedMutation("GET", "/api/v1/orbit")).toBe(false);
   });
 
+  it("deckt Skills und neue Mutationen ohne Präfixliste ab", () => {
+    expect(isAuditedMutation("POST", "/api/v1/skills/git/commit")).toBe(true);
+    expect(isAuditedMutation("DELETE", "/api/v1/skills/alpha")).toBe(true);
+    expect(isAuditedMutation("POST", "/api/v1/previews/sessions")).toBe(true);
+    // Neue Route außerhalb jeder bekannten Familie: wird ebenfalls auditiert.
+    expect(isAuditedMutation("PATCH", "/api/v1/zukunft/neu")).toBe(true);
+    expect(isAuditedMutation("GET", "/api/v1/skills/tree")).toBe(false);
+    expect(isAuditedMutation("POST", "/health")).toBe(false);
+  });
+
   it("auditiert hochfrequente Presence-Meldungen nicht", () => {
     expect(isAuditedMutation("PUT", "/api/v1/notifications/presence")).toBe(false);
     expect(isAuditedMutation("PATCH", "/api/v1/notifications/1234-5678")).toBe(true);
+  });
+
+  it("legt fehlgeschlagene Audit-Schreibvorgänge pseudonymisiert in die Outbox und trägt sie nach", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "workbench-audit-outbox-"));
+    directories.push(directory);
+    const path = join(directory, "workbench.sqlite");
+    const audit = new OperationalAuditDatabase(path);
+    audit.close();
+
+    const event = { requestId: "request-outbox", actor: "person@example.com", action: "POST /skills/git/commit", target: "/api/v1/skills/git/commit", statusCode: 200 };
+    expect(audit.recordDurable(event)).toBe("outbox");
+    expect(audit.outboxPending()).toBe(1);
+
+    const outbox = await readFile(`${path}.audit-outbox.jsonl`, "utf8");
+    expect(outbox).not.toContain("person@example.com");
+    expect(outbox).toMatch(/[0-9a-f]{64}/);
+
+    const recovered = new OperationalAuditDatabase(path);
+    expect(recovered.outboxPending()).toBe(0);
+    expect(recovered.verify()).toMatchObject({ valid: true, entries: 1 });
+    recovered.close();
   });
 });

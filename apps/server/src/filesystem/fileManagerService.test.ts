@@ -157,6 +157,55 @@ describe("FileManagerService", () => {
     expect(loaded.revision).toBe(1);
   });
 
+  it("hält die Revision auch gegen einen zweiten Schreiber atomar", async () => {
+    const document = { currentPath: root, history: [root], favorites: [], viewMode: "list" as const, sortKey: "name" as const, sortDirection: "asc" as const };
+    const second = new FileManagerService(root, 4_096, 1024 * 1024, join(root, "state.sqlite"));
+    try {
+      const base = service.state().revision;
+      const firstSave = second.saveState({ document, expectedRevision: base });
+      await expect(service.saveState({ document, expectedRevision: base })).rejects.toMatchObject({ code: "FILE_MANAGER_STATE_CONFLICT" });
+      expect((await firstSave).revision).toBe(base + 1);
+      expect(service.state().revision).toBe(base + 1);
+    } finally {
+      second.close();
+    }
+  });
+
+  it("überschreibt ein während des Uploads entstandenes Ziel nicht", async () => {
+    const target = join(root, "upload-rennen.txt");
+    const stream = Readable.from((async function* () {
+      yield Buffer.from("upload");
+      // Entsteht erst nach der Vorprüfung, aber vor der atomaren Veröffentlichung.
+      await writeFile(target, "fremde Datei");
+    })());
+    await expect(service.upload({ directory: root, filename: "upload-rennen.txt", stream })).rejects.toMatchObject({ code: "FILE_EXISTS" });
+    expect(await readFile(target, "utf8")).toBe("fremde Datei");
+    await service.remove({ path: target });
+  });
+
+  it("verschiebt Ordner nicht über ein vorhandenes Ziel", async () => {
+    await mkdir(join(root, "mv-src"));
+    await writeFile(join(root, "mv-src", "a.txt"), "a");
+    await mkdir(join(root, "mv-dst", "mv-src"), { recursive: true });
+    await writeFile(join(root, "mv-dst", "mv-src", "b.txt"), "b");
+
+    await expect(service.move({ path: join(root, "mv-src"), targetDirectory: join(root, "mv-dst") })).rejects.toMatchObject({ code: "FILE_EXISTS" });
+    expect(await readFile(join(root, "mv-src", "a.txt"), "utf8")).toBe("a");
+    expect(await readFile(join(root, "mv-dst", "mv-src", "b.txt"), "utf8")).toBe("b");
+
+    await service.remove({ path: join(root, "mv-src", "a.txt") });
+    await service.remove({ path: join(root, "mv-src") });
+    await service.remove({ path: join(root, "mv-dst", "mv-src", "b.txt") });
+    await service.remove({ path: join(root, "mv-dst", "mv-src") });
+    await service.remove({ path: join(root, "mv-dst") });
+  });
+
+  it("legt Ordner exklusiv an und meldet Doppelanlage als Konflikt", async () => {
+    const created = await service.mkdir({ path: root, name: "exklusiv" });
+    await expect(service.mkdir({ path: root, name: "exklusiv" })).rejects.toMatchObject({ code: "FILE_EXISTS" });
+    await service.remove({ path: created });
+  });
+
   it("schützt den Root vor dem Löschen", async () => {
     await expect(service.remove({ path: root })).rejects.toMatchObject({ code: "FILESYSTEM_ROOT_PROTECTED" });
   });
