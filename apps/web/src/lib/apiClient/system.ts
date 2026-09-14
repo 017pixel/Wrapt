@@ -6,6 +6,7 @@ import {
   contextMenuConfigResponseSchema,
   healthResponseSchema,
   localPortsResponseSchema,
+  mascotConfigResponseSchema,
   operationalMetricsSchema,
   readinessResponseSchema,
   restartResponseSchema,
@@ -22,6 +23,7 @@ import {
   type UsageMonitoring,
   type AppearanceTheme,
   type ContextMenuConfig,
+  type MascotConfig,
 } from "@wrapt/contracts";
 import { mutate, request } from "./transport.js";
 
@@ -32,6 +34,8 @@ export const systemApi = {
   saveAppearance: (theme: AppearanceTheme) => mutate("/system/appearance", "PUT", appearanceResponseSchema, theme),
   getContextMenu: (signal?: AbortSignal) => request("/system/context-menu", contextMenuConfigResponseSchema, signal),
   saveContextMenu: (contextMenu: ContextMenuConfig) => mutate("/system/context-menu", "PUT", contextMenuConfigResponseSchema, { contextMenu }),
+  getMascot: (signal?: AbortSignal) => request("/system/mascot", mascotConfigResponseSchema, signal),
+  saveMascot: (mascot: MascotConfig) => mutate("/system/mascot", "PUT", mascotConfigResponseSchema, { mascot }),
   codexResetHistory: (signal?: AbortSignal) => request("/system/codex-reset-history", codexResetHistoryResponseSchema, signal),
   codexResetHistorySettings: (signal?: AbortSignal) => request("/system/codex-reset-history/settings", codexResetHistorySettingsResponseSchema, signal),
   saveCodexResetHistorySettings: (settings: { enabled: boolean }) => mutate("/system/codex-reset-history/settings", "PUT", codexResetHistorySettingsResponseSchema, settings),

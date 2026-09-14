@@ -8,6 +8,7 @@ export const settingsTabs = [
   { id: "erweiterungen", label: "Erweiterungen" },
   { id: "werkzeuge", label: "Werkzeuge" },
   { id: "workspace", label: "Workspace" },
+  { id: "easter-eggs", label: "Easter Eggs" },
   { id: "start-app", label: "Start-App" },
 ] as const;
 

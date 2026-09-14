@@ -171,11 +171,47 @@
     height: 0;
     scroll-margin-top: 1rem;
   }
+
+  .mascot-setting {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+  }
+
+  .mascot-preview {
+    display: grid;
+    width: 104px;
+    height: 72px;
+    flex: none;
+    place-items: center;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+    background: var(--color-ink-900);
+  }
+
+  .mascot-setting-body {
+    display: grid;
+    min-width: 0;
+    gap: var(--space-2);
+  }
+
+  .mascot-setting-hint {
+    max-width: 56ch;
+    margin: 0;
+    color: var(--color-faint);
+    font-size: var(--text-sm);
+    line-height: 1.55;
+  }
 }
 
 @media (max-width: 720px) {
   .settings-search-result {
     padding-right: var(--space-3);
     padding-left: var(--space-3);
+  }
+
+  .mascot-setting {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

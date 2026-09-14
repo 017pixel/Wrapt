@@ -9,6 +9,7 @@ import { useOrbitStore } from "../stores/orbit";
 import { statusBarRegistry } from "../extensions/statusBarRegistry";
 import { openGlobalContextMenu } from "./context-menu/contextMenuEvents";
 import { hostContextMenuId } from "../extensions/hostContextMenus";
+import { StatusMascot } from "./mascot/StatusMascot";
 
 export type StatusBarProviderState = Pick<ProviderUsage, "providerId" | "status">;
 
@@ -118,6 +119,7 @@ export function StatusBar() {
           </span>
         </>
       ) : null}
+      <StatusMascot />
       {visibleProviders.length > 0 ? (
         <Link
           to="/usage"

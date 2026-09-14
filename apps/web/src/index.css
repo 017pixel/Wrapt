@@ -5,6 +5,7 @@
 @import "@fontsource/jetbrains-mono/600.css";
 @import "@fontsource/jetbrains-mono/700.css";
 @import "./components/plugins/plugin-topbar.css";
+@import "./components/mascot/mascot.css";
 
 /* --- Palette: T3 Code Nightly (dark) ----------------------------------------
    Übernommen aus dem Design von T3 Code Nightly (0.0.29-nightly). Die Token-
@@ -49,6 +50,11 @@
   --color-bad: oklch(70.4% .191 22.216);
   --color-bad-soft: color-mix(in oklab, oklch(63.7% .237 25.331) 15%, transparent);
   --color-info: oklch(70.7% .165 254.624);
+  --color-capy-fur: oklch(58% .065 62);
+  --color-capy-light: oklch(74% .055 72);
+  --color-capy-line: oklch(34% .04 55);
+  --color-capy-eye: oklch(18% .02 55);
+  --color-capy-nose: oklch(28% .035 55);
 
   --font-sans: "DM Sans Variable", "DM Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   /* JetBrains Mono zuerst: Es ist selbst gehostet geladen und auf 1080p

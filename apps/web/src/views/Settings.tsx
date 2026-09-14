@@ -8,6 +8,8 @@ import { searchSettings, type SettingsSearchResult } from "../lib/settingsSearch
 import { wraptQueries } from "../lib/queryOptions";
 import { useRouteActivity } from "../lib/routeActivity";
 import { SettingsSearch } from "./settings/SettingsSearch";
+import { SettingsTabBar } from "./settings/SettingsTabBar";
+import { SettingsEasterEggs } from "./settings/SettingsEasterEggs";
 import { SettingsGeneral } from "./settings/SettingsGeneral";
 import { SettingsNavigation } from "./settings/SettingsNavigation";
 import { SettingsNotifications } from "./settings/SettingsNotifications";
@@ -18,7 +20,6 @@ import { SettingsWorkspace } from "./settings/SettingsWorkspace";
 import {
   normalizeSettingsTab,
   settingsTabIds,
-  settingsTabs,
   type SettingsNavigationTarget,
 } from "./settings/settingsTabs";
 import "../components/appearance.css";
@@ -74,19 +75,7 @@ export function Settings() {
           onSelect={selectSearchResult}
         />
 
-        <nav className="settings-tabs" aria-label="Einstellungsbereiche">
-          {settingsTabs.map(({ id, label }) => (
-            <button
-              key={id}
-              type="button"
-              aria-pressed={activeTab === id}
-              className={`settings-tab ${activeTab === id ? "is-active" : ""}`}
-              onClick={() => setTab(id)}
-            >
-              {label}
-            </button>
-          ))}
-        </nav>
+        <SettingsTabBar activeTab={activeTab} onSelect={setTab} />
 
         <div className="settings-tab-content">
           {activeTab === "allgemein" ? (
@@ -135,6 +124,11 @@ export function Settings() {
           ) : null}
           {activeTab === "werkzeuge" ? <SettingsUsage /> : null}
           {activeTab === "workspace" ? <SettingsWorkspace /> : null}
+          {activeTab === "easter-eggs" ? (
+            <div id="settings-easter-eggs">
+              <SettingsEasterEggs />
+            </div>
+          ) : null}
           {activeTab === "start-app" ? <SettingsStartup /> : null}
         </div>
 

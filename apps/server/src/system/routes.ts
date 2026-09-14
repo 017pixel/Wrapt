@@ -6,6 +6,7 @@ import {
   dashboardConfigSchema,
   healthResponseSchema,
   localPortsResponseSchema,
+  mascotConfigResponseSchema,
   restartRequestSchema,
   restartResponseSchema,
   restartStatusResponseSchema,
@@ -19,7 +20,7 @@ import {
 } from "@wrapt/contracts";
 import type { FastifyInstance } from "fastify";
 import { settings } from "../config/settings.js";
-import { persistAppearanceTheme, persistContextMenuConfig, readAppearanceTheme, readContextMenuConfig } from "../config/wrapt-config.js";
+import { persistAppearanceTheme, persistContextMenuConfig, persistMascotConfig, readAppearanceTheme, readContextMenuConfig, readMascotConfig } from "../config/wrapt-config.js";
 import type { RouteServices } from "../api/services.js";
 import { systemService } from "../services/systemService.js";
 import { t3ChannelService } from "../services/t3ChannelService.js";
@@ -47,6 +48,14 @@ export async function registerSystemRoutes(app: FastifyInstance, services: Route
     const { contextMenu } = contextMenuConfigResponseSchema.parse(request.body);
     persistContextMenuConfig(settings.configDirectory, contextMenu);
     return contextMenuConfigResponseSchema.parse({ contextMenu });
+  });
+  app.get("/system/mascot", async () => mascotConfigResponseSchema.parse({
+    mascot: readMascotConfig(settings.configDirectory),
+  }));
+  app.put("/system/mascot", async (request) => {
+    const { mascot } = mascotConfigResponseSchema.parse(request.body);
+    persistMascotConfig(settings.configDirectory, mascot);
+    return mascotConfigResponseSchema.parse({ mascot });
   });
   app.get("/system/codex-reset-history/settings", async () => codexResetHistorySettingsResponseSchema.parse({ settings: codexResetHistoryService.getSettings() }));
   app.put("/system/codex-reset-history/settings", async (request) => {

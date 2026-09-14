@@ -1,0 +1,23 @@
+/* Die Statusleiste ist die Laufstrecke: Der Container nimmt den Freiraum
+   zwischen Version/Orbit und Limitanzeige ein, die innere Bühne begrenzt die
+   Figur. Die Sprechblase liegt außerhalb der Bühne, damit sie nicht beschnitten
+   wird. Als eigenständige Komponente bleibt sie später anders platzierbar. */
+.status-mascot { position: relative; display: flex; flex: 1; min-width: 0; align-items: center; }
+.status-mascot-stage { position: relative; height: 34px; flex: 1; min-width: 0; overflow: hidden; }
+.status-mascot-button { position: absolute; top: 0; left: 0; display: grid; width: 46px; height: 34px; place-items: center; border: 0; border-radius: var(--radius-sm); background: transparent; cursor: pointer; transform: translateX(var(--capy-offset, 0px)); transition: transform 210ms linear; }
+.status-mascot-button:hover { background: var(--color-ink-800); }
+.status-mascot-button:focus-visible { outline: 2px solid var(--focus-ring-color); outline-offset: 1px; }
+.status-mascot-button:active { transform: translateX(var(--capy-offset, 0px)) translateY(-1px); }
+.capy-sprite { display: block; }
+.capy-tone-line { fill: var(--color-capy-line); }
+.capy-tone-fur { fill: var(--color-capy-fur); }
+.capy-tone-light { fill: var(--color-capy-light); }
+.capy-tone-eye { fill: var(--color-capy-eye); }
+.capy-tone-nose { fill: var(--color-capy-nose); }
+.status-mascot-bubble { position: absolute; z-index: 5; bottom: calc(100% + 7px); left: calc(var(--capy-offset, 0px) + 23px); width: max-content; max-width: min(260px, 50vw); transform: translateX(-50%); border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-ink-850); padding: 7px 10px; color: var(--color-text); font-size: var(--text-xs); line-height: 1.45; box-shadow: var(--shadow-raised); animation: mascot-bubble-in var(--duration-base) var(--ease-standard); }
+.status-mascot-bubble::after { position: absolute; top: 100%; left: 50%; width: 6px; height: 6px; transform: translate(-50%, -3px) rotate(45deg); border-right: 1px solid var(--color-line); border-bottom: 1px solid var(--color-line); background: var(--color-ink-850); content: ""; }
+@keyframes mascot-bubble-in { from { opacity: 0; transform: translate(-50%, 4px); } to { opacity: 1; transform: translate(-50%, 0); } }
+@media (prefers-reduced-motion: reduce) {
+  .status-mascot-button { transition: none; }
+  .status-mascot-bubble { animation: none; }
+}

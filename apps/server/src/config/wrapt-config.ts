@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { ensureWraptLocalConfig, migrateLegacyConfigValue, migrateLegacyPersistentData, WRAPT_EXAMPLE_CONFIG, WRAPT_LOCAL_CONFIG } from "./legacy-migration.js";
 import { join } from "node:path";
-import { appearanceThemeSchema, codexResetHistorySettingsSchema, contextMenuConfigSchema, dashboardConfigSchema, defaultAppearanceTheme, newsSettingsSchema, notificationPreferencesSchema, t3ChannelSchema, usageMonitoringSchema, type AppearanceTheme, type CodexResetHistorySettings, type ContextMenuConfig, type NewsSettings, type NotificationPreferences, type T3Channel, type UsageMonitoring } from "@wrapt/contracts";
+import { appearanceThemeSchema, codexResetHistorySettingsSchema, contextMenuConfigSchema, dashboardConfigSchema, defaultAppearanceTheme, mascotConfigSchema, notificationPreferencesSchema, t3ChannelSchema, usageMonitoringSchema, type AppearanceTheme, type CodexResetHistorySettings, type ContextMenuConfig, type MascotConfig, type NotificationPreferences, type T3Channel, type UsageMonitoring } from "@wrapt/contracts";
 import { z } from "zod";
 import { persistLocalConfig } from "./config-persistence.js";
 import { isLoopbackHost } from "./loopback.js";
@@ -104,6 +104,9 @@ export const wraptConfigSchema = z.object({
   // Globale Rechtsklick-Einstellungen. Fehlende Werte werden vollständig mit
   // sicheren Defaults ergänzt, damit bestehende lokale Configs gültig bleiben.
   contextMenu: contextMenuConfigSchema,
+  // Easter-Egg-Einstellungen (Capybara-Maskottchen). Fehlende Werte bekommen
+  // sichere Defaults, damit bestehende lokale Configs gültig bleiben.
+  mascot: mascotConfigSchema,
   // Plugin-spezifische, lokale Dateiquellen. Persönliche Pfade bleiben in
   // wrapt.local.json; ohne Wert wird der Wrapt-Plugins-Skill verwendet.
   plugins: z.object({
@@ -344,6 +347,15 @@ export function readContextMenuConfig(configDirectory: string): ContextMenuConfi
 export function persistContextMenuConfig(configDirectory: string, contextMenu: ContextMenuConfig): void {
   const parsed = contextMenuConfigSchema.parse(contextMenu);
   persistLocalConfig(configDirectory, (base) => ({ ...base, contextMenu: parsed }), (value) => wraptConfigSchema.parse(value));
+}
+
+export function readMascotConfig(configDirectory: string): MascotConfig {
+  return loadWraptConfig(configDirectory).mascot;
+}
+
+export function persistMascotConfig(configDirectory: string, mascot: MascotConfig): void {
+  const parsed = mascotConfigSchema.parse(mascot);
+  persistLocalConfig(configDirectory, (base) => ({ ...base, mascot: parsed }), (value) => wraptConfigSchema.parse(value));
 }
 
 export function readCodexResetHistorySettings(configDirectory: string): CodexResetHistorySettings {
