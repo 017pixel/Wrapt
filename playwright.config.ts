@@ -24,7 +24,7 @@ export default defineConfig({
   // Der isolierte Launcher besitzt ein eigenes Dist-Verzeichnis; kein E2E-Lauf
   // überschreibt die Assets oder Sitzungen der aktiven Workbench.
   retries: 1,
-  reporter: "list",
+  reporter: [["list"], ["./tests/e2e/reporters/audit-reporter.ts"]],
   projects: [
     { name: "chromium", testIgnore: /responsive-shell\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
     // Playwrights Firefox-Transport verliert bei page.reload() gelegentlich die

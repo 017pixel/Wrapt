@@ -165,17 +165,6 @@ test("keeps T3 Code visibly connected to the selected project", async ({ page })
   await expect(page.locator('iframe[title="T3 Code"]')).toBeVisible({ timeout: 20_000 });
 });
 
-test("runs a real Chromium session from the Browser tool", async ({ page }) => {
-  await page.goto(`${privateWrapt}/browser`);
-  const address = page.getByLabel("Browser-Adresse");
-  await expect(address).toBeVisible();
-  await expect(page.getByText("Laufende Projekt-Dienste")).toBeVisible({ timeout: 15_000 });
-  await address.fill("example.com");
-  await address.press("Enter");
-  await expect(address).toHaveValue(/https:\/\/example\.com\/?/, { timeout: 20_000 });
-  await expect(page.getByAltText("Gerenderte Chromium-Seite")).toHaveAttribute("src", /^data:image\/jpeg;base64,/, { timeout: 20_000 });
-});
-
 test("opens Sample app.py through the stable code-server socket", async ({ page }) => {
   const browserErrors: string[] = [];
   page.on("console", (message) => {

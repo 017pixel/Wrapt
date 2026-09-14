@@ -9,12 +9,12 @@
  *
  * Manche Tests brauchen mehr als einen laufenden Server: eine Instanz mit den
  * erwarteten Projekten, eine Tailscale-Identität für PTY-Sitzungen oder
- * synchronisierte News samt API-Schlüssel. Diese Tests prüfen
+ * eigene Terminal-Identitäten. Diese Tests prüfen
  * `hasPrivateWrapt` und überspringen sich, statt mit
  * `ERR_NAME_NOT_RESOLVED` zu scheitern und den Lauf rot zu färben.
  */
 // Der isolierte E2E-Server liefert reproduzierbare Fixture-Daten, aber nicht
-// die private Produktionsumgebung mit allen Projekten, Accounts und News.
+// die private Produktionsumgebung mit allen Projekten und Accounts.
 // Private-only-Suiten dürfen deshalb nicht allein wegen einer Test-URL laufen.
 export const hasPrivateWrapt = Boolean(process.env.WRAPT_E2E_URL)
   && process.env.WRAPT_E2E_ISOLATED !== "true";

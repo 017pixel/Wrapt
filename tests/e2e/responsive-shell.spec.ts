@@ -3,8 +3,8 @@ import { expect, test, type Page } from "@playwright/test";
 test.use({ extraHTTPHeaders: { "tailscale-user-login": "user@example.com" } });
 
 const routes = [
-  "", "projects", "settings", "usage", "workbench", "tech-tldrs",
-  "browser", "terminal", "previews", "code-editor", "t3-code", "codex", "opencode", "claude", "notion",
+  "", "projects", "settings", "usage", "workbench",
+  "terminal", "previews", "code-editor", "t3-code", "codex", "opencode", "claude", "notion",
 ];
 
 async function mockPreviewSlots(page: Page) {
@@ -64,13 +64,11 @@ test("navigation page manages focus, history and scroll lock", async ({ page }) 
 });
 
 test("keeps route floating controls behind the navigation page", async ({ page }) => {
-  const floatingRoutes = ["", "workbench", "tech-tldrs", "browser", "terminal"];
+  const floatingRoutes = ["", "workbench", "terminal"];
   const floatingSelector = [
-    ".news-dynamic-island",
     ".orbit-main-island",
     ".terminal-island",
     ".panel-island",
-    ".browser-context-menu",
   ].join(",");
 
   for (const route of floatingRoutes) {
@@ -124,17 +122,6 @@ test("uses a reversible touch dialog for destructive settings", async ({ page })
   await page.goBack();
   await expect(dialog).toHaveCount(0);
   await expect(trigger).toBeFocused();
-});
-
-test("preserves an embedded runtime across rotation", async ({ page }) => {
-  await page.goto("/wrapt/browser");
-  const runtime = page.locator(".chromium-browser");
-  await expect(runtime).toBeVisible();
-  await runtime.evaluate((element) => { (element as HTMLElement).dataset.rotationMarker = "preserved"; });
-  const viewport = page.viewportSize();
-  expect(viewport).not.toBeNull();
-  await page.setViewportSize({ width: viewport!.height, height: viewport!.width });
-  await expect(runtime).toHaveAttribute("data-rotation-marker", "preserved");
 });
 
 test("moves focus into content after a navigation choice", async ({ page }) => {

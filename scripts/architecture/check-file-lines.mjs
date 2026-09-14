@@ -35,7 +35,9 @@ const IGNORED_DIRECTORIES = new Set([
 //
 // Die historischen Einträge dokumentieren Dateien, die vor Einführung des Limits bereits
 // über 400 Zeilen lagen. Sie dürfen nicht weiter wachsen; die Aufteilung ist als separates
-// Refactoring geplant.
+// Refactoring geplant. Die Baseline darf pro Datei entweder eine Zahl (eingefrorener
+// Höchststand) oder ein Objekt `{ maxLines, owner, target }` mit Verantwortlichem und
+// Abbauziel sein. Nach jeder fachlichen Reduktion wird die Baseline gesenkt.
 const ALLOWED_FILES = new Map([
   ["pnpm-lock.yaml", "generierte Lockfile"],
   ["package-lock.json", "generierte Lockfile"],
@@ -44,7 +46,6 @@ const ALLOWED_FILES = new Map([
   ["packages/extension-contracts/schema/extension-catalog-v1.schema.json", "generiertes JSON-Schema"],
   ["packages/extension-contracts/schema/extension-manifest-v1.schema.json", "generiertes JSON-Schema"],
   // Historisch gewachsene Dateien (Bestand vor dem 400-Zeilen-Limit).
-  ["apps/server/src/browser/Manager.ts", "historisch gewachsen, Aufteilung offen"],
   ["apps/server/src/extensions/manager.test.ts", "historisch gewachsen, Aufteilung offen"],
   ["apps/server/src/extensions/manager.ts", "historisch gewachsen, Aufteilung offen"],
   ["apps/server/src/filesystem/fileManagerService.ts", "historisch gewachsen, Aufteilung offen"],
@@ -60,7 +61,6 @@ const ALLOWED_FILES = new Map([
   ["apps/server/src/services/t3Proxy.ts", "historisch gewachsen, Aufteilung offen"],
   ["apps/server/src/skills/skillEditorService.ts", "historisch gewachsen, Aufteilung offen"],
   ["apps/server/src/usage/timeline-service.test.ts", "historisch gewachsen, Aufteilung offen"],
-  ["apps/web/src/components/browser/ChromiumBrowser.tsx", "historisch gewachsen, Aufteilung offen"],
   ["apps/web/src/components/extensions/ExtensionSettings.tsx", "historisch gewachsen, Aufteilung offen"],
   ["apps/web/src/components/files/FileManagerPanel.tsx", "historisch gewachsen, Aufteilung offen"],
   ["apps/web/src/components/orbit/OrbitNodeView.tsx", "historisch gewachsen, Aufteilung offen"],
@@ -76,7 +76,6 @@ const ALLOWED_FILES = new Map([
   ["apps/web/src/views/OrbitWorkbench.tsx", "historisch gewachsen, Aufteilung offen"],
   ["apps/web/src/views/PreviewHub.tsx", "historisch gewachsen, Aufteilung offen"],
   ["apps/web/src/views/Settings.tsx", "historisch gewachsen, Aufteilung offen"],
-  ["apps/web/src/views/TechTldrs.tsx", "historisch gewachsen, Aufteilung offen"],
   ["docs/configuration.md", "historisch gewachsen, Aufteilung offen"],
   ["packages/contracts/src/index.ts", "historisch gewachsen, Aufteilung offen"],
   ["packages/extension-contracts/src/contributions.test.ts", "historisch gewachsen, Aufteilung offen"],
@@ -130,6 +129,19 @@ const violations = [];
 const exceptions = [];
 const baseline = JSON.parse(await readFile(baselinePath, "utf8"));
 
+/** Baseline-Eintrag: Zahl oder `{ maxLines, owner, target }`. */
+function baselineEntry(value) {
+  if (typeof value === "number") return { maxLines: value, owner: null, target: null };
+  if (value && typeof value === "object" && typeof value.maxLines === "number") {
+    return {
+      maxLines: value.maxLines,
+      owner: typeof value.owner === "string" ? value.owner : null,
+      target: typeof value.target === "string" ? value.target : null,
+    };
+  }
+  return null;
+}
+
 for (const file of files) {
   if (isAllowedDirectory(file)) continue;
   const text = await readFile(join(root, file), "utf8");
@@ -138,22 +150,24 @@ for (const file of files) {
 
   const reason = ALLOWED_FILES.get(file);
   if (reason) {
-    const maximum = baseline[file];
-    if (reason.startsWith("historisch") && typeof maximum !== "number") {
+    const entry = baselineEntry(baseline[file]);
+    if (reason.startsWith("historisch") && !entry) {
       violations.push({ file, lines, baseline: "fehlend" });
-    } else if (typeof maximum === "number" && lines > maximum) {
-      violations.push({ file, lines, baseline: maximum });
+    } else if (entry && lines > entry.maxLines) {
+      violations.push({ file, lines, baseline: entry.maxLines });
     } else {
-      exceptions.push({ file, lines, reason, ...(typeof maximum === "number" ? { baseline: maximum } : {}) });
+      exceptions.push({ file, lines, reason, ...(entry ? { baseline: entry.maxLines, owner: entry.owner, target: entry.target } : {}) });
     }
     continue;
   }
   violations.push({ file, lines });
 }
 
-for (const { file, lines, reason, baseline: maximum } of exceptions) {
+for (const { file, lines, reason, baseline: maximum, owner, target } of exceptions) {
   const frozen = typeof maximum === "number" ? `, Baseline ${maximum}` : "";
-  console.log(`Ausnahme (${reason}${frozen}): ${lines}  ${file}`);
+  const responsible = owner ? `, Verantwortlich ${owner}` : "";
+  const goal = target ? `, Ziel ${target}` : "";
+  console.log(`Ausnahme (${reason}${frozen}${responsible}${goal}): ${lines}  ${file}`);
 }
 
 if (violations.length > 0) {

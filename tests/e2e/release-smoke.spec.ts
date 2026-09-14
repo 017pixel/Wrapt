@@ -12,18 +12,9 @@ test.use({
   viewport: { width: 1440, height: 960 },
 });
 
-test("verifies Browser, local ports and direct project tool navigation", async ({ page }) => {
+test("verifies direct project tool navigation and previews", async ({ page }) => {
   test.setTimeout(90_000);
   test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
-
-  await page.goto(`${workbench}/browser`);
-  const address = page.getByLabel("Browser-Adresse");
-  await expect(address).toBeVisible();
-  await page.getByRole("button", { name: "Neuer Tab" }).click();
-  await expect(page.getByText("Laufende Projekt-Dienste")).toBeVisible({ timeout: 20_000 });
-  const localPorts = page.locator(".local-port-grid > button");
-  const noLocalPorts = page.getByText("Momentan läuft kein lokaler Projekt-Devserver.");
-  await expect.poll(async () => (await localPorts.count()) + (await noLocalPorts.count()), { timeout: 20_000 }).toBeGreaterThan(0);
 
   const projectsResponse = await page.request.get(new URL("/api/v1/projects", workbench).toString());
   await expect(projectsResponse).toBeOK();
@@ -33,16 +24,6 @@ test("verifies Browser, local ports and direct project tool navigation", async (
   const projectWithPreview = projectsPayload.projects.find((project) => project.availability === "available" && project.previews.length > 0);
   expect(projectWithPreview).toBeDefined();
   const projectRoute = encodeURIComponent(projectWithPreview!.id);
-
-  await address.fill("example.com");
-  await address.press("Enter");
-  await expect(address).toHaveValue(/https:\/\/example\.com\/?/, { timeout: 25_000 });
-  await expect(page.getByAltText("Gerenderte Chromium-Seite")).toHaveAttribute("src", /^data:image\/jpeg;base64,/, { timeout: 25_000 });
-  await expect.poll(() => page.getByAltText("Gerenderte Chromium-Seite").evaluate((image: HTMLImageElement) => image.naturalWidth / Math.max(1, image.clientWidth))).toBeGreaterThan(1.5);
-  await page.reload();
-  await expect(page.getByLabel("Browser-Adresse")).toHaveValue(/https:\/\/example\.com\/?/, { timeout: 25_000 });
-  await expect(page.getByAltText("Gerenderte Chromium-Seite")).toHaveAttribute("src", /^data:image\/jpeg;base64,/, { timeout: 25_000 });
-  await page.screenshot({ path: "/tmp/wrapt-011-browser.png", fullPage: true });
 
   await page.goto(`${workbench}/projects/${projectRoute}`);
   await page.getByRole("button", { name: "Editor", exact: true }).click();
@@ -195,18 +176,10 @@ test("resizes selected Orbit nodes and keeps properties collapsed", async ({ pag
   await page.screenshot({ path: "/tmp/wrapt-011-orbit.png", fullPage: true });
 });
 
-test("keeps Browser and Orbit controls usable on mobile", async ({ page }) => {
+test("keeps Orbit controls usable on mobile", async ({ page }) => {
   test.setTimeout(60_000);
   test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   await page.setViewportSize({ width: 390, height: 844 });
-
-  await page.goto(`${workbench}/browser`);
-  await page.getByRole("button", { name: "Neuer Tab" }).click();
-  await expect(page.getByText("Laufende Projekt-Dienste")).toBeVisible({ timeout: 20_000 });
-  const browserBounds = await page.locator(".app-shell").evaluate((element) => ({ clientWidth: element.clientWidth, scrollWidth: element.scrollWidth }));
-  expect(browserBounds.scrollWidth).toBeLessThanOrEqual(browserBounds.clientWidth);
-  await expect(page.getByLabel("Browser-Adresse")).toBeVisible();
-  await page.screenshot({ path: "/tmp/wrapt-011-mobile-browser.png", fullPage: true });
 
   await page.goto(`${workbench}/workbench`);
   await expect(page.locator(".orbit-page")).toBeVisible();

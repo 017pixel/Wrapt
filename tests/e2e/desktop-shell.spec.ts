@@ -10,7 +10,7 @@ test("keeps the information-dense desktop shell", async ({ page }) => {
   await expect(page.locator(".status-bar")).toBeVisible();
   await expect(page.getByRole("button", { name: "Navigation öffnen" })).toHaveCount(0);
 
-  for (const route of ["", "workbench", "tech-tldrs", "browser", "projects", "usage", "settings"]) {
+  for (const route of ["", "workbench", "projects", "usage", "settings"]) {
     await page.goto(`/wrapt/${route}`);
     const bounds = await page.locator(".app-shell").evaluate((element) => ({ client: element.clientWidth, scroll: element.scrollWidth }));
     expect(bounds.scroll, route).toBeLessThanOrEqual(bounds.client + 1);
@@ -38,13 +38,19 @@ test("öffnet Schnellaktionen auf freien Bereichen der Shell", async ({ page }) 
   await page.goto("/wrapt/files");
   const menu = page.locator('.global-context-menu[data-surface="host.context-menu.empty"]');
   const topbar = page.locator(".topbar");
+  // Erst sichtbar abwarten: ein boundingBox() vor dem ersten Layout (Firefox
+  // lädt die Shell gelegentlich langsamer) lieferte null und machte den
+  // anschließenden Klick sporadisch unpräzise.
+  await expect(topbar).toBeVisible();
   const topbarBox = await topbar.boundingBox();
+  expect(topbarBox).not.toBeNull();
   await topbar.click({ button: "right", position: { x: Math.round((topbarBox?.width ?? 800) / 2), y: 24 } });
   await expect(menu).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(menu).toHaveCount(0);
 
   const statusBar = page.locator(".status-bar");
+  await expect(statusBar).toBeVisible();
   await statusBar.click({ button: "right", position: { x: 4, y: 20 } });
   await expect(menu).toBeVisible();
   await page.keyboard.press("Escape");
@@ -67,6 +73,8 @@ test("hält Plugin-Topbar und Werkzeugaktionen als rechte Gruppe zusammen", asyn
   await page.goto("/wrapt/files");
   const topbar = page.locator(".topbar");
   const rightActions = topbar.locator(".topbar-right-actions");
+  await expect(topbar).toBeVisible();
+  await expect(rightActions).toBeVisible();
   const topbarBox = await topbar.boundingBox();
   const rightActionsBox = await rightActions.boundingBox();
   expect(rightActionsBox).not.toBeNull();
