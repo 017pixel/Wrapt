@@ -10,13 +10,26 @@ export { appearanceThemeCatalog, appearanceThemePresetIds, appearanceThemePreset
 export type { AppearanceThemePresetId } from "./appearance-palettes.js";
 
 const hexColorPattern = /^#[0-9a-fA-F]{6}$/;
-const oklchColorPattern = /^oklch\(\s*(?:0|1|0?\.\d+)\s+(?:0|0?\.\d+)\s+-?\d+(?:\.\d+)?\s*\)$/i;
+const oklchColorPattern = /^oklch\(\s*(0|1|0?\.\d+)\s+(0|0?\.\d+)\s+(-?\d+(?:\.\d+)?)\s*\)$/i;
+/** Harte Obergrenze für Theme-Farbwerte; gültige Werte sind deutlich kürzer. */
+export const MAXIMUM_THEME_COLOR_LENGTH = 64;
 
 const themeColorSchema = z
   .string()
   .trim()
+  .refine(
+    (value) => value.length <= MAXIMUM_THEME_COLOR_LENGTH,
+    `Theme-Farben dürfen höchstens ${MAXIMUM_THEME_COLOR_LENGTH} Zeichen lang sein.`,
+  )
   .refine((value) => hexColorPattern.test(value) || oklchColorPattern.test(value), "Theme-Farben müssen opake Hex- oder OKLCH-Werte sein.")
-  .transform((value) => hexColorPattern.test(value) ? value.toLowerCase() : value);
+  .transform((value) => {
+    if (hexColorPattern.test(value)) return value.toLowerCase();
+    // OKLCH auf eine kanonische Kurzform normalisieren: einfache Leerzeichen,
+    // Zahlen ohne führende Nullen und ohne unnötige Nachkommastellen.
+    const oklch = oklchColorPattern.exec(value);
+    if (!oklch) return value;
+    return `oklch(${Number(oklch[1])} ${Number(oklch[2])} ${Number(oklch[3])})`;
+  });
 
 const defaultColors: AppearancePresetColors = appearanceThemePresets["t3-code"];
 

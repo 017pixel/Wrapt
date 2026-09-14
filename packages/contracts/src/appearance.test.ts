@@ -4,6 +4,7 @@ import {
   defaultAppearanceTheme,
   appearanceThemePresetIds,
   appearanceThemePresets,
+  MAXIMUM_THEME_COLOR_LENGTH,
 } from "./appearance.js";
 
 describe("Wrapt-Appearance-Vertrag", () => {
@@ -59,5 +60,30 @@ describe("Wrapt-Appearance-Vertrag", () => {
       expect(appearanceThemeSchema.parse({ preset, colors: appearanceThemePresets[preset] }).preset).toBe(preset);
     }
     expect(() => appearanceThemeSchema.parse({ preset: "light" })).toThrow();
+  });
+
+  it("normalisiert Theme-Farben auf eine kanonische Form", () => {
+    const theme = appearanceThemeSchema.parse({
+      preset: "custom",
+      colors: {
+        accent: "  #AABBCC  ",
+        background: "OKLCH(0.7000  0.1500  250.50)",
+      },
+    });
+    expect(theme.colors.accent).toBe("#aabbcc");
+    expect(theme.colors.background).toBe("oklch(0.7 0.15 250.5)");
+  });
+
+  it("weist übergroße Theme-Farbwerte mit klarer Meldung zurück", () => {
+    const oversized = `oklch(0.5 0.2 250) ${"x".repeat(120)}`;
+    const result = appearanceThemeSchema.safeParse({ preset: "custom", colors: { accent: oversized } });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(JSON.stringify(result.error.issues)).toContain(String(MAXIMUM_THEME_COLOR_LENGTH));
+    }
+    expect(() => appearanceThemeSchema.parse({
+      preset: "custom",
+      colors: { accent: "x".repeat(200) },
+    })).toThrow();
   });
 });
