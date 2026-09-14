@@ -134,6 +134,58 @@ tr '\0' '\n' < /proc/$(pgrep -f "t3 serve" | head -1)/environ | grep "^PATH=" | 
 Datum, der Signing-Key signiert die Cookies der Geräte weiterhin korrekt.
 Erst dann ist das Update erfolgreich abgeschlossen.
 
+## Forschungs-Server (benjaminsserver2)
+
+Nur per SSH als `bbecker`; dort läuft T3 als **System-Unit** mit
+`Restart=on-failure` (`/etc/systemd/system/t3-code.service`), `sudo` verlangt
+ein Passwort. Es gibt kein Hermes auf der Maschine.
+
+```bash
+ssh -o BatchMode=yes bbecker@benjaminsserver2 '~/.npm-global/bin/t3 --version'
+```
+
+Backup, Session-Zahl und alte Backups:
+
+```bash
+ssh -o BatchMode=yes bbecker@benjaminsserver2 '
+  f=~/.t3/backups/state.sqlite.before-update-$(date +%Y%m%d).sqlite
+  cp ~/.t3/userdata/state.sqlite "$f"
+  python3 -c "import sqlite3; db=sqlite3.connect(\"file:$HOME/.t3/userdata/state.sqlite?mode=ro\", uri=True); print(db.execute(\"select count(*) from auth_sessions\").fetchone()[0])"
+  ls -la ~/.t3/userdata/secrets/server-signing-key.bin
+  ls -t ~/.t3/backups/state.sqlite.before-update-*.sqlite | tail -n +4 | while read f; do rm -f "$f" "$f-shm" "$f-wal"; done
+'
+```
+
+Installation: Der Dienst nutzt fnm-Node `v24.19.0`, die Login-Shell nur Node 18.
+Deshalb den fnm-PATH voranstellen (sonst wird node-pty gegen die falsche ABI
+gebaut); `~/.npmrc` setzt `prefix` und `allow-scripts` bereits:
+
+```bash
+ssh -o BatchMode=yes bbecker@benjaminsserver2 '
+  export PATH=/home/bbecker/.local/share/fnm/node-versions/v24.19.0/installation/bin:$PATH
+  npm install -g --allow-scripts=node-pty,msgpackr-extract t3@nightly
+  node -e "const pty=require(process.env.HOME+\"/.npm-global/lib/node_modules/t3/node_modules/node-pty\");const p=pty.spawn(\"echo\",[\"ok\"],{name:\"xterm\",cols:80,rows:24});p.onData(d=>{console.log(\"PTY-DATA:\",JSON.stringify(d));p.kill();});"
+'
+```
+
+Neustart ohne sudo: den node-Kindprozess der Unit per SIGKILL beenden, systemd
+startet wegen `Restart=on-failure` selbst neu (SIGTERM wäre ein sauberer Exit
+und würde nicht neu starten):
+
+```bash
+ssh -o BatchMode=yes bbecker@benjaminsserver2 '
+  MAIN=$(systemctl show -p MainPID --value t3-code)
+  NODE=$(pgrep -P "$MAIN" -f "bin/t3 serve" | head -1)
+  kill -KILL "$NODE"
+  for i in $(seq 1 30); do sleep 2; [ "$(curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:3773/)" = "200" ] && exit 0; done
+  exit 1
+'
+```
+
+Verifikation: `systemctl is-active t3-code` (`active`), HTTP 200,
+`~/.npm-global/bin/t3 --version`, Session-Zahl und Signing-Key-Datum
+unverändert.
+
 ## Rollback
 
 Wenn etwas schiefgeht (Dienst startet nicht, Migration schlägt fehl):

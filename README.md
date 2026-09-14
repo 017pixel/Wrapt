@@ -16,9 +16,9 @@ vorgesehen; öffentliche Freigaben per Funnel gehören bewusst nicht zum Betrieb
 - Einen freien Orbit-Workspace für Projekte, Terminals, Agenten, Previews und Notizen.
 - Browserbasierte Werkzeuge für T3 Code, code-server, Codex, OpenCode und Claude Code.
 - Persistente PTY-Terminals mit tmux-Supervisor, Wiederaufnahme und Projektbindung.
-- Direkte Development-Previews, einen serverseitigen Chromium-Browser und einen Dateimanager.
+- Direkte Development-Previews und einen Dateimanager.
 - Hermes Agent mit offizieller Weboberfläche, Chat, Cron, Skills und Verwaltung.
-- Tech TLDRs, Inbox, Nutzungsanalyse, Accountwechsel und lokale Systemdiagnose.
+- Inbox, Nutzungsanalyse, Accountwechsel und lokale Systemdiagnose.
 - Ein versioniertes Extension-System und persönliche, deklarative Plugins mit Least Privilege.
 
 ## Installation
@@ -28,7 +28,7 @@ vorgesehen; öffentliche Freigaben per Funnel gehören bewusst nicht zum Betrieb
 - Linux mit systemd für den dauerhaften Betrieb. Die Entwicklung funktioniert auch ohne systemd.
 - Node.js `>= 22` und pnpm `10`.
 - tmux für persistente Terminal-Sitzungen.
-- Optional: Tailscale, Chromium/Chrome, code-server sowie die gewünschten KI-CLIs.
+- Optional: Tailscale, code-server sowie die gewünschten KI-CLIs.
 
 ### 1. Repository vorbereiten
 
@@ -140,9 +140,9 @@ Die Wrapt-Aufnahmen stammen aus einer isolierten Dokumentationsinstanz; eingebet
 Werkzeuge wurden zusätzlich einzeln auf persönliche Inhalte geprüft. Es sind nur
 Beispielkonten und neutrale Projektdaten sichtbar; T3 Code ist im Dark Mode dargestellt.
 
-| Orbit-Workbench | Tech TLDRs |
+| Orbit-Workbench | Dateimanager |
 | :--: | :--: |
-| ![Orbit-Workbench mit Beispielprojekten](docs/screenshots/02-workbench.png) | ![Tech TLDRs](docs/screenshots/03-tech-tldrs.png) |
+| ![Orbit-Workbench mit Beispielprojekten](docs/screenshots/02-workbench.png) | ![Dateimanager](docs/screenshots/06-gallery.png) |
 
 | T3 Code im Dark Mode | code-server |
 | :--: | :--: |

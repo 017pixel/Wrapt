@@ -12,11 +12,9 @@ Vordergrundstart reichen Node.js und pnpm.
 | pnpm 10 | Ja | Monorepo und reproduzierbare Installation |
 | Linux mit systemd | Nur für Dauerbetrieb | User-Dienste |
 | tmux | Für Terminals | Persistente PTY-Sitzungen |
-| Chromium oder Chrome | Optional | Integrierter Server-Browser |
 | Tailscale | Optional | Privater Remote-Zugriff |
 | code-server | Optional | Eingebetteter VS-Code-Editor |
 | Codex, OpenCode, Claude Code | Optional | Coding-Agenten |
-| Mistral API-Key | Optional | KI-Funktionen in Tech TLDRs |
 
 Für systemd-User-Dienste, die ohne offene SSH-Sitzung weiterlaufen sollen:
 
@@ -62,8 +60,8 @@ Bearbeite danach `config/wrapt.local.json`:
 Die Vorlage verwendet ausschließlich neutrale Werte wie `your-user` und
 `user@example.com`. Echte Accounts, Hostnamen oder Tokens werden nie committet.
 
-In `.env` bleiben `HOST=127.0.0.1` und der Standardport `3010` erhalten. Secrets wie
-`MISTRAL_API_KEY` gehören nur in diese gitignorierte Datei.
+In `.env` bleiben `HOST=127.0.0.1` und der Standardport `3010` erhalten. Secrets gehören
+nur in diese gitignorierte Datei.
 
 Die vollständige Feldreferenz steht in [configuration.md](configuration.md).
 

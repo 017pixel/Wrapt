@@ -45,13 +45,7 @@ unlesbar — schwarze Schrift auf schwarzem Grund.
 
 Das Terminal besteht aus xterm.js im Browser, einem versionierten JSON-WebSocket-Protokoll, einem `node-pty`-Gateway, einem tmux-Supervisor und einer SQLite-Registry für Session-Metadaten und geräteübergreifende Terminal-Layouts. `create`, `attach`, `input`, `resize`, `clear`, `restart`, `close` und `ping` sind getrennte Nachrichten. Jede UI-Instanz sendet eine stabile `runtimeId`; ein Create mit derselben Benutzer- und Runtime-ID hängt an die vorhandene tmux-Sitzung an, statt einen zweiten Prozess zu starten. Beim Erstellen wird ausschließlich der validierte Typ `shell`, `codex` oder `opencode` akzeptiert; ausführbare Dateien und Argumente stammen aus der serverseitigen Konfiguration. Browser-, Socket- und Backend-Trennungen beenden keine beaufsichtigte Session. Beim Neustart werden Registry und tmux abgeglichen, Verlauf aus dem Pane übernommen und vorhandene Einzelbenutzer-Sitzungen in der UI angeboten. Projekt-IDs werden serverseitig in freigegebene Arbeitsverzeichnisse aufgelöst. Sitzungen sind an die durch Tailscale bestätigte Identität gebunden, auf erlaubte Wurzelverzeichnisse beschränkt und pro Typ zahlenmäßig begrenzt.
 
-## Browser und lokale Previews
-
-Der Browser-Manager startet einen echten headless Chromium-Prozess mit einem isolierten, dauerhaften Profil und steuert ihn über das Chrome DevTools Protocol. Profilverzeichnisse werden aus Benutzeridentität und validiertem Profilnamen gehasht, mit Modus `0700` angelegt und niemals an den Client ausgeliefert. Cookies und Loginzustände überleben Leerlauf, Backend-Neustarts und Gerätewechsel; SQLite speichert zusätzlich Profilbindung und letzte URL einer stabilen Browserinstanz. Der Browser empfängt JPEG-Screencasts, Navigation sowie typisierte Maus-, Tastatur- und Resize-Ereignisse über einen eigenen WebSocket. Sitzungen gehören zur bestätigten Tailscale-Identität, WebSocket-Upgrades müssen vom Wrapt-Origin stammen, und der Client erhält weder den DevTools-Port noch Zugriff auf den Chromium-Prozess.
-
-Das Browser-Werkzeug übernimmt die schnelle Preview-Logik für lokale Ziele: Löst sich die eingegebene oder aus der Portübersicht gewählte Adresse auf einen lokalen Port auf, übernimmt `BrowserPanel` (`apps/web/src/components/browser/BrowserPanel.tsx`) die Anzeige über denselben Slot-Proxy-Mechanismus wie Previews (`isolate: false`, geteilter Slot pro Zielport) statt über den Chromium-Stream. Ein Umschalter erlaubt weiterhin den expliziten Wechsel auf den Server-Chromium für dasselbe lokale Ziel, etwa für geräteübergreifend geteilte Sessions. Der Chromium-Prozess startet erst bei echter externer Navigation oder explizitem Umschalten – der bloße Blank-Zustand mit der Portübersicht verbraucht keine der begrenzten Browser-Sessions. Dieselbe Komponente läuft unverändert als eigenständige Route und als Orbit-Werkzeugknoten im Infinite Canvas; Entfernen des Knotens gibt einen gehaltenen Preview-Slot beim Unmount frei.
-
-Die Preview-Startansicht verwendet die lokale Portübersicht. Konfigurierte und lokal erkannte Previews laufen immer direkt im Client-iframe über einen der getrennten HTTPS-Slot-Origins. Root-Proxying erhält absolute Assets, Client-Router und Vite-HMR ohne `base`-Anpassung. Verschiedene Ports trennen localStorage und IndexedDB; Cookies sind hostweit und deshalb nicht port-isoliert. Der Server-Chromium bleibt ausschließlich dem Browser-Werkzeug vorbehalten.
+## Lokale Previews
 
 Das eigenständige Preview-Werkzeug ist die Kommandozentrale für ein Projekt. Es verwaltet den
 festen Befehl `npm run dev` in einer tmux-Sitzung, zeigt dessen Zustand und redigierten Log-Ausschnitt,
@@ -80,15 +74,7 @@ Ein vorhandener Workspace der Schema-Version 3 in `localStorage` wird nur dann i
 
 Besuchte React-Routen bleiben für die Dauer der Browser-Session in einem persistenten Outlet gemountet. Orbit-Live-Knoten besitzen stabile Laufzeit-IDs, sodass xterm sich nach einem Canvas- oder Routenwechsel wieder an dieselbe PTY-Sitzung hängt. Iframes bleiben innerhalb ihres Knotens gemountet und werden bei Verschieben, Skalieren oder Maximieren nicht neu geladen.
 
-## Tech TLDRs
-
-Der News-Bereich verwendet ein eigenes SQLite-Modul in derselben Wrapt-Datenbank. RSS-, Atom-, Hacker-News- und YouTube-Adapter normalisieren Beiträge in ein gemeinsames Schema; FTS5 indexiert Titel, TLDR und Inhalt. Ein Cursor aus Wichtigkeit und Veröffentlichungszeit ermöglicht stabiles fortlaufendes Nachladen.
-
-Mistral Small verarbeitet Übersetzung, Kategorie, TLDR und Wichtigkeit; Mistral Embed erzeugt Suchvektoren, während Mistral Medium nur für komplexe Mehrquellenfragen vorgesehen ist. Der Feed funktioniert bei Rate Limits weiter mit regelbasierten Kategorien und Originalteasern. API-Schlüssel verlassen den Server nie.
-
-Desktop nutzt ein dynamisches Editorial-Bento. Mobile rendert denselben Datenbestand als vertikalen Snap-Feed; benennbare Sammlungen, Lesestatus und quellengebundene Fragen greifen über typisierte API-Routen auf SQLite zu.
-
-T3 Code, OpenCode Web und code-server bleiben bewusst in Iframes: Sie sind eigenständige Webanwendungen mit eigenen Routern, CSP-Regeln, Cookies und WebSocket-Verbindungen. Entwicklungs-Previews sind davon getrennt und verwenden standardmäßig Slot-iframes; der Chromium-Stream ist nur noch der explizite Browser-/Kompatibilitätspfad.
+T3 Code, OpenCode Web und code-server bleiben bewusst in Iframes: Sie sind eigenständige Webanwendungen mit eigenen Routern, CSP-Regeln, Cookies und WebSocket-Verbindungen. Entwicklungs-Previews sind davon getrennt und verwenden Slot-iframes.
 
 Nicht besuchte Routen werden als getrennte Vite-Chunks gebaut und bei Browser-Leerlauf vorab geladen. Der Build erzeugt Brotli- und Gzip-Dateien vorab, damit die Server-CPU sie nicht bei jedem ersten Abruf neu berechnen muss. Gehashte Assets erhalten immutable Browser-Caches; HTML und Service Worker bleiben revalidierbar, damit neue Releases sofort erkannt werden.
 

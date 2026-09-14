@@ -20,9 +20,9 @@ Im Core bleiben nur Fähigkeiten, die mehrere Extensions zuverlässig benötigen
 - Datei-, Git-, Terminal- und Prozess-Infrastruktur
 - Notification Bus, Realtime und sichere Secret-Vermittlung
 - Theme-, Layout- und UI-Primitives
-- Preview- und Browser-Infrastruktur
+- Preview-Infrastruktur
 
-Als First-Party-Extension beginnen oder dorthin migrieren sollen dagegen provider- oder workflow-spezifische Funktionen, zum Beispiel T3 Code, Hermes, Tech TLDRs, spezielle Usage Provider und spezialisierte Dashboards.
+Als First-Party-Extension beginnen oder dorthin migrieren sollen dagegen provider- oder workflow-spezifische Funktionen, zum Beispiel T3 Code, Hermes, spezielle Usage Provider und spezialisierte Dashboards.
 
 ## Authoring-Regeln
 

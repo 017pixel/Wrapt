@@ -11,7 +11,7 @@ Konfigurationsquelle für alles Umgebungsspezifische:
 - `tailscale` — Hostname, IP, erlaubte Login-E-Mails (`allowedUsers`) und optionale Administratoren (`adminUsers`). Fehlt `adminUsers`, wird aus Kompatibilitätsgründen der erste Eintrag aus `allowedUsers` als Administrator verwendet.
 - `paths` — Projekt-Root, Orbit-Browser-Root, Terminal-Roots, Datenverzeichnis, Datenbank,
   Backups, Assets und Profile.
-- `cli` — Pfade zu `codexbar`, `codex`, `opencode`, `claude`, `tmux`, `chromium`.
+- `cli` — Pfade zu `codexbar`, `codex`, `opencode`, `claude`, `tmux`.
 - `codexbar` — Pfad zur CodexBar-`config.json` und optionale OAuth-Profil-Homes.
 - `dashboard` — serverseitige Sichtbarkeitsdefaults für Dashboard-Bereiche und Polling-Intervalle. Die lokale Oberfläche kann diese Bereiche zusätzlich pro Browser ausblenden.
 - `appearance` — projektweite Akzent-, Hintergrund-, Sidebar-, Topbar- und Bottom-Bar-Farben. Lokale Plugins lesen dieselben semantischen Theme-Tokens.
@@ -176,7 +176,7 @@ durch DNS-, Proxy- oder Firewallregeln blockiert sein.
 ## Umgebungsvariablen (`.env`)
 
 Die `.env` (Vorlage `.env.example`) enthält nur **Secrets und neutrale Runtime-Knöpfe**: Host, Port,
-Config-Verzeichnis, Web-Build-Verzeichnis, Log-Level sowie Cache-/Timeout-Werte. Der Mistral-Schlüssel für Tech TLDRs ist das einzige zusätzliche Secret und bleibt ausschließlich in der ignorierten `.env`. Persönliche Pfade und Identität gehören **nicht** in die `.env`, sondern nach `config/wrapt.local.json`.
+Config-Verzeichnis, Web-Build-Verzeichnis, Log-Level sowie Cache-/Timeout-Werte. Persönliche Pfade und Identität gehören **nicht** in die `.env`, sondern nach `config/wrapt.local.json`.
 
 Der Request-Limiter schützt ausschließlich `/api/**`. Editor, Vite-Module und deren WebSockets laufen unter `/editor/**` und sind bewusst ausgenommen, weil schon ein normaler Modulgraph mehr als 180 Requests erzeugen kann. code-server darf WebSocket-Frames bis 16 MiB übertragen; das Terminal validiert seine Eingaben unabhängig davon weiterhin auf höchstens 64 KiB.
 
@@ -191,7 +191,7 @@ Qualitätsstufe 4 hält Buildzeit und Dateigröße in einem guten Verhältnis. D
 
 ## Dashboard
 
-Der Abschnitt `dashboard` in `config/wrapt.local.json` steuert, welche Bereiche der Server an die Oberfläche freigibt und wie oft die Live-Daten abgefragt werden. Die Schlüssel unter `sections` sind `quickActions`, `server`, `metrics`, `services`, `runtime`, `diagnostics`, `usage`, `news` und `commands`. Die Intervalle unter `refresh` werden in Millisekunden angegeben und serverseitig begrenzt.
+Der Abschnitt `dashboard` in `config/wrapt.local.json` steuert, welche Bereiche der Server an die Oberfläche freigibt und wie oft die Live-Daten abgefragt werden. Die Schlüssel unter `sections` sind `quickActions`, `server`, `metrics`, `services`, `runtime`, `diagnostics`, `usage` und `commands`. Die Intervalle unter `refresh` werden in Millisekunden angegeben und serverseitig begrenzt.
 
 Die Schalter unter Einstellungen → Navigation → Dashboard gelten nur für den aktuellen Browser und werden in `localStorage` gespeichert. Ein Bereich, der in `dashboard.sections` auf `false` steht, bleibt auch dort gesperrt. Nach Änderungen an der zentralen Config ist ein Backend-Neustart erforderlich.
 
@@ -349,21 +349,16 @@ OPENCODE_SHARED_HOME=/home/your-user/.local/share/opencode
 
 Die SQLite-Datei und angelegte Profile enthalten lokale, nicht zu veröffentlichende Laufzeitdaten. Ein Account-Entfernen verändert nur die Registry und die CodexBar-Profilzuordnung; vorhandene CLI-Credentials werden nie gelöscht.
 
-## Browser und lokale Ports
+## Lokale Ports
 
-Der integrierte Browser sucht mit `CHROMIUM_PATH=auto` zuerst in lokalen Playwright- und Puppeteer-Caches und danach nach einer systemweit installierten Chromium- oder Chrome-Binärdatei. Ein fester absoluter Pfad kann `auto` ersetzen. Sitzungszahl, Start und Leerlauf sowie Portprüfung sind zentral konfiguriert:
+Die lokale Portübersicht ist zentral konfiguriert:
 
 ```dotenv
-CHROMIUM_PATH=auto
-BROWSER_MAX_SESSIONS=6
-BROWSER_PROFILES_ROOT=/home/your-user/.local/share/wrapt/browser-profiles
-BROWSER_STARTUP_TIMEOUT_MS=15000
-BROWSER_IDLE_TIMEOUT_MS=1800000
 LOCAL_PORT_CACHE_MS=5000
 LOCAL_PORT_PROBE_TIMEOUT_MS=450
 ```
 
-Die Profilwurzel liegt außerhalb des Repositorys. Darunter gespeicherte Cookies, Tokens und Website-Daten sind sensible Laufzeitdaten und müssen mit denselben Rechten wie CLI-Anmeldungen geschützt und aus Quellcode-Backups ausgeschlossen werden. Der Port-Scanner liest ausschließlich lokale TCP-Listener und prüft sie gegen Loopback. Er öffnet keine externen Netzwerkziele. Die Browser- und Terminal-WebSockets benötigen eine erlaubte Tailscale-Identität und einen identischen Wrapt-Origin.
+Der Port-Scanner liest ausschließlich lokale TCP-Listener und prüft sie gegen Loopback. Er öffnet keine externen Netzwerkziele. Die Terminal-WebSockets benötigen eine erlaubte Tailscale-Identität und einen identischen Wrapt-Origin.
 
 ## Preview-Slots, Gateway und Diagnose
 
@@ -479,33 +474,6 @@ scripts/ki-account.sh use claude privat  # bei mehrdeutigen Namen das Werkzeug v
 ```
 
 Lokale automatisierte Browsertests können den ansonsten von Tailscale Serve gesetzten Identitätsheader über den Vite-Proxy ergänzen. `WRAPT_DEV_TAILSCALE_USER` ist ausschließlich zusammen mit einem isolierten Test-Backend und einer separaten Datenbank zu verwenden. Der Produktionsserver wertet diese Variable nicht aus und akzeptiert weiterhin nur den tatsächlich am Request vorhandenen Tailscale-Header.
-
-## Tech TLDRs
-
-Die News-Pipeline verwendet dieselbe SQLite-Datei und wird zentral über `.env` konfiguriert. Der API-Key darf nie in Frontendvariablen, Logs oder Konfigurationsdateien des Browsers übernommen werden.
-
-```dotenv
-MISTRAL_API_KEY=
-MISTRAL_API_BASE_URL=https://api.mistral.ai/v1
-MISTRAL_MODEL_INGEST=mistral-small-2603
-MISTRAL_MODEL_CHAT=mistral-medium-3-5
-MISTRAL_MODEL_EMBED=mistral-embed-2312
-NEWS_SYNC_INTERVAL_MS=1800000
-NEWS_FETCH_TIMEOUT_MS=12000
-NEWS_MAX_ITEMS_PER_SOURCE=16
-NEWS_AI_CONCURRENCY=1
-```
-
-Free-Mode-Limits sind organisations- und modellabhängig. Die Wrapt speichert keine festen Mistral-Limits, sondern verarbeitet Beiträge seriell, respektiert Rate-Limit-Antworten und lässt unverarbeitete Meldungen mit regelbasiertem TLDR sichtbar. Nach einer Änderung der Modell-IDs ist ein Neustart des Backends erforderlich.
-
-### Hintergrund-Sync pausieren
-
-Wer die Tech-News nicht nutzt, schaltet sie in den Einstellungen unter Navigation ab (Tech-News Hintergrund-Sync). Das wirkt sofort und ohne Neustart: Der Server fragt keine Feeds mehr ab und ruft Mistral weder für Zusammenfassungen noch für Embeddings oder den KI-Chat auf. Der gespeicherte Bestand bleibt lesbar. Nach dem Reaktivieren lädt der nächste Sync alles wieder nach. Das Ausblenden unter Seiten-Sichtbarkeit versteckt dagegen nur die Navigation in diesem Browser und stoppt den Server nicht.
-
-```jsonc
-// config/wrapt.local.json
-{ "news": { "enabled": false } }
-```
 
 ## Codex- und OpenCode-Terminals
 

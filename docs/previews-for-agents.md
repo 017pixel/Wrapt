@@ -15,7 +15,7 @@ lokalen Devserver weiterleitet. Sie ist **kein** allgemeiner Webbrowser.
 | Bestätigte Full-Stack-Graphen (Frontend + API + Socket) | unterstützt |
 | localStorage/IndexedDB je Slot getrennt | ja, pro Origin |
 | Cookies je Slot getrennt | **nein** — Cookies gelten hostweit, Ports isolieren sie nicht |
-| Externe Websites | nie über den Gateway; Client-Browser oder Server-Chromium |
+| Externe Websites | nie über den Gateway; immer im echten Client-Browser |
 | Vollständige Geräteemulation (DPR, Safe Area, Engine) | nein, nur angenähert |
 | Vollständige Netzwerksicht wie CDP/DevTools | nein, Best Effort |
 
@@ -170,6 +170,5 @@ Nicht Bestandteil von `pnpm test:e2e` und bewusst manuell:
 - administratives `sudo bash deploy/proxy/configure-tailscale-serve.sh` (nur bei
   geänderten Portmappings),
 - eine reale MPA und eine reale Full-Stack-App,
-- optional ein Chromium-Cookie-Profiltest.
 
 Der normale Abschluss verlangt kein `sudo`.

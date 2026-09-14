@@ -34,7 +34,7 @@ Bevorzugte Contribution Points:
 - Statusleiste / Topbar / Kontextmenüs: entsprechende UI Contributions
 - Dateien und Git: File Contributions plus minimale File-/Git-Permissions
 - Terminal: Terminal Contributions und Terminal-Permissions
-- Browser / Preview: Browser- und Preview-Contributions
+- Preview: Preview-Contributions
 - Notifications: Notification Contributions
 - Agenten: Agent Tool und Agent Skill Contributions
 - Hintergrundarbeit: Background Services, Scheduled Jobs und Realtime Contributions
@@ -91,7 +91,6 @@ Erstelle intern eine Capability-zu-Permission-Liste. Beispiele:
 - Terminal erstellen/Eingabe: `terminal.create`, `terminal.input`
 - Prozesse: `process.execute`
 - Netzwerk: `network.fetch`
-- Browser: `browser.control`
 - Preview: `preview.read`, `preview.manage`
 - Agent aufrufen: `agents.invoke`
 - Agent Tools/Skills registrieren: `agents.tools.register`, `agents.skills.register`

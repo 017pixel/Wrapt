@@ -82,16 +82,11 @@ festhalten, ab welcher Nightly-Version der Rückweg blockiert ist.
 ## Frontend
 
 ### 8. Neun Lint-Warnungen abarbeiten ✅
-Die früheren `react-hooks/exhaustive-deps`-Warnungen in `MobileNav`, `ChromiumBrowser`,
-`OrbitWorkbench` und `TechTldrs` sind behoben.
+Die früheren `react-hooks/exhaustive-deps`-Warnungen in `MobileNav` und
+`OrbitWorkbench` sind behoben.
 **Fertig:** `pnpm lint` meldet 0 Warnungen.
 
-### 9. `TechTldrs.tsx` aufteilen (1.547 Zeilen)
-Größte Datei im Projekt, enthält Feed, Reader, Chat, Filter und Sammlungen in einem.
-Vorgehen: In Teilkomponenten je Bereich zerlegen, gemeinsame Zustände in einen Hook.
-**Fertig, wenn:** Keine Datei über ~600 Zeilen und `pnpm test` weiter grün.
-
-### 10. `OrbitWorkbench.tsx` entflechten (1.081 Zeilen)
+### 9. `OrbitWorkbench.tsx` entflechten (1.081 Zeilen)
 Kontextmenü, Kantenmenü, Inspector, Zwischenablage und Canvas-Steuerung in einer
 Komponente. Das Umfärben scheiterte genau an dieser Verflechtung.
 Vorgehen: Kontextmenü und Inspector herauslösen, die Ableitung von Flow-Knoten und
@@ -99,7 +94,7 @@ Vorgehen: Kontextmenü und Inspector herauslösen, die Ableitung von Flow-Knoten
 **Fertig, wenn:** Die Datei unter ~600 Zeilen liegt und Farbe/Position/Projekt
 nachweislich alle Ableitungen auslösen.
 
-### 11. Bundle-Größen prüfen
+### 10. Bundle-Größen prüfen
 `WebTerminal` 344 KB, Hauptbündel 320 KB, `OrbitWorkbench` 248 KB (unkomprimiert).
 Vorgehen: Prüfen, ob xterm-Addons und `@xyflow/react` erst beim Öffnen geladen
 werden; ungenutzte lucide-Icons fallen bereits durch Tree-Shaking weg — verifizieren.

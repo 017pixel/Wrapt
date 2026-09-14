@@ -141,7 +141,7 @@ Nachweis läuft mit `pnpm test:extension-deployment` und verändert keine aktive
 
 - Cookies gelten hostweit; Ports isolieren sie nicht. Das ist keine Fehlfunktion, sondern
   die Cookie-Spezifikation.
-- Für echte Cookie-Isolation das Browser-Werkzeug mit einem eigenen Server-Chromium-Profil verwenden.
+- Cookies lassen sich über Slot-Ports nicht isolieren. Wer getrennte Cookies braucht, nutzt dafür einen eigenen Browser außerhalb der Workbench.
 
 ## Bridge meldet „nicht verfügbar"
 

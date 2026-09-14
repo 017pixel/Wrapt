@@ -24,7 +24,6 @@
     ],
     "terminalDefaultCwd": "/home/your-user",
     "dataDir": "/home/your-user/.local/share/wrapt",
-    "browserProfilesRoot": "/home/your-user/.local/share/wrapt/browser-profiles",
     "orbitBackupDir": "/home/your-user/.local/share/wrapt/orbit-backups",
     "orbitAssetDir": "/home/your-user/.local/share/wrapt/orbit-assets",
     "fileGalleryDir": "/home/your-user/.local/share/wrapt/file-gallery",
@@ -39,8 +38,7 @@
     "codex": "/home/your-user/.local/bin/codex",
     "opencode": "/home/your-user/.npm-global/bin/opencode",
     "claude": "/home/your-user/.local/bin/claude",
-    "tmux": "/usr/bin/tmux",
-    "chromium": "auto"
+    "tmux": "/usr/bin/tmux"
   },
   "codexbar": {
     "configPath": "/home/your-user/.config/codexbar/config.json",
@@ -55,7 +53,6 @@
       "runtime": true,
       "diagnostics": true,
       "usage": true,
-      "news": true,
       "commands": true
     },
     "refresh": {
@@ -66,12 +63,8 @@
       "localPortsMilliseconds": 5000,
       "terminalSessionsMilliseconds": 3000,
       "operationalMetricsMilliseconds": 5000,
-      "usageMilliseconds": 60000,
-      "newsMilliseconds": 60000
+      "usageMilliseconds": 60000
     }
-  },
-  "news": {
-    "enabled": true
   },
   "appearance": {
     "preset": "t3-code",

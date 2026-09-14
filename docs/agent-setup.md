@@ -15,15 +15,13 @@ verifiziert am Ende, dass alles läuft.
 - **Betriebssystem:** Linux mit systemd (für den Dienstbetrieb). Entwicklung geht auch ohne.
 - **Node.js ≥ 22** und **pnpm 10** (`scripts/install-deps.sh` prüft/installiert das).
 - **tmux** — für die Terminal-Sessions.
-- **Chromium/Chrome** — für das integrierte Browser-Tool (optional, aber empfohlen).
 - **Tailscale** — für den privaten Remote-Zugriff (optional; lokal läuft es auch ohne).
 - **code-server** — optional, nur für den eingebetteten Editor.
 - **CodexBar-CLI** — optional, nur für die Nutzungs-/Limit-Historie.
-- **Mistral-Account** — optional, nur für die KI-Funktionen der Tech-TLDRs.
 
 Prüfe zuerst, was vorhanden ist:
 ```bash
-node -v; pnpm -v; tmux -V; command -v chromium || command -v chromium-browser || command -v google-chrome; command -v tailscale
+node -v; pnpm -v; tmux -V; command -v tailscale
 ```
 
 ---
@@ -40,12 +38,10 @@ Stelle dem Benutzer diese Fragen und sammle die Antworten (Pflicht = *):
 4. **HTTPS-Port für Tailscale** — Standard `8443`.
 5. **Erlaubte Login-E-Mails** — die Tailscale-Identitäten, die auf die Wrapt dürfen
    (z. B. `alice@example.com`).
-6. **Optionale CLI-Pfade** — `codex`, `opencode`, `claude`, `codexbar`, `tmux`, `chromium`
+6. **Optionale CLI-Pfade** — `codex`, `opencode`, `claude`, `codexbar`, `tmux`
    (Standard: automatische Erkennung im PATH).
 7. **CodexBar** — soll die Nutzungshistorie aktiviert werden? Falls ja: Pfad zur
    `codexbar`-Binary und zur `config.json`.
-8. **Mistral-API-Key** — optional, aktiviert die KI-Funktionen der Tech-TLDRs.
-
 ---
 
 ## 2. Konfigurationsdateien erzeugen
@@ -64,13 +60,13 @@ Antworten aus Schritt 1 ein. Bedeutung der Felder:
 | `tailscale.allowedUsers` | Erlaubte Login-E-Mails (Terminal/Editor-Zugriff). |
 | `paths.*` | Projekt-Roots, Datenverzeichnis, Datenbank, Backups, Assets, Profile. |
 | `paths.codexSharedHome` / `claudeSharedHome` / `opencodeSharedHome` | Optional. Gemeinsame Homes der KI-Werkzeuge für den Accountwechsel (Standard: `<home>/.codex`, `<home>/.claude`, `<home>/.local/share/opencode`). |
-| `cli.*` | Pfade zu `codexbar`, `codex`, `opencode`, `claude`, `tmux`, `chromium`. |
+| `cli.*` | Pfade zu `codexbar`, `codex`, `opencode`, `claude`, `tmux`. |
 | `codexbar.configPath` / `oauthProfileHomes` | CodexBar-Konfiguration und optionale OAuth-Profile. |
 | `plugins.wraptPluginsSkillPath` | Optionaler absoluter Ersatzpfad für die `$wrapt-plugins`-Anleitung. Ohne Wert nutzt Wrapt den mitgelieferten Skill; `creatorSkillPath` bleibt als alter Schlüssel kompatibel. |
 
 ### b) `.env`
 Kopiere `.env.example` nach `.env`. Hier gehören **nur Secrets und neutrale Runtime-Knöpfe**
-hinein — insbesondere `MISTRAL_API_KEY` (optional). Persönliche Pfade/Identität gehören
+hinein. Persönliche Pfade/Identität gehören
 **nicht** in die `.env`, sondern in `config/wrapt.local.json`.
 
 > Env-Variablen in `.env` überschreiben bei Bedarf einzelne Werte aus der zentralen Config.
@@ -147,7 +143,7 @@ werden dabei nie gelöscht, sondern verschoben und gesichert.
    Antwort enthält `"appName"` mit dem konfigurierten Namen.
 2. **UI erreichbar:** `http://127.0.0.1:3010/wrapt/` (bzw. über Tailscale-Host:Port).
 3. **Projekte sichtbar:** Im Orbit erscheinen die Projekte aus `paths.projectsRoot`.
-4. **Terminal/Browser/News/Usage** laden ohne Fehler.
+4. **Terminal/Previews/Usage** laden ohne Fehler.
 
 Melde dem Benutzer am Ende kurz: Was läuft, welche optionalen Dienste aktiv sind und
 welche Werte in `config/wrapt.local.json` gesetzt wurden (ohne Secrets auszugeben).

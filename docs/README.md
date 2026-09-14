@@ -12,6 +12,7 @@ README, Installation und Konfiguration.
 | Einrichtung durch einen Coding-Agenten | [Agent-Setup](agent-setup.md) |
 | Lokale Werte und Integrationen | [Konfiguration](configuration.md) |
 | Häufige Fehler und Diagnose | [Fehlerbehebung](troubleshooting.md) |
+| Sicherheitsgrenzen, Budgets und Rollback | [Absicherung](hardening.md) |
 
 ## Plugins und Extensions
 

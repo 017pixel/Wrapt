@@ -188,12 +188,11 @@ scripts/ki-account.sh use claude privat  # bei mehrdeutigen Namen das Werkzeug v
 
 - Development-Previews verwenden standardmäßig direkte iframes über getrennte HTTPS-Slot-Origins. Die internen Ports stehen in `previews.slotPorts`, die Tailscale-Ports in `previews.publicPorts`.
 - Slot-Zuordnungen liegen in derselben externen SQLite-Datenbank wie Orbit und überleben Neustarts. HTTP und WebSocket werden am Root weitergeleitet; Vite braucht keinen besonderen `base`.
-- localStorage und IndexedDB sind pro Slot getrennt, Cookies jedoch nicht. Für Cookie-Isolation, geräteübergreifend geteilte Sitzungen oder blockiertes Embedding den Server-Chromium-Fallback verwenden.
-- **Externe URLs erreichen den lokalen Preview-Gateway nie.** Sie werden im echten Client-Browser oder im Server-Chromium geöffnet.
+- localStorage und IndexedDB sind pro Slot getrennt, Cookies jedoch nicht. Für echte Cookie-Isolation oder blockiertes Embedding einen eigenen Browser außerhalb der Workbench verwenden.
+- **Externe URLs erreichen den lokalen Preview-Gateway nie.** Sie werden im echten Client-Browser geöffnet.
 - Alle Preview-Endpunkte verlangen eine erlaubte Tailscale-Identität, mutierende zusätzlich Same-Origin. Benutzer sehen nur eigene Sessions, Snapshots und Storage-Profile; fremde Slots erscheinen nur als „belegt".
 - Ein Slot, dessen Storage-Reset nicht verifizierbar war, bleibt fail-closed in Quarantäne und wird nicht neu vergeben.
 - Die Feature-Flags stehen unter `previews` in `config/wrapt.local.json` (`gatewayV2Enabled`, `bridgeEnabled`, `diagnosticsEnabled`, `storageSyncMode`, `slotResetEnabled`) — Details in [`docs/configuration.md`](docs/configuration.md).
-- Der eigenständige Browser bleibt ein serverseitiger Chromium-Stream. Seine lokale Portübersicht öffnet ein Preview-Panel beziehungsweise eine 1er-Preview-Gruppe.
 - Nach Änderungen an Preview-Ports einmalig `sudo bash deploy/proxy/configure-tailscale-serve.sh` ausführen.
 
 ### Doctor und sichere Reparatur
