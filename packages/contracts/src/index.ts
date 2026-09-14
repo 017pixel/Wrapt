@@ -3,6 +3,7 @@ import { pushEndpointSchema } from "./push.js";
 export * from "./appearance.js";
 export * from "./codex-resets.js";
 export * from "./context-menu.js";
+export * from "./mascot.js";
 export * from "./operational-metrics.js";
 export * from "./plugins.js";
 export * from "./update.js";
@@ -46,7 +47,6 @@ export const dashboardSectionSchema = z.enum([
   "runtime",
   "diagnostics",
   "usage",
-  "news",
   "commands",
 ]);
 
@@ -59,7 +59,6 @@ export const dashboardConfigSchema = z.object({
     runtime: z.boolean().default(true),
     diagnostics: z.boolean().default(true),
     usage: z.boolean().default(true),
-    news: z.boolean().default(true),
     commands: z.boolean().default(true),
   }).prefault({}),
   refresh: z.object({
@@ -71,7 +70,6 @@ export const dashboardConfigSchema = z.object({
     terminalSessionsMilliseconds: z.number().int().min(1_000).max(30_000).default(3_000),
     operationalMetricsMilliseconds: z.number().int().min(1_000).max(120_000).default(5_000),
     usageMilliseconds: z.number().int().min(10_000).max(600_000).default(60_000),
-    newsMilliseconds: z.number().int().min(10_000).max(600_000).default(60_000),
   }).prefault({}),
 }).prefault({});
 
@@ -696,7 +694,6 @@ export const previewSchema = z.object({
   targetPort: z.number().int().min(1).max(65_535).nullable().default(null),
   path: previewPathSchema.default("/"),
   mode: serviceModeSchema,
-  runtime: z.enum(["iframe", "shared-browser"]).default("iframe"),
   dependencies: z.array(previewDependencySchema).max(11).default([]),
 });
 
@@ -865,12 +862,22 @@ export const skillEditorReadResponseSchema = z.object({
   content: z.string(),
   modifiedAt: isoDateSchema,
   sizeBytes: z.number().int().nonnegative(),
+  /** Inhaltsgebundener Revisionstoken für konfliktfreies Speichern. */
+  revisionToken: z.string().min(16),
 });
 export const skillEditorWriteRequestSchema = z.object({
   path: z.string().trim().min(1).max(4_096),
   content: z.string().max(2_097_152),
-  expectedModifiedAt: isoDateSchema.nullable(),
-});
+  expectedRevision: z.string().min(16).nullable().optional(),
+  // Bestehende Clients senden weiterhin die Änderungszeit; der Server behandelt
+  // sie als schwächeren Erwartungswert, wenn kein Revisionstoken vorliegt.
+  expectedModifiedAt: isoDateSchema.nullable().optional(),
+}).refine(
+  // Ein bewusstes Überschreiben muss als `null` sichtbar sein; ein fehlendes
+  // Feld wäre ein stiller Force-Write und wird abgelehnt.
+  (value) => value.expectedRevision !== undefined || value.expectedModifiedAt !== undefined,
+  "Für konfliktfreies Speichern ist ein Erwartungswert erforderlich.",
+);
 export const skillEditorCreateRequestSchema = z.object({
   name: skillNameSchema,
   description: z.string().trim().min(1).max(1_024),
@@ -897,8 +904,29 @@ export const skillEditorGitResponseSchema = z.object({
   pushed: z.boolean(),
   message: z.string().nullable(),
   changedSkills: z.array(skillEditorGitChangeSchema),
+  /** Explizit vorgemerkte Pfade — nie der gesamte Arbeitsbaum. */
+  paths: z.array(z.string()),
   errorTail: z.string().nullable(),
   notice: z.string().nullable(),
+});
+export const skillEditorGitPreviewResponseSchema = z.object({
+  branch: z.string(),
+  changes: z.array(skillEditorGitChangeSchema),
+  /** Pfade, die ein Commit ausdrücklich aufnehmen würde. */
+  paths: z.array(z.string()),
+  newFiles: z.array(z.string()),
+  /** Vorhandene Änderungen, die bewusst nicht committet werden. */
+  excludedPaths: z.array(z.string()),
+  globalRulesChanged: z.boolean(),
+  diff: z.string(),
+  diffTruncated: z.boolean(),
+  /** Bindet die Bestätigung an genau diesen Arbeitsstand. */
+  intent: z.string().min(16),
+  errorTail: z.string().nullable(),
+  notice: z.string().nullable(),
+});
+export const skillEditorGitCommitRequestSchema = z.object({
+  intent: z.string().min(16),
 });
 
 export const registerProjectRequestSchema = z.object({
@@ -1331,8 +1359,9 @@ export const saveTerminalWorkspaceRequestSchema = z.object({
   document: z.union([terminalWorkspaceSchema, terminalWorkspaceV2Schema]),
   expectedRevision: z.number().int().nonnegative().nullable(),
 });
-// `notion` bleibt als lesbarer Legacy-Typ erhalten. Neue Knoten werden dafür
-// nicht mehr angeboten, bestehende Arbeitsflächen dürfen ihn aber nie verlieren.
+// `notion` und `browser` bleiben als lesbare Legacy-Typen erhalten. Neue Knoten
+// werden dafür nicht mehr angeboten, bestehende Arbeitsflächen dürfen sie aber
+// nie verlieren.
 export const panelTypeSchema = z.enum(["t3-code", "code-server", "preview", "browser", "terminal", "codex", "opencode", "files", "hermes", "notion"]);
 export const panelSchema = z.object({
   id: z.string().min(1),
@@ -1340,8 +1369,8 @@ export const panelSchema = z.object({
   projectId: z.string().nullable(),
   previewId: z.string().nullable(),
   reloadKey: z.number().int().nonnegative(),
-  // Wird nur für Browser-Aufrufe aus eingebetteten Werkzeugen gesetzt.
-  // Optional, damit bestehende gespeicherte Arbeitsflächen kompatibel bleiben.
+  // Nur noch ein Legacy-Feld früherer Browser-Panels. Optional, damit bestehende
+  // gespeicherte Arbeitsflächen kompatibel bleiben.
   browserUrl: z.string().trim().min(1).max(2_048).optional(),
   // Tiefenlink-Ziel für T3-Panels: Pfad hinter dem Proxy-Präfix `/t3`,
   // z. B. `/umgebung/thread`. Optional, damit gespeicherte Arbeitsflächen
@@ -1793,7 +1822,6 @@ export const orbitNodeSchema = z.object({
   // Slot-Origin ohne Reset wiederverwendet werden darf.
   previewStorageProfileId: z.string().uuid().nullable().default(null),
   previewIsolation: z.boolean().default(true),
-  previewRuntime: z.enum(["iframe", "shared-browser"]).default("iframe"),
   previewReferenceId: z.string().max(100).nullable().default(null),
   previewLastUsedAt: isoDateSchema.nullable().default(null),
   assetId: z.string().uuid().nullable().default(null),
@@ -1977,58 +2005,6 @@ export const projectFileResponseSchema = z.object({
   version: z.string().regex(/^[0-9a-f]{64}$/),
 });
 
-export const newsCategorySchema = z.enum([
-  "ai-models", "benchmarks", "developer-tools", "security", "tech-policy",
-  "open-source", "infrastructure", "research", "startups", "general",
-]);
-export const newsMediaTypeSchema = z.enum(["article", "video"]);
-export const newsImportanceBandSchema = z.enum(["top", "important", "relevant", "more"]);
-export const newsSourceSchema = z.object({
-  id: z.string().min(1), name: z.string().min(1), homepageUrl: z.url(), kind: z.enum(["rss", "atom", "hacker-news", "youtube"]), priority: z.number().int().min(1).max(4),
-});
-export const newsItemSchema = z.object({
-  id: z.string().uuid(), source: newsSourceSchema, url: z.url(), title: z.string().min(1),
-  tldr: z.string().min(1), longSummary: z.string().min(1), content: z.string(), author: z.string().nullable(),
-  category: newsCategorySchema, importanceScore: z.number().int().min(0).max(100), importanceBand: newsImportanceBandSchema,
-  importanceReason: z.string().min(1), mediaType: newsMediaTypeSchema, coverUrl: z.url().nullable(), videoId: z.string().nullable(),
-  publishedAt: isoDateSchema, fetchedAt: isoDateSchema, processedAt: isoDateSchema.nullable(), language: z.string().min(2).max(8),
-  read: z.boolean(), saved: z.boolean(), collectionIds: z.array(z.string().uuid()), aiProcessed: z.boolean(),
-});
-export const newsListResponseSchema = z.object({
-  items: z.array(newsItemSchema), nextCursor: z.string().nullable(), total: z.number().int().nonnegative(),
-  sync: z.object({ running: z.boolean(), lastSyncedAt: isoDateSchema.nullable(), lastError: z.string().nullable(), aiEnabled: z.boolean(), enabled: z.boolean() }),
-});
-// Hintergrund-Sync der Tech-News (Feeds plus Mistral-Aufbereitung). Steht enabled auf
-// false, lädt der Server nichts mehr nach und ruft Mistral nicht mehr auf. Der Bestand
-// bleibt lesbar. Default: true.
-export const newsSettingsSchema = z.object({
-  enabled: z.boolean().default(true),
-});
-export const newsSettingsResponseSchema = z.object({
-  settings: newsSettingsSchema,
-});
-export const newsItemResponseSchema = z.object({ item: newsItemSchema });
-export const newsCollectionSchema = z.object({ id: z.string().uuid(), name: z.string().trim().min(1).max(80), itemCount: z.number().int().nonnegative(), createdAt: isoDateSchema, updatedAt: isoDateSchema });
-export const newsCollectionsResponseSchema = z.object({ collections: z.array(newsCollectionSchema) });
-export const createNewsCollectionRequestSchema = z.object({ name: z.string().trim().min(1).max(80) });
-export const newsCollectionResponseSchema = z.object({ collection: newsCollectionSchema });
-export const saveNewsItemRequestSchema = z.object({ collectionIds: z.array(z.string().uuid()).max(20) });
-export const markNewsReadRequestSchema = z.object({ read: z.boolean() });
-export const newsSyncResponseSchema = z.object({ accepted: z.boolean(), running: z.boolean() });
-export const newsChatMessageSchema = z.object({ question: z.string().trim().min(1).max(2_000), answer: z.string().trim().min(1).max(8_000) });
-/* Auswählbare Mistral-Modelle für den Nachrichten-Chat. "auto" überlässt die Wahl der Server-Konfiguration. */
-export const newsChatModelSchema = z.enum(["auto", "mistral-large-2512", "mistral-medium-2604", "magistral-medium-2509", "mistral-small-2603"]);
-export const newsChatModelOptions = [
-  { id: "auto", label: "Automatisch", hint: "Wählt je nach Frage das passende Modell" },
-  { id: "mistral-large-2512", label: "Mistral Large", hint: "Höchste Qualität, etwas langsamer" },
-  { id: "mistral-medium-2604", label: "Mistral Medium", hint: "Ausgewogen zwischen Tempo und Tiefe" },
-  { id: "magistral-medium-2509", label: "Magistral", hint: "Denkt Schritt für Schritt, gut für Analysen" },
-  { id: "mistral-small-2603", label: "Mistral Small", hint: "Schnellste Antworten" },
-] as const satisfies ReadonlyArray<{ id: z.infer<typeof newsChatModelSchema>; label: string; hint: string }>;
-export const newsChatRequestSchema = z.object({ question: z.string().trim().min(2).max(2_000), itemId: z.string().uuid().nullable().default(null), history: z.array(newsChatMessageSchema).max(10).default([]), model: newsChatModelSchema.default("auto") });
-export const newsCitationSchema = z.object({ itemId: z.string().uuid(), title: z.string().min(1), url: z.url(), excerpt: z.string() });
-export const newsChatResponseSchema = z.object({ answer: z.string().min(1), citations: z.array(newsCitationSchema), model: z.string().min(1), grounded: z.boolean() });
-
 export type ApiError = z.infer<typeof apiErrorSchema>;
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
 export type DashboardSection = z.infer<typeof dashboardSectionSchema>;
@@ -2139,6 +2115,8 @@ export type SkillEditorRenameRequest = z.infer<typeof skillEditorRenameRequestSc
 export type SkillEditorDeleteRequest = z.infer<typeof skillEditorDeleteRequestSchema>;
 export type SkillEditorGitChange = z.infer<typeof skillEditorGitChangeSchema>;
 export type SkillEditorGitResponse = z.infer<typeof skillEditorGitResponseSchema>;
+export type SkillEditorGitPreviewResponse = z.infer<typeof skillEditorGitPreviewResponseSchema>;
+export type SkillEditorGitCommitRequest = z.infer<typeof skillEditorGitCommitRequestSchema>;
 export type RegisterProjectRequest = z.infer<typeof registerProjectRequestSchema>;
 export type RegisterProjectResponse = z.infer<typeof registerProjectResponseSchema>;
 export type CommandReference = z.infer<typeof commandSchema>;
@@ -2252,19 +2230,3 @@ export type GalleryFileResponse = z.infer<typeof galleryFileResponseSchema>;
 export type GalleryFileListResponse = z.infer<typeof galleryFileListResponseSchema>;
 export type CreateProjectFileRequest = z.infer<typeof createProjectFileRequestSchema>;
 export type ProjectFileResponse = z.infer<typeof projectFileResponseSchema>;
-export type NewsCategory = z.infer<typeof newsCategorySchema>;
-export type NewsMediaType = z.infer<typeof newsMediaTypeSchema>;
-export type NewsImportanceBand = z.infer<typeof newsImportanceBandSchema>;
-export type NewsSource = z.infer<typeof newsSourceSchema>;
-export type NewsItem = z.infer<typeof newsItemSchema>;
-export type NewsListResponse = z.infer<typeof newsListResponseSchema>;
-export type NewsSettings = z.infer<typeof newsSettingsSchema>;
-export type NewsCollection = z.infer<typeof newsCollectionSchema>;
-export type CreateNewsCollectionRequest = z.infer<typeof createNewsCollectionRequestSchema>;
-export type SaveNewsItemRequest = z.infer<typeof saveNewsItemRequestSchema>;
-export type MarkNewsReadRequest = z.infer<typeof markNewsReadRequestSchema>;
-export type NewsChatMessage = z.infer<typeof newsChatMessageSchema>;
-export type NewsChatModel = z.infer<typeof newsChatModelSchema>;
-export type NewsChatRequest = z.infer<typeof newsChatRequestSchema>;
-export type NewsCitation = z.infer<typeof newsCitationSchema>;
-export type NewsChatResponse = z.infer<typeof newsChatResponseSchema>;

@@ -70,8 +70,8 @@ export type AutosaveState =
 
 interface OpenDocument {
   path: string;
-  /** Erwartete Änderungszeit für den nächsten Schreibvorgang; `null` heißt „unbekannt". */
-  modifiedAt: string | null;
+  /** Erwarteter Revisionstoken für den nächsten Schreibvorgang; `null` heißt „unbekannt". */
+  revisionToken: string | null;
   saved: string;
 }
 
@@ -128,12 +128,12 @@ export function useAutosave({ file, debounceMs, onSaved }: AutosaveOptions): Aut
       const saved = await apiClient.saveSkillEditorFile({
         path: openDocument.path,
         content: value,
-        expectedModifiedAt: overwrite ? null : openDocument.modifiedAt,
+        expectedRevision: overwrite ? null : openDocument.revisionToken,
       });
       if (!saved) return;
       conflictRef.current = false;
       if (isCurrent()) {
-        documentRef.current = { path: saved.path, modifiedAt: saved.modifiedAt, saved: value };
+        documentRef.current = { path: saved.path, revisionToken: saved.revisionToken, saved: value };
         // Während des Speicherns kann weitergetippt worden sein.
         setState(contentRef.current === value ? { kind: "saved", at: new Date().toISOString() } : { kind: "dirty" });
       }
@@ -176,7 +176,7 @@ export function useAutosave({ file, debounceMs, onSaved }: AutosaveOptions): Aut
     if (previous?.path === file.path) return;
     clearTimer();
     conflictRef.current = false;
-    documentRef.current = { path: file.path, modifiedAt: file.modifiedAt, saved: file.content };
+    documentRef.current = { path: file.path, revisionToken: file.revisionToken, saved: file.content };
     contentRef.current = file.content;
     setContentState(file.content);
     setState({ kind: "saved", at: null });
@@ -202,11 +202,12 @@ export function useAutosave({ file, debounceMs, onSaved }: AutosaveOptions): Aut
       const openDocument = documentRef.current;
       if (!openDocument || conflictRef.current || contentRef.current === openDocument.saved) return;
       clearTimer();
-      apiClient.saveSkillEditorFileOnUnload({ path: openDocument.path, content: contentRef.current, expectedModifiedAt: openDocument.modifiedAt });
-      // Die Antwort dieses Aufrufs liest niemand mehr: die neue Änderungszeit bleibt
-      // unbekannt. Da wir selbst zuletzt geschrieben haben, schreibt der nächste
-      // Vorgang ohne Erwartungswert — sonst meldete er einen Konflikt mit uns selbst.
-      documentRef.current = { path: openDocument.path, modifiedAt: null, saved: contentRef.current };
+      apiClient.saveSkillEditorFileOnUnload({ path: openDocument.path, content: contentRef.current, expectedRevision: openDocument.revisionToken });
+      // Die Antwort dieses Aufrufs liest niemand mehr: der neue Revisionstoken
+      // bleibt unbekannt. Da wir selbst zuletzt geschrieben haben, schreibt der
+      // nächste Vorgang ohne Erwartungswert — sonst meldete er einen Konflikt
+      // mit uns selbst.
+      documentRef.current = { path: openDocument.path, revisionToken: null, saved: contentRef.current };
     };
     const onVisibilityChange = () => { if (document.visibilityState === "hidden") saveOnUnload(); };
     document.addEventListener("visibilitychange", onVisibilityChange);
@@ -224,7 +225,7 @@ export function useAutosave({ file, debounceMs, onSaved }: AutosaveOptions): Aut
     const openDocument = documentRef.current;
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
     if (openDocument && !conflictRef.current && contentRef.current !== openDocument.saved) {
-      void apiClient.saveSkillEditorFile({ path: openDocument.path, content: contentRef.current, expectedModifiedAt: openDocument.modifiedAt }).catch(() => undefined);
+      void apiClient.saveSkillEditorFile({ path: openDocument.path, content: contentRef.current, expectedRevision: openDocument.revisionToken }).catch(() => undefined);
     }
   }, []);
 
@@ -233,7 +234,7 @@ export function useAutosave({ file, debounceMs, onSaved }: AutosaveOptions): Aut
     if (!openDocument) return;
     const fresh = await apiClient.skillEditorRead(openDocument.path);
     conflictRef.current = false;
-    documentRef.current = { path: fresh.path, modifiedAt: fresh.modifiedAt, saved: fresh.content };
+    documentRef.current = { path: fresh.path, revisionToken: fresh.revisionToken, saved: fresh.content };
     contentRef.current = fresh.content;
     setContentState(fresh.content);
     setState({ kind: "saved", at: null });

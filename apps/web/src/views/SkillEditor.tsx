@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { SkillEditorCreateResponse, SkillEditorFile, SkillEditorGitResponse, SkillEditorNode } from "@wrapt/contracts";
+import type { SkillEditorCreateResponse, SkillEditorFile, SkillEditorGitPreviewResponse, SkillEditorGitResponse, SkillEditorNode } from "@wrapt/contracts";
 import { apiClient } from "../lib/apiClient";
 import { skillForPath, skillFrontmatterWarnings, useAutosave } from "../lib/skillEditor";
 import { useResponsiveShell } from "../lib/useResponsiveShell";
@@ -32,6 +32,7 @@ export function SkillEditor() {
   const [renaming, setRenaming] = useState<SkillEditorNode | null>(null);
   const [deleting, setDeleting] = useState<SkillEditorNode | null>(null);
   const [actionMessage, setActionMessage] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
+  const [gitPreview, setGitPreview] = useState<SkillEditorGitPreviewResponse | null>(null);
   const [gitResult, setGitResult] = useState<SkillEditorGitResponse | null>(null);
 
   // Ohne Auswahl stehen die globalen Regeln im Editor — der häufigste Einstieg.
@@ -112,8 +113,22 @@ export function SkillEditor() {
     },
     onError: failed,
   });
-  const gitMutation = useMutation({
-    mutationFn: () => apiClient.commitSkills(),
+  const previewMutation = useMutation({
+    mutationFn: () => apiClient.skillGitPreview(),
+    onSuccess: (result) => setGitPreview(result ?? null),
+    onError: failed,
+  });
+  const commitMutation = useMutation({
+    mutationFn: (intent: string) => apiClient.commitSkills(intent),
+    onSuccess: async (result) => {
+      setGitResult(result ?? null);
+      setGitPreview(null);
+      await Promise.all([queryClient.invalidateQueries({ queryKey: statusQueryKey }), refreshTree()]);
+    },
+    onError: failed,
+  });
+  const pushMutation = useMutation({
+    mutationFn: () => apiClient.pushSkills(),
     onSuccess: async (result) => {
       setGitResult(result ?? null);
       await queryClient.invalidateQueries({ queryKey: statusQueryKey });
@@ -237,9 +252,12 @@ export function SkillEditor() {
       {status.data?.repositoryConfigured ? (
         <SkillGitBar
           repository={status.data.repository}
+          preview={gitPreview}
           result={gitResult}
-          busy={gitMutation.isPending}
-          onCommit={() => gitMutation.mutate()}
+          busy={previewMutation.isPending || commitMutation.isPending || pushMutation.isPending}
+          onPreview={() => previewMutation.mutate()}
+          onCommit={(intent) => commitMutation.mutate(intent)}
+          onPush={() => pushMutation.mutate()}
         />
       ) : null}
 

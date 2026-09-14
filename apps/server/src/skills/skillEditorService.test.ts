@@ -1,82 +1,16 @@
-import { mkdir, mkdtemp, readFile, readdir, lstat, rm, symlink, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { lstat, mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { execa } from "execa";
 import { afterEach, describe, expect, it } from "vitest";
-import { AppError } from "../utils/errors.js";
 import {
-  SkillEditorService,
-  buildCommitMessage,
-  parseGitStatus,
   parseSkillFrontmatter,
   readmeWithRow,
   readmeWithoutRow,
   readmeWithRenamedRow,
   withFrontmatterName,
 } from "./skillEditorService.js";
+import { cleanupFixtures, fixture, readme, skillFile } from "./skillEditorTestFixture.js";
 
-const cleanup: Array<() => Promise<unknown>> = [];
-afterEach(async () => {
-  for (const remove of cleanup.splice(0).reverse()) await remove();
-});
-
-const readme = [
-  "# skills",
-  "",
-  "## Enthaltene Skills",
-  "",
-  "| Skill | Beschreibung |",
-  "|-------|-------------|",
-  "| alpha | Erster Skill |",
-  "",
-  "Ende.",
-].join("\n");
-
-function skillFile(name: string, description: string): string {
-  return `---\nname: ${name}\ndescription: ${description}\n---\n\n# ${name}\n`;
-}
-
-/** Baut das echte Setup nach: Repo mit Skills, Root mit Symlinks, zwei Verteilziele. */
-async function fixture(options: { withRepository?: boolean } = {}) {
-  const base = await mkdtemp(join(tmpdir(), "workbench-skills-"));
-  cleanup.push(() => rm(base, { recursive: true, force: true }));
-  const root = join(base, "opencode");
-  const repository = join(base, "repo");
-  const claude = join(base, "claude/skills");
-  const codex = join(base, "codex/skills");
-  const withRepository = options.withRepository !== false;
-
-  await mkdir(join(root, "skills"), { recursive: true });
-  await mkdir(claude, { recursive: true });
-  await mkdir(codex, { recursive: true });
-  await writeFile(join(root, "AGENTS.md"), "# Globale Regeln\n", "utf8");
-
-  if (withRepository) {
-    await mkdir(join(repository, "skills/alpha"), { recursive: true });
-    await writeFile(join(repository, "README.md"), readme, "utf8");
-    await writeFile(join(repository, "skills/alpha/SKILL.md"), skillFile("alpha", "Erster Skill"), "utf8");
-    await symlink(join(repository, "skills/alpha"), join(root, "skills/alpha"), "dir");
-    await symlink(join(root, "skills/alpha"), join(claude, "alpha"), "dir");
-    await symlink(join(root, "skills/alpha"), join(codex, "alpha"), "dir");
-  }
-
-  const service = new SkillEditorService({
-    rootDirectory: root,
-    propagateDirectories: [claude, codex],
-    repositoryDirectory: withRepository ? repository : null,
-    autosaveDebounceMilliseconds: 2_500,
-    maxFileBytes: 4_096,
-  });
-  return { base, root, repository, claude, codex, service };
-}
-
-async function initGitRepository(repository: string) {
-  await execa("git", ["-C", repository, "init", "-b", "main"]);
-  await execa("git", ["-C", repository, "config", "user.email", "test@example.com"]);
-  await execa("git", ["-C", repository, "config", "user.name", "Test"]);
-  await execa("git", ["-C", repository, "add", "-A"]);
-  await execa("git", ["-C", repository, "commit", "-m", "init"]);
-}
+afterEach(cleanupFixtures);
 
 describe("Frontmatter und README", () => {
   it("liest flache Frontmatter-Schlüssel und überspringt verschachtelte Werte", () => {
@@ -115,32 +49,6 @@ describe("Frontmatter und README", () => {
     expect(readmeWithoutRow(readme, "alpha")).not.toContain("alpha");
   });
 });
-
-describe("Commit-Nachrichten", () => {
-  it("erkennt neue, geänderte und entfernte Skills", () => {
-    const status = ["?? skills/neu/", " M skills/alpha/SKILL.md", " D skills/weg/SKILL.md", " M README.md"].join("\n");
-    const { changes, globalRulesChanged } = parseGitStatus(status);
-    expect(changes).toEqual([
-      { name: "alpha", action: "geaendert" },
-      { name: "neu", action: "hinzugefuegt" },
-      { name: "weg", action: "entfernt" },
-    ]);
-    expect(globalRulesChanged).toBe(true);
-  });
-
-  it("wertet Umbenennungen über das Ziel aus", () => {
-    expect(parseGitStatus("R  skills/alt/SKILL.md -> skills/neu/SKILL.md").changes).toEqual([{ name: "neu", action: "geaendert" }]);
-  });
-
-  it("formuliert je nach Art der Änderung", () => {
-    expect(buildCommitMessage([{ name: "a", action: "hinzugefuegt" }, { name: "b", action: "hinzugefuegt" }], false).title).toBe("feat: skill a, b hinzugefuegt");
-    expect(buildCommitMessage([{ name: "a", action: "entfernt" }], false).title).toBe("chore: skill a entfernt");
-    expect(buildCommitMessage([{ name: "a", action: "geaendert" }], false).title).toBe("update: skills a aktualisiert");
-    expect(buildCommitMessage([], true).title).toBe("update: globale Agenten-Regeln aktualisiert");
-    expect(buildCommitMessage([{ name: "a", action: "geaendert" }], true).body).toBe("update: globale Agenten-Regeln aktualisiert");
-  });
-});
-
 describe("Baum", () => {
   it("listet die globalen Regeln und die Skills mit Beschreibung", async () => {
     const { service, root } = await fixture();
@@ -186,16 +94,25 @@ describe("Lesen und Schreiben", () => {
     const { service, root, repository } = await fixture();
     const path = join(root, "skills/alpha/SKILL.md");
     const before = await service.readFile({ path });
-    const saved = await service.writeFile({ path, content: skillFile("alpha", "Neu beschrieben"), expectedModifiedAt: before.modifiedAt });
+    expect(before.revisionToken).toMatch(/^[0-9a-f]{64}$/);
+    const saved = await service.writeFile({ path, content: skillFile("alpha", "Neu beschrieben"), expectedRevision: before.revisionToken });
     expect(saved.content).toContain("Neu beschrieben");
+    expect(saved.revisionToken).not.toBe(before.revisionToken);
     await expect(readFile(join(repository, "skills/alpha/SKILL.md"), "utf8")).resolves.toContain("Neu beschrieben");
   });
 
   it("lehnt einen Schreibvorgang auf eine fremd geänderte Datei ab", async () => {
-    const { service, root } = await fixture();
+    const { service, root, repository } = await fixture();
     const path = join(root, "skills/alpha/SKILL.md");
-    await expect(service.writeFile({ path, content: "x", expectedModifiedAt: new Date(0).toISOString() }))
+    const before = await service.readFile({ path });
+    // Externe Änderung mit gleicher Größe und dichter Mtime: nur der Inhaltshash
+    // unterscheidet sich — genau dieser Fall darf nicht still überschrieben werden.
+    await writeFile(join(repository, "skills/alpha/SKILL.md"), skillFile("alpha", "Fremde Fassung"), "utf8");
+    await expect(service.writeFile({ path, content: "x", expectedRevision: before.revisionToken }))
       .rejects.toMatchObject({ statusCode: 409, code: "SKILLS_CONFLICT" });
+    await expect(service.writeFile({ path, content: "x", expectedModifiedAt: before.modifiedAt }))
+      .rejects.toMatchObject({ statusCode: 409, code: "SKILLS_CONFLICT" });
+    await expect(readFile(join(repository, "skills/alpha/SKILL.md"), "utf8")).resolves.toContain("Fremde Fassung");
   });
 
   it("lehnt Binärdateien und zu große Dateien ab", async () => {
@@ -298,46 +215,5 @@ describe("Skills anlegen, umbenennen und löschen", () => {
   it("meldet einen unbekannten Skill", async () => {
     const { service } = await fixture();
     await expect(service.deleteSkill({ name: "gibtsnicht" })).rejects.toMatchObject({ statusCode: 404, code: "SKILLS_NOT_FOUND" });
-  });
-});
-
-describe("Git", () => {
-  it("meldet Branch und Anzahl der Änderungen", async () => {
-    const { service, repository } = await fixture();
-    await initGitRepository(repository);
-    await service.createSkill({ name: "beta", description: "Zweiter Skill" });
-
-    const status = await service.status();
-    expect(status.repositoryConfigured).toBe(true);
-    expect(status.repository?.branch).toBe("main");
-    expect(status.repository?.dirtyCount).toBeGreaterThan(0);
-  });
-
-  it("committet mit generierter Nachricht und meldet den fehlenden Remote", async () => {
-    const { service, repository } = await fixture();
-    await initGitRepository(repository);
-    await service.createSkill({ name: "beta", description: "Zweiter Skill" });
-
-    const result = await service.gitCommitPush();
-    expect(result.committed).toBe(true);
-    expect(result.pushed).toBe(false);
-    expect(result.message).toBe("feat: skill beta hinzugefuegt");
-    expect(result.changedSkills).toEqual([{ name: "beta", action: "hinzugefuegt" }]);
-    expect(result.errorTail).toBeTruthy();
-
-    const log = await execa("git", ["-C", repository, "log", "-1", "--pretty=%s"]);
-    expect(log.stdout).toBe("feat: skill beta hinzugefuegt");
-  });
-
-  it("meldet einen sauberen Arbeitsstand", async () => {
-    const { service, repository } = await fixture();
-    await initGitRepository(repository);
-    await expect(service.gitCommitPush()).resolves.toMatchObject({ committed: false, notice: "Es gibt nichts zu committen." });
-  });
-
-  it("lehnt Git ohne konfiguriertes Repository ab", async () => {
-    const { service } = await fixture({ withRepository: false });
-    await expect(service.gitCommitPush()).rejects.toBeInstanceOf(AppError);
-    await expect(service.status()).resolves.toMatchObject({ repositoryConfigured: false, repository: null });
   });
 });

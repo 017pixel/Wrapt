@@ -1,5 +1,6 @@
 import {
   skillEditorCreateResponseSchema,
+  skillEditorGitPreviewResponseSchema,
   skillEditorGitResponseSchema,
   skillEditorReadResponseSchema,
   skillEditorStatusResponseSchema,
@@ -35,5 +36,7 @@ export const skillsApi = {
   createSkill: (body: SkillEditorCreateRequest) => mutate("/skills", "POST", skillEditorCreateResponseSchema, body),
   renameSkill: (name: string, newName: string) => mutate("/skills/rename", "POST", skillEditorCreateResponseSchema, { name, newName }),
   deleteSkill: (name: string) => mutate(`/skills/${encodeURIComponent(name)}`, "DELETE", null),
-  commitSkills: () => mutate("/skills/git", "POST", skillEditorGitResponseSchema),
+  skillGitPreview: (signal?: AbortSignal) => request("/skills/git/preview", skillEditorGitPreviewResponseSchema, signal),
+  commitSkills: (intent: string) => mutate("/skills/git/commit", "POST", skillEditorGitResponseSchema, { intent }),
+  pushSkills: () => mutate("/skills/git/push", "POST", skillEditorGitResponseSchema),
 };

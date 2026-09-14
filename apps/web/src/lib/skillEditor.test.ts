@@ -13,7 +13,7 @@ async function settle(): Promise<void> {
 }
 
 function fileAt(modifiedAt: string, content = "erste Fassung"): SkillEditorReadResponse {
-  return { path: "/root/skills/alpha/SKILL.md", name: "SKILL.md", content, modifiedAt, sizeBytes: content.length };
+  return { path: "/root/skills/alpha/SKILL.md", name: "SKILL.md", content, modifiedAt, sizeBytes: content.length, revisionToken: `token-${content.length}-${modifiedAt}` };
 }
 
 describe("Namen und Frontmatter", () => {
@@ -64,7 +64,7 @@ describe("useAutosave", () => {
     expect(save).toHaveBeenCalledWith({
       path: "/root/skills/alpha/SKILL.md",
       content: "zweite Fassung",
-      expectedModifiedAt: "2026-01-01T10:00:00.000Z",
+      expectedRevision: "token-13-2026-01-01T10:00:00.000Z",
     });
     await settle();
     expect(result.current.state.kind).toBe("saved");
@@ -73,7 +73,7 @@ describe("useAutosave", () => {
     act(() => result.current.setContent("dritte Fassung"));
     await act(async () => { vi.advanceTimersByTime(1_000); });
     await settle();
-    expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ expectedModifiedAt: "2026-01-01T10:05:00.000Z" }));
+    expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ expectedRevision: "token-14-2026-01-01T10:05:00.000Z" }));
   });
 
   it("schreibt beim Flush sofort und nicht erneut ohne Änderung", async () => {
@@ -110,7 +110,7 @@ describe("useAutosave", () => {
     await act(async () => { vi.advanceTimersByTime(100); });
     await settle();
     // Die Antwort des keepalive-Versands kennt niemand — der nächste Write erwartet deshalb nichts.
-    expect(save).toHaveBeenCalledWith(expect.objectContaining({ content: "danach", expectedModifiedAt: null }));
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({ content: "danach", expectedRevision: null }));
     expect(result.current.state.kind).toBe("saved");
   });
 
@@ -127,7 +127,7 @@ describe("useAutosave", () => {
 
     await act(async () => { await result.current.overwrite(); });
     await settle();
-    expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ expectedModifiedAt: null }));
+    expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ expectedRevision: null }));
     await settle();
     expect(result.current.state.kind).toBe("saved");
   });

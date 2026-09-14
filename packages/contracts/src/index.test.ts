@@ -9,6 +9,8 @@ import {
   panelTypeSchema,
   previewLocalStorageSnapshotRequestSchema,
   skillEditorCreateRequestSchema,
+  skillEditorGitCommitRequestSchema,
+  skillEditorGitPreviewResponseSchema,
   skillEditorGitResponseSchema,
   skillEditorRenameRequestSchema,
   skillEditorTreeResponseSchema,
@@ -45,8 +47,9 @@ describe("öffentliche API-Verträge", () => {
     // Pfad-Containment bleibt eine serverseitige Dateisystemregel.
   });
 
-  it("keeps legacy Notion nodes readable during migrations", () => {
+  it("keeps legacy Notion and Browser nodes readable during migrations", () => {
     expect(panelTypeSchema.parse("notion")).toBe("notion");
+    expect(panelTypeSchema.parse("browser")).toBe("browser");
   });
 
   it("validiert Hermes-Chat-Nachrichten und Orbit v8 mit alten Dokumentversionen", () => {
@@ -110,8 +113,22 @@ describe("öffentliche API-Verträge", () => {
   it("verlangt den Erwartungswert beim Speichern und beschreibt Git-Ergebnisse vollständig", () => {
     expect(skillEditorWriteRequestSchema.safeParse({ path: "/root/AGENTS.md", content: "x" }).success).toBe(false);
     expect(skillEditorWriteRequestSchema.parse({ path: "/root/AGENTS.md", content: "x", expectedModifiedAt: null }).expectedModifiedAt).toBeNull();
-    expect(skillEditorGitResponseSchema.safeParse({ committed: true, pushed: true, message: "feat: skill a hinzugefuegt", changedSkills: [{ name: "a", action: "hinzugefuegt" }], errorTail: null, notice: null }).success).toBe(true);
-    expect(skillEditorGitResponseSchema.safeParse({ committed: true, pushed: true, message: null, changedSkills: [{ name: "a", action: "added" }], errorTail: null, notice: null }).success).toBe(false);
+    expect(skillEditorGitResponseSchema.safeParse({ committed: true, pushed: true, message: "feat: skill a hinzugefuegt", changedSkills: [{ name: "a", action: "hinzugefuegt" }], paths: ["skills/a"], errorTail: null, notice: null }).success).toBe(true);
+    expect(skillEditorGitResponseSchema.safeParse({ committed: true, pushed: true, message: null, changedSkills: [{ name: "a", action: "added" }], paths: [], errorTail: null, notice: null }).success).toBe(false);
+    expect(skillEditorGitPreviewResponseSchema.parse({
+      branch: "main",
+      changes: [{ name: "a", action: "geaendert" }],
+      paths: ["skills/a"],
+      newFiles: [],
+      excludedPaths: [".env"],
+      globalRulesChanged: false,
+      diff: "--- a/skills/a/SKILL.md",
+      diffTruncated: false,
+      intent: "0123456789abcdef",
+      errorTail: null,
+      notice: null,
+    }).paths).toEqual(["skills/a"]);
+    expect(skillEditorGitCommitRequestSchema.safeParse({ intent: "kurz" }).success).toBe(false);
   });
 
   it("nimmt kaputte Verweise im Skill-Baum entgegen", () => {

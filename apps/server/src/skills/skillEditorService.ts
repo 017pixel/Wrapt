@@ -1,16 +1,15 @@
 import type { Dirent, Stats } from "node:fs";
-import { chmod, lstat, mkdir, readFile, readdir, realpath, rename, rm, stat, symlink, unlink, writeFile } from "node:fs/promises";
+import { chmod, lstat, readFile, readdir, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { basename, dirname, isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
 import {
-  skillEditorCreateResponseSchema,
-  skillEditorGitResponseSchema,
   skillEditorReadResponseSchema,
   skillEditorStatusResponseSchema,
   skillEditorTreeResponseSchema,
   type SkillEditorCreateRequest,
   type SkillEditorCreateResponse,
   type SkillEditorFile,
-  type SkillEditorGitChange,
+  type SkillEditorGitPreviewResponse,
   type SkillEditorGitResponse,
   type SkillEditorNode,
   type SkillEditorReadResponse,
@@ -18,12 +17,19 @@ import {
   type SkillEditorTreeResponse,
 } from "@wrapt/contracts";
 import { execa } from "execa";
+import { SkillGitRepository } from "./skillGitRepository.js";
+import { SkillEditorJobStore, type SkillEditorJobOperation } from "./skillEditorJobs.js";
+import { SkillMutations } from "./skillEditorMutations.js";
+import { parseSkillFrontmatter } from "./skillEditorText.js";
 import { AppError } from "../utils/errors.js";
 
 const SKILL_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const NESTED_KEY_PATTERN = /^[A-Za-z0-9_-]+\s*:/;
 const MAXIMUM_TREE_DEPTH = 8;
-const GIT_ERROR_TAIL_LINES = 40;
+
+/** Journal-Schlüssel: gleiche Operation auf gleichen Namen ist wiederaufnehmbar. */
+function jobKey(operation: SkillEditorJobOperation, name: string, newName: string | null): string {
+  return `${operation}\u0000${name}\u0000${newName ?? ""}`;
+}
 
 export interface SkillEditorOptions {
   /** Ordner, der im Baum erscheint (globales Harness-Verzeichnis). */
@@ -34,6 +40,8 @@ export interface SkillEditorOptions {
   repositoryDirectory: string | null;
   autosaveDebounceMilliseconds: number;
   maxFileBytes: number;
+  /** SQLite-Datei für das Recovery-Journal der Skill-Operationen. */
+  jobDatabasePath: string;
 }
 
 function contained(root: string, target: string): boolean {
@@ -68,152 +76,28 @@ async function exists(path: string): Promise<boolean> {
 }
 
 /**
- * Liest den Frontmatter-Kopf einer `SKILL.md`. Bewusst ein schlanker Zeilenparser
- * statt einer YAML-Abhängigkeit: gebraucht werden nur die flachen Schlüssel
- * `name`, `description` und `license` aus dem Block zwischen den `---`-Markern.
+ * Inhaltsgebundener Revisionstoken aus Mtime, Größe und SHA-256 des Inhalts.
+ * Nur so lässt sich eine externe Änderung von einer reinen Berührung der Datei
+ * unterscheiden und ein stiller Überschreibvorgang ausschließen.
  */
-export function parseSkillFrontmatter(content: string): Record<string, string> {
-  const lines = content.split(/\r?\n/);
-  if (lines[0]?.trim() !== "---") return {};
-  const result: Record<string, string> = {};
-  let continuedKey: string | null = null;
-  for (const line of lines.slice(1)) {
-    if (line.trim() === "---") break;
-    if (/^\s/.test(line)) {
-      // Eingerückte Zeilen setzen einen leer begonnenen Wert fort (YAML-Blockschreibweise).
-      // Verschachtelte Schlüssel wie unter `metadata:` bleiben außen vor.
-      const text = line.trim();
-      if (continuedKey && text && !NESTED_KEY_PATTERN.test(text)) {
-        result[continuedKey] = `${result[continuedKey] ?? ""} ${text}`.trim();
-      }
-      continue;
-    }
-    const separator = line.indexOf(":");
-    if (separator <= 0) { continuedKey = null; continue; }
-    const key = line.slice(0, separator).trim();
-    const value = line.slice(separator + 1).trim().replace(/^["']|["']$/g, "");
-    continuedKey = value ? null : key;
-    if (key && value) result[key] = value;
-  }
-  return result;
+function revisionTokenOf(details: Stats, buffer: Buffer): string {
+  const contentHash = createHash("sha256").update(buffer).digest("hex");
+  return createHash("sha256").update(`${details.mtimeMs}\n${details.size}\n${contentHash}`).digest("hex");
 }
 
-/** Ersetzt die `name:`-Zeile im Frontmatter — der Name muss dem Ordner entsprechen. */
-export function withFrontmatterName(content: string, name: string): string {
-  const lines = content.split("\n");
-  if (lines[0]?.trim() !== "---") return content;
-  for (let index = 1; index < lines.length; index += 1) {
-    if (lines[index]?.trim() === "---") break;
-    if (/^name\s*:/.test(lines[index] ?? "")) {
-      lines[index] = `name: ${name}`;
-      return lines.join("\n");
-    }
-  }
-  return content;
-}
-
-function escapeTableCell(value: string): string {
-  return value.replace(/\r?\n/g, " ").replace(/\|/g, "\\|").trim();
-}
-
-/** Hängt eine Zeile an die letzte Markdown-Tabelle der README an. */
-export function readmeWithRow(content: string, name: string, description: string): string | null {
-  const lines = content.split("\n");
-  let lastTableLine = -1;
-  for (let index = 0; index < lines.length; index += 1) {
-    if (lines[index]?.trimStart().startsWith("|")) lastTableLine = index;
-  }
-  if (lastTableLine < 0) return null;
-  lines.splice(lastTableLine + 1, 0, `| ${name} | ${escapeTableCell(description)} |`);
-  return lines.join("\n");
-}
-
-function tableRowPattern(name: string): RegExp {
-  return new RegExp(`^\\s*\\|\\s*${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\|`);
-}
-
-export function readmeWithRenamedRow(content: string, name: string, newName: string): string | null {
-  const lines = content.split("\n");
-  const pattern = tableRowPattern(name);
-  const index = lines.findIndex((line) => pattern.test(line));
-  if (index < 0) return null;
-  lines[index] = lines[index]!.replace(name, newName);
-  return lines.join("\n");
-}
-
-export function readmeWithoutRow(content: string, name: string): string | null {
-  const lines = content.split("\n");
-  const pattern = tableRowPattern(name);
-  const index = lines.findIndex((line) => pattern.test(line));
-  if (index < 0) return null;
-  lines.splice(index, 1);
-  return lines.join("\n");
-}
-
-/**
- * Baut die Commit-Nachricht aus den geänderten Skills. Deutsch, imperativ und
- * ohne Emojis — bewusst rein regelbasiert, damit kein Modell nötig ist.
- */
-export function buildCommitMessage(changes: SkillEditorGitChange[], globalRulesChanged: boolean): { title: string; body: string | null } {
-  const added = changes.filter((change) => change.action === "hinzugefuegt").map((change) => change.name);
-  const removed = changes.filter((change) => change.action === "entfernt").map((change) => change.name);
-  const changed = changes.filter((change) => change.action === "geaendert").map((change) => change.name);
-  const rulesMessage = "update: globale Agenten-Regeln aktualisiert";
-
-  if (changes.length === 0) return { title: rulesMessage, body: null };
-
-  let title: string;
-  if (added.length > 0 && removed.length === 0 && changed.length === 0) {
-    title = `feat: skill ${added.join(", ")} hinzugefuegt`;
-  } else if (removed.length > 0 && added.length === 0 && changed.length === 0) {
-    title = `chore: skill ${removed.join(", ")} entfernt`;
-  } else if (changed.length > 0 && added.length === 0 && removed.length === 0) {
-    title = `update: skills ${changed.join(", ")} aktualisiert`;
-  } else {
-    title = `update: skills ${changes.map((change) => change.name).join(", ")} aktualisiert`;
-  }
-  return { title, body: globalRulesChanged ? rulesMessage : null };
-}
-
-/** Wertet `git status --porcelain` aus und ordnet die Pfade den Skills zu. */
-export function parseGitStatus(output: string): { changes: SkillEditorGitChange[]; globalRulesChanged: boolean } {
-  const states = new Map<string, Set<string>>();
-  let globalRulesChanged = false;
-  for (const line of output.split("\n")) {
-    if (line.trim() === "") continue;
-    const code = line.slice(0, 2).trim();
-    let path = line.slice(3).trim().replace(/^"|"$/g, "");
-    // Umbenennungen melden „alt -> neu"; entscheidend ist das Ziel.
-    const renameSeparator = path.indexOf(" -> ");
-    if (renameSeparator >= 0) path = path.slice(renameSeparator + 4);
-    const skillMatch = /^skills\/([^/]+)/.exec(path);
-    if (!skillMatch) {
-      if (path === "AGENTS.md" || path === "README.md") globalRulesChanged = true;
-      continue;
-    }
-    const name = skillMatch[1]!;
-    const bucket = states.get(name) ?? new Set<string>();
-    bucket.add(code);
-    states.set(name, bucket);
-  }
-
-  const changes: SkillEditorGitChange[] = [...states.entries()]
-    .map(([name, codes]) => {
-      const all = [...codes];
-      if (all.every((code) => code === "??" || code === "A")) return { name, action: "hinzugefuegt" as const };
-      if (all.every((code) => code === "D")) return { name, action: "entfernt" as const };
-      return { name, action: "geaendert" as const };
-    })
-    .sort((left, right) => left.name.localeCompare(right.name, "de"));
-  return { changes, globalRulesChanged };
-}
-
-function tail(value: string, lines = GIT_ERROR_TAIL_LINES): string {
-  return value.trim().split("\n").slice(-lines).join("\n");
-}
+export {
+  parseSkillFrontmatter,
+  withFrontmatterName,
+  readmeWithRow,
+  readmeWithRenamedRow,
+  readmeWithoutRow,
+} from "./skillEditorText.js";
 
 export class SkillEditorService {
   private readonly allowedRoots: string[];
+  private readonly jobs: SkillEditorJobStore;
+  private readonly mutations: SkillMutations;
+  private readonly jobLocks = new Map<string, Promise<unknown>>();
 
   constructor(private readonly options: SkillEditorOptions) {
     this.allowedRoots = [
@@ -221,7 +105,18 @@ export class SkillEditorService {
       ...options.propagateDirectories,
       ...(options.repositoryDirectory ? [options.repositoryDirectory] : []),
     ].map((path) => resolve(path));
+    this.jobs = new SkillEditorJobStore(options.jobDatabasePath);
+    this.mutations = new SkillMutations({
+      skillsDirectory: this.skillsDirectory,
+      propagateDirectories: options.propagateDirectories,
+      repositoryDirectory: options.repositoryDirectory,
+      physicalBase: () => this.physicalBase(),
+      physicalPath: (name) => this.physicalPath(name),
+      assertAllowedTarget: (canonical) => this.assertAllowedTarget(canonical),
+    });
   }
+
+  close() { this.jobs.close(); }
 
   get skillsDirectory(): string {
     return join(this.options.rootDirectory, "skills");
@@ -401,31 +296,56 @@ export class SkillEditorService {
       content,
       modifiedAt: details.mtime.toISOString(),
       sizeBytes: details.size,
+      revisionToken: revisionTokenOf(details, buffer),
     });
   }
 
+  /** Aktueller Revisionstoken einer Datei (frisch gelesen). */
+  private async revisionAt(canonical: string): Promise<{ token: string; modifiedAt: string }> {
+    const details = await stat(canonical).catch(filesystemFailure);
+    if (details.size > this.options.maxFileBytes) {
+      throw new AppError(413, "SKILLS_FILE_TOO_LARGE", "Diese Datei ist zu groß für den Editor.", { limitBytes: this.options.maxFileBytes });
+    }
+    const buffer = await readFile(canonical).catch(filesystemFailure);
+    return { token: revisionTokenOf(details, buffer), modifiedAt: details.mtime.toISOString() };
+  }
+
   /**
-   * Atomar schreiben: Temp-Datei im Zielverzeichnis, dann `rename`. Ein paralleler
-   * Fremdzugriff (etwa `git pull`) wird über die erwartete mtime erkannt und mit 409
-   * beantwortet, statt die fremde Fassung still zu überschreiben.
+   * Atomar und bedingt schreiben: Temp-Datei im Zielverzeichnis, erneute
+   * Token-Prüfung unmittelbar vor dem `rename`, dann atomarer Replace. Eine
+   * externe Änderung wird damit nie still überschrieben; der erfolgreiche Save
+   * bezieht sich auf genau den geprüften Revisionstoken.
    */
-  async writeFile(input: { path: string; content: string; expectedModifiedAt: string | null }): Promise<SkillEditorReadResponse> {
+  async writeFile(input: { path: string; content: string; expectedRevision?: string | null | undefined; expectedModifiedAt?: string | null | undefined }): Promise<SkillEditorReadResponse> {
     const { requested, canonical, details } = await this.resolveExisting(input.path, "file");
     if (input.content.length > this.options.maxFileBytes) {
       throw new AppError(413, "SKILLS_FILE_TOO_LARGE", "Der Inhalt überschreitet das Größenlimit.", { limitBytes: this.options.maxFileBytes });
     }
-    const serverModifiedAt = details.mtime.toISOString();
-    if (input.expectedModifiedAt !== null && input.expectedModifiedAt !== serverModifiedAt) {
-      throw new AppError(409, "SKILLS_CONFLICT", "Diese Datei wurde zwischenzeitlich außerhalb der Workbench geändert.", { serverModifiedAt });
+    const currentBuffer = await readFile(canonical).catch(filesystemFailure);
+    const current = { token: revisionTokenOf(details, currentBuffer), modifiedAt: details.mtime.toISOString() };
+    if (input.expectedRevision !== undefined && input.expectedRevision !== null && input.expectedRevision !== current.token) {
+      throw new AppError(409, "SKILLS_CONFLICT", "Diese Datei wurde zwischenzeitlich außerhalb der Workbench geändert.", { serverModifiedAt: current.modifiedAt, revisionToken: current.token });
+    }
+    if ((input.expectedRevision === undefined || input.expectedRevision === null)
+      && input.expectedModifiedAt != null && input.expectedModifiedAt !== current.modifiedAt) {
+      // Legacy-Erwartungswert älterer Clients: mtime allein ist schwächer,
+      // wird aber weiterhin als Konfliktsignal behandelt.
+      throw new AppError(409, "SKILLS_CONFLICT", "Diese Datei wurde zwischenzeitlich außerhalb der Workbench geändert.", { serverModifiedAt: current.modifiedAt, revisionToken: current.token });
     }
     const temporary = join(dirname(canonical), `.wrapt-skill-${process.pid}-${Date.now()}.tmp`);
     try {
       await writeFile(temporary, input.content, { encoding: "utf8", mode: 0o600 });
       // Bestehende Rechte übernehmen, damit eine Bearbeitung keine Datei-Rechte verschiebt.
       await chmod(temporary, details.mode & 0o777);
+      const beforeReplace = await this.revisionAt(canonical);
+      if (beforeReplace.token !== current.token) {
+        await rm(temporary, { force: true }).catch(() => undefined);
+        throw new AppError(409, "SKILLS_CONFLICT", "Diese Datei wurde während des Speicherns außerhalb der Workbench geändert.", { serverModifiedAt: beforeReplace.modifiedAt, revisionToken: beforeReplace.token });
+      }
       await rename(temporary, canonical);
     } catch (error) {
       await rm(temporary, { force: true }).catch(() => undefined);
+      if (error instanceof AppError) throw error;
       filesystemFailure(error);
     }
     return this.readFile({ path: requested });
@@ -466,172 +386,117 @@ export class SkillEditorService {
 
   async createSkill(input: SkillEditorCreateRequest): Promise<SkillEditorCreateResponse> {
     this.assertName(input.name);
-    await this.assertNameFree(input.name);
-
-    const base = await this.physicalBase();
-    const physical = join(base, input.name);
-    const linkPath = join(this.skillsDirectory, input.name);
-    const created: string[] = [];
-    const propagated: string[] = [];
-
-    try {
-      await mkdir(physical, { recursive: true });
-      created.push(physical);
-      const frontmatter = [
-        "---",
-        `name: ${input.name}`,
-        `description: ${input.description.replace(/\r?\n/g, " ")}`,
-        ...(input.license ? [`license: ${input.license}`] : []),
-        "---",
-        "",
-        `# ${input.name}`,
-        "",
-      ].join("\n");
-      await writeFile(join(physical, "SKILL.md"), frontmatter, { encoding: "utf8", mode: 0o644 });
-
-      if (physical !== linkPath) {
-        await mkdir(this.skillsDirectory, { recursive: true });
-        await symlink(physical, linkPath, "dir");
-        created.push(linkPath);
-      }
-      // Die weiteren Harnesses zeigen auf den Ordner im Root — genau wie das bestehende Setup.
-      for (const directory of this.options.propagateDirectories) {
-        await mkdir(directory, { recursive: true });
-        const target = join(directory, input.name);
-        await symlink(linkPath, target, "dir");
-        created.push(target);
-        propagated.push(target);
-      }
-    } catch (error) {
-      for (const path of created.reverse()) await rm(path, { recursive: true, force: true }).catch(() => undefined);
-      if (error instanceof AppError) throw error;
-      filesystemFailure(error);
-    }
-
-    const readme = await this.updateReadme((content) => readmeWithRow(content, input.name, input.description));
-    return skillEditorCreateResponseSchema.parse({
-      path: join(linkPath, "SKILL.md"),
-      name: input.name,
-      propagated,
-      readmeUpdated: readme.updated,
-      notice: readme.notice,
-    });
+    const key = jobKey("create", input.name, null);
+    if (!this.pendingJob(key)) await this.assertNameFree(input.name);
+    const payload = { name: input.name, description: input.description, ...(input.license ? { license: input.license } : {}) };
+    return this.runJob(key, "create", payload, (onProgress) => this.mutations.ensureSkillCreated(input, onProgress));
   }
 
   async renameSkill(input: { name: string; newName: string }): Promise<SkillEditorCreateResponse> {
     this.assertName(input.name);
     this.assertName(input.newName);
     if (input.name === input.newName) throw new AppError(400, "SKILLS_SAME_NAME", "Der Name ist unverändert.");
-    await this.assertNameFree(input.newName);
-
-    const linkPath = join(this.skillsDirectory, input.name);
-    if (!await exists(linkPath)) throw new AppError(404, "SKILLS_NOT_FOUND", "Dieser Skill wurde nicht gefunden.");
-    const physical = await realpath(linkPath).catch(filesystemFailure);
-    this.assertAllowedTarget(physical);
-
-    const newPhysical = join(dirname(physical), input.newName);
-    const newLinkPath = join(this.skillsDirectory, input.newName);
-    await rename(physical, newPhysical).catch(filesystemFailure);
-
-    // Der Verweis im Root zeigt nach dem Verschieben ins Leere und wird neu gesetzt.
-    if (physical !== linkPath) {
-      await unlink(linkPath).catch(() => undefined);
-      await symlink(newPhysical, newLinkPath, "dir");
+    const key = jobKey("rename", input.name, input.newName);
+    if (!this.pendingJob(key)) {
+      await this.assertNameFree(input.newName);
+      const linkPath = join(this.skillsDirectory, input.name);
+      if (!await exists(linkPath)) throw new AppError(404, "SKILLS_NOT_FOUND", "Dieser Skill wurde nicht gefunden.");
     }
-    const propagated: string[] = [];
-    for (const directory of this.options.propagateDirectories) {
-      const previous = join(directory, input.name);
-      if (!await exists(previous)) continue;
-      await unlink(previous).catch(() => undefined);
-      const target = join(directory, input.newName);
-      await symlink(newLinkPath, target, "dir");
-      propagated.push(target);
-    }
-
-    // Der Frontmatter-Name muss dem Ordnernamen entsprechen, sonst lädt der Agent den Skill nicht.
-    const skillFile = join(newPhysical, "SKILL.md");
-    const content = await readFile(skillFile, "utf8").catch(() => null);
-    if (content !== null) await writeFile(skillFile, withFrontmatterName(content, input.newName), "utf8");
-
-    const readme = await this.updateReadme((value) => readmeWithRenamedRow(value, input.name, input.newName));
-    return skillEditorCreateResponseSchema.parse({
-      path: join(newLinkPath, "SKILL.md"),
-      name: input.newName,
-      propagated,
-      readmeUpdated: readme.updated,
-      notice: readme.notice,
-    });
+    return this.runJob(key, "rename", { name: input.name, newName: input.newName }, (onProgress) => this.mutations.ensureSkillRenamed(input, onProgress));
   }
 
   async deleteSkill(input: { name: string }): Promise<void> {
     this.assertName(input.name);
-    const linkPath = join(this.skillsDirectory, input.name);
-    if (!await exists(linkPath)) throw new AppError(404, "SKILLS_NOT_FOUND", "Dieser Skill wurde nicht gefunden.");
-
-    // Erst die Verweise entfernen (nur den Link, nie das Ziel), dann den echten Ordner.
-    for (const directory of this.options.propagateDirectories) {
-      const target = join(directory, input.name);
-      if (await exists(target)) await unlink(target).catch(() => undefined);
+    const key = jobKey("delete", input.name, null);
+    if (!this.pendingJob(key)) {
+      const linkPath = join(this.skillsDirectory, input.name);
+      if (!await exists(linkPath)) throw new AppError(404, "SKILLS_NOT_FOUND", "Dieser Skill wurde nicht gefunden.");
     }
-    const physical = await realpath(linkPath).catch(() => null);
-    const isLink = (await lstat(linkPath)).isSymbolicLink();
-    if (isLink) await unlink(linkPath).catch(() => undefined);
-    if (physical) {
-      this.assertAllowedTarget(physical);
-      await rm(physical, { recursive: true, force: true }).catch(filesystemFailure);
-    }
-    await this.updateReadme((content) => readmeWithoutRow(content, input.name));
+    await this.runJob(key, "delete", { name: input.name }, (onProgress) => this.mutations.ensureSkillRemoved(input.name, onProgress));
   }
 
-  private async updateReadme(transform: (content: string) => string | null): Promise<{ updated: boolean; notice: string | null }> {
-    const repository = this.options.repositoryDirectory;
-    if (!repository) return { updated: false, notice: null };
-    const path = join(repository, "README.md");
-    const content = await readFile(path, "utf8").catch(() => null);
-    if (content === null) return { updated: false, notice: "Die README des Skill-Repos wurde nicht gefunden; die Skill-Tabelle bleibt unverändert." };
-    const next = transform(content);
-    if (next === null) return { updated: false, notice: "In der README wurde keine passende Tabellenzeile gefunden; bitte manuell prüfen." };
-    await writeFile(path, next, "utf8");
-    return { updated: true, notice: null };
+  // --- Recovery -------------------------------------------------------------
+
+  /** Nimmt unterbrochene Skill-Operationen beim Start idempotent wieder auf. */
+  async recover(): Promise<{ resumed: number; needsRecovery: number }> {
+    let resumed = 0;
+    let needsRecovery = 0;
+    for (const job of this.jobs.unfinished()) {
+      try {
+        const onProgress = () => this.jobs.markProgress(job.key);
+        if (job.operation === "create") {
+          const payload = job.payload as unknown as SkillEditorCreateRequest;
+          this.jobs.complete(job.key, await this.mutations.ensureSkillCreated(payload, onProgress));
+        } else if (job.operation === "rename") {
+          const payload = job.payload as { name: string; newName: string };
+          this.jobs.complete(job.key, await this.mutations.ensureSkillRenamed(payload, onProgress));
+        } else {
+          const payload = job.payload as { name: string };
+          await this.mutations.ensureSkillRemoved(payload.name, onProgress);
+          this.jobs.complete(job.key, null);
+        }
+        resumed += 1;
+      } catch (error) {
+        needsRecovery += 1;
+        this.jobs.settle(job.key, "needs-recovery", error instanceof Error ? error.message : "Unbekannter Fehler.");
+      }
+    }
+    return { resumed, needsRecovery };
+  }
+
+  recoveryReport(): { unfinished: number } {
+    return { unfinished: this.jobs.unfinished().length };
+  }
+
+  private pendingJob(key: string): boolean {
+    const job = this.jobs.find(key);
+    return Boolean(job && (job.state === "running" || job.state === "needs-recovery"));
+  }
+
+  private runJob<T>(key: string, operation: SkillEditorJobOperation, payload: Record<string, unknown>, work: (onProgress: () => void) => Promise<T>): Promise<T> {
+    const pending = this.jobLocks.get(key) as Promise<T> | undefined;
+    if (pending) return pending;
+    const run = (async () => {
+      this.jobs.start(key, operation, payload);
+      try {
+        const result = await work(() => this.jobs.markProgress(key));
+        this.jobs.complete(key, result);
+        return result;
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unbekannter Fehler.";
+        // Nur wenn bereits ein externer Schritt begonnen wurde, kann ein
+        // Teilzustand zurückbleiben. Fachliche Ablehnungen davor sind final.
+        const progress = this.jobs.find(key)?.progress ?? 0;
+        this.jobs.settle(key, progress > 0 ? "needs-recovery" : "failed", message);
+        throw error;
+      }
+    })();
+    this.jobLocks.set(key, run);
+    return run.finally(() => { this.jobLocks.delete(key); });
   }
 
   // --- Git ------------------------------------------------------------------
+  //
+  // Editieren und Veröffentlichen sind getrennte Fähigkeiten: Der Editor schreibt
+  // nur Dateien. Committen läuft ausschließlich über eine explizite Pfad-Allowlist
+  // und einen an die Vorschau gebundenen Intent; Push ist ein eigener Schritt.
 
-  async gitCommitPush(): Promise<SkillEditorGitResponse> {
-    const repository = this.options.repositoryDirectory;
-    if (!repository) throw new AppError(400, "SKILLS_REPOSITORY_MISSING", "Es ist kein Skill-Repository konfiguriert.");
-    const run = (args: string[]) => execa("git", ["-C", repository, ...args], { reject: false, timeout: 120_000 });
+  private gitRepository(): SkillGitRepository {
+    if (!this.options.repositoryDirectory) {
+      throw new AppError(400, "SKILLS_REPOSITORY_MISSING", "Es ist kein Skill-Repository konfiguriert.");
+    }
+    return new SkillGitRepository(this.options.repositoryDirectory);
+  }
 
-    const statusResult = await run(["status", "--porcelain"]);
-    if (statusResult.exitCode !== 0) {
-      return skillEditorGitResponseSchema.parse({
-        committed: false, pushed: false, message: null, changedSkills: [],
-        errorTail: tail(`${statusResult.stdout}\n${statusResult.stderr}`),
-        notice: "Der Ordner ist kein lesbares Git-Repository.",
-      });
-    }
-    const { changes, globalRulesChanged } = parseGitStatus(statusResult.stdout);
-    if (changes.length === 0 && !globalRulesChanged) {
-      return skillEditorGitResponseSchema.parse({ committed: false, pushed: false, message: null, changedSkills: [], errorTail: null, notice: "Es gibt nichts zu committen." });
-    }
+  async gitPreview(): Promise<SkillEditorGitPreviewResponse> {
+    return this.gitRepository().preview();
+  }
 
-    const { title, body } = buildCommitMessage(changes, globalRulesChanged);
-    const add = await run(["add", "-A"]);
-    if (add.exitCode !== 0) {
-      return skillEditorGitResponseSchema.parse({ committed: false, pushed: false, message: null, changedSkills: changes, errorTail: tail(`${add.stdout}\n${add.stderr}`), notice: "Die Änderungen konnten nicht vorgemerkt werden." });
-    }
-    const commit = await run(["commit", "-m", title, ...(body ? ["-m", body] : [])]);
-    if (commit.exitCode !== 0) {
-      return skillEditorGitResponseSchema.parse({ committed: false, pushed: false, message: null, changedSkills: changes, errorTail: tail(`${commit.stdout}\n${commit.stderr}`), notice: "Der Commit ist fehlgeschlagen." });
-    }
-    const push = await run(["push"]);
-    if (push.exitCode !== 0) {
-      return skillEditorGitResponseSchema.parse({
-        committed: true, pushed: false, message: title, changedSkills: changes,
-        errorTail: tail(`${push.stdout}\n${push.stderr}`),
-        notice: "Der Commit liegt lokal vor, das Pushen ist fehlgeschlagen.",
-      });
-    }
-    return skillEditorGitResponseSchema.parse({ committed: true, pushed: true, message: title, changedSkills: changes, errorTail: null, notice: null });
+  async gitCommit(input: { intent: string }): Promise<SkillEditorGitResponse> {
+    return this.gitRepository().commit(input.intent);
+  }
+
+  async gitPush(): Promise<SkillEditorGitResponse> {
+    return this.gitRepository().push();
   }
 }

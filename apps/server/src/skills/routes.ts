@@ -1,6 +1,9 @@
 import {
   skillEditorCreateRequestSchema,
   skillEditorDeleteRequestSchema,
+  skillEditorGitCommitRequestSchema,
+  skillEditorGitPreviewResponseSchema,
+  skillEditorGitResponseSchema,
   skillEditorReadResponseSchema,
   skillEditorRenameRequestSchema,
   skillEditorStatusResponseSchema,
@@ -38,5 +41,10 @@ export async function registerSkillsRoutes(app: FastifyInstance, services: Route
     await services.skillEditor.deleteSkill({ name });
     return reply.status(204).send();
   });
-  app.post("/skills/git", { config: { rateLimit: { max: 6, timeWindow: "1 minute" } } }, async () => services.skillEditor.gitCommitPush());
+  app.get("/skills/git/preview", async () => skillEditorGitPreviewResponseSchema.parse(await services.skillEditor.gitPreview()));
+  app.post("/skills/git/commit", { config: { rateLimit: { max: 6, timeWindow: "1 minute" } } }, async (request) => {
+    const input = skillEditorGitCommitRequestSchema.parse(request.body);
+    return skillEditorGitResponseSchema.parse(await services.skillEditor.gitCommit(input));
+  });
+  app.post("/skills/git/push", { config: { rateLimit: { max: 6, timeWindow: "1 minute" } } }, async () => skillEditorGitResponseSchema.parse(await services.skillEditor.gitPush()));
 }
