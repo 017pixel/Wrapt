@@ -1,13 +1,9 @@
 import { access } from "node:fs/promises";
-import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 import fastifyStatic from "@fastify/static";
 import { apiErrorSchema } from "@wrapt/contracts";
 import type { FastifyInstance } from "fastify";
 import { settings } from "../config/settings.js";
-
-const require = createRequire(import.meta.url);
-const devtoolsDirectory = dirname(require.resolve("@chrome-devtools/inspector/inspector.html"));
 
 async function directoryExists(path: string): Promise<boolean> {
   try {
@@ -55,15 +51,6 @@ export async function registerStaticHosting(app: FastifyInstance, t3ClientUrl: s
         if (filePath.includes("/icons/") || filePath.endsWith("favicon.svg")) {
           response.header("Cache-Control", "public, max-age=604800");
         }
-      },
-    });
-    await app.register(fastifyStatic, {
-      root: devtoolsDirectory,
-      prefix: "/wrapt/devtools/",
-      decorateReply: false,
-      setHeaders: (response, filePath) => {
-        response.header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self' ws: wss:; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; worker-src 'self' blob:; frame-ancestors 'self'");
-        response.header("Cache-Control", filePath.endsWith("inspector.html") ? "no-cache" : "public, max-age=31536000, immutable");
       },
     });
   }

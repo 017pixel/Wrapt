@@ -4,13 +4,11 @@ import { operationalMetricsSchema, readinessResponseSchema } from "@wrapt/contra
 import multipart from "@fastify/multipart";
 import type { FastifyInstance } from "fastify";
 import { registerApiRoutes } from "../api/routes.js";
-import { registerBrowserRoutes } from "../browser/routes.js";
 import { settings } from "../config/settings.js";
 import { registerExtensionRoutes } from "../extensions/routes.js";
 import { extensionDatabaseBackupStatus } from "../extensions/backup.js";
 import { readWebBuildMetrics } from "../observability/web-build-metrics.js";
 import { registerHermesRoutes } from "../hermes/routes.js";
-import { registerNewsRoutes } from "../news/routes.js";
 import { registerNotificationRoutes } from "../notifications/routes.js";
 import { registerPluginRoutes } from "../plugins/routes.js";
 import { registerPreviewRoutes } from "../previews/routes.js";
@@ -98,7 +96,6 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
     diagnosticRetentionDays: settings.previews.diagnosticRetentionDays,
     devServers: deps.previewDevServers,
   });
-  await app.register(registerNewsRoutes, { prefix: "/api/v1", news: deps.news, newsDatabase: deps.newsDatabase });
   await app.register(registerHermesRoutes, {
     prefix: "/api/v1",
     client: deps.hermesClient,
@@ -134,10 +131,5 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
         throw new TerminalFailure("INVALID_CWD", "Das gewählte Projekt wurde nicht gefunden.");
       }
     },
-  });
-  await app.register(registerBrowserRoutes, {
-    prefix: "/api/v1",
-    manager: deps.browsers,
-    allowedUsers: settings.terminalAllowedUsers,
   });
 }

@@ -1,7 +1,6 @@
 import type { ComponentType } from "react";
 import type { PanelType, Project } from "@wrapt/contracts";
 import {
-  BrowserIcon,
   CodeServerIcon,
   CodexIcon,
   FinderIcon,
@@ -11,7 +10,7 @@ import {
   TerminalIcon,
 } from "../components/icons";
 
-export type ProjectToolType = Exclude<PanelType, "notion" | "preview"> | "preview";
+export type ProjectToolType = Exclude<PanelType, "notion" | "browser" | "preview"> | "preview";
 
 export interface ProjectToolOption {
   id: string;
@@ -36,7 +35,6 @@ export function projectToolOptions(project: Project): ProjectToolOption[] {
     { id: "terminal", label: "Terminal", type: "terminal", icon: TerminalIcon },
     { id: "opencode", label: "OpenCode", type: "opencode", icon: OpenCodeIcon },
     { id: "codex", label: "Codex", type: "codex", icon: CodexIcon },
-    { id: "browser", label: "Browser", type: "browser", icon: BrowserIcon },
     { id: "files", label: "Dateien", type: "files", icon: FinderIcon },
   );
 

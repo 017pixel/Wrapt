@@ -50,7 +50,6 @@ import {
   semanticVersionSchema,
 } from "./versioning.js";
 import { extensionPermissionRequestsSchema } from "./permissions.js";
-import { browserContributionsSchema } from "./browser-contributions.js";
 import { previewContributionsSchema } from "./preview-contributions.js";
 import { realtimeContributionsSchema } from "./realtime-contributions.js";
 import { scheduledJobContributionsSchema } from "./scheduled-job-contributions.js";
@@ -208,7 +207,6 @@ export const extensionContributionsV1Schema = z.strictObject({
   files: fileContributionsSchema.optional(),
   terminal: terminalContributionsSchema.optional(),
   previews: previewContributionsSchema.optional(),
-  browser: browserContributionsSchema.optional(),
   agentTools: agentToolContributionsSchema.optional(),
   agentSkills: agentSkillContributionsSchema.optional(),
   backgroundServices: backgroundServiceContributionsSchema.optional(),
@@ -405,10 +403,6 @@ export const extensionManifestV1Schema = z
       ...(manifest.contributes.previews ?? []).map((item, index) => ({
         id: item.id,
         path: ["contributes", "previews", index, "id"] as const,
-      })),
-      ...(manifest.contributes.browser ?? []).map((item, index) => ({
-        id: item.id,
-        path: ["contributes", "browser", index, "id"] as const,
       })),
       ...(manifest.contributes.agentTools ?? []).map((item, index) => ({
         id: item.id,
@@ -1006,60 +1000,6 @@ export const extensionManifestV1Schema = z
     }
 
     for (const [index, item] of (
-      manifest.contributes.browser ?? []
-    ).entries()) {
-      if (item.kind === "action" && !commandIds.has(item.commandId)) {
-        context.addIssue({
-          code: "custom",
-          message:
-            "Eine Browser Action muss eine deklarierte Command Contribution referenzieren.",
-          path: ["contributes", "browser", index, "commandId"],
-        });
-      }
-      if (
-        item.kind === "tool" &&
-        !contributionBelongsToExtension(manifest.id, item.provider)
-      ) {
-        context.addIssue({
-          code: "custom",
-          message:
-            "Eine Browser Tool Provider ID muss zur deklarierenden Extension gehören.",
-          path: ["contributes", "browser", index, "provider"],
-        });
-      }
-      if (
-        item.icon !== undefined &&
-        item.icon !== "extension" &&
-        !contributionBelongsToExtension(manifest.id, item.icon)
-      ) {
-        context.addIssue({
-          code: "custom",
-          message:
-            "Eine Browser Contribution Icon ID muss zur deklarierenden Extension gehören.",
-          path: ["contributes", "browser", index, "icon"],
-        });
-      }
-      if (item.icon === "extension" && manifest.icon === undefined) {
-        context.addIssue({
-          code: "custom",
-          message:
-            "Die Icon-Referenz extension benötigt ein lokales Manifest-Icon.",
-          path: ["contributes", "browser", index, "icon"],
-        });
-      }
-      if (item.when === undefined) continue;
-      for (const contextKey of contextExpressionKeys(item.when)) {
-        if (contextKeyBelongsToExtension(manifest.id, contextKey)) continue;
-        context.addIssue({
-          code: "custom",
-          message:
-            "Ein Extension Context Key muss zur deklarierenden Extension gehören.",
-          path: ["contributes", "browser", index, "when"],
-        });
-      }
-    }
-
-    for (const [index, item] of (
       manifest.contributes.agentTools ?? []
     ).entries()) {
       if (item.kind === "command" && !commandIds.has(item.commandId)) {
@@ -1341,20 +1281,6 @@ export const extensionManifestV1Schema = z
     }
 
     if (
-      manifest.contributes.browser?.some((item) => item.kind === "tool") ===
-        true &&
-      manifest.entrypoints.ui === undefined &&
-      manifest.entrypoints.server === undefined
-    ) {
-      context.addIssue({
-        code: "custom",
-        message:
-          "Browser Tool Contributions benötigen einen UI- oder Server-Entrypoint für ihren Provider.",
-        path: ["entrypoints"],
-      });
-    }
-
-    if (
       manifest.contributes.agentTools !== undefined &&
       manifest.entrypoints.server === undefined
     ) {
@@ -1453,21 +1379,6 @@ export const extensionManifestV1Schema = z
         code: "custom",
         message:
           "Agent Tool Contributions müssen die Permission agents.tools.register anfordern.",
-        path: ["permissions"],
-      });
-    }
-
-    if (
-      manifest.contributes.browser?.some((item) => item.kind === "tool") ===
-        true &&
-      !manifest.permissions.some(
-        (request) => request.permission === "browser.control",
-      )
-    ) {
-      context.addIssue({
-        code: "custom",
-        message:
-          "Browser Tool Contributions müssen die Permission browser.control anfordern.",
         path: ["permissions"],
       });
     }

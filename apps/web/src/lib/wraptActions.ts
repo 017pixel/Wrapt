@@ -84,8 +84,6 @@ export function openProjectToolStandalone(project: Project, tool: ProjectToolOpt
       return "/t3-code";
     case "code-server":
       return "/code-editor";
-    case "browser":
-      return "/browser";
     case "files":
       return "/files";
     case "preview":

@@ -10,6 +10,7 @@ import { formatRelativeTime } from "../lib/format";
 import { useNow } from "../lib/useNow";
 import { formatUsageReset } from "../lib/orbitUsage";
 import { wraptQueries } from "../lib/queryOptions";
+import "./settings/settings-tabs.css";
 import { ConfirmDialog, ModalFrame, PromptDialog } from "../components/ModalDialog";
 import { useRouteActivity } from "../lib/routeActivity";
 import { useHashTab } from "../lib/hashTabs";

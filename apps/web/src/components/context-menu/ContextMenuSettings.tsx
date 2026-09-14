@@ -24,7 +24,6 @@ const surfaceLabels: Record<ContextMenuConfigSurface, string> = {
   "host.context-menu.terminal": "Terminal-Sidebar",
   "host.context-menu.git": "Git",
   "host.context-menu.agent-session": "Agent-Sitzungen",
-  "host.context-menu.browser": "Chromium-Browser",
   "host.context-menu.tool": "Werkzeuge und Panels",
   "host.context-menu.statusbar": "Statusleiste",
   "host.context-menu.empty": "Freie Host-Flächen",

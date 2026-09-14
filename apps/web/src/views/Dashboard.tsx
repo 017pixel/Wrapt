@@ -13,7 +13,6 @@ import type {
   ServerMetrics,
   ServerSummary,
   UsageDashboardResponse,
-  NewsListResponse,
 } from "@wrapt/contracts";
 import {
   CheckIcon,
@@ -28,7 +27,6 @@ import {
   ServicesIcon,
   ShieldIcon,
   T3CodeIcon,
-  TechTldrsIcon,
   TerminalIcon,
   WarningIcon,
   WorkbenchIcon,
@@ -61,7 +59,6 @@ const dashboardSections: DashboardSection[] = [
   "runtime",
   "diagnostics",
   "usage",
-  "news",
   "commands",
 ];
 
@@ -743,37 +740,6 @@ function UsagePanel({ usage }: { usage: Query<UsageDashboardResponse> }) {
   );
 }
 
-function NewsPanel({ news }: { news: Query<NewsListResponse> }) {
-  const data = news.data;
-  return (
-    <Panel
-      title="Tech-News"
-      subtitle="Ungelesene Zusammenfassungen"
-      icon={<TechTldrsIcon className="h-4 w-4" />}
-      name="news"
-      className="is-span-4"
-      meta={<Link className="dash-link" to="/tech-tldrs">Öffnen</Link>}
-    >
-      {news.isError ? (
-        <PanelError message={queryMessage(news.error, "News konnten nicht geladen werden.")} />
-      ) : news.isPending ? (
-        <PanelSkeleton label="News laden" rows={2} />
-      ) : (
-        <div className="dash-news">
-          <p className="dash-news-count">
-            {integer.format(data!.total)}
-            <span>{data!.total === 1 ? "ungelesener Beitrag" : "ungelesene Beiträge"}</span>
-          </p>
-          <Badge tone={data!.sync.enabled === false ? "default" : data!.sync.running ? "warn" : data!.sync.lastError ? "bad" : "ok"}>
-            {data!.sync.enabled === false ? "Pausiert" : data!.sync.running ? "Sync läuft" : data!.sync.lastError ? "Sync-Fehler" : "Aktuell"}
-          </Badge>
-          {data!.sync.lastError ? <p className="dash-muted">{data!.sync.lastError}</p> : null}
-        </div>
-      )}
-    </Panel>
-  );
-}
-
 /* ------------------------------------------------------------ Schnellzugriff */
 
 function QuickBar({
@@ -802,7 +768,6 @@ function QuickBar({
     { label: "Workbench", icon: WorkbenchIcon, onClick: () => { prepareProject(); navigate("/workbench"); } },
     { label: "Terminal", icon: TerminalIcon, onClick: () => { const projectId = prepareProject(); addTab("standalone", projectId, "shell"); navigate("/terminal"); } },
     { label: "Nutzung", icon: NutzungIcon, onClick: () => navigate("/usage") },
-    { label: "News", icon: TechTldrsIcon, onClick: () => navigate("/tech-tldrs") },
   ];
 
   return (
@@ -928,8 +893,6 @@ export function Dashboard() {
   const ports = useQuery({ ...wraptQueries.localPorts(refresh?.localPortsMilliseconds), enabled: routeActive && runtimeVisible });
   const sessions = useQuery({ ...wraptQueries.terminalSessions(refresh?.terminalSessionsMilliseconds), enabled: routeActive && runtimeVisible });
   const usage = useQuery({ ...wraptQueries.usageDashboard("30d", refresh?.usageMilliseconds), enabled: routeActive && visible("usage") });
-  const unreadNewsParams = useMemo(() => new URLSearchParams({ unread: "true", limit: "1" }), []);
-  const news = useQuery({ ...wraptQueries.news(unreadNewsParams, refresh?.newsMilliseconds), enabled: routeActive && visible("news") });
   const commands = useQuery({ ...wraptQueries.commands(), enabled: routeActive && visible("commands") });
   const [selectedCommand, setSelectedCommand] = useState<{ name: string; description: string; command: string } | null>(null);
   const systemState = deriveSystemState(summary.data, readiness.data, readiness.isError, metrics.data, diagnostics.data);
@@ -987,7 +950,6 @@ export function Dashboard() {
           {diagnosticsVisible ? <WorkbenchDiagnosticsPanel diagnostics={diagnostics} readiness={readiness} /> : null}
           {runtimeVisible ? <RuntimePanel ports={ports} sessions={sessions} projects={projects} onOpenPort={openPort} /> : null}
           {visible("usage") ? <UsagePanel usage={usage} /> : null}
-          {visible("news") ? <NewsPanel news={news} /> : null}
           {visible("commands") ? <CommandsPanel commands={commands} onSelect={setSelectedCommand} /> : null}
           </div></DashboardMobileDetails>
 

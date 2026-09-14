@@ -23,7 +23,6 @@ function node(overrides: Partial<OrbitNode>): OrbitNode {
     previewSlotId: null,
     previewStorageProfileId: null,
     previewIsolation: true,
-    previewRuntime: "iframe",
     previewReferenceId: null,
     previewLastUsedAt: null,
     assetId: null,

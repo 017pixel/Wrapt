@@ -88,7 +88,6 @@ describe("OrbitDatabase", () => {
       previewSlotId: null,
       previewStorageProfileId: null,
       previewIsolation: true,
-      previewRuntime: "iframe" as const,
       previewReferenceId: null,
       previewLastUsedAt: null,
       assetId: null,

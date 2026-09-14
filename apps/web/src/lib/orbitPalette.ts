@@ -12,7 +12,7 @@ export interface OrbitPalettePayload {
   type: "project" | "tool" | "previewGroup" | "note" | "todo" | "snippet" | "file" | "frame" | "usage" | "gallery" | "fileGallery" | "hermesStatus" | "hermesTasks" | "hermesCron" | "hermesResults";
   title: string;
   projectId?: string;
-  toolType?: "t3-code" | "code-server" | "preview" | "browser" | "terminal" | "codex" | "opencode" | "files" | "hermes";
+  toolType?: "t3-code" | "code-server" | "preview" | "terminal" | "codex" | "opencode" | "files" | "hermes";
   provider?: "codex" | "opencode" | "claude";
   previewId?: string;
   layout?: "1" | "2" | "3" | "6";

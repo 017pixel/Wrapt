@@ -4,7 +4,6 @@ import type { FastifyInstance } from "fastify";
 import { CodexOAuthPrimaryWindowFallback } from "../adapters/codexbar/codex-oauth-primary-window.js";
 import { CodexbarClient } from "../adapters/codexbar/codexbar-client.js";
 import { createCodexbarUsageService } from "../adapters/codexbar/codexbar-cache.js";
-import { BrowserDatabase } from "../browser/database.js";
 import { loadCommandsConfig, loadProjectsConfig, loadServicesConfig } from "../config/repository.js";
 import { settings } from "../config/settings.js";
 import { ExtensionDatabase } from "../extensions/database.js";
@@ -20,8 +19,6 @@ import { HermesAcpManager } from "../hermes/acp/Manager.js";
 import { HermesSessionService } from "../hermes/session-service.js";
 import { HermesStatusService } from "../hermes/status-service.js";
 import { HermesResultSync } from "../hermes/result-sync.js";
-import { NewsDatabase } from "../news/database.js";
-import { NewsService } from "../news/news-service.js";
 import { AgentSessionSync } from "../notifications/agent-session-sync.js";
 import { NotificationDatabase } from "../notifications/database.js";
 import { NotificationPushService } from "../notifications/push.js";
@@ -108,7 +105,6 @@ export async function createAppDependencies(app: FastifyInstance) {
   const operationalMetrics = new OperationalMetrics();
   const projectActivityDatabase = new ProjectActivityDatabase(settings.databasePath);
   const projectRegistryDatabase = new ProjectRegistryDatabase(settings.databasePath);
-  const browserDatabase = new BrowserDatabase(settings.databasePath);
   const previewSlotDatabase = new PreviewSlotDatabase(settings.databasePath);
   const previewDevServerDatabase = new PreviewDevServerDatabase(settings.databasePath);
   const previewSecrets = new PreviewSecrets(settings.dataDirectory);
@@ -252,8 +248,6 @@ export async function createAppDependencies(app: FastifyInstance) {
   const orbitDatabase = new OrbitDatabase(settings.databasePath, settings.orbitBackupDirectory);
   const orbitAssets = new OrbitAssetRepository(settings.databasePath, settings.orbitAssetDirectory, settings.orbitAssetMaxFileBytes, settings.orbitAssetMaxTotalBytes);
   const fileGallery = new OrbitAssetRepository(settings.databasePath, settings.fileGalleryDirectory, settings.fileGalleryMaxFileBytes, settings.fileGalleryMaxTotalBytes, "file_gallery_files");
-  const newsDatabase = new NewsDatabase(settings.databasePath);
-  const news = new NewsService(newsDatabase);
   const codexbarClient = new CodexbarClient({ baseUrl: settings.codexbarBaseUrl, timeoutMilliseconds: settings.codexbarTimeoutMilliseconds, cliPath: settings.codexbarCliPath, claudeCliPath: settings.claudeCliPath, configPath: settings.codexbarConfigPath });
   const liveUsage = createCodexbarUsageService({
     client: codexbarClient,
@@ -328,7 +322,6 @@ export async function createAppDependencies(app: FastifyInstance) {
   });
   const previewRepair = new PreviewRepairService({ database: previewSlotDatabase, slots: previewSlots, scanCandidates });
   const runtime = createRuntimeDependencies({
-    browserDatabase,
     terminalDatabase,
     terminalStatusSync,
     usageDatabase,
@@ -346,7 +339,6 @@ export async function createAppDependencies(app: FastifyInstance) {
     operationalMetrics,
     projectActivityDatabase,
     projectRegistryDatabase,
-    browserDatabase,
     previewSlotDatabase,
     previewDevServerDatabase,
     previewSecrets,
@@ -378,8 +370,6 @@ export async function createAppDependencies(app: FastifyInstance) {
     orbitDatabase,
     orbitAssets,
     fileGallery,
-    newsDatabase,
-    news,
     codexbarClient,
     liveUsage,
     analytics,

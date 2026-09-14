@@ -1,7 +1,6 @@
 import type { ComponentType } from "react";
 import { navigationContributionSchema } from "@wrapt/extension-contracts";
 import {
-  BrowserIcon,
   ClaudeCodeIcon,
   CodeServerIcon,
   CodexIcon,
@@ -17,7 +16,6 @@ import {
   ProjekteIcon,
   SkillsIcon,
   T3CodeIcon,
-  TechTldrsIcon,
   TerminalIcon,
   WorkbenchIcon,
 } from "../components/icons";
@@ -46,7 +44,7 @@ export interface LegacyNavigationOwner {
 }
 
 /**
- * Die 18 bisherigen Sidebar-Einträge als Legacy Built-in Navigation
+ * Die bisherigen Sidebar-Einträge als Legacy Built-in Navigation
  * Contributions. Reihenfolge, Gruppen, Labels, Beschreibungen und Icons
  * entsprechen exakt der bisherigen statischen Quelle und sind in
  * `legacyNavigation.test.ts` als Paritätserwartung festgeschrieben.
@@ -87,17 +85,6 @@ const legacyNavigationDefinitions: readonly LegacyNavigationDefinition[] =
       order: 30,
       visibleByDefault: true,
       legacyVisibilityKey: "workbench",
-    },
-    {
-      ownerId: "wrapt.tech-tldrs",
-      routeId: "wrapt.tech-tldrs.route.main",
-      label: "Tech TLDRs",
-      description: "Tech-News lesen und verstehen",
-      icon: TechTldrsIcon,
-      group: "workspace",
-      order: 40,
-      visibleByDefault: true,
-      legacyVisibilityKey: "tech-tldrs",
     },
     {
       ownerId: "wrapt.projects",
@@ -209,17 +196,6 @@ const legacyNavigationDefinitions: readonly LegacyNavigationDefinition[] =
       order: 90,
       visibleByDefault: true,
       legacyVisibilityKey: "files",
-    },
-    {
-      ownerId: "wrapt.browser",
-      routeId: "wrapt.browser.route.main",
-      label: "Browser",
-      description: "Chromium für Recherche und lokale Apps",
-      icon: BrowserIcon,
-      group: "tools",
-      order: 100,
-      visibleByDefault: true,
-      legacyVisibilityKey: "browser",
     },
     {
       ownerId: "wrapt.skills",

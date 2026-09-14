@@ -17,7 +17,6 @@ export const hostContextMenuSurfaces = [
   "host.context-menu.terminal",
   "host.context-menu.git",
   "host.context-menu.agent-session",
-  "host.context-menu.browser",
   "host.context-menu.tool",
   "host.context-menu.statusbar",
   "host.context-menu.empty",

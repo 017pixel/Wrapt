@@ -202,17 +202,4 @@ describe("Wrapt API", () => {
     ).toBe(true);
     expect(payload.projects.some((project) => project.id === "wrapt")).toBe(true);
   });
-
-  it("returns the typed Tech TLDRs feed and collection endpoints", async () => {
-    const app = await buildApp({ startBackgroundServices: false });
-    apps.push(app);
-    const feed = await app.inject({ method: "GET", url: "/api/v1/news?limit=2", headers: authenticatedHeaders });
-    expect(feed.statusCode).toBe(200);
-    expect(feed.json()).toMatchObject({ items: expect.any(Array), total: expect.any(Number), sync: { running: expect.any(Boolean), aiEnabled: expect.any(Boolean) } });
-    const collection = await app.inject({ method: "POST", url: "/api/v1/news/collections", headers: authenticatedHeaders, payload: { name: `Test ${Date.now()}` } });
-    expect(collection.statusCode).toBe(201);
-    const created = collection.json<{collection:{id:string;name:string;itemCount:number}}>();
-    expect(created).toMatchObject({ collection: { name: expect.stringMatching(/^Test /), itemCount: 0 } });
-    expect((await app.inject({method:"DELETE",url:`/api/v1/news/collections/${created.collection.id}`,headers:authenticatedHeaders})).statusCode).toBe(204);
-  });
 });

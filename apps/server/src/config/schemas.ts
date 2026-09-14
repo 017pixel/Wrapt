@@ -15,7 +15,6 @@ const previewConfigSchema = z.object({
   targetPort: z.number().int().min(1).max(65_535).nullable().default(null),
   path: z.string().startsWith("/").default("/"),
   mode: serviceModeSchema.default("hybrid"),
-  runtime: z.enum(["iframe", "shared-browser"]).default("iframe"),
   dependencies: z.array(z.object({
     port: z.number().int().min(1).max(65_535),
     label: z.string().trim().min(1).max(80),

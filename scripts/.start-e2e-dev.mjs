@@ -38,7 +38,6 @@ config.paths = {
   terminalAllowedRoots: [repositoryRoot, temporaryRoot],
   terminalDefaultCwd: repositoryRoot,
   dataDir: dataDirectory,
-  browserProfilesRoot: join(dataDirectory, "browser-profiles"),
   orbitBackupDir: join(dataDirectory, "orbit-backups"),
   orbitAssetDir: join(dataDirectory, "orbit-assets"),
   fileGalleryDir: join(dataDirectory, "file-gallery"),
@@ -124,7 +123,6 @@ const child = spawn(process.execPath, ["apps/server/dist/index.js"], {
     // die Tests ersetzen Orbit-Dokumente jedoch komplett (eigene Arbeitsflächen).
     ORBIT_DESTRUCTIVE_DROP_PERCENT: "100",
     WRAPT_DEV_TAILSCALE_USER: "e2e@wrapt.invalid",
-    MISTRAL_API_KEY: "",
     PORT: String(e2ePort),
   },
 });

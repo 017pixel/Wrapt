@@ -440,8 +440,6 @@ export function LocalPreviewRuntime({
         <DevicePreviewFrame
           deviceId={resolvedDevice.deviceId}
           orientation={resolvedDevice.orientation}
-          runtime="iframe"
-          origin={`localhost:${targetPort}`}
           scaleFactor={previewScaleFactor}
           interactionLocked={interactionLocked}
         >

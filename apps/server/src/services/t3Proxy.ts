@@ -16,88 +16,12 @@ const t3HttpUpstream = `http://${t3Authority}`;
 const t3WebSocketUpstream = `ws://${t3Authority}`;
 const maxInjectedHtmlBytes = 4 * 1024 * 1024;
 
-// T3 Code deaktiviert seine integrierte Browser-Preview im Web-Modus, weil
-// dort die Electron-API `window.desktopBridge.preview` fehlt. Innerhalb der
-// Workbench gibt es dafür bereits einen eigenen, serverseitigen Browser. Der
-// kleine Fallback macht die deaktivierte T3-Karte zu einem Brückensignal an
-// den umgebenden ToolPanel. Die optionale Zieladresse wird dabei nur als
-// Hinweis weitergereicht und in der Workbench erneut normalisiert. Die
-// eigentliche Browser-Implementierung bleibt in `apps/web/src/components/browser`.
-export const remoteBrowserFallbackScript = `<script>
-(() => {
-  const messageType = "wrapt:open-browser";
-  const mark = "data-wrapt-browser-fallback";
-  const normalizeUrl = (value) => {
-    if (typeof value !== "string" || !value.trim()) return null;
-    try {
-      const url = new URL(value, window.location.href);
-      return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
-    } catch {
-      return null;
-    }
-  };
-  const targetUrl = (button) => normalizeUrl(
-    button.getAttribute("data-url") || button.closest("a")?.href || "",
-  );
-  const openBrowser = (button) => {
-    if (!(button instanceof HTMLButtonElement)) return;
-    if (!button.textContent?.trim().startsWith("Browser")) return;
-    if (button.getAttribute(mark) !== "true") {
-      button.setAttribute(mark, "true");
-      button.title = "Wrapt-Browser öffnen";
-      button.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-        const url = targetUrl(button);
-        const message = { type: messageType, ...(url ? { url } : {}) };
-        if (window.parent === window) window.location.assign("/browser");
-        else window.parent.postMessage(message, window.location.origin);
-      }, true);
-    }
-    // Nur echte Zustandsänderungen schreiben. Der Observer sieht diese
-    // Attribute selbst; bedingungslose Schreibzugriffe erzeugen in Firefox
-    // sonst eine endlose MutationObserver-Kette und frieren das iframe ein.
-    if (button.disabled) button.disabled = false;
-    if (button.hasAttribute("aria-disabled")) button.removeAttribute("aria-disabled");
-    if (button.classList.contains("cursor-not-allowed") || button.classList.contains("opacity-40")) {
-      button.classList.remove("cursor-not-allowed", "opacity-40");
-    }
-  };
-  const scan = (root) => {
-    if (!(root instanceof Element)) return;
-    if (root.matches("button")) openBrowser(root);
-    for (const button of root.querySelectorAll("button")) openBrowser(button);
-  };
-  const observer = new MutationObserver((records) => {
-    for (const record of records) {
-      if (record.type === "childList") {
-        for (const node of record.addedNodes) scan(node);
-      } else if (record.type === "attributes") {
-        openBrowser(record.target);
-      } else {
-        openBrowser(record.target.parentElement?.closest("button"));
-      }
-    }
-  });
-  observer.observe(document.documentElement, {
-    childList: true,
-    subtree: true,
-    attributes: true,
-    attributeFilter: ["disabled", "aria-disabled", "class"],
-    characterData: true,
-  });
-  scan(document.documentElement);
-})();
-</script>`;
-
 // T3 Code öffnet „Open in VS Code" im Web als `vscode://vscode-remote/
 // ssh-remote+<host><pfad>`-Deep-Link über `window.location.assign`. Ohne
 // registrierten Schema-Handler bleibt dieser Klick wirkungslos. Die URL selbst
 // lässt sich nicht abfangen: `window.location.assign` ist in Chrome und
 // Firefox eine nicht überschreibbare Browser-Property. Das Script fängt
-// deshalb den Klick auf den T3-„Open"-Button ab (gleiches Muster wie der
-// Browser-Fallback), liest den Zielordner aus den React-Props der Komponente
+// deshalb den Klick auf den T3-„Open"-Button ab, liest den Zielordner aus den React-Props der Komponente
 // und öffnet ihn im code-server der Workbench: eingebettet per postMessage an
 // das umgebende ToolPanel, im eigenständigen Fenster direkt als
 // `/editor`-Navigation. Ohne ablesbaren Ordner öffnet die Workbench das
@@ -150,7 +74,7 @@ export const remoteEditorFallbackScript = `<script>
       openEditor(button);
     }, true);
     // Nur echte Zustandsänderungen schreiben, sonst dreht der Observer sich
-    // in Firefox endlos (gleiches Muster wie beim Browser-Fallback).
+    // in Firefox endlos.
     if (button.disabled) button.disabled = false;
     if (button.hasAttribute("aria-disabled")) button.removeAttribute("aria-disabled");
     if (button.classList.contains("cursor-not-allowed") || button.classList.contains("opacity-40")) {
@@ -230,7 +154,7 @@ function isHtml(headers: IncomingHttpHeaders): boolean {
 }
 
 export function injectT3HtmlBridge(html: string): string {
-  const bridge = `${t3RouteBridgeScript}${remoteBrowserFallbackScript}${remoteEditorFallbackScript}`;
+  const bridge = `${t3RouteBridgeScript}${remoteEditorFallbackScript}`;
   return html.includes("</head>") ? html.replace("</head>", `${bridge}</head>`) : `${bridge}${html}`;
 }
 

@@ -40,13 +40,13 @@ describe("evaluateContextExpression", () => {
     const expression = {
       any: [
         { key: "host.terminal.focused", operator: "exists" },
-        { key: "host.browser.focused", operator: "exists" },
+        { key: "host.preview.focused", operator: "exists" },
       ],
     } as unknown as ContextExpression;
     expect(
       evaluateContextExpression(
         expression,
-        values([["host.browser.focused", true]]),
+        values([["host.preview.focused", true]]),
       ),
     ).toBe(true);
     expect(evaluateContextExpression(expression, values([]))).toBe(false);

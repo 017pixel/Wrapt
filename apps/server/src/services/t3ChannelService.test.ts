@@ -31,13 +31,12 @@ const baseConfig = {
     terminalAllowedRoots: ["/home/tester"],
     terminalDefaultCwd: "/home/tester",
     dataDir: "/home/tester/data",
-    browserProfilesRoot: "/home/tester/data/browser",
     orbitBackupDir: "/home/tester/data/backups",
     orbitAssetDir: "/home/tester/data/assets",
     wraptProfilesRoot: "/home/tester/profiles",
     databasePath: "/home/tester/data/wrapt.sqlite",
   },
-  cli: { codexbar: "codexbar", codex: "codex", opencode: "opencode", claude: "claude", tmux: "/usr/bin/tmux", chromium: "auto" },
+  cli: { codexbar: "codexbar", codex: "codex", opencode: "opencode", claude: "claude", tmux: "/usr/bin/tmux" },
   codexbar: { configPath: "/home/tester/.config/codexbar/config.json", oauthProfileHomes: [] },
 };
 

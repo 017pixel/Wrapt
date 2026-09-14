@@ -19,7 +19,6 @@ describe("legacyOrbitPalette", () => {
       "tool:opencode",
       "tool:codex",
       "tool:files",
-      "tool:browser",
     ]);
     expect(snapshot.byGroup.blocks.map((item) => item.value.runtime.legacyKey)).toEqual([
       "block:note",

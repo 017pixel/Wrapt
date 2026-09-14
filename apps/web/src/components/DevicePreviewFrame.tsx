@@ -8,31 +8,14 @@ import {
   type DevicePresetId,
 } from "../config/devicePresets";
 
-export type PreviewRuntimeKind = "iframe" | "shared-browser";
-
 interface DevicePreviewFrameProps {
   deviceId: DevicePresetId;
   orientation: DeviceOrientation;
   children: ReactNode;
-  runtime?: PreviewRuntimeKind;
-  origin?: string | null;
   /** Relativer Korrekturfaktor zur automatisch berechneten Gerätegröße. */
   scaleFactor?: number;
   /** Overlay über dem iframe, solange der Canvas gezogen oder skaliert wird. */
   interactionLocked?: boolean;
-}
-
-// Zeigt dauerhaft an, woher der Preview stammt: direktes iframe auf den
-// lokalen Devserver oder der auf dem Server laufende Chromium.
-function PreviewSourceBadge({ runtime, origin }: { runtime: PreviewRuntimeKind | undefined; origin: string | null | undefined }) {
-  if (!runtime) return null;
-  return (
-    <span className={`device-preview-source is-${runtime}`}>
-      <i aria-hidden />
-      <strong>{runtime === "iframe" ? "Direkt · iframe" : "Server · Chromium"}</strong>
-      {origin ? <small>{origin}</small> : null}
-    </span>
-  );
 }
 
 /**
@@ -81,7 +64,7 @@ export function calculateDevicePreviewScale({
   return snapToDevicePixels(raw, outerWidth, outerHeight, Math.max(1, devicePixelRatio));
 }
 
-export function DevicePreviewFrame({ deviceId, orientation, children, runtime, origin, scaleFactor = 1, interactionLocked = false }: DevicePreviewFrameProps) {
+export function DevicePreviewFrame({ deviceId, orientation, children, scaleFactor = 1, interactionLocked = false }: DevicePreviewFrameProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const [fitScale, setFitScale] = useState(1);
   const device = findDevicePreset(deviceId);
@@ -127,7 +110,6 @@ export function DevicePreviewFrame({ deviceId, orientation, children, runtime, o
       <div className="preview-responsive-frame">
         {children}
         {interactionLocked ? <span className="device-preview-lock" aria-hidden /> : null}
-        <PreviewSourceBadge runtime={runtime} origin={origin} />
       </div>
     );
   }
@@ -155,7 +137,6 @@ export function DevicePreviewFrame({ deviceId, orientation, children, runtime, o
       <span className="device-preview-caption" aria-hidden>
         {device.label} · {width} × {height}
       </span>
-      <PreviewSourceBadge runtime={runtime} origin={origin} />
     </div>
   );
 }

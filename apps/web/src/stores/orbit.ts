@@ -83,7 +83,6 @@ export interface AddOrbitNodeInput {
   previewSlotId?: number | null;
   previewStorageProfileId?: string | null;
   previewIsolation?: boolean;
-  previewRuntime?: "iframe" | "shared-browser";
   previewReferenceId?: string | null;
   previewLastUsedAt?: string | null;
   assetId?: string | null;
@@ -155,7 +154,6 @@ const sharedPreviewSlotFields = new Set<keyof OrbitNode>([
   "previewOrientation",
   "previewSlotId",
   "previewIsolation",
-  "previewRuntime",
   "previewLastUsedAt",
   "content",
 ]);
@@ -318,7 +316,6 @@ function nodeFromInput(input: AddOrbitNodeInput, zIndex: number): OrbitNode {
     previewSlotId: input.type === "previewSlot" ? (input.previewSlotId ?? null) : null,
     previewStorageProfileId: input.type === "previewSlot" ? (input.previewStorageProfileId ?? generateId()) : null,
     previewIsolation: input.previewIsolation ?? true,
-    previewRuntime: input.previewRuntime ?? "iframe",
     previewReferenceId: input.previewReferenceId ?? null,
     previewLastUsedAt: input.previewLastUsedAt ?? null,
     assetId: input.type === "asset" ? (input.assetId ?? null) : null,
@@ -557,7 +554,6 @@ export const useOrbitStore = create<OrbitState>((set, get) => ({
             // Referenzgruppen teilen das Storage-Profil des kanonischen Slots.
             previewStorageProfileId: canonicalSlot?.previewStorageProfileId ?? null,
             previewIsolation: canonicalSlot?.previewIsolation ?? true,
-            previewRuntime: canonicalSlot?.previewRuntime ?? "iframe",
             previewReferenceId: group.id === canonicalGroupId ? null : canonicalGroupId,
           }, ++maximumZ)];
         }
@@ -620,7 +616,6 @@ export const useOrbitStore = create<OrbitState>((set, get) => ({
           previewOrientation: original.previewOrientation,
           previewSlotId: null,
           previewIsolation: original.previewIsolation,
-          previewRuntime: original.previewRuntime,
         });
       });
       return groupId;

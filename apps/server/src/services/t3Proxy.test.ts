@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { injectT3HtmlBridge, remoteBrowserFallbackScript, remoteEditorFallbackScript, t3HttpRoutes, t3IsEditorOpenButton, t3OpenInCwdFromFiber } from "./t3Proxy.js";
+import { injectT3HtmlBridge, remoteEditorFallbackScript, t3HttpRoutes, t3IsEditorOpenButton, t3OpenInCwdFromFiber } from "./t3Proxy.js";
 
 describe("T3-Proxy", () => {
   it("leitet gespeicherte Bildanhänge an T3 weiter", () => {
@@ -21,23 +21,6 @@ describe("T3-Proxy", () => {
     expect(t3HttpRoutes).toContain("/api/t3-connect/*");
     expect(t3HttpRoutes).toContain("/api/observability/*");
     expect(t3HttpRoutes).toContain("/oauth/*");
-  });
-
-  it("brückt die Web-Browserkarte an den umgebenden Workbench-ToolPanel", () => {
-    expect(remoteBrowserFallbackScript).toContain("wrapt:open-browser");
-    expect(remoteBrowserFallbackScript).toContain("window.parent.postMessage");
-    expect(remoteBrowserFallbackScript).toContain("/browser");
-    expect(remoteBrowserFallbackScript).toContain("data-url");
-    expect(remoteBrowserFallbackScript).toContain("url");
-  });
-
-  it("verhindert eine selbstverstärkende MutationObserver-Schleife in Firefox", () => {
-    expect(remoteBrowserFallbackScript).toContain("if (button.disabled) button.disabled = false");
-    expect(remoteBrowserFallbackScript).toContain('if (button.hasAttribute("aria-disabled"))');
-    expect(remoteBrowserFallbackScript).toContain('button.classList.contains("cursor-not-allowed")');
-    expect(remoteBrowserFallbackScript).toContain('attributeFilter: ["disabled", "aria-disabled", "class"]');
-    expect(remoteBrowserFallbackScript).toContain("for (const node of record.addedNodes) scan(node)");
-    expect(remoteBrowserFallbackScript).not.toContain("new MutationObserver(scan)");
   });
 
   it("brückt den T3-Open-in-VS-Code-Button an den code-server der Workbench", () => {
@@ -103,7 +86,6 @@ describe("T3-Proxy", () => {
   it("injiziert die Route-Bridge in T3-HTML auch bei Deep-Links", () => {
     const html = injectT3HtmlBridge("<!doctype html><html><head></head><body></body></html>");
     expect(html.indexOf('data-wrapt-t3-route="1"')).toBeGreaterThan(-1);
-    expect(html.indexOf("data-wrapt-browser-fallback")).toBeGreaterThan(-1);
     expect(html.indexOf("wrapt:open-editor")).toBeGreaterThan(-1);
     expect(html.indexOf("</head>")).toBeGreaterThan(html.indexOf('data-wrapt-t3-route="1"'));
   });

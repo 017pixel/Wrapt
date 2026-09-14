@@ -247,7 +247,6 @@ describe("T3 Open-in-VS-Code-Brücke", () => {
 
     render(createElement(ToolPanel, { panel, project, isFocused: false, codeServerMode: "embedded" }));
 
-    window.dispatchEvent(new MessageEvent("message", { data: { type: "wrapt:open-browser", url: "http://127.0.0.1:4000" }, origin: window.location.origin }));
     window.dispatchEvent(new MessageEvent("message", { data: { type: "unrelated" }, origin: window.location.origin }));
 
     await new Promise((resolve) => setTimeout(resolve, 0));

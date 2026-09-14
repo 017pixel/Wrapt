@@ -278,7 +278,6 @@ function commandPayloads(projects: Project[]): Array<{ keywords: string; payload
     { keywords: "preview gruppe 2er split", payload: { type: "previewGroup", title: "2er-Preview-Gruppe", layout: "2" } },
     { keywords: "preview gruppe 3er split", payload: { type: "previewGroup", title: "3er-Preview-Gruppe", layout: "3" } },
     { keywords: "preview gruppe 6er 2x3 split", payload: { type: "previewGroup", title: "6er-Preview-Gruppe", layout: "6" } },
-    { keywords: "browser chromium google web", payload: { type: "tool", title: "Browser", toolType: "browser" } },
     { keywords: "editor code server vscode", payload: { type: "tool", title: "Code-Server", toolType: "code-server" } },
     { keywords: "codex agent", payload: { type: "tool", title: "Codex", toolType: "codex" } },
     { keywords: "opencode agent", payload: { type: "tool", title: "OpenCode", toolType: "opencode" } },
@@ -760,7 +759,6 @@ function OrbitCanvas() {
             previewOrientation: original.previewOrientation,
             previewSlotId: original.previewSlotId,
             previewIsolation: original.previewIsolation,
-            previewRuntime: original.previewRuntime,
             previewReferenceId: source.id,
           });
         });

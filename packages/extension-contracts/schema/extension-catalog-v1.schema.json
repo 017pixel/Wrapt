@@ -190,7 +190,7 @@
                 "additionalProperties": false
               },
               "permissions": {
-                "maxItems": 23,
+                "maxItems": 22,
                 "type": "array",
                 "items": {
                   "oneOf": [
@@ -382,7 +382,6 @@
                           "type": "string",
                           "enum": [
                             "notifications.create",
-                            "browser.control",
                             "agents.tools.register",
                             "agents.skills.register",
                             "storage.read",
@@ -3095,7 +3094,6 @@
                                               "host.orbit.focused",
                                               "host.terminal.focused",
                                               "host.preview.focused",
-                                              "host.browser.focused",
                                               "host.agent.focused"
                                             ]
                                           },
@@ -3137,7 +3135,6 @@
                                               "host.orbit.focused",
                                               "host.terminal.focused",
                                               "host.preview.focused",
-                                              "host.browser.focused",
                                               "host.agent.focused"
                                             ]
                                           },
@@ -3197,7 +3194,6 @@
                                               "host.orbit.focused",
                                               "host.terminal.focused",
                                               "host.preview.focused",
-                                              "host.browser.focused",
                                               "host.agent.focused"
                                             ]
                                           },
@@ -3273,7 +3269,6 @@
                                               "host.orbit.focused",
                                               "host.terminal.focused",
                                               "host.preview.focused",
-                                              "host.browser.focused",
                                               "host.agent.focused"
                                             ]
                                           },
@@ -3315,7 +3310,6 @@
                                               "host.orbit.focused",
                                               "host.terminal.focused",
                                               "host.preview.focused",
-                                              "host.browser.focused",
                                               "host.agent.focused"
                                             ]
                                           },
@@ -3375,7 +3369,6 @@
                                               "host.orbit.focused",
                                               "host.terminal.focused",
                                               "host.preview.focused",
-                                              "host.browser.focused",
                                               "host.agent.focused"
                                             ]
                                           },
@@ -3451,7 +3444,6 @@
                                               "host.orbit.focused",
                                               "host.terminal.focused",
                                               "host.preview.focused",
-                                              "host.browser.focused",
                                               "host.agent.focused"
                                             ]
                                           },
@@ -3493,7 +3485,6 @@
                                               "host.orbit.focused",
                                               "host.terminal.focused",
                                               "host.preview.focused",
-                                              "host.browser.focused",
                                               "host.agent.focused"
                                             ]
                                           },
@@ -3553,7 +3544,6 @@
                                               "host.orbit.focused",
                                               "host.terminal.focused",
                                               "host.preview.focused",
-                                              "host.browser.focused",
                                               "host.agent.focused"
                                             ]
                                           },
@@ -3653,7 +3643,6 @@
                                 "host.context-menu.terminal",
                                 "host.context-menu.git",
                                 "host.context-menu.agent-session",
-                                "host.context-menu.browser",
                                 "host.context-menu.tool",
                                 "host.context-menu.statusbar",
                                 "host.context-menu.empty",
@@ -3729,7 +3718,6 @@
                                               "host.orbit.focused",
                                               "host.terminal.focused",
                                               "host.preview.focused",
-                                              "host.browser.focused",
                                               "host.agent.focused"
                                             ]
                                           },
@@ -3771,7 +3759,6 @@
                                               "host.orbit.focused",
                                               "host.terminal.focused",
                                               "host.preview.focused",
-                                              "host.browser.focused",
                                               "host.agent.focused"
                                             ]
                                           },
@@ -3831,7 +3818,6 @@
                                               "host.orbit.focused",
                                               "host.terminal.focused",
                                               "host.preview.focused",
-                                              "host.browser.focused",
                                               "host.agent.focused"
                                             ]
                                           },
@@ -3907,7 +3893,6 @@
                                               "host.orbit.focused",
                                               "host.terminal.focused",
                                               "host.preview.focused",
-                                              "host.browser.focused",
                                               "host.agent.focused"
                                             ]
                                           },
@@ -3949,7 +3934,6 @@
                                               "host.orbit.focused",
                                               "host.terminal.focused",
                                               "host.preview.focused",
-                                              "host.browser.focused",
                                               "host.agent.focused"
                                             ]
                                           },
@@ -4009,7 +3993,6 @@
                                               "host.orbit.focused",
                                               "host.terminal.focused",
                                               "host.preview.focused",
-                                              "host.browser.focused",
                                               "host.agent.focused"
                                             ]
                                           },
@@ -4085,7 +4068,6 @@
                                               "host.orbit.focused",
                                               "host.terminal.focused",
                                               "host.preview.focused",
-                                              "host.browser.focused",
                                               "host.agent.focused"
                                             ]
                                           },
@@ -4127,7 +4109,6 @@
                                               "host.orbit.focused",
                                               "host.terminal.focused",
                                               "host.preview.focused",
-                                              "host.browser.focused",
                                               "host.agent.focused"
                                             ]
                                           },
@@ -4187,7 +4168,6 @@
                                               "host.orbit.focused",
                                               "host.terminal.focused",
                                               "host.preview.focused",
-                                              "host.browser.focused",
                                               "host.agent.focused"
                                             ]
                                           },
@@ -4338,7 +4318,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -4380,7 +4359,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -4440,7 +4418,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -4516,7 +4493,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -4558,7 +4534,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -4618,7 +4593,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -4694,7 +4668,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -4736,7 +4709,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -4796,7 +4768,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -4956,7 +4927,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -4998,7 +4968,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -5058,7 +5027,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -5134,7 +5102,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -5176,7 +5143,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -5236,7 +5202,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -5312,7 +5277,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -5354,7 +5318,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -5414,7 +5377,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -5574,7 +5536,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -5616,7 +5577,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -5676,7 +5636,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -5752,7 +5711,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -5794,7 +5752,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -5854,7 +5811,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -5930,7 +5886,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -5972,7 +5927,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -6032,7 +5986,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -6192,7 +6145,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -6234,7 +6186,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -6294,7 +6245,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -6370,7 +6320,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -6412,7 +6361,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -6472,7 +6420,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -6548,7 +6495,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -6590,7 +6536,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -6650,7 +6595,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -6810,7 +6754,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -6852,7 +6795,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -6912,7 +6854,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -6988,7 +6929,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -7030,7 +6970,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -7090,7 +7029,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -7166,7 +7104,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -7208,7 +7145,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -7268,7 +7204,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -7442,7 +7377,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -7484,7 +7418,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -7544,7 +7477,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -7620,7 +7552,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -7662,7 +7593,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -7722,7 +7652,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -7798,7 +7727,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -7840,7 +7768,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -7900,7 +7827,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -8065,7 +7991,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -8107,7 +8032,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -8167,7 +8091,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -8243,7 +8166,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -8285,7 +8207,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -8345,7 +8266,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -8421,7 +8341,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -8463,7 +8382,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -8523,7 +8441,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -8733,7 +8650,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -8775,7 +8691,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -8835,7 +8750,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -8911,7 +8825,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -8953,7 +8866,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -9013,7 +8925,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -9089,7 +9000,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -9131,7 +9041,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -9191,7 +9100,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -9399,7 +9307,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -9441,7 +9348,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -9501,7 +9407,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -9577,7 +9482,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -9619,7 +9523,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -9679,7 +9582,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -9755,7 +9657,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -9797,7 +9698,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -9857,7 +9757,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -10005,7 +9904,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -10047,7 +9945,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -10107,7 +10004,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -10183,7 +10079,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -10225,7 +10120,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -10285,7 +10179,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -10361,7 +10254,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -10403,7 +10295,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -10463,7 +10354,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -10612,7 +10502,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -10654,7 +10543,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -10714,7 +10602,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -10790,7 +10677,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -10832,7 +10718,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -10892,7 +10777,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -10968,7 +10852,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -11010,7 +10893,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -11070,7 +10952,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -11248,7 +11129,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -11290,7 +11170,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -11350,7 +11229,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -11426,7 +11304,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -11468,7 +11345,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -11528,7 +11404,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -11604,7 +11479,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -11646,7 +11520,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -11706,7 +11579,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -11783,14 +11655,13 @@
                             },
                             "openModes": {
                               "minItems": 1,
-                              "maxItems": 3,
+                              "maxItems": 2,
                               "type": "array",
                               "items": {
                                 "type": "string",
                                 "enum": [
                                   "embedded",
-                                  "external",
-                                  "server-browser"
+                                  "external"
                                 ]
                               },
                               "uniqueItems": true
@@ -11882,7 +11753,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -11924,7 +11794,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -11984,7 +11853,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -12060,7 +11928,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -12102,7 +11969,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -12162,7 +12028,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -12238,7 +12103,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -12280,7 +12144,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -12340,7 +12203,6 @@
                                                   "host.orbit.focused",
                                                   "host.terminal.focused",
                                                   "host.preview.focused",
-                                                  "host.browser.focused",
                                                   "host.agent.focused"
                                                 ]
                                               },
@@ -12427,1281 +12289,6 @@
                                   "session-menu",
                                   "mobile-actions",
                                   "diagnostics"
-                                ]
-                              },
-                              "uniqueItems": true
-                            },
-                            "requiresSession": {
-                              "type": "boolean"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "title",
-                            "order",
-                            "kind",
-                            "commandId",
-                            "group",
-                            "surfaces",
-                            "requiresSession"
-                          ],
-                          "additionalProperties": false
-                        }
-                      ]
-                    },
-                    "uniqueItems": true
-                  },
-                  "browser": {
-                    "minItems": 1,
-                    "maxItems": 128,
-                    "type": "array",
-                    "items": {
-                      "oneOf": [
-                        {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string",
-                              "maxLength": 192,
-                              "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                            },
-                            "title": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 120
-                            },
-                            "description": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 500
-                            },
-                            "icon": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "const": "extension"
-                                },
-                                {
-                                  "type": "string",
-                                  "maxLength": 192,
-                                  "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                                }
-                              ]
-                            },
-                            "order": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 10000
-                            },
-                            "when": {
-                              "type": "object",
-                              "properties": {
-                                "all": {
-                                  "minItems": 1,
-                                  "maxItems": 32,
-                                  "type": "array",
-                                  "items": {
-                                    "anyOf": [
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "enum": [
-                                                  "host.input.focused",
-                                                  "host.modal.open",
-                                                  "host.route.id",
-                                                  "host.project.open",
-                                                  "host.surface",
-                                                  "host.platform",
-                                                  "host.orbit.focused",
-                                                  "host.terminal.focused",
-                                                  "host.preview.focused",
-                                                  "host.browser.focused",
-                                                  "host.agent.focused"
-                                                ]
-                                              },
-                                              {
-                                                "type": "string",
-                                                "maxLength": 192,
-                                                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                                              }
-                                            ]
-                                          },
-                                          "operator": {
-                                            "type": "string",
-                                            "enum": [
-                                              "exists",
-                                              "not-exists"
-                                            ]
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "operator"
-                                        ],
-                                        "additionalProperties": false
-                                      },
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "enum": [
-                                                  "host.input.focused",
-                                                  "host.modal.open",
-                                                  "host.route.id",
-                                                  "host.project.open",
-                                                  "host.surface",
-                                                  "host.platform",
-                                                  "host.orbit.focused",
-                                                  "host.terminal.focused",
-                                                  "host.preview.focused",
-                                                  "host.browser.focused",
-                                                  "host.agent.focused"
-                                                ]
-                                              },
-                                              {
-                                                "type": "string",
-                                                "maxLength": 192,
-                                                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                                              }
-                                            ]
-                                          },
-                                          "operator": {
-                                            "type": "string",
-                                            "enum": [
-                                              "equals",
-                                              "not-equals"
-                                            ]
-                                          },
-                                          "value": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "minLength": 1,
-                                                "maxLength": 256
-                                              },
-                                              {
-                                                "type": "number",
-                                                "minimum": -1000000000000000,
-                                                "maximum": 1000000000000000
-                                              },
-                                              {
-                                                "type": "boolean"
-                                              }
-                                            ]
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "operator",
-                                          "value"
-                                        ],
-                                        "additionalProperties": false
-                                      },
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "enum": [
-                                                  "host.input.focused",
-                                                  "host.modal.open",
-                                                  "host.route.id",
-                                                  "host.project.open",
-                                                  "host.surface",
-                                                  "host.platform",
-                                                  "host.orbit.focused",
-                                                  "host.terminal.focused",
-                                                  "host.preview.focused",
-                                                  "host.browser.focused",
-                                                  "host.agent.focused"
-                                                ]
-                                              },
-                                              {
-                                                "type": "string",
-                                                "maxLength": 192,
-                                                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                                              }
-                                            ]
-                                          },
-                                          "operator": {
-                                            "type": "string",
-                                            "enum": [
-                                              "in",
-                                              "not-in"
-                                            ]
-                                          },
-                                          "values": {
-                                            "minItems": 1,
-                                            "maxItems": 32,
-                                            "type": "array",
-                                            "items": {
-                                              "anyOf": [
-                                                {
-                                                  "type": "string",
-                                                  "minLength": 1,
-                                                  "maxLength": 256
-                                                },
-                                                {
-                                                  "type": "number",
-                                                  "minimum": -1000000000000000,
-                                                  "maximum": 1000000000000000
-                                                },
-                                                {
-                                                  "type": "boolean"
-                                                }
-                                              ]
-                                            },
-                                            "uniqueItems": true
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "operator",
-                                          "values"
-                                        ],
-                                        "additionalProperties": false
-                                      }
-                                    ]
-                                  },
-                                  "uniqueItems": true
-                                },
-                                "any": {
-                                  "minItems": 1,
-                                  "maxItems": 32,
-                                  "type": "array",
-                                  "items": {
-                                    "anyOf": [
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "enum": [
-                                                  "host.input.focused",
-                                                  "host.modal.open",
-                                                  "host.route.id",
-                                                  "host.project.open",
-                                                  "host.surface",
-                                                  "host.platform",
-                                                  "host.orbit.focused",
-                                                  "host.terminal.focused",
-                                                  "host.preview.focused",
-                                                  "host.browser.focused",
-                                                  "host.agent.focused"
-                                                ]
-                                              },
-                                              {
-                                                "type": "string",
-                                                "maxLength": 192,
-                                                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                                              }
-                                            ]
-                                          },
-                                          "operator": {
-                                            "type": "string",
-                                            "enum": [
-                                              "exists",
-                                              "not-exists"
-                                            ]
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "operator"
-                                        ],
-                                        "additionalProperties": false
-                                      },
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "enum": [
-                                                  "host.input.focused",
-                                                  "host.modal.open",
-                                                  "host.route.id",
-                                                  "host.project.open",
-                                                  "host.surface",
-                                                  "host.platform",
-                                                  "host.orbit.focused",
-                                                  "host.terminal.focused",
-                                                  "host.preview.focused",
-                                                  "host.browser.focused",
-                                                  "host.agent.focused"
-                                                ]
-                                              },
-                                              {
-                                                "type": "string",
-                                                "maxLength": 192,
-                                                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                                              }
-                                            ]
-                                          },
-                                          "operator": {
-                                            "type": "string",
-                                            "enum": [
-                                              "equals",
-                                              "not-equals"
-                                            ]
-                                          },
-                                          "value": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "minLength": 1,
-                                                "maxLength": 256
-                                              },
-                                              {
-                                                "type": "number",
-                                                "minimum": -1000000000000000,
-                                                "maximum": 1000000000000000
-                                              },
-                                              {
-                                                "type": "boolean"
-                                              }
-                                            ]
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "operator",
-                                          "value"
-                                        ],
-                                        "additionalProperties": false
-                                      },
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "enum": [
-                                                  "host.input.focused",
-                                                  "host.modal.open",
-                                                  "host.route.id",
-                                                  "host.project.open",
-                                                  "host.surface",
-                                                  "host.platform",
-                                                  "host.orbit.focused",
-                                                  "host.terminal.focused",
-                                                  "host.preview.focused",
-                                                  "host.browser.focused",
-                                                  "host.agent.focused"
-                                                ]
-                                              },
-                                              {
-                                                "type": "string",
-                                                "maxLength": 192,
-                                                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                                              }
-                                            ]
-                                          },
-                                          "operator": {
-                                            "type": "string",
-                                            "enum": [
-                                              "in",
-                                              "not-in"
-                                            ]
-                                          },
-                                          "values": {
-                                            "minItems": 1,
-                                            "maxItems": 32,
-                                            "type": "array",
-                                            "items": {
-                                              "anyOf": [
-                                                {
-                                                  "type": "string",
-                                                  "minLength": 1,
-                                                  "maxLength": 256
-                                                },
-                                                {
-                                                  "type": "number",
-                                                  "minimum": -1000000000000000,
-                                                  "maximum": 1000000000000000
-                                                },
-                                                {
-                                                  "type": "boolean"
-                                                }
-                                              ]
-                                            },
-                                            "uniqueItems": true
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "operator",
-                                          "values"
-                                        ],
-                                        "additionalProperties": false
-                                      }
-                                    ]
-                                  },
-                                  "uniqueItems": true
-                                },
-                                "none": {
-                                  "minItems": 1,
-                                  "maxItems": 32,
-                                  "type": "array",
-                                  "items": {
-                                    "anyOf": [
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "enum": [
-                                                  "host.input.focused",
-                                                  "host.modal.open",
-                                                  "host.route.id",
-                                                  "host.project.open",
-                                                  "host.surface",
-                                                  "host.platform",
-                                                  "host.orbit.focused",
-                                                  "host.terminal.focused",
-                                                  "host.preview.focused",
-                                                  "host.browser.focused",
-                                                  "host.agent.focused"
-                                                ]
-                                              },
-                                              {
-                                                "type": "string",
-                                                "maxLength": 192,
-                                                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                                              }
-                                            ]
-                                          },
-                                          "operator": {
-                                            "type": "string",
-                                            "enum": [
-                                              "exists",
-                                              "not-exists"
-                                            ]
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "operator"
-                                        ],
-                                        "additionalProperties": false
-                                      },
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "enum": [
-                                                  "host.input.focused",
-                                                  "host.modal.open",
-                                                  "host.route.id",
-                                                  "host.project.open",
-                                                  "host.surface",
-                                                  "host.platform",
-                                                  "host.orbit.focused",
-                                                  "host.terminal.focused",
-                                                  "host.preview.focused",
-                                                  "host.browser.focused",
-                                                  "host.agent.focused"
-                                                ]
-                                              },
-                                              {
-                                                "type": "string",
-                                                "maxLength": 192,
-                                                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                                              }
-                                            ]
-                                          },
-                                          "operator": {
-                                            "type": "string",
-                                            "enum": [
-                                              "equals",
-                                              "not-equals"
-                                            ]
-                                          },
-                                          "value": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "minLength": 1,
-                                                "maxLength": 256
-                                              },
-                                              {
-                                                "type": "number",
-                                                "minimum": -1000000000000000,
-                                                "maximum": 1000000000000000
-                                              },
-                                              {
-                                                "type": "boolean"
-                                              }
-                                            ]
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "operator",
-                                          "value"
-                                        ],
-                                        "additionalProperties": false
-                                      },
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "enum": [
-                                                  "host.input.focused",
-                                                  "host.modal.open",
-                                                  "host.route.id",
-                                                  "host.project.open",
-                                                  "host.surface",
-                                                  "host.platform",
-                                                  "host.orbit.focused",
-                                                  "host.terminal.focused",
-                                                  "host.preview.focused",
-                                                  "host.browser.focused",
-                                                  "host.agent.focused"
-                                                ]
-                                              },
-                                              {
-                                                "type": "string",
-                                                "maxLength": 192,
-                                                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                                              }
-                                            ]
-                                          },
-                                          "operator": {
-                                            "type": "string",
-                                            "enum": [
-                                              "in",
-                                              "not-in"
-                                            ]
-                                          },
-                                          "values": {
-                                            "minItems": 1,
-                                            "maxItems": 32,
-                                            "type": "array",
-                                            "items": {
-                                              "anyOf": [
-                                                {
-                                                  "type": "string",
-                                                  "minLength": 1,
-                                                  "maxLength": 256
-                                                },
-                                                {
-                                                  "type": "number",
-                                                  "minimum": -1000000000000000,
-                                                  "maximum": 1000000000000000
-                                                },
-                                                {
-                                                  "type": "boolean"
-                                                }
-                                              ]
-                                            },
-                                            "uniqueItems": true
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "operator",
-                                          "values"
-                                        ],
-                                        "additionalProperties": false
-                                      }
-                                    ]
-                                  },
-                                  "uniqueItems": true
-                                }
-                              },
-                              "additionalProperties": false
-                            },
-                            "kind": {
-                              "type": "string",
-                              "const": "tool"
-                            },
-                            "provider": {
-                              "type": "string",
-                              "maxLength": 192,
-                              "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                            },
-                            "projectContext": {
-                              "type": "boolean"
-                            },
-                            "operations": {
-                              "minItems": 1,
-                              "maxItems": 7,
-                              "type": "array",
-                              "items": {
-                                "type": "string",
-                                "enum": [
-                                  "state.read",
-                                  "selection.read",
-                                  "page.source",
-                                  "page.capture",
-                                  "navigation.control",
-                                  "input.control",
-                                  "devtools.open"
-                                ]
-                              },
-                              "uniqueItems": true
-                            },
-                            "surfaces": {
-                              "minItems": 1,
-                              "maxItems": 4,
-                              "type": "array",
-                              "items": {
-                                "type": "string",
-                                "enum": [
-                                  "toolbar",
-                                  "context-menu",
-                                  "side-panel",
-                                  "mobile-actions"
-                                ]
-                              },
-                              "uniqueItems": true
-                            },
-                            "visibleByDefault": {
-                              "type": "boolean"
-                            }
-                          },
-                          "required": [
-                            "id",
-                            "title",
-                            "order",
-                            "kind",
-                            "provider",
-                            "projectContext",
-                            "operations",
-                            "surfaces",
-                            "visibleByDefault"
-                          ],
-                          "additionalProperties": false
-                        },
-                        {
-                          "type": "object",
-                          "properties": {
-                            "id": {
-                              "type": "string",
-                              "maxLength": 192,
-                              "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                            },
-                            "title": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 120
-                            },
-                            "description": {
-                              "type": "string",
-                              "minLength": 1,
-                              "maxLength": 500
-                            },
-                            "icon": {
-                              "anyOf": [
-                                {
-                                  "type": "string",
-                                  "const": "extension"
-                                },
-                                {
-                                  "type": "string",
-                                  "maxLength": 192,
-                                  "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                                }
-                              ]
-                            },
-                            "order": {
-                              "type": "integer",
-                              "minimum": 0,
-                              "maximum": 10000
-                            },
-                            "when": {
-                              "type": "object",
-                              "properties": {
-                                "all": {
-                                  "minItems": 1,
-                                  "maxItems": 32,
-                                  "type": "array",
-                                  "items": {
-                                    "anyOf": [
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "enum": [
-                                                  "host.input.focused",
-                                                  "host.modal.open",
-                                                  "host.route.id",
-                                                  "host.project.open",
-                                                  "host.surface",
-                                                  "host.platform",
-                                                  "host.orbit.focused",
-                                                  "host.terminal.focused",
-                                                  "host.preview.focused",
-                                                  "host.browser.focused",
-                                                  "host.agent.focused"
-                                                ]
-                                              },
-                                              {
-                                                "type": "string",
-                                                "maxLength": 192,
-                                                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                                              }
-                                            ]
-                                          },
-                                          "operator": {
-                                            "type": "string",
-                                            "enum": [
-                                              "exists",
-                                              "not-exists"
-                                            ]
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "operator"
-                                        ],
-                                        "additionalProperties": false
-                                      },
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "enum": [
-                                                  "host.input.focused",
-                                                  "host.modal.open",
-                                                  "host.route.id",
-                                                  "host.project.open",
-                                                  "host.surface",
-                                                  "host.platform",
-                                                  "host.orbit.focused",
-                                                  "host.terminal.focused",
-                                                  "host.preview.focused",
-                                                  "host.browser.focused",
-                                                  "host.agent.focused"
-                                                ]
-                                              },
-                                              {
-                                                "type": "string",
-                                                "maxLength": 192,
-                                                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                                              }
-                                            ]
-                                          },
-                                          "operator": {
-                                            "type": "string",
-                                            "enum": [
-                                              "equals",
-                                              "not-equals"
-                                            ]
-                                          },
-                                          "value": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "minLength": 1,
-                                                "maxLength": 256
-                                              },
-                                              {
-                                                "type": "number",
-                                                "minimum": -1000000000000000,
-                                                "maximum": 1000000000000000
-                                              },
-                                              {
-                                                "type": "boolean"
-                                              }
-                                            ]
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "operator",
-                                          "value"
-                                        ],
-                                        "additionalProperties": false
-                                      },
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "enum": [
-                                                  "host.input.focused",
-                                                  "host.modal.open",
-                                                  "host.route.id",
-                                                  "host.project.open",
-                                                  "host.surface",
-                                                  "host.platform",
-                                                  "host.orbit.focused",
-                                                  "host.terminal.focused",
-                                                  "host.preview.focused",
-                                                  "host.browser.focused",
-                                                  "host.agent.focused"
-                                                ]
-                                              },
-                                              {
-                                                "type": "string",
-                                                "maxLength": 192,
-                                                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                                              }
-                                            ]
-                                          },
-                                          "operator": {
-                                            "type": "string",
-                                            "enum": [
-                                              "in",
-                                              "not-in"
-                                            ]
-                                          },
-                                          "values": {
-                                            "minItems": 1,
-                                            "maxItems": 32,
-                                            "type": "array",
-                                            "items": {
-                                              "anyOf": [
-                                                {
-                                                  "type": "string",
-                                                  "minLength": 1,
-                                                  "maxLength": 256
-                                                },
-                                                {
-                                                  "type": "number",
-                                                  "minimum": -1000000000000000,
-                                                  "maximum": 1000000000000000
-                                                },
-                                                {
-                                                  "type": "boolean"
-                                                }
-                                              ]
-                                            },
-                                            "uniqueItems": true
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "operator",
-                                          "values"
-                                        ],
-                                        "additionalProperties": false
-                                      }
-                                    ]
-                                  },
-                                  "uniqueItems": true
-                                },
-                                "any": {
-                                  "minItems": 1,
-                                  "maxItems": 32,
-                                  "type": "array",
-                                  "items": {
-                                    "anyOf": [
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "enum": [
-                                                  "host.input.focused",
-                                                  "host.modal.open",
-                                                  "host.route.id",
-                                                  "host.project.open",
-                                                  "host.surface",
-                                                  "host.platform",
-                                                  "host.orbit.focused",
-                                                  "host.terminal.focused",
-                                                  "host.preview.focused",
-                                                  "host.browser.focused",
-                                                  "host.agent.focused"
-                                                ]
-                                              },
-                                              {
-                                                "type": "string",
-                                                "maxLength": 192,
-                                                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                                              }
-                                            ]
-                                          },
-                                          "operator": {
-                                            "type": "string",
-                                            "enum": [
-                                              "exists",
-                                              "not-exists"
-                                            ]
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "operator"
-                                        ],
-                                        "additionalProperties": false
-                                      },
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "enum": [
-                                                  "host.input.focused",
-                                                  "host.modal.open",
-                                                  "host.route.id",
-                                                  "host.project.open",
-                                                  "host.surface",
-                                                  "host.platform",
-                                                  "host.orbit.focused",
-                                                  "host.terminal.focused",
-                                                  "host.preview.focused",
-                                                  "host.browser.focused",
-                                                  "host.agent.focused"
-                                                ]
-                                              },
-                                              {
-                                                "type": "string",
-                                                "maxLength": 192,
-                                                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                                              }
-                                            ]
-                                          },
-                                          "operator": {
-                                            "type": "string",
-                                            "enum": [
-                                              "equals",
-                                              "not-equals"
-                                            ]
-                                          },
-                                          "value": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "minLength": 1,
-                                                "maxLength": 256
-                                              },
-                                              {
-                                                "type": "number",
-                                                "minimum": -1000000000000000,
-                                                "maximum": 1000000000000000
-                                              },
-                                              {
-                                                "type": "boolean"
-                                              }
-                                            ]
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "operator",
-                                          "value"
-                                        ],
-                                        "additionalProperties": false
-                                      },
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "enum": [
-                                                  "host.input.focused",
-                                                  "host.modal.open",
-                                                  "host.route.id",
-                                                  "host.project.open",
-                                                  "host.surface",
-                                                  "host.platform",
-                                                  "host.orbit.focused",
-                                                  "host.terminal.focused",
-                                                  "host.preview.focused",
-                                                  "host.browser.focused",
-                                                  "host.agent.focused"
-                                                ]
-                                              },
-                                              {
-                                                "type": "string",
-                                                "maxLength": 192,
-                                                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                                              }
-                                            ]
-                                          },
-                                          "operator": {
-                                            "type": "string",
-                                            "enum": [
-                                              "in",
-                                              "not-in"
-                                            ]
-                                          },
-                                          "values": {
-                                            "minItems": 1,
-                                            "maxItems": 32,
-                                            "type": "array",
-                                            "items": {
-                                              "anyOf": [
-                                                {
-                                                  "type": "string",
-                                                  "minLength": 1,
-                                                  "maxLength": 256
-                                                },
-                                                {
-                                                  "type": "number",
-                                                  "minimum": -1000000000000000,
-                                                  "maximum": 1000000000000000
-                                                },
-                                                {
-                                                  "type": "boolean"
-                                                }
-                                              ]
-                                            },
-                                            "uniqueItems": true
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "operator",
-                                          "values"
-                                        ],
-                                        "additionalProperties": false
-                                      }
-                                    ]
-                                  },
-                                  "uniqueItems": true
-                                },
-                                "none": {
-                                  "minItems": 1,
-                                  "maxItems": 32,
-                                  "type": "array",
-                                  "items": {
-                                    "anyOf": [
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "enum": [
-                                                  "host.input.focused",
-                                                  "host.modal.open",
-                                                  "host.route.id",
-                                                  "host.project.open",
-                                                  "host.surface",
-                                                  "host.platform",
-                                                  "host.orbit.focused",
-                                                  "host.terminal.focused",
-                                                  "host.preview.focused",
-                                                  "host.browser.focused",
-                                                  "host.agent.focused"
-                                                ]
-                                              },
-                                              {
-                                                "type": "string",
-                                                "maxLength": 192,
-                                                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                                              }
-                                            ]
-                                          },
-                                          "operator": {
-                                            "type": "string",
-                                            "enum": [
-                                              "exists",
-                                              "not-exists"
-                                            ]
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "operator"
-                                        ],
-                                        "additionalProperties": false
-                                      },
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "enum": [
-                                                  "host.input.focused",
-                                                  "host.modal.open",
-                                                  "host.route.id",
-                                                  "host.project.open",
-                                                  "host.surface",
-                                                  "host.platform",
-                                                  "host.orbit.focused",
-                                                  "host.terminal.focused",
-                                                  "host.preview.focused",
-                                                  "host.browser.focused",
-                                                  "host.agent.focused"
-                                                ]
-                                              },
-                                              {
-                                                "type": "string",
-                                                "maxLength": 192,
-                                                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                                              }
-                                            ]
-                                          },
-                                          "operator": {
-                                            "type": "string",
-                                            "enum": [
-                                              "equals",
-                                              "not-equals"
-                                            ]
-                                          },
-                                          "value": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "minLength": 1,
-                                                "maxLength": 256
-                                              },
-                                              {
-                                                "type": "number",
-                                                "minimum": -1000000000000000,
-                                                "maximum": 1000000000000000
-                                              },
-                                              {
-                                                "type": "boolean"
-                                              }
-                                            ]
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "operator",
-                                          "value"
-                                        ],
-                                        "additionalProperties": false
-                                      },
-                                      {
-                                        "type": "object",
-                                        "properties": {
-                                          "key": {
-                                            "anyOf": [
-                                              {
-                                                "type": "string",
-                                                "enum": [
-                                                  "host.input.focused",
-                                                  "host.modal.open",
-                                                  "host.route.id",
-                                                  "host.project.open",
-                                                  "host.surface",
-                                                  "host.platform",
-                                                  "host.orbit.focused",
-                                                  "host.terminal.focused",
-                                                  "host.preview.focused",
-                                                  "host.browser.focused",
-                                                  "host.agent.focused"
-                                                ]
-                                              },
-                                              {
-                                                "type": "string",
-                                                "maxLength": 192,
-                                                "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                                              }
-                                            ]
-                                          },
-                                          "operator": {
-                                            "type": "string",
-                                            "enum": [
-                                              "in",
-                                              "not-in"
-                                            ]
-                                          },
-                                          "values": {
-                                            "minItems": 1,
-                                            "maxItems": 32,
-                                            "type": "array",
-                                            "items": {
-                                              "anyOf": [
-                                                {
-                                                  "type": "string",
-                                                  "minLength": 1,
-                                                  "maxLength": 256
-                                                },
-                                                {
-                                                  "type": "number",
-                                                  "minimum": -1000000000000000,
-                                                  "maximum": 1000000000000000
-                                                },
-                                                {
-                                                  "type": "boolean"
-                                                }
-                                              ]
-                                            },
-                                            "uniqueItems": true
-                                          }
-                                        },
-                                        "required": [
-                                          "key",
-                                          "operator",
-                                          "values"
-                                        ],
-                                        "additionalProperties": false
-                                      }
-                                    ]
-                                  },
-                                  "uniqueItems": true
-                                }
-                              },
-                              "additionalProperties": false
-                            },
-                            "kind": {
-                              "type": "string",
-                              "const": "action"
-                            },
-                            "commandId": {
-                              "type": "string",
-                              "maxLength": 192,
-                              "pattern": "^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?(?:\\.[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?)*$"
-                            },
-                            "group": {
-                              "type": "string",
-                              "enum": [
-                                "navigation",
-                                "page",
-                                "capture",
-                                "inspect",
-                                "session",
-                                "danger"
-                              ]
-                            },
-                            "surfaces": {
-                              "minItems": 1,
-                              "maxItems": 4,
-                              "type": "array",
-                              "items": {
-                                "type": "string",
-                                "enum": [
-                                  "toolbar",
-                                  "context-menu",
-                                  "side-panel",
-                                  "mobile-actions"
                                 ]
                               },
                               "uniqueItems": true

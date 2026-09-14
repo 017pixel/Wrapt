@@ -22,7 +22,6 @@ function slot(id: string, parentId: string | null, previewSlotId: number, target
     previewSlotId,
     previewStorageProfileId: null,
     previewIsolation: true,
-    previewRuntime: "iframe",
     previewReferenceId: null,
     previewLastUsedAt: null,
     assetId: null,

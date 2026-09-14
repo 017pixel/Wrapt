@@ -20,7 +20,6 @@ export const projectScopedPermissionIds = [
 
 export const unscopedPermissionIds = [
   "notifications.create",
-  "browser.control",
   "agents.tools.register",
   "agents.skills.register",
   "storage.read",
@@ -58,7 +57,6 @@ export const extensionPermissionRiskById = {
   "process.execute": "highly-privileged",
   "network.fetch": "sensitive",
   "notifications.create": "normal",
-  "browser.control": "highly-privileged",
   "preview.read": "normal",
   "preview.manage": "sensitive",
   "agents.invoke": "sensitive",

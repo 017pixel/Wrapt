@@ -19,7 +19,6 @@ import {
   loadRouteWithRecovery,
   loadSettings,
   loadSkillEditor,
-  loadTechTldrs,
   loadTerminal,
   loadToolRoute,
   loadUsage,
@@ -239,32 +238,6 @@ export const builtinPageRouteOwners: readonly BuiltinPageRouteOwner[] =
         ),
         pageRuntime: lazyPageRuntime("inbox", "Inbox", loadInbox),
         routeRuntime: routeRuntime("/inbox"),
-      },
-    ]),
-    owner("wrapt.tech-tldrs", [
-      {
-        page: {
-          id: "wrapt.tech-tldrs.page.main",
-          title: "Tech TLDRs",
-          description: "Tech-News lesen und verstehen",
-        },
-        route: standardRoute(
-          "wrapt.tech-tldrs.route.main",
-          "wrapt.tech-tldrs.page.main",
-          "/tech-tldrs",
-          {
-            shell: "full-bleed",
-            topbar: false,
-            breadcrumbs: false,
-            mobileNavigation: true,
-          },
-        ),
-        pageRuntime: lazyPageRuntime(
-          "tech-tldrs",
-          "TechTldrs",
-          loadTechTldrs,
-        ),
-        routeRuntime: routeRuntime("/tech-tldrs"),
       },
     ]),
     owner("wrapt.projects", [
@@ -531,23 +504,6 @@ export const builtinPageRouteOwners: readonly BuiltinPageRouteOwner[] =
         routeRuntime: routeRuntime("/previews/live"),
       },
     ]),
-    owner("wrapt.browser", [
-      {
-        page: {
-          id: "wrapt.browser.page.main",
-          title: "Browser",
-          description: "Chromium für Recherche und lokale Apps",
-        },
-        route: standardRoute(
-          "wrapt.browser.route.main",
-          "wrapt.browser.page.main",
-          "/browser",
-          { mobileNavigation: true },
-        ),
-        pageRuntime: lazyPageRuntime("tool-route", "Browser", loadToolRoute),
-        routeRuntime: routeRuntime("/browser"),
-      },
-    ]),
     owner("wrapt.terminal", [
       {
         page: {
@@ -675,7 +631,6 @@ export const pagePreferenceAliases = Object.freeze({
   dashboard: "wrapt.dashboard.page.main",
   inbox: "wrapt.inbox.page.main",
   workbench: "wrapt.orbit.page.main",
-  "tech-tldrs": "wrapt.tech-tldrs.page.main",
   projects: "wrapt.projects.page.list",
   "t3-code": "wrapt.t3-code.page.main",
   "hermes-agent": "wrapt.hermes.page.main",
@@ -684,7 +639,6 @@ export const pagePreferenceAliases = Object.freeze({
   claude: "wrapt.claude.page.main",
   "code-editor": "wrapt.code-server.page.main",
   previews: "wrapt.previews.page.main",
-  browser: "wrapt.browser.page.main",
   terminal: "wrapt.terminal.page.main",
   files: "wrapt.files.page.main",
   "ki-skills": "wrapt.skills.page.main",

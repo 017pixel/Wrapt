@@ -5,14 +5,12 @@ import { Card } from "../../components/Card";
 import { useNavigationRegistry } from "../../extensions/useNavigationRegistry";
 import { useDashboardPreferences, useDashboardSections } from "../../stores/dashboardPreferences";
 import { allPageRoutes, useSidebarPreferences, type OrbitPaletteItem } from "../../stores/sidebarPreferences";
-import { SettingsNews } from "./SettingsNews";
 
 const orbitItemLabels: Record<OrbitPaletteItem, string> = {
   "tool:terminal": "Terminal",
   "tool:t3-code": "T3 Code",
   "tool:hermes": "Hermes Agent",
   "tool:preview": "Preview",
-  "tool:browser": "Browser",
   "tool:code-server": "Code-Server",
   "tool:codex": "Codex",
   "tool:opencode": "OpenCode",
@@ -38,7 +36,6 @@ const orbitSections: readonly { label: string; items: readonly OrbitPaletteItem[
       "tool:t3-code",
       "tool:hermes",
       "tool:preview",
-      "tool:browser",
       "tool:code-server",
       "tool:codex",
       "tool:opencode",
@@ -96,7 +93,6 @@ export function SettingsNavigation({ config }: { config: DashboardConfig | undef
           <PageVisibilityToggles />
         </Card>
       </div>
-      <SettingsNews />
     </div>
   );
 }

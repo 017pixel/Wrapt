@@ -8,6 +8,8 @@ export const wraptQueries = {
     queryOptions({ queryKey: ["system", "appearance"], queryFn: ({ signal }) => apiClient.appearance(signal), staleTime: Infinity }),
   contextMenu: () =>
     queryOptions({ queryKey: ["system", "context-menu"], queryFn: ({ signal }) => apiClient.getContextMenu(signal), staleTime: Infinity }),
+  mascot: () =>
+    queryOptions({ queryKey: ["system", "mascot"], queryFn: ({ signal }) => apiClient.getMascot(signal), staleTime: Infinity }),
   codexResetHistory: () =>
     queryOptions({ queryKey: ["system", "codex-reset-history"], queryFn: ({ signal }) => apiClient.codexResetHistory(signal), staleTime: 60_000 }),
   codexResetHistorySettings: () =>
@@ -160,8 +162,4 @@ export const wraptQueries = {
   orbit: () => queryOptions({ queryKey: ["orbit"], queryFn: ({signal}) => apiClient.orbit(signal), staleTime: 1_000 }),
   terminalSessions: (refetchInterval = 3_000) => queryOptions({ queryKey: ["terminal", "sessions"], queryFn: ({ signal }) => apiClient.terminalSessions(signal), refetchInterval, staleTime: 1_000 }),
   terminalWorkspace: () => queryOptions({ queryKey: ["terminal", "workspace"], queryFn: ({ signal }) => apiClient.terminalWorkspace(signal), staleTime: 1_000 }),
-  news: (params:URLSearchParams, refetchInterval = 60_000) => queryOptions({queryKey:["news",params.toString()],queryFn:({signal})=>apiClient.news(params,signal),refetchInterval,staleTime:60_000}),
-  newsItem:(id:string)=>queryOptions({queryKey:["news","item",id],queryFn:({signal})=>apiClient.newsItem(id,signal),staleTime:60_000}),
-  newsCollections:()=>queryOptions({queryKey:["news","collections"],queryFn:({signal})=>apiClient.newsCollections(signal),staleTime:15_000}),
-  newsSettings:()=>queryOptions({queryKey:["news","settings"],queryFn:({signal})=>apiClient.newsSettings(signal),staleTime:15_000}),
 };

@@ -42,7 +42,6 @@ describe("Orbit store", () => {
           previewSlotId: null,
           previewStorageProfileId: null,
           previewIsolation: true,
-          previewRuntime: "iframe",
           previewReferenceId: null,
           previewLastUsedAt: null,
           assetId: null,

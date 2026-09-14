@@ -290,19 +290,6 @@ const validManifest = {
         requiresSession: true,
       },
     ],
-    browser: [
-      {
-        id: "workbench.agent-tasks.browser.action.audit",
-        kind: "action",
-        title: "Task-Seite prüfen",
-        icon: "workbench.agent-tasks.icon.tasks",
-        order: 100,
-        commandId: "workbench.agent-tasks.command.create",
-        group: "inspect",
-        surfaces: ["context-menu", "mobile-actions"],
-        requiresSession: true,
-      },
-    ],
   },
 };
 
@@ -2203,158 +2190,6 @@ describe("Extension Manifest V1", () => {
     ).toBe(false);
   });
 
-  it("akzeptiert Browser Actions und permission-gebundene Tools", () => {
-    expect(
-      extensionManifestV1Schema.safeParse({
-        ...validManifest,
-        contributes: {
-          commands: validManifest.contributes.commands,
-          browser: validManifest.contributes.browser,
-        },
-      }).success,
-    ).toBe(true);
-    expect(
-      extensionManifestV1Schema.safeParse({
-        ...validManifest,
-        permissions: [{ permission: "browser.control" }],
-        contributes: {
-          browser: [
-            {
-              id: "workbench.agent-tasks.browser.tool.audit",
-              kind: "tool",
-              title: "Task-Seite prüfen",
-              order: 100,
-              provider: "workbench.agent-tasks.browser-provider.audit",
-              projectContext: true,
-              operations: ["state.read", "page.source", "page.capture"],
-              surfaces: ["toolbar", "side-panel"],
-              visibleByDefault: true,
-            },
-          ],
-        },
-      }).success,
-    ).toBe(true);
-  });
-
-  it("weist fehlende Browser Commands und fremde Tool Provider ab", () => {
-    expect(
-      extensionManifestV1Schema.safeParse({
-        ...validManifest,
-        contributes: {
-          commands: validManifest.contributes.commands,
-          browser: [
-            {
-              ...validManifest.contributes.browser[0],
-              commandId: "workbench.agent-tasks.command.missing",
-            },
-          ],
-        },
-      }).success,
-    ).toBe(false);
-    expect(
-      extensionManifestV1Schema.safeParse({
-        ...validManifest,
-        permissions: [{ permission: "browser.control" }],
-        contributes: {
-          browser: [
-            {
-              id: "workbench.agent-tasks.browser.tool.audit",
-              kind: "tool",
-              title: "Task-Seite prüfen",
-              order: 100,
-              provider: "workbench.other.browser-provider.audit",
-              projectContext: true,
-              operations: ["state.read"],
-              surfaces: ["toolbar"],
-              visibleByDefault: true,
-            },
-          ],
-        },
-      }).success,
-    ).toBe(false);
-  });
-
-  it("verlangt für Browser Tools Permission und Entrypoint", () => {
-    const browserTool = {
-      id: "workbench.agent-tasks.browser.tool.audit",
-      kind: "tool",
-      title: "Task-Seite prüfen",
-      order: 100,
-      provider: "workbench.agent-tasks.browser-provider.audit",
-      projectContext: true,
-      operations: ["state.read", "page.source"],
-      surfaces: ["toolbar", "side-panel"],
-      visibleByDefault: true,
-    } as const;
-    expect(
-      extensionManifestV1Schema.safeParse({
-        ...validManifest,
-        permissions: [],
-        contributes: { browser: [browserTool] },
-      }).success,
-    ).toBe(false);
-    expect(
-      extensionManifestV1Schema.safeParse({
-        ...validManifest,
-        entrypoints: {},
-        permissions: [{ permission: "browser.control" }],
-        contributes: { browser: [browserTool] },
-      }).success,
-    ).toBe(false);
-  });
-
-  it("weist fremde Browser Icons, Context Keys und manifestweite IDs ab", () => {
-    expect(
-      extensionManifestV1Schema.safeParse({
-        ...validManifest,
-        contributes: {
-          commands: validManifest.contributes.commands,
-          browser: [
-            {
-              ...validManifest.contributes.browser[0],
-              icon: "workbench.other.icon.browser",
-            },
-          ],
-        },
-      }).success,
-    ).toBe(false);
-    expect(
-      extensionManifestV1Schema.safeParse({
-        ...validManifest,
-        contributes: {
-          commands: validManifest.contributes.commands,
-          browser: [
-            {
-              ...validManifest.contributes.browser[0],
-              when: {
-                all: [
-                  {
-                    key: "workbench.other.context.visible",
-                    operator: "exists",
-                  },
-                ],
-              },
-            },
-          ],
-        },
-      }).success,
-    ).toBe(false);
-    expect(
-      extensionManifestV1Schema.safeParse({
-        ...validManifest,
-        contributes: {
-          commands: validManifest.contributes.commands,
-          browser: [
-            {
-              ...validManifest.contributes.browser[0],
-              id: "workbench.agent-tasks.command.create",
-            },
-          ],
-        },
-      }).success,
-    ).toBe(false);
-  });
-
   it("akzeptiert Command- und Provider-basierte Agent Tools", () => {
     expect(
       extensionManifestV1Schema.safeParse({
@@ -3162,13 +2997,6 @@ describe("Extension Manifest V1", () => {
     expect(
       extensionContributionsV1Schema.safeParse({ previews: [] }).success,
     ).toBe(false);
-    expect(
-      extensionContributionsV1Schema.safeParse({
-        browser: validManifest.contributes.browser,
-      }).success,
-    ).toBe(true);
-    expect(extensionContributionsV1Schema.safeParse({ browser: [] }).success)
-      .toBe(false);
     expect(
       extensionContributionsV1Schema.safeParse({
         agentTools: [

@@ -37,7 +37,7 @@ process.on("uncaughtException", (error, origin) => {
 
 process.on("unhandledRejection", (reason) => {
   // Bewusst kein Prozessende: ein abgelehntes Promise stammt meist aus einer einzelnen
-  // Anfrage und darf nicht die laufenden Terminal- und Browser-Sitzungen abreißen.
+  // Anfrage und darf nicht die laufenden Terminal-Sitzungen abreißen.
   app.log.error({ err: reason }, "Nicht abgefangenes Promise");
 });
 

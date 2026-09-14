@@ -62,7 +62,6 @@ const routeLoaders = {
   hermes: () => import("../views/HermesRoute"),
   terminal: () => import("../views/Terminal"),
   cliTerminal: () => import("../views/CliTerminal"),
-  techTldrs: () => import("../views/TechTldrs"),
   fileManager: () => import("../views/FileManagerView"),
   previewGroup: () => import("../views/PreviewGroupRoute"),
   previewLive: () => import("../views/PreviewLiveWindow"),
@@ -80,7 +79,6 @@ export const loadToolRoute = routeLoaders.toolRoute;
 export const loadHermes = routeLoaders.hermes;
 export const loadTerminal = routeLoaders.terminal;
 export const loadCliTerminal = routeLoaders.cliTerminal;
-export const loadTechTldrs = routeLoaders.techTldrs;
 export const loadFileManager = routeLoaders.fileManager;
 export const loadPreviewGroup = routeLoaders.previewGroup;
 export const loadPreviewLive = routeLoaders.previewLive;
@@ -89,7 +87,6 @@ export const loadSkillEditor = routeLoaders.skillEditor;
 const pathLoaders: Array<[prefix: string, load: () => Promise<unknown>]> = [
   ["/workbench", loadWorkbench],
   ["/inbox", loadInbox],
-  ["/tech-tldrs", loadTechTldrs],
   ["/projects/", loadProjectDetail],
   ["/projects", loadProjects],
   ["/files", loadFileManager],
@@ -108,7 +105,6 @@ const pathLoaders: Array<[prefix: string, load: () => Promise<unknown>]> = [
   ["/previews/fenster/", loadPreviewGroup],
   ["/previews/live", loadPreviewLive],
   ["/previews", loadToolRoute],
-  ["/browser", loadToolRoute],
 ];
 
 export function prefetchRoute(path: string): void {

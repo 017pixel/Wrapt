@@ -22,7 +22,6 @@ const storageKeyAliases: ReadonlyArray<readonly [string, string]> = [
   ["workbench:preview-group-snapshot:", "wrapt:preview-group-snapshot:"],
   ["workbench:preview-slot:", "wrapt:preview-slot:"],
   ["workbench:preview-target:", "wrapt:preview-target:"],
-  ["workbench.news.chatModel", "wrapt.news.chatModel"],
 ];
 
 function isValidStoredJson(raw: string): boolean {

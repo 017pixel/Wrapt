@@ -20,7 +20,6 @@ process.env.DATABASE_PATH = join(base, "wrapt.sqlite");
 process.env.ORBIT_BACKUP_DIR = join(base, "orbit-backups");
 process.env.ORBIT_ASSET_DIR = join(base, "orbit-assets");
 process.env.FILE_GALLERY_DIR = join(base, "file-gallery");
-process.env.BROWSER_PROFILES_ROOT = join(base, "browser-profiles");
 process.env.WRAPT_PROFILES_ROOT = join(base, "profiles");
 process.env.CODEXBAR_CONFIG_PATH = join(base, "codexbar.json");
 process.env.CODEX_SHARED_HOME = join(base, "shared-codex");

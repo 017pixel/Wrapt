@@ -14,7 +14,6 @@ function replaceKnownPath(value: string): string {
     next = next.slice(0, -"/.workbench-profiles".length) + "/.wrapt-profiles";
   }
   if (next.includes(legacyDataRoot)) next = next.replaceAll(legacyDataRoot, wraptDataRoot);
-  if (next.includes("remote-workplace-browser-profiles")) next = next.replaceAll("remote-workplace-browser-profiles", "wrapt-browser-profiles");
   if (next.endsWith("/workbench.sqlite")) next = `${next.slice(0, -"/workbench.sqlite".length)}/wrapt.sqlite`;
   return next;
 }
@@ -127,14 +126,12 @@ function migrateDatabaseName(directory: string): void {
   }
 }
 
-function legacyEquivalentPath(path: string): string {
-  return path
-    .replaceAll("wrapt-browser-profiles", "remote-workplace-browser-profiles")
-    .replace(/\/wrapt\.sqlite$/, "/workbench.sqlite");
+function legacyDatabasePath(path: string): string {
+  return path.replace(/\/wrapt\.sqlite$/, "/workbench.sqlite");
 }
 
 function migrateDatabasePath(path: string): void {
-  const oldPath = legacyEquivalentPath(path);
+  const oldPath = legacyDatabasePath(path);
   if (oldPath === path || !moveIfAbsent(oldPath, path)) return;
   for (const suffix of ["-wal", "-shm"]) moveIfAbsent(`${oldPath}${suffix}`, `${path}${suffix}`);
 }
@@ -149,7 +146,6 @@ export function migrateLegacyPersistentData(
   homeDirectory: string,
   dataDirectory: string,
   profilesDirectory: string,
-  browserProfilesDirectory?: string,
   databasePath?: string,
 ): void {
   const legacyDataDirectory = join(homeDirectory, ".local/share/remote-workplace");
@@ -158,11 +154,6 @@ export function migrateLegacyPersistentData(
   else moveDirectoryContentsIfAbsent(legacyDataDirectory, dataDirectory);
   migrateDatabaseName(dataDirectory);
   if (databasePath) migrateDatabasePath(databasePath);
-  if (browserProfilesDirectory) {
-    const legacyBrowserProfiles = legacyEquivalentPath(browserProfilesDirectory);
-    if (!existsSync(browserProfilesDirectory)) moveIfAbsent(legacyBrowserProfiles, browserProfilesDirectory);
-    else moveDirectoryContentsIfAbsent(legacyBrowserProfiles, browserProfilesDirectory);
-  }
   if (!existsSync(profilesDirectory)) moveIfAbsent(legacyProfilesDirectory, profilesDirectory);
   else moveDirectoryContentsIfAbsent(legacyProfilesDirectory, profilesDirectory);
 }

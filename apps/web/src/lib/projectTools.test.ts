@@ -32,7 +32,6 @@ describe("projectToolOptions", () => {
         targetPort: 5173,
         path: "/",
         mode: "hybrid",
-        runtime: "iframe",
         dependencies: [],
       }],
     }));
@@ -44,7 +43,6 @@ describe("projectToolOptions", () => {
       "terminal",
       "opencode",
       "codex",
-      "browser",
       "files",
       "preview",
     ]);
@@ -59,7 +57,6 @@ describe("projectToolOptions", () => {
       "terminal",
       "opencode",
       "codex",
-      "browser",
       "files",
     ]);
   });

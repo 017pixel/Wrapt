@@ -9,7 +9,6 @@ import {
 
 const expectedPublicPatterns = [
   "/",
-  "/browser",
   "/claude",
   "/code-editor",
   "/codex",
@@ -31,7 +30,6 @@ const expectedPublicPatterns = [
   "/projects/:projectId",
   "/settings",
   "/t3-code",
-  "/tech-tldrs",
   "/terminal",
   "/terminal/fenster/:runtimeId",
   "/usage",
@@ -45,17 +43,17 @@ function createRegistry(): PageRouteRegistry {
 }
 
 describe("Legacy Page-/Route-Built-ins", () => {
-  it("registriert 19 Owner, 26 Pages und 26 Routes", () => {
+  it("registriert 17 Owner, 24 Pages und 24 Routes", () => {
     const registry = createRegistry();
     const snapshot = registry.getSnapshot();
 
-    expect(legacyPageRouteOwners).toHaveLength(19);
-    expect(snapshot.pages).toHaveLength(26);
-    expect(snapshot.routes).toHaveLength(26);
-    expect(new Set(snapshot.pages.map((page) => page.ownerId)).size).toBe(19);
+    expect(legacyPageRouteOwners).toHaveLength(17);
+    expect(snapshot.pages).toHaveLength(24);
+    expect(snapshot.routes).toHaveLength(24);
+    expect(new Set(snapshot.pages.map((page) => page.ownerId)).size).toBe(17);
   });
 
-  it("bildet alle 25 öffentlichen URL-Muster ohne Host-Wildcard ab", () => {
+  it("bildet alle 23 öffentlichen URL-Muster ohne Host-Wildcard ab", () => {
     const registry = createRegistry();
     const patterns = registry
       .getSnapshot()
@@ -94,10 +92,10 @@ describe("Legacy Page-/Route-Built-ins", () => {
         boundary: "deferred-route",
       },
     ]);
-    expect(26 + legacyHostRoutes.length).toBe(28);
+    expect(24 + legacyHostRoutes.length).toBe(26);
   });
 
-  it("bewahrt Eager-Dashboard, 16 Lazy-Chunks und Stale-Chunk-Recovery", () => {
+  it("bewahrt Eager-Dashboard, 15 Lazy-Chunks und Stale-Chunk-Recovery", () => {
     const pages = createRegistry().getSnapshot().pages;
     const eager = pages.filter((page) => page.value.runtime.loading === "eager");
     const lazy = pages.filter((page) => page.value.runtime.loading === "lazy");
@@ -106,7 +104,7 @@ describe("Legacy Page-/Route-Built-ins", () => {
     expect(eager.map((page) => page.contributionId)).toEqual([
       "wrapt.dashboard.page.main",
     ]);
-    expect(lazy).toHaveLength(25);
+    expect(lazy).toHaveLength(23);
     expect(lazyChunks).toEqual(
       new Set([
         "cli-terminal",
@@ -120,7 +118,6 @@ describe("Legacy Page-/Route-Built-ins", () => {
         "plugins",
         "settings",
         "skill-editor",
-        "tech-tldrs",
         "terminal",
         "tool-route",
         "usage",
@@ -131,7 +128,7 @@ describe("Legacy Page-/Route-Built-ins", () => {
       .toBe(true);
   });
 
-  it("bindet exakt die 21 bestehenden Prefetch-Präfixe", () => {
+  it("bindet exakt die bestehenden Prefetch-Präfixe", () => {
     const prefixes = createRegistry()
       .getSnapshot()
       .routes.flatMap((route) =>
@@ -140,8 +137,8 @@ describe("Legacy Page-/Route-Built-ins", () => {
           : [route.value.runtime.prefetchPathPrefix],
       );
 
-    expect(new Set(prefixes).size).toBe(24);
-    expect(prefixes).toHaveLength(25);
+    expect(new Set(prefixes).size).toBe(22);
+    expect(prefixes).toHaveLength(23);
     expect(prefixes.filter((prefix) => prefix === "/terminal")).toHaveLength(2);
   });
 
@@ -163,21 +160,20 @@ describe("Legacy Page-/Route-Built-ins", () => {
         .every((route) => route.value.contribution.persistent),
     ).toBe(true);
     expect(fullBleed.map((route) => route.value.contribution.path).sort()).toEqual([
-      "/tech-tldrs",
-      "/workbench",
+          "/workbench",
     ]);
     expect(
       routes.every((route) => route.value.runtime.boundary === "deferred-route"),
     ).toBe(true);
     expect(
       routes.filter((route) => route.value.contribution.mobileNavigation),
-    ).toHaveLength(19);
+    ).toHaveLength(17);
   });
 
-  it("hält alle 19 Preference-IDs als stabile Aliase", () => {
+  it("hält alle 17 Preference-IDs als stabile Aliase", () => {
     const registry = createRegistry();
 
-    expect(Object.keys(legacyPageAliases)).toHaveLength(19);
+    expect(Object.keys(legacyPageAliases)).toHaveLength(17);
     for (const pageId of Object.values(legacyPageAliases)) {
       expect(registry.getPage(pageId)).toBeDefined();
     }

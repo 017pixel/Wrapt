@@ -39,9 +39,6 @@ log "pnpm $(pnpm -v) ok."
 
 # --- Optionale Systemwerkzeuge (nur Hinweise) --------------------------------
 command -v tmux     >/dev/null 2>&1 || warn "tmux fehlt — wird für Terminal-Sessions benötigt (apt install tmux)."
-if ! command -v chromium >/dev/null 2>&1 && ! command -v chromium-browser >/dev/null 2>&1 && ! command -v google-chrome >/dev/null 2>&1; then
-  warn "Chromium/Chrome fehlt — wird für das Browser-Tool benötigt (apt install chromium)."
-fi
 
 # --- Konfiguration prüfen ----------------------------------------------------
 if [[ ! -f config/wrapt.local.json && ! -f config/workbench.local.json ]]; then
@@ -51,7 +48,7 @@ elif [[ ! -f config/wrapt.local.json ]]; then
   warn "Legacy-Config config/workbench.local.json bleibt erhalten und wird beim nächsten Wrapt-Start sicher migriert."
 fi
 if [[ ! -f .env ]]; then
-  warn ".env fehlt. Kopiere .env.example — bitte MISTRAL_API_KEY optional ergänzen."
+  warn ".env fehlt. Kopiere .env.example und trage bei Bedarf Secrets nach."
   cp .env.example .env
 fi
 

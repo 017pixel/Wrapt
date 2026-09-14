@@ -23,7 +23,7 @@ const OPEN = 1;
 /**
  * Hält serverseitige WebSocket-Schreiber unter Druck kleiner als der
  * Produktionspuffer. Normale Nachrichten werden nie verworfen. Nur bewusst
- * markierte Zustandsbilder, etwa Browser-Screencast-Frames, dürfen sich im
+ * markierte Zustandsbilder dürfen sich im
  * noch nicht gesendeten Teil der Queue gegenseitig ersetzen.
  */
 export function createWebSocketSendQueue<T>({

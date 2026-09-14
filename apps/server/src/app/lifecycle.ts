@@ -14,7 +14,6 @@ export async function startBackgroundServices(app: FastifyInstance, deps: AppDep
   if (!isolatedTest) {
     deps.analytics.start();
     deps.usageTimeline.start();
-    deps.news.start();
     deps.hermesResultSync.start();
     deps.t3StatusSync.start();
     deps.terminalStatusSync.start();
@@ -35,7 +34,6 @@ export async function startBackgroundServices(app: FastifyInstance, deps: AppDep
 export function registerShutdown(app: FastifyInstance, deps: AppDependencies, state: LifecycleState) {
   app.addHook("onClose", async () => {
     deps.previewDevServers.stopWatchdog();
-    await deps.news.stop();
     await deps.analytics.stop();
     await deps.usageTimeline.stop();
     await deps.hermesResultSync.stop();
@@ -47,19 +45,17 @@ export function registerShutdown(app: FastifyInstance, deps: AppDependencies, st
     await deps.previewDiagnostics.close();
     await deps.hermesManager.close();
     deps.terminals.shutdown();
-    await deps.browsers.shutdown();
     deps.operationalMetrics.close();
     deps.previewDevServerDatabase.close();
     deps.previewSlotDatabase.close();
     deps.terminalDatabase.close();
     await deps.notificationPush.close();
     deps.notificationDatabase.close();
-    deps.browserDatabase.close();
-    deps.newsDatabase.close();
     deps.orbitDatabase.close();
     deps.orbitAssets.close();
     deps.fileGallery.close();
     deps.fileManager.close();
+    deps.skillEditor.close();
     deps.projectRegistryDatabase.close();
     deps.projectActivityDatabase.close();
     deps.operationalAudit.close();

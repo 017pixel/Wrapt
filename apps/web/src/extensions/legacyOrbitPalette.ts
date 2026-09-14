@@ -1,5 +1,4 @@
 import {
-  BrowserIcon,
   CodeFileIcon,
   CodeServerIcon,
   CodexIcon,
@@ -41,7 +40,7 @@ interface LegacyOrbitPaletteDefinition {
 }
 
 /**
- * Die bisherige Orbit-Seitenpalette als Legacy Built-ins: acht Werkzeuge,
+ * Die bisherige Orbit-Seitenpalette als Legacy Built-ins: sieben Werkzeuge,
  * sieben Blöcke und vier Preview-Layouts mit denselben Titeln, Reihenfolge,
  * Icons und Payloads. Die LocalStorage-Sichtbarkeit bleibt über die
  * Legacy-Keys unverändert lesbar.
@@ -58,7 +57,6 @@ const legacyOrbitPaletteDefinitions = [
         { id: "wrapt.orbit.palette.tool.opencode", title: "OpenCode", order: 50, legacyKey: "tool:opencode", icon: OpenCodeIcon, createPayload: () => ({ type: "tool", title: "OpenCode", toolType: "opencode" }) },
         { id: "wrapt.orbit.palette.tool.codex", title: "Codex", order: 60, legacyKey: "tool:codex", icon: CodexIcon, createPayload: () => ({ type: "tool", title: "Codex", toolType: "codex" }) },
         { id: "wrapt.orbit.palette.tool.files", title: "Files", order: 70, legacyKey: "tool:files", icon: FinderIcon, createPayload: () => ({ type: "tool", title: "Files", toolType: "files" }) },
-        { id: "wrapt.orbit.palette.tool.browser", title: "Browser", order: 80, legacyKey: "tool:browser", icon: BrowserIcon, createPayload: () => ({ type: "tool", title: "Browser", toolType: "browser" }) },
       ],
     },
     {

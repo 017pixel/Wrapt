@@ -13,7 +13,7 @@ import { parseOrbitTodo, serializeOrbitTodo, type OrbitTodoItem } from "../../li
 import { orbitDefaultNodeSize, previewSlotGeometry, useOrbitStore } from "../../stores/orbit";
 import { ToolPanel } from "../ToolPanel";
 import { OrbitGalleryNode } from "./OrbitGalleryNode";
-import { LocalPorts } from "../browser/LocalPorts";
+import { LocalPorts } from "../preview/LocalPorts";
 import { PreviewSlotFrame } from "../PreviewSlotFrame";
 import { PreviewDeviceMenu } from "../preview/PreviewDeviceMenu";
 import { ExternalPreviewChoice } from "../preview/ExternalPreviewChoice";
@@ -35,7 +35,7 @@ const toolLabels: Record<NonNullable<Panel["type"]>, string> = {
   "t3-code": "T3 Code",
   "code-server": "Code-Server",
   preview: "Preview",
-  browser: "Browser",
+  browser: "Browser (Legacy)",
   terminal: "Terminal",
   codex: "Codex",
   opencode: "OpenCode",

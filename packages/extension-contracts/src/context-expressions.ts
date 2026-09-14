@@ -16,7 +16,6 @@ export const hostContextKeys = [
   "host.orbit.focused",
   "host.terminal.focused",
   "host.preview.focused",
-  "host.browser.focused",
   "host.agent.focused",
 ] as const;
 

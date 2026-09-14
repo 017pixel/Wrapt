@@ -53,7 +53,6 @@ export interface OpenPanelInput {
   type: PanelType;
   projectId?: string | null;
   previewId?: string | null;
-  browserUrl?: string | null;
   // Tiefenlink für T3-Panels: Pfad hinter dem Proxy-Präfix `/t3`.
   t3Path?: string | null;
   // Zielordner für Code-Server-Panels aus eingebetteten Werkzeugen.
@@ -95,7 +94,6 @@ function makePanel(input: OpenPanelInput): Panel {
     projectId: input.projectId ?? null,
     previewId: input.previewId ?? null,
     reloadKey: 0,
-    ...(input.browserUrl ? { browserUrl: input.browserUrl } : {}),
     ...(input.t3Path ? { t3Path: input.t3Path } : {}),
     ...(input.codeServerFolder ? { codeServerFolder: input.codeServerFolder } : {}),
     ...(input.type === "hermes" ? {
@@ -354,17 +352,15 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
         const existing = current.panels.find((panel) => isSamePanel(panel, input));
         if (existing) {
           get().focusPanel(existing.id);
-          const hasBrowserUrl = input.type === "browser" && input.browserUrl !== undefined;
           const hasT3Path = input.type === "t3-code" && input.t3Path !== undefined;
           set({
             selectedProjectId: input.projectId ?? current.selectedProjectId,
             maximizedPanelId: null,
-            ...(hasBrowserUrl || hasT3Path ? {
+            ...(hasT3Path ? {
               panels: current.panels.map((panel) => panel.id !== existing.id
                 ? panel
                 : {
                     ...panel,
-                    ...(hasBrowserUrl ? (input.browserUrl ? { browserUrl: input.browserUrl } : { browserUrl: undefined }) : {}),
                     ...(hasT3Path ? { t3Path: input.t3Path ?? undefined } : {}),
                     reloadKey: panel.reloadKey + 1,
                   }),

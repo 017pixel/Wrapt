@@ -39,7 +39,7 @@ describe("deriveViewPresence", () => {
   });
 
   it("meldet in allen übrigen Ansichten ohne Panels keine Sicht", () => {
-    for (const route of ["/", "/inbox", "/workbench", "/files", "/previews", "/settings", "/usage", "/projects", "/tech-tldrs", "/code-editor", "/browser", "/opencode"]) {
+    for (const route of ["/", "/inbox", "/workbench", "/files", "/previews", "/settings", "/usage", "/projects", "/code-editor", "/opencode"]) {
       expect(deriveViewPresence(route, "", null, null, emptyAreas, noPanels, {})).toEqual([]);
     }
   });

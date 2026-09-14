@@ -18,7 +18,6 @@ const permissionLabels: Record<ExtensionPermissionId, string> = {
   "process.execute": "Prozesse ausführen",
   "network.fetch": "Netzwerkzugriff",
   "notifications.create": "Benachrichtigungen senden",
-  "browser.control": "Browser steuern",
   "preview.read": "Previews lesen",
   "preview.manage": "Previews verwalten",
   "agents.invoke": "Agenten aufrufen",
@@ -69,7 +68,7 @@ export function ExtensionPermissionReviewDialog({
           {review.addedPermissions.map((request) => (
             <li key={JSON.stringify(request)}>
               <span>{permissionRequestLabel(request)}</span>
-              <Badge tone={request.permission === "process.execute" || request.permission === "browser.control" || request.permission === "secrets.request" || request.permission === "system.services.control" ? "bad" : "warn"}>
+              <Badge tone={request.permission === "process.execute" || request.permission === "secrets.request" || request.permission === "system.services.control" ? "bad" : "warn"}>
                 {request.permission}
               </Badge>
             </li>

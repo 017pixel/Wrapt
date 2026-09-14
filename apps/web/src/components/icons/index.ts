@@ -7,7 +7,6 @@ export {
   WraptIcon,
   DashboardIcon,
   WorkbenchIcon,
-  TechTldrsIcon,
   ProjekteIcon,
   TerminalIcon,
   PreviewsIcon,

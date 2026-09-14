@@ -20,7 +20,6 @@ export type PreviewContributionKind = z.infer<
 export const previewOpenModes = [
   "embedded",
   "external",
-  "server-browser",
 ] as const;
 export const previewOpenModeSchema = z.enum(previewOpenModes);
 export type PreviewOpenMode = z.infer<typeof previewOpenModeSchema>;

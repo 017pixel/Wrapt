@@ -10,13 +10,13 @@ import {
   type OwnedFrontendContribution,
 } from "./registryCore";
 
-export const commandSurfaces = ["global", "terminal", "browser", "form"] as const;
+export const commandSurfaces = ["global", "terminal", "form"] as const;
 export type CommandSurface = (typeof commandSurfaces)[number];
 
 /**
  * Der Ausführungskontext eines Commands. Befehle, deren Surface nicht zum
- * aktiven Kontext passt, werden nicht ausgeführt — so behalten Terminal-,
- * Browser- und Formulareingabe Vorrang vor globalen Aktionen.
+ * aktiven Kontext passt, werden nicht ausgeführt — so behalten Terminal- und
+ * Formulareingabe Vorrang vor globalen Aktionen.
  */
 export interface CommandExecutionContext {
   readonly surface: CommandSurface;

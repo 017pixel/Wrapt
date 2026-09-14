@@ -40,7 +40,7 @@ describe("Rechtsklick-Konfiguration", () => {
     persistContextMenuConfig(directory, {
       enabled: false,
       quickActions: { mode: "manual", manual: ["wrapt.files.navigation.main"] },
-      surfaces: { "host.context-menu.browser": { enabled: false } },
+      surfaces: { "host.context-menu.preview": { enabled: false } },
       statusBar: { fontSizePx: 15, alwaysShowLimits: true },
     });
 

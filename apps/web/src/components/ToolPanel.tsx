@@ -11,12 +11,10 @@ import { DevicePreviewFrame } from "./DevicePreviewFrame";
 import type { DeviceOrientation, DevicePresetId } from "../config/devicePresets";
 import { TerminalArea } from "./terminal/TerminalArea";
 import { FileManagerPanel } from "./files/FileManagerPanel";
-import { LocalPorts } from "./browser/LocalPorts";
-import { BrowserPanel } from "./browser/BrowserPanel";
+import { LocalPorts } from "./preview/LocalPorts";
 import { PreviewSlotFrame, relayCanvasPinch } from "./PreviewSlotFrame";
 import { apiClient } from "../lib/apiClient";
 import { ToolActionMenu } from "./ToolActionMenu";
-import { normalizePreviewTarget } from "../lib/previewTargets";
 import { useRouteActivity } from "../lib/routeActivity";
 import { t3ThreadIdFromPath } from "../lib/t3Thread";
 import { usePanelPresenceStore } from "../stores/panelPresence";
@@ -38,7 +36,7 @@ const panelTitles: Record<Panel["type"], string> = {
   "t3-code": "T3 Code",
   "code-server": "Editor",
   preview: "Preview",
-  browser: "Browser",
+  browser: "Browser (Legacy)",
   terminal: "Terminal",
   codex: "Codex",
   opencode: "OpenCode",
@@ -74,7 +72,7 @@ function resolvePanel(panel: Panel, project: Project | undefined, codeServerMode
   if (panel.type === "opencode") {
     return { url: "/opencode", mode: "embedded", embed: true, proxyUrl: null, reason: null, targetPort: null, path: "/" };
   }
-  if (panel.type === "browser") return { url: null, mode: "embedded", embed: true, proxyUrl: null, reason: null, targetPort: null, path: "/" };
+  if (panel.type === "browser") return { url: null, mode: "external", embed: false, proxyUrl: null, reason: "Das frühere Browser-Werkzeug wurde entfernt. Der Bereich bleibt erhalten, damit seine Position, Verbindungen und gespeicherten Inhalte nicht verloren gehen.", targetPort: null, path: "/" };
   if (panel.type === "files") return { url: null, mode: "embedded", embed: true, proxyUrl: null, reason: null, targetPort: null, path: "/" };
   if (panel.type === "hermes") return { url: null, mode: "embedded", embed: true, proxyUrl: null, reason: null, targetPort: null, path: "/" };
   if (panel.type === "notion") return { url: null, mode: "external", embed: false, proxyUrl: null, reason: "Diese frühere Notion-Integration wird nicht mehr ausgeführt. Der Knoten bleibt erhalten, damit seine Position, Verbindungen und gespeicherten Inhalte nicht verloren gehen.", targetPort: null, path: "/" };
@@ -190,28 +188,6 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
       usePanelPresenceStore.getState().clearPanel(panel.id);
     };
   }, [panel.id, panel.type]);
-
-  useEffect(() => {
-    if (panel.type !== "t3-code") return;
-    const handleT3BrowserRequest = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
-      const data = event.data as { type?: unknown; url?: unknown } | null;
-      if (data?.type !== "wrapt:open-browser") return;
-      const target = typeof data.url === "string" ? normalizePreviewTarget(data.url) : null;
-      const browserUrl = target?.kind === "local"
-        ? `http://127.0.0.1:${target.port}${target.path}`
-        : target?.kind === "external" ? target.url : null;
-      if (openPanel({
-        type: "browser",
-        projectId: panel.projectId,
-        ...(browserUrl ? { browserUrl } : {}),
-      }) === null) {
-        useWraptNotice.getState().show(`Es können höchstens ${WRAPT_LIMITS.maxResidentTools} Werkzeuge gleichzeitig geöffnet sein. Schließe zuerst ein Panel.`);
-      }
-    };
-    window.addEventListener("message", handleT3BrowserRequest);
-    return () => window.removeEventListener("message", handleT3BrowserRequest);
-  }, [openPanel, panel.id, panel.projectId, panel.type]);
 
   useEffect(() => {
     if (panel.type !== "t3-code") return;
@@ -389,7 +365,7 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
           }`}
           aria-hidden
         >
-          <StateDot state={["terminal", "codex", "opencode", "browser", "files", "hermes"].includes(panel.type) || resolved?.url ? "active" : "inactive"} />
+          <StateDot state={["terminal", "codex", "opencode", "files", "hermes"].includes(panel.type) || resolved?.url ? "active" : "inactive"} />
         </span>
         <div className="min-w-0 leading-tight">
           <div className="truncate text-[13px] font-medium text-text">
@@ -413,12 +389,6 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
       <div className="relative min-h-0 flex-1 bg-ink-950">
         {panel.type === "files" ? (
           <FileManagerPanel minimal={minimal} />
-        ) : panel.type === "browser" ? (
-          <BrowserPanel
-            instanceId={panel.id}
-            requestKey={panel.reloadKey}
-            {...(panel.browserUrl ? { initialUrl: panel.browserUrl } : {})}
-          />
         ) : panel.type === "preview" && resolved?.targetPort ? (
           <PreviewSlotFrame
             targetPort={resolved.targetPort}

@@ -32,7 +32,6 @@ export const wraptConfigSchema = z.object({
     terminalAllowedRoots: z.array(absolutePath),
     terminalDefaultCwd: absolutePath,
     dataDir: absolutePath,
-    browserProfilesRoot: absolutePath,
     orbitBackupDir: absolutePath,
     orbitAssetDir: absolutePath,
     fileGalleryDir: absolutePath.optional(),
@@ -51,7 +50,6 @@ export const wraptConfigSchema = z.object({
     opencode: z.string().min(1),
     claude: z.string().min(1),
     tmux: absolutePath,
-    chromium: z.string().min(1),
   }),
   codexbar: z.object({
     configPath: absolutePath,
@@ -61,11 +59,6 @@ export const wraptConfigSchema = z.object({
   // Workbench-Konfiguration. Die Oberfläche kann einzelne Bereiche lokal
   // ausblenden, diese Werte definieren die serverseitigen Defaults und Grenzen.
   dashboard: dashboardConfigSchema,
-  // Tech-News Hintergrund-Sync (Feeds plus Mistral-Aufbereitung). Steht enabled auf
-  // false, lädt der Server nichts mehr nach und ruft Mistral nicht mehr auf. Der
-  // Bestand bleibt lesbar. Wird zur Laufzeit über die Einstellungen umgeschaltet,
-  // ganz ohne Neustart.
-  news: newsSettingsSchema.prefault({}),
   appearance: appearanceThemeSchema.default(defaultAppearanceTheme),
   notifications: z.object({
     preferences: notificationPreferencesSchema.prefault({}),
@@ -278,7 +271,7 @@ export function loadWraptConfig(configDirectory: string): WraptConfig {
     try {
       const content = readFileSync(join(configDirectory, candidate), "utf8");
       const config = wraptConfigSchema.parse(migrateLegacyConfigValue(JSON.parse(content) as unknown));
-      migrateLegacyPersistentData(config.system.homeDirectory, config.paths.dataDir, config.paths.wraptProfilesRoot, config.paths.browserProfilesRoot, config.paths.databasePath);
+      migrateLegacyPersistentData(config.system.homeDirectory, config.paths.dataDir, config.paths.wraptProfilesRoot, config.paths.databasePath);
       return config;
     } catch (error) {
       lastError = error;
@@ -376,13 +369,4 @@ export function readAppearanceTheme(configDirectory: string): AppearanceTheme {
 export function persistAppearanceTheme(configDirectory: string, theme: AppearanceTheme): void {
   const parsedTheme = appearanceThemeSchema.parse(theme);
   persistLocalConfig(configDirectory, (base) => ({ ...base, appearance: parsedTheme }), (value) => wraptConfigSchema.parse(value));
-}
-
-export function readNewsSettings(configDirectory: string): NewsSettings {
-  return loadWraptConfig(configDirectory).news;
-}
-
-export function persistNewsSettings(configDirectory: string, settings: NewsSettings): void {
-  const parsed = newsSettingsSchema.parse(settings);
-  persistLocalConfig(configDirectory, (base) => ({ ...base, news: parsed }), (value) => wraptConfigSchema.parse(value));
 }

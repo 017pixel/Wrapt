@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type OrbitToolType = "terminal" | "t3-code" | "preview" | "browser" | "code-server" | "codex" | "opencode" | "files" | "hermes";
+export type OrbitToolType = "terminal" | "t3-code" | "preview" | "code-server" | "codex" | "opencode" | "files" | "hermes";
 export type OrbitBlockType = "note" | "todo" | "snippet" | "frame" | "usage-codex" | "usage-opencode" | "usage-claude";
 export type OrbitPreviewType = "layout-1" | "layout-2" | "layout-3" | "layout-6";
 export type OrbitPaletteItem =
@@ -12,20 +12,20 @@ export type OrbitPaletteItem =
 export type SidebarSectionKey = "workspace" | "orbit-projects" | "tools" | "previews" | "blocks" | "footer";
 
 export type PageRouteId =
-  | "dashboard" | "inbox" | "workbench" | "tech-tldrs" | "projects"
-  | "t3-code" | "hermes-agent" | "codex" | "opencode" | "claude" | "code-editor" | "previews" | "browser" | "terminal" | "files" | "ki-skills"
+  | "dashboard" | "inbox" | "workbench" | "projects"
+  | "t3-code" | "hermes-agent" | "codex" | "opencode" | "claude" | "code-editor" | "previews" | "terminal" | "files" | "ki-skills"
   | "plugins" | "usage" | "settings";
 
 const allOrbitPaletteItems: OrbitPaletteItem[] = [
-  "tool:terminal", "tool:t3-code", "tool:preview", "tool:browser", "tool:code-server", "tool:codex", "tool:opencode", "tool:files", "tool:hermes",
+  "tool:terminal", "tool:t3-code", "tool:preview", "tool:code-server", "tool:codex", "tool:opencode", "tool:files", "tool:hermes",
   "preview:layout-1", "preview:layout-2", "preview:layout-3", "preview:layout-6",
   "block:note", "block:todo", "block:snippet", "block:frame",
   "block:usage-codex", "block:usage-opencode", "block:usage-claude",
 ];
 
 const allPageRoutes: PageRouteId[] = [
-  "dashboard", "inbox", "workbench", "tech-tldrs", "projects",
-  "t3-code", "hermes-agent", "codex", "opencode", "claude", "code-editor", "previews", "browser", "terminal", "files", "ki-skills",
+  "dashboard", "inbox", "workbench", "projects",
+  "t3-code", "hermes-agent", "codex", "opencode", "claude", "code-editor", "previews", "terminal", "files", "ki-skills",
   "plugins", "usage", "settings",
 ];
 

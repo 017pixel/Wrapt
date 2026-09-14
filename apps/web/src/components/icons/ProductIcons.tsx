@@ -37,10 +37,6 @@ export function WorkbenchIcon(props: ProductIconProps) {
   return <IconShell {...props}><rect x="3" y="3" width="18" height="14" rx="2"/><path d="M7 8.5 9.5 11 7 13.5M12 13.5h5M9 21h6M12 17v4"/></IconShell>;
 }
 
-export function TechTldrsIcon(props: ProductIconProps) {
-  return <IconShell {...props}><path d="M5 4h11a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2V4Z"/><path d="M8 8h7M8 12h7M8 16h4M18 8h2v10a2 2 0 0 1-2 2"/></IconShell>;
-}
-
 export function ProjekteIcon(props: ProductIconProps) {
   return <IconShell {...props}><path d="M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z"/><path d="m9 11-2 2 2 2M15 11l2 2-2 2M13 10l-2 6"/></IconShell>;
 }

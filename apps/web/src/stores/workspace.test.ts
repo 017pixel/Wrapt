@@ -183,21 +183,6 @@ describe("workspace persistence", () => {
     expect(useWorkspaceStore.getState().panels).toHaveLength(2);
   });
 
-  it("übergibt eine angeforderte Browser-Adresse an das bestehende Werkzeug", () => {
-    const firstId = useWorkspaceStore.getState().openPanel({ type: "browser", projectId: "chappie" });
-    const repeatedId = useWorkspaceStore.getState().openPanel({
-      type: "browser",
-      projectId: "chappie",
-      browserUrl: "http://127.0.0.1:4173/demo",
-    });
-
-    expect(repeatedId).toBe(firstId);
-    expect(useWorkspaceStore.getState().panels[0]).toMatchObject({
-      browserUrl: "http://127.0.0.1:4173/demo",
-      reloadKey: 1,
-    });
-  });
-
   it("allows independent terminal sessions in the same tab group", () => {
     useWorkspaceStore.getState().openPanel({ type: "terminal" });
     useWorkspaceStore.getState().openPanel({ type: "terminal" });

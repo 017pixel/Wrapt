@@ -84,7 +84,3 @@ export function T3Code() { return <SingleTool type="t3-code" />; }
 export function OpenCodeWeb() { return <SingleTool type="opencode" />; }
 export function CodeEditor() { return <SingleTool type="code-server" />; }
 export function Previews() { return <PreviewHub />; }
-export function Browser() {
-  const panel: Panel = { id: "standalone-browser", type: "browser", projectId: null, previewId: null, reloadKey: 0 };
-  return <div className="standalone-tool-page"><div className="standalone-tool-content"><ToolPanel panel={panel} project={undefined} isFocused standalone /></div></div>;
-}

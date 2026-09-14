@@ -222,7 +222,7 @@ export function PreviewDiagnosticsSheet({
           <h3>Slot-Speicher</h3>
           <p className="preview-diagnostics-note">
             Der Reset leert Storage, Cache Storage und Service Worker dieser Slot-Origin. Cookies bleiben unangetastet,
-            weil sie hostweit auch andere Slots betreffen. Für echte Cookie-Isolation das Browser-Werkzeug mit Server-Chromium verwenden.
+            weil sie hostweit auch andere Slots betreffen.
           </p>
           <button type="button" className="preview-diagnostics-danger" disabled={busy || slotId === null} onClick={() => void run(onResetSlot)}>
             Slot-Speicher zurücksetzen

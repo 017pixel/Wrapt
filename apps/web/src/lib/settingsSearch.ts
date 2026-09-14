@@ -109,15 +109,6 @@ export const settingsSearchCatalog: readonly SettingsSearchEntry[] = [
     aliases: ["Seiten anzeigen", "Navigationselemente", "sichtbar", "ausblenden"],
   },
   {
-    id: "news-sync",
-    title: "Tech-News Hintergrund-Sync",
-    description: "Feed-Abfragen und Mistral-Aufbereitung serverseitig pausieren",
-    category: "Navigation",
-    tab: "navigation",
-    anchor: "settings-navigation-news",
-    aliases: ["Tech-News", "Tech TLDRs", "Mistral", "News deaktivieren", "Hintergrund-Sync", "429"],
-  },
-  {
     id: "context-menu",
     title: "Rechtsklick-Menüs",
     description: "Kontextmenüs, Schnellaktionen und Statusleiste konfigurieren",
@@ -215,6 +206,15 @@ export const settingsSearchCatalog: readonly SettingsSearchEntry[] = [
     tab: "start-app",
     anchor: "settings-start-app",
     aliases: ["Startup", "Startseite", "beim Start", "Öffnen", "Standardseite", "Default Page"],
+  },
+  {
+    id: "easter-eggs",
+    title: "Easter Eggs",
+    description: "Versteckte Extras und das Capybara-Maskottchen",
+    category: "Easter Eggs",
+    tab: "easter-eggs",
+    anchor: "settings-easter-eggs",
+    aliases: ["Maskottchen", "Capybara", "Maskot", "Easter Egg", "Spielerei", "Statusleiste", "Begleiter"],
   },
 ];
 

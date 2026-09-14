@@ -13,7 +13,7 @@ const expectedGroups: ReadonlyArray<{
 }> = [
   {
     group: "workspace",
-    labels: ["Dashboard", "Inbox", "Workbench", "Tech TLDRs", "Projekte"],
+    labels: ["Dashboard", "Inbox", "Workbench", "Projekte"],
   },
   {
     group: "tools",
@@ -27,7 +27,6 @@ const expectedGroups: ReadonlyArray<{
       "Claude Code",
       "Previews",
       "Dateien",
-      "Browser",
       "KI-Skills",
     ],
   },
@@ -41,7 +40,6 @@ const expectedPaths: ReadonlyArray<readonly [string, string]> = [
   ["Dashboard", "/"],
   ["Inbox", "/inbox"],
   ["Workbench", "/workbench"],
-  ["Tech TLDRs", "/tech-tldrs"],
   ["Projekte", "/projects"],
   ["T3 Code", "/t3-code"],
   ["Hermes Agent", "/hermes-agent"],
@@ -52,7 +50,6 @@ const expectedPaths: ReadonlyArray<readonly [string, string]> = [
   ["Claude Code", "/claude"],
   ["Previews", "/previews"],
   ["Dateien", "/files"],
-  ["Browser", "/browser"],
   ["KI-Skills", "/ki-skills"],
   ["Nutzung", "/usage"],
   ["Einstellungen", "/settings"],
@@ -66,7 +63,7 @@ function buildIsolatedRegistry(): { registry: NavigationRegistry; routes: PageRo
 
 describe("legacyNavigation", () => {
   it("registriert genau einen Built-in pro bisheriger Navigationsfläche", () => {
-    expect(legacyNavigationOwners).toHaveLength(19);
+    expect(legacyNavigationOwners).toHaveLength(17);
   });
 
   it("bildet Gruppen, Reihenfolge und Labels der bisherigen Navigation exakt ab", () => {
@@ -103,7 +100,7 @@ describe("legacyNavigation", () => {
     registerLegacyNavigation(registry);
     const snapshot = registry.getSnapshot();
 
-    expect(snapshot.items).toHaveLength(19);
+    expect(snapshot.items).toHaveLength(17);
     for (const item of snapshot.items) {
       expect(item.value.contribution.id).toBe(`${item.ownerId}.navigation.main`);
       expect(item.value.runtime.icon).toBeTypeOf("function");

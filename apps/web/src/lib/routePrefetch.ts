@@ -13,7 +13,6 @@ import { prefetchRoute } from "./routeModules";
  */
 const dataLoaders: Array<[prefix: string, warm: (client: QueryClient) => Promise<unknown>]> = [
   ["/usage", (client) => client.prefetchQuery(wraptQueries.usageDashboard("30d"))],
-  ["/tech-tldrs", (client) => client.prefetchQuery(wraptQueries.newsCollections())],
   ["/projects", (client) => client.prefetchQuery(wraptQueries.projects())],
 ];
 

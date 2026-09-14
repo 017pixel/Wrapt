@@ -1,18 +1,17 @@
 {
   "name": "@wrapt/server",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "rm -rf dist && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
-    "@chrome-devtools/inspector": "1.20260809.0",
     "@fastify/compress": "9.2.0",
     "@fastify/helmet": "13.1.0",
     "@fastify/multipart": "^10.1.0",
@@ -26,8 +25,7 @@
     "@xterm/headless": "6.0.0",
     "dotenv": "17.4.2",
     "execa": "10.0.1",
-    "fast-xml-parser": "5.10.1",
-    "fastify": "5.12.0",
+    "fastify": "5.12.1",
     "node-pty": "^1.1.0",
     "parse5": "8.0.1",
     "systeminformation": "5.33.1",

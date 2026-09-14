@@ -97,7 +97,6 @@ config.paths = {
   terminalAllowedRoots: [repositoryRoot, temporaryRoot],
   terminalDefaultCwd: repositoryRoot,
   dataDir: dataDirectory,
-  browserProfilesRoot: join(dataDirectory, "browser-profiles"),
   orbitBackupDir: join(dataDirectory, "orbit-backups"),
   orbitAssetDir: join(dataDirectory, "orbit-assets"),
   fileGalleryDir: join(dataDirectory, "file-gallery"),
@@ -109,7 +108,7 @@ config.paths = {
 };
 assertInside(temporaryRoot, config.system.homeDirectory, "system.homeDirectory");
 for (const name of [
-  "dataDir", "browserProfilesRoot", "orbitBackupDir", "orbitAssetDir", "fileGalleryDir",
+  "dataDir", "orbitBackupDir", "orbitAssetDir", "fileGalleryDir",
   "wraptProfilesRoot", "codexSharedHome", "claudeSharedHome", "opencodeSharedHome", "databasePath",
 ]) assertInside(temporaryRoot, config.paths[name], `paths.${name}`);
 config.codexbar.configPath = join(dataDirectory, "codexbar.json");
@@ -145,7 +144,6 @@ const projects = {  projects: [
           targetPort: fixturePorts.spa,
           path: "/",
           mode: "hybrid",
-          runtime: "iframe",
           dependencies: [],
         },
       ],
@@ -222,8 +220,6 @@ const child = spawn(process.execPath, ["apps/server/dist/index.js"], {
     HERMES_CLI_PATH: "/bin/false",
     CODEX_OAUTH_PROFILE_HOMES: "",
     CODEX_OAUTH_PRIMARY_FALLBACK: "false",
-    // Der isolierte Server nutzt das lokale Snap-Chromium ohne Host-Sandbox.
-    BROWSER_ALLOW_NO_SANDBOX: "true",
     TERMINAL_ALLOWED_ROOTS: `${repositoryRoot},${temporaryRoot}`,
     TERMINAL_DEFAULT_CWD: temporaryRoot,
     // Die .env des Repos setzt TERMINAL_ALLOWED_USERS für die Produktion; der
@@ -237,7 +233,6 @@ const child = spawn(process.execPath, ["apps/server/dist/index.js"], {
     WRAPT_E2E_ALLOW_DESTRUCTIVE_ORBIT_RESET: "true",
     WRAPT_DEV_TAILSCALE_USER: e2eIdentity,
     PREVIEW_PUBLIC_ORIGIN_MODE: "loopback-http",
-    MISTRAL_API_KEY: "",
     PORT: String(e2ePort),
     ...(webDistDirectory ? { WEB_DIST_DIR: webDistDirectory } : {}),
   },

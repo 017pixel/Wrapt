@@ -12,19 +12,17 @@ export const allDashboardSections: DashboardSection[] = [
   "runtime",
   "diagnostics",
   "usage",
-  "news",
   "commands",
 ];
 
 export const dashboardSectionMeta: Record<DashboardSection, { label: string; description: string }> = {
-  quickActions: { label: "Schnellaktionen", description: "T3 Code, Workbench, Terminal, Nutzung und News" },
+  quickActions: { label: "Schnellaktionen", description: "T3 Code, Workbench und Terminal" },
   server: { label: "Serverstatus", description: "Status, Version, Uptime, Betriebssystem und Tailscale" },
   metrics: { label: "Systemmetriken", description: "CPU, RAM, Speicher, Last und Temperatur" },
   services: { label: "Dienste", description: "Konfigurierte Dienste und ihre Erreichbarkeit" },
   runtime: { label: "Laufzeit", description: "Projekte, Ports, Prozesse und Terminal-Sessions" },
   diagnostics: { label: "Diagnose", description: "HTTP, Event Loop, Prozessspeicher und Betriebszustand" },
   usage: { label: "Nutzung und Limits", description: "Aktuelle Codex-, OpenCode- und Claude-Limits" },
-  news: { label: "News", description: "Anzahl ungelesener Tech-TLDRs und Sync-Status" },
   commands: { label: "Command Reference", description: "Konfigurierte Befehle zum Kopieren" },
 };
 
