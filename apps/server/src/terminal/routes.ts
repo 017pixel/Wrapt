@@ -101,7 +101,7 @@ export async function registerTerminalRoutes(app: FastifyInstance, options: {
   app.post("/terminal/sessions/:sessionId/restart", async (request) => {
     const userId = httpIdentity(request, options.allowedUsers, options.developmentUser);
     const { sessionId } = sessionParamsSchema.parse(request.params);
-    const session = options.manager.restartSession(userId, sessionId);
+    const session = await options.manager.restartSession(userId, sessionId);
     return { session: options.manager.getSessionMetadata(userId, session.id) };
   });
   app.delete("/terminal/sessions/:sessionId", async (request, reply) => {
@@ -195,7 +195,7 @@ export async function registerTerminalRoutes(app: FastifyInstance, options: {
             options.manager.resizeSession(userId, message.sessionId, message.cols, message.rows, clientId);
             break;
           case "terminal.clear": options.manager.clearSessionHistory(userId, message.sessionId); break;
-          case "terminal.restart": options.manager.restartSession(userId, message.sessionId); break;
+          case "terminal.restart": void options.manager.restartSession(userId, message.sessionId).catch((error) => send({ type: "terminal.error", ...errorMessage(error) })); break;
           case "terminal.close": {
             const session = options.manager.resolveSession(userId, message.sessionId);
             const runtimeId = session.runtimeId;

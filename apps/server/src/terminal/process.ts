@@ -16,6 +16,8 @@ export interface ProcessRuntimeDependencies {
   persist(session: TerminalSession): void;
   emit(session: TerminalSession, message: ServerTerminalMessage): void;
   cwdRefreshTimers: Map<string, NodeJS.Timeout>;
+  /** Erneute kanonische CWD-Prüfung unmittelbar vor jedem Prozessstart. */
+  validateCwd(session: TerminalSession): string;
 }
 
 export interface ProcessRuntime {
@@ -34,7 +36,7 @@ export interface ProcessRuntime {
  *  den gemeinsamen Dependency-Kontext zusammen, damit der Manager schlank
  *  bleibt und keine zirkulären Imports entstehen. */
 export function createProcessRuntime(deps: ProcessRuntimeDependencies): ProcessRuntime {
-  const { adapter, supervisor, cliPaths, onOutput, persist, emit, cwdRefreshTimers } = deps;
+  const { adapter, supervisor, cliPaths, onOutput, persist, emit, cwdRefreshTimers, validateCwd } = deps;
 
   function kindLabel(kind: TerminalKind) {
     return kind === "codex" ? "Codex" : kind === "opencode" ? "OpenCode" : kind === "claude" ? "Claude Code" : "Terminal";
@@ -108,6 +110,10 @@ export function createProcessRuntime(deps: ProcessRuntimeDependencies): ProcessR
     const supervisorName = session.supervisorName;
     if (supervisor && supervisorName && supervisor.has(supervisorName)) {
       try {
+        // Auch der automatische Respawn startet einen Prozess: CWD unmittelbar
+        // davor erneut kanonisch prüfen, sonst kann ein ausgetauschter Symlink
+        // die Wurzelgrenze umgehen.
+        session.cwd = validateCwd(session);
         const launch = launchCommand(session.kind, session.mode);
         const nextEnvironment = environment(session);
         supervisor.respawn(supervisorName, session.cwd, { ...launch, environment: nextEnvironment });

@@ -5,10 +5,9 @@ import type { TerminalDatabase } from "./database.js";
 import type { TmuxSupervisor } from "./TmuxSupervisor.js";
 import type { ServerTerminalMessage, TerminalKind } from "./protocol.js";
 import { createProcessRuntime, type ProcessRuntime } from "./process.js";
-import { fromStored, importSupervisorSessions, validateCwd } from "./restore.js";
-import { GeometryLease } from "./runtime/GeometryLease.js";
-import { OutputJournal } from "./runtime/OutputJournal.js";
-import { EXITED_SESSION_TTL_MS, TerminalFailure, type TerminalClientViewport, type TerminalSession } from "./session.js";
+import { assertValidViewport, fromStored, importSupervisorSessions, reconcileTerminalSessionsOnStartup, requireValidCwd, validateCwdSync } from "./restore.js";
+import { createSessionWithContext, type SessionCreationInput } from "./sessionCreation.js";
+import { TerminalFailure, type TerminalClientViewport, type TerminalSession } from "./session.js";
 import { applyResize, broadcastSnapshot, sendSync } from "./snapshots.js";
 
 // Behält den öffentlichen Export bei, damit bestehende Importe stabil bleiben.
@@ -43,134 +42,46 @@ export class TerminalManager {
       persist: (session) => this.persist(session),
       emit: (session, message) => this.emit(session, message),
       cwdRefreshTimers: this.cwdRefreshTimers,
+      validateCwd: (session) => validateCwdSync(session.cwd, this.options.allowedRoots),
     });
-    if (this.options.supervisor) {
-      this.options.database?.reconcileSupervisorSessions(new Set(this.options.supervisor.list().map((session) => session.name)));
-    } else {
-      this.options.database?.markRunningSessionsInterrupted();
-    }
+    reconcileTerminalSessionsOnStartup({
+      supervisor: this.options.supervisor,
+      database: this.options.database,
+      externalSessionOwnerId: this.options.externalSessionOwnerId,
+      defaultCwd: this.options.defaultCwd,
+      allowedRoots: this.options.allowedRoots,
+    });
   }
 
   private get adapter() { return this.options.adapter ?? nodePtyAdapter; }
 
-  async createSession(userId: string, input: {
-    runtimeId?: string;
-    projectId?: string | null;
-    kind?: TerminalKind;
-    cwd?: string;
-    cols: number;
-    rows: number;
-    mode?: "agent" | "login";
-    accountId?: string;
-    clientId?: string;
-  }): Promise<TerminalSession> {
+  async createSession(userId: string, input: SessionCreationInput): Promise<TerminalSession> {
     const lockKey = input.runtimeId ? `${userId}\u0000${input.runtimeId}` : randomUUID();
     const pending = this.creationLocks.get(lockKey);
     if (pending) return pending;
-    const creation = this.createSessionInternal(userId, input);
+    const creation = createSessionWithContext({
+      allowedRoots: this.options.allowedRoots,
+      defaultCwd: this.options.defaultCwd,
+      maxSessions: this.options.maxSessions,
+      maxSessionsByKind: this.options.maxSessionsByKind,
+      resolveAccountProfile: this.options.resolveAccountProfile,
+      database: this.options.database,
+      supervisor: this.options.supervisor,
+      process: this.process,
+      sessions: this.sessions,
+      findByRuntime: (owner, runtime) => this.findByRuntime(owner, runtime),
+      persist: (session) => this.persist(session),
+      close: (session) => this.close(session),
+    }, userId, input);
     this.creationLocks.set(lockKey, creation);
     try { return await creation; } finally { this.creationLocks.delete(lockKey); }
-  }
-
-  private async createSessionInternal(userId: string, input: {
-    runtimeId?: string;
-    projectId?: string | null;
-    kind?: TerminalKind;
-    cwd?: string;
-    cols: number;
-    rows: number;
-    mode?: "agent" | "login";
-    accountId?: string;
-    clientId?: string;
-  }): Promise<TerminalSession> {
-    const runtimeId = input.runtimeId ?? randomUUID();
-    const existing = this.findByRuntime(userId, runtimeId);
-    if (existing) {
-      if (existing.kind !== (input.kind ?? "shell") || existing.projectId !== (input.projectId ?? null)) {
-        throw new TerminalFailure("SESSION_RUNTIME_CONFLICT", "Diese Werkzeuginstanz ist bereits an eine andere Session gebunden.");
-      }
-      // Wenn kein Gerät mehr verbunden ist, gehört die PTY-Geometrie dem
-      // wiederkehrenden Client. Wichtig: Nicht nur die Metadaten aktualisieren,
-      // sondern eine noch lebende PTY wirklich resizen, damit Fullscreen-TUIs
-      // vor dem Snapshot bereits im neuen Raster zeichnen.
-      const ownsInitialGeometry = existing.clients.size === 0
-        && (existing.primaryClientId === null || existing.primaryClientId === input.clientId);
-      if (ownsInitialGeometry) {
-        if (existing.primaryClientId === null && input.clientId) existing.primaryClientId = input.clientId;
-        if (existing.status === "running" && existing.pty) {
-          try { applyResize(existing, input.cols, input.rows, (session) => this.persist(session)); }
-          catch { throw new TerminalFailure("PTY_RESIZE_FAILED", "Die Terminalgröße konnte nicht angepasst werden."); }
-        } else {
-          existing.cols = input.cols;
-          existing.rows = input.rows;
-        }
-      }
-      if (!existing.pty) {
-        const supervisorAlive = this.options.supervisor && existing.supervisorName && this.options.supervisor.has(existing.supervisorName);
-        // Jede pty-lose, nicht geschlossene Session wird beim nächsten
-        // Verbinden wieder in den laufenden Zustand gebracht.
-        if (existing.status !== "running" || supervisorAlive) {
-          existing.status = "starting";
-          this.process.spawn(existing);
-        } else if (existing.status === "running") {
-          existing.status = "interrupted";
-        }
-      }
-      this.persist(existing);
-      return existing;
-    }
-
-    const kind = input.kind ?? "shell";
-    // Beendete Sessions, deren TTL abgelaufen ist, räumen sich selbst auf.
-    const now = Date.now();
-    for (const session of [...this.sessions.values()]) {
-      if (session.status === "exited" && now - session.updatedAt > EXITED_SESSION_TTL_MS) {
-        this.close(session);
-      }
-    }
-    const activeSessions = [...this.sessions.values()].filter((session) => session.userId === userId && session.status !== "closed");
-    const kindLimit = this.options.maxSessionsByKind?.[kind] ?? this.options.maxSessions;
-    if (activeSessions.filter((session) => session.kind === kind).length >= kindLimit) {
-      throw new TerminalFailure("TOO_MANY_SESSIONS", `Die maximale Anzahl gleichzeitig geöffneter ${this.process.kindLabel(kind)}-Instanzen ist erreicht.`);
-    }
-    if (activeSessions.length >= this.options.maxSessions) throw new TerminalFailure("TOO_MANY_SESSIONS", "Die maximale Anzahl gleichzeitig geöffneter Terminals ist erreicht.");
-    const cwd = await validateCwd(input.cwd ?? this.options.defaultCwd, this.options.allowedRoots);
-    if (input.mode === "login" && (kind === "shell" || !input.accountId)) throw new TerminalFailure("INVALID_MESSAGE", "Für die Anmeldung fehlt ein gültiger Account.");
-    let profilePath: string | null = null;
-    if (input.accountId && kind !== "shell") {
-      try { profilePath = this.options.resolveAccountProfile?.(input.accountId, kind) ?? null; }
-      catch { throw new TerminalFailure("INVALID_MESSAGE", "Der Anmeldeaccount wurde nicht gefunden."); }
-    }
-    const session: TerminalSession = {
-      id: randomUUID(), userId, runtimeId, kind, mode: input.mode ?? "agent", profilePath,
-      projectId: input.projectId ?? null, supervisorName: null, pty: null, pid: 0, cwd, cols: input.cols, rows: input.rows,
-      status: "starting", history: "", createdAt: now, updatedAt: now, exitCode: null, exitSignal: null, sequence: 0,
-      epoch: 0, clients: new Map(), clientViewports: new Map(), primaryClientId: input.clientId ?? null,
-      dataListener: null, exitListener: null, lastPersistedAt: undefined,
-      headless: null, journal: new OutputJournal(),
-      geometry: new GeometryLease(input.cols, input.rows, input.clientId ?? null),
-    };
-    this.sessions.set(session.id, session);
-    this.persist(session);
-    try { this.process.spawn(session); return session; }
-    catch (error) {
-      // Schlägt nur das Anhängen fehl (etwa direkt nach dem Aufwachen aus dem
-      // Schlaf), während die tmux-Session weiterlebt, bleibt die Session bestehen.
-      if (this.options.supervisor && session.supervisorName && this.options.supervisor.has(session.supervisorName)) {
-        session.status = "interrupted";
-        session.updatedAt = Date.now();
-        this.persist(session);
-        return session;
-      }
-      this.sessions.delete(session.id); this.options.database?.deleteSession(userId, session.id); throw error;
-    }
   }
 
   attachSession(userId: string, sessionId: string, client: (message: ServerTerminalMessage) => void, clientId: string = randomUUID(), viewport?: TerminalClientViewport, sync?: { epoch: number; lastSequence: number } | null): () => void {
     const session = this.owned(userId, sessionId);
     session.clients.set(clientId, client);
     if (viewport) {
-      this.validateViewport(viewport.cols, viewport.rows);
+      assertValidViewport(viewport.cols, viewport.rows);
       session.clientViewports.set(clientId, viewport);
     } else {
       session.clientViewports.set(clientId, { cols: session.cols, rows: session.rows });
@@ -207,7 +118,7 @@ export class TerminalManager {
   takeControl(userId: string, sessionId: string, clientId: string, cols?: number, rows?: number) {
     const session = this.running(userId, sessionId);
     if (!session.clients.has(clientId)) return;
-    if (cols !== undefined && rows !== undefined) this.validateViewport(cols, rows);
+    if (cols !== undefined && rows !== undefined) assertValidViewport(cols, rows);
     session.primaryClientId = clientId;
     const target = cols !== undefined && rows !== undefined ? { cols, rows } : session.clientViewports.get(clientId);
     if (!target) return;
@@ -241,7 +152,7 @@ export class TerminalManager {
     if (!session.clients.has(clientId)) return;
     const changedOwner = session.primaryClientId !== clientId;
     if (viewport) {
-      this.validateViewport(viewport.cols, viewport.rows);
+      assertValidViewport(viewport.cols, viewport.rows);
       session.clientViewports.set(clientId, viewport);
     }
     session.primaryClientId = clientId;
@@ -260,7 +171,7 @@ export class TerminalManager {
 
   resizeSession(userId: string, sessionId: string, cols: number, rows: number, clientId?: string) {
     const session = this.running(userId, sessionId);
-    this.validateViewport(cols, rows);
+    assertValidViewport(cols, rows);
     if (clientId) {
       if (!session.clients.has(clientId)) return;
       session.clientViewports.set(clientId, { cols, rows });
@@ -282,9 +193,10 @@ export class TerminalManager {
     this.emit(session, { type: "terminal.cleared", sessionId, sequence: session.sequence });
   }
 
-  restartSession(userId: string, sessionId: string) {
+  async restartSession(userId: string, sessionId: string) {
     const session = this.owned(userId, sessionId);
     if (session.status === "closed") throw new TerminalFailure("SESSION_ALREADY_CLOSED", "Die Terminalsitzung wurde bereits beendet.");
+    session.cwd = requireValidCwd(session, this.options.allowedRoots, (s) => this.persist(s));
     if (session.status === "running") this.process.stopProcess(session, true);
     session.history = ""; session.exitCode = null; session.exitSignal = null; session.status = "starting"; session.updatedAt = Date.now();
     // Ein echter Neustart erzeugt die Runtime neu: neuer Epoch, frischer
@@ -301,7 +213,13 @@ export class TerminalManager {
   closeSession(userId: string, sessionId: string) { this.close(this.owned(userId, sessionId)); }
 
   listSessions(userId: string) {
-    importSupervisorSessions(userId, { supervisor: this.options.supervisor, database: this.options.database, externalSessionOwnerId: this.options.externalSessionOwnerId, defaultCwd: this.options.defaultCwd });
+    importSupervisorSessions(userId, {
+      supervisor: this.options.supervisor,
+      database: this.options.database,
+      externalSessionOwnerId: this.options.externalSessionOwnerId,
+      defaultCwd: this.options.defaultCwd,
+      allowedRoots: this.options.allowedRoots,
+    });
     const stored = this.options.database?.listSessions(userId, (id) => this.sessions.get(id)?.clients.size ?? 0) ?? [];
     return stored.map((item) => {
       const session = this.sessions.get(item.id);
@@ -373,10 +291,6 @@ export class TerminalManager {
     const viewport = next ? session.clientViewports.get(next) : undefined;
     if (!viewport || session.status !== "running" || !session.pty) return;
     try { applyResize(session, viewport.cols, viewport.rows, (s) => this.persist(s)); } catch { /* Der neue Primary passt beim nächsten Resize erneut an. */ }
-  }
-
-  private validateViewport(cols: number, rows: number) {
-    if (cols < 2 || cols > 500 || rows < 1 || rows > 300) throw new TerminalFailure("PTY_RESIZE_FAILED", "Die Terminalgröße ist ungültig.");
   }
 
   private close(session: TerminalSession) {

@@ -264,4 +264,44 @@ describe("TerminalManager", () => {
     expect(spawns[0]).toMatchObject({file:"/codex",args:["login","--device-auth"],env:{CODEX_HOME:profile}});
     expect(spawns[1]).toMatchObject({file:"/opencode",args:["auth","login"],env:{XDG_DATA_HOME:profile}});
   });
+
+  it("hält die Quota über einen Neustart gegen persistierte Sessions", async () => {
+    const root = await mkdtemp(join(tmpdir(), "workbench-terminal-quota-"));
+    const database = new TerminalDatabase(join(root, "terminal.sqlite"));
+    const supervisor = new FakeSupervisor();
+    const runtimeId = "00000000-0000-4000-8000-000000000009";
+    const first = new TerminalManager({
+      allowedRoots: [root], defaultCwd: root, maxSessions: 1, database,
+      supervisor: supervisor as unknown as TmuxSupervisor,
+      adapter: { spawn: () => new FakePty() },
+    });
+    await first.createSession("owner", { runtimeId, cols: 80, rows: 24 });
+    first.shutdown();
+
+    const resumed = new TerminalManager({
+      allowedRoots: [root], defaultCwd: root, maxSessions: 1, database,
+      supervisor: supervisor as unknown as TmuxSupervisor,
+      adapter: { spawn: () => new FakePty() },
+    });
+    await expect(resumed.createSession("owner", { cols: 80, rows: 24 })).rejects.toMatchObject({ code: "TOO_MANY_SESSIONS" });
+    resumed.shutdown();
+    database.close();
+  });
+
+  it("reserviert Quota-Plätze bei parallelen Starts atomar", async () => {
+    const root = await mkdtemp(join(tmpdir(), "workbench-terminal-parallel-"));
+    const database = new TerminalDatabase(join(root, "terminal.sqlite"));
+    manager = new TerminalManager({
+      allowedRoots: [root], defaultCwd: root, maxSessions: 1, database,
+      adapter: { spawn: () => new FakePty() },
+    });
+    const results = await Promise.allSettled([
+      manager.createSession("owner", { runtimeId: "00000000-0000-4000-8000-000000000011", cols: 80, rows: 24 }),
+      manager.createSession("owner", { runtimeId: "00000000-0000-4000-8000-000000000012", cols: 80, rows: 24 }),
+    ]);
+    expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+    expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
+    manager.shutdown();
+    database.close();
+  });
 });

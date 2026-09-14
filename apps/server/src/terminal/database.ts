@@ -176,6 +176,29 @@ export class TerminalDatabase {
 
   updateSession(session: StoredTerminalSession) { this.saveSession(session); }
 
+  /**
+   * Reserviert einen Quota-Platz und legt die Session in einer Transaktion an.
+   * Die Quote hängt damit nicht mehr an der In-Memory-Map eines Prozesses:
+   * Auch nach einem Neustart oder bei parallelen Startanfragen zählt der
+   * persistierte Bestand, und der Check ist atomar gegen das Limit.
+   */
+  tryReserveSession(session: StoredTerminalSession, limits: { overall: number; kind: number }): "reserved" | "kind-limit" | "overall-limit" {
+    let committed = false;
+    this.db.exec("BEGIN IMMEDIATE");
+    try {
+      const overall = (this.db.prepare("SELECT COUNT(*) count FROM terminal_sessions WHERE owner_id = ? AND status <> 'closed'").get(session.userId) as { count: number }).count;
+      if (overall >= limits.overall) return "overall-limit";
+      const ofKind = (this.db.prepare("SELECT COUNT(*) count FROM terminal_sessions WHERE owner_id = ? AND status <> 'closed' AND kind = ?").get(session.userId, session.kind) as { count: number }).count;
+      if (ofKind >= limits.kind) return "kind-limit";
+      this.saveSession(session);
+      this.db.exec("COMMIT");
+      committed = true;
+      return "reserved";
+    } finally {
+      if (!committed && this.db.isTransaction) this.db.exec("ROLLBACK");
+    }
+  }
+
   deleteSession(userId: string, sessionId: string) {
     this.db.prepare("DELETE FROM terminal_sessions WHERE owner_id = ? AND id = ?").run(userId, sessionId);
   }

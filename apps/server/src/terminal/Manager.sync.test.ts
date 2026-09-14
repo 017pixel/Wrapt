@@ -75,7 +75,7 @@ describe("Terminal V2 Sync-Protokoll", () => {
     pty.output("vor-neustart\r\n");
     await new Promise((resolve) => setTimeout(resolve, 20));
 
-    terminal.restartSession("owner", session.id);
+    await terminal.restartSession("owner", session.id);
     const metadata = terminal.getSessionMetadata("owner", session.id);
     expect(metadata.epoch).toBe(1);
 
@@ -189,7 +189,7 @@ describe("Terminal V2 Resync nach Clear, Restart und Wiederherstellung", () => {
     const lastSequence = (first.filter((message) => message.type === "terminal.output").pop() as { sequence: number }).sequence;
     detach();
 
-    terminal.restartSession("owner", session.id);
+    await terminal.restartSession("owner", session.id);
     expect(terminal.getSessionMetadata("owner", session.id)).toMatchObject({ epoch: 1, sequence: 0 });
 
     const tracker = createClientTracker();
