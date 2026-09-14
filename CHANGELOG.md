@@ -16,7 +16,7 @@ Alle Änderungen werden in fünf kurzen Stichpunkten pro Kategorie dokumentiert.
 - Skill-Veröffentlichung ist in Commit und Push getrennt; fremde Arbeitsbaumänderungen bleiben unangetastet
 - Dateimanager verschiebt, benennt um und lädt hoch, ohne bestehende Dateien zu überschreiben
 - Terminal-Arbeitsverzeichnisse werden vor jedem Start kanonisch gegen die erlaubten Wurzeln geprüft
-- Theme-Farben sind auf eine feste Maximallänge und einheitliche Schreibweise begrenzt; Einstellungs-Tabs scrollen per Mausrad seitwärts und Fastify sowie colord enthalten die aktuellen Sicherheitskorrekturen
+- Theme-Farben sind auf eine feste Maximallänge und einheitliche Schreibweise begrenzt; Einstellungs-Tabs scrollen per Mausrad seitwärts, Fastify sowie colord enthalten die aktuellen Sicherheitskorrekturen und große Benachrichtigungs-Fixtures werden gebündelt aufgebaut
 
 ### Gelöscht
 - Automatisches Vormerken und Pushen des gesamten Arbeitsbaums aus dem Skill-Editor

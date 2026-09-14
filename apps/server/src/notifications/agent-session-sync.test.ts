@@ -52,6 +52,20 @@ function appendAssistantCompletion(path: string, sessionId: string, messageId: s
   db.close();
 }
 
+function appendAssistantCompletions(path: string, sessionId: string, count: number): void {
+  const db = new DatabaseSync(path);
+  const event = db.prepare("INSERT INTO event(aggregate_id,type,data) VALUES(?,?,?)");
+  const part = db.prepare("INSERT INTO part(message_id,data) VALUES(?,?)");
+  db.exec("BEGIN");
+  for (let index = 0; index < count; index += 1) {
+    const messageId = `msg-${index}`;
+    event.run(sessionId, "message.updated.1", JSON.stringify({ info: { id: messageId, role: "assistant", time: { created: index * 1_000, completed: index * 1_000 + 1_000 } } }));
+    part.run(messageId, JSON.stringify({ type: "tool" }));
+  }
+  db.exec("COMMIT");
+  db.close();
+}
+
 function poll(sync: AgentSessionSync, emit = true): void {
   (sync as unknown as { poll(emit: boolean): void }).poll(emit);
 }
@@ -157,7 +171,7 @@ describe("Agent-Session-Synchronisation", () => {
     const { opencodePath, cursorPath, notifications, sync } = fixture({ runIdleSeconds: 90 });
     const now = Date.now();
     addSession(opencodePath, "lauf", { directory: "/home/bbecker/projects/anderes", timeCreated: now, timeUpdated: now });
-    for (let index = 0; index < 600; index += 1) appendAssistantCompletion(opencodePath, "lauf", `msg-${index}`, index * 1_000 + 1_000, { created: index * 1_000 });
+    appendAssistantCompletions(opencodePath, "lauf", 600);
     // Der erste Poll liest 500 Ereignisse, der zweite den Rest. Der Cursor
     // springt nie über ungelesene Zeilen hinweg.
     poll(sync);
