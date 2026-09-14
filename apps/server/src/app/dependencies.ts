@@ -176,7 +176,13 @@ export async function createAppDependencies(app: FastifyInstance) {
     repositoryDirectory: settings.skillEditor.repositoryDirectory,
     autosaveDebounceMilliseconds: settings.skillEditor.autosaveDebounceMilliseconds,
     maxFileBytes: settings.skillEditor.maxFileBytes,
+    jobDatabasePath: settings.databasePath,
   });
+  // Unterbrochene Skill-Operationen aus einem früheren Lauf idempotent abschließen.
+  const skillRecovery = await skillEditor.recover();
+  if (skillRecovery.needsRecovery > 0) {
+    app.log.warn({ component: "skill-editor-recovery", ...skillRecovery }, "Skill-Operationen benötigen manuelle Prüfung.");
+  }
   const projects = createProjectService(projectsConfig, servicesConfig.services, undefined, projectActivity, projectRegistryDatabase);
   const terminalDatabase = new TerminalDatabase(settings.databasePath);
   const notificationDatabase = new NotificationDatabase(settings.databasePath, settings.notifications.pruneAfterHours);
