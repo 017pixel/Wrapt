@@ -10,6 +10,7 @@ Anmeldung durch die bestehende Tailscale-Identität geschützt. Sie ist in fachl
 - **Navigation** bündelt Dashboard-Bereiche, Orbit-Sidebar und globale Seiten-Sichtbarkeit.
 - **Rechtsklick**, **Benachrichtigungen**, **System**, **Erweiterungen**, **Werkzeuge** und
   **Workspace** behalten ihre jeweiligen Fachbereiche.
+- **Easter Eggs** enthält das optionale Capybara-Maskottchen, das standardmäßig deaktiviert ist.
 - **Start-App** legt fest, welche sichtbare Seite beim Öffnen des Root-Pfads geladen wird. Eine
   ausgeblendete Seite kann nicht als Startseite ausgewählt werden.
 

@@ -53,11 +53,48 @@ test("erreicht jeden Einstellungs-Tab und rendert seinen Fachbereich", async ({ 
     ["Erweiterungen", "settings-extensions"],
     ["Werkzeuge", "settings-usage"],
     ["Workspace", "settings-workspace"],
+    ["Easter Eggs", "settings-easter-eggs"],
     ["Start-App", "settings-start-app"],
   ] as const;
 
   for (const [label, anchor] of tabs) {
     await page.getByRole("button", { name: label, exact: true }).click();
     await expect(page.locator(`#${anchor}`)).toBeVisible();
+  }
+});
+
+test("testet Capybara-Vorschau und Schalter", async ({ page }) => {
+  await page.goto("/wrapt/settings");
+  await page.getByRole("button", { name: "Easter Eggs", exact: true }).click();
+
+  const preview = page.getByRole("button", { name: "Capybara testen" });
+  await expect(preview).toBeVisible();
+  const sprite = preview.locator("img");
+  await expect(sprite).toHaveAttribute("src", /^data:image\/png;base64,/);
+  await expect.poll(() => sprite.evaluate((image) => ({ width: image.naturalWidth, height: image.naturalHeight })))
+    .toEqual({ width: 64, height: 64 });
+
+  await preview.click();
+  await expect(preview).toHaveAttribute("data-action", "celebrate");
+  await expect(preview).toHaveAttribute("data-frame", "happyA");
+
+  const toggle = page.getByRole("switch", { name: /Maskottchen anzeigen/ });
+  await expect(toggle).toHaveAttribute("aria-checked", "false");
+  await expect(page.getByText("In der Statusleiste pausiert", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Capybara begrüßen" })).toHaveCount(0);
+  try {
+    await toggle.click();
+    await expect(toggle).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByText(
+      "Das Capybara ist unterwegs.",
+      { exact: true },
+    )).toBeVisible();
+    await expect(page.getByRole("button", { name: "Capybara begrüßen" })).toBeVisible();
+  } finally {
+    if ((await toggle.getAttribute("aria-checked")) === "true") {
+      await toggle.click();
+      await expect(toggle).toHaveAttribute("aria-checked", "false");
+      await expect(page.getByRole("button", { name: "Capybara begrüßen" })).toHaveCount(0);
+    }
   }
 });

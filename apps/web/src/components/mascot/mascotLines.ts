@@ -69,11 +69,13 @@ const GENERIC_LINES = [
   "Hallooo!",
   "Nur nicht stressen.",
   "Läuft bei mir. Und bei dir?",
-  "Ich bin dann mal halb im Wasser.",
   "Alles entspannt.",
-  "Kurz die Ohren gelüftet.",
   "Weiter, weiter. Ich bin wach.",
   "Schön ruhig hier unten.",
+  "Geh zurück an die Arbeit!",
+  "Was schaust du mich so an?",
+  "Hallo, geht's endlich weiter?",
+  "Und wie läuft das neue Feature?",
 ];
 
 export function mascotLinesFor(context: MascotContext): readonly string[] {

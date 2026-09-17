@@ -1,24 +1,26 @@
 import { describe, expect, it } from "vitest";
-import { CAPYBARA_FRAMES, CAPYBARA_GRID, frameIsValid, framePixels } from "./capybaraFrames";
+import { CAPYBARA_FRAMES, CAPYBARA_GRID } from "./capybaraFrames";
 
 describe("Capybara-Frames", () => {
-  it.each(Object.entries(CAPYBARA_FRAMES))("Frame %s ist ein gültiges Raster", (_name, frame) => {
-    expect(frame).toHaveLength(CAPYBARA_GRID.height);
-    frame.forEach((row, index) => {
-      expect(row, `Zeile ${index}`).toHaveLength(CAPYBARA_GRID.width);
+  it("verwendet für jeden Zustand ein eigenes 64x64-Asset", () => {
+    expect(CAPYBARA_GRID).toEqual({ width: 64, height: 64 });
+    expect(Object.keys(CAPYBARA_FRAMES)).toHaveLength(17);
+    Object.values(CAPYBARA_FRAMES).forEach((asset) => {
+      expect(asset).toMatch(/capybara-[a-z-]+\.png/);
     });
-    expect(frameIsValid(frame)).toBe(true);
   });
 
-  it("liefert nur sichtbare Pixel mit bekannter Farbe", () => {
-    const pixels = framePixels(CAPYBARA_FRAMES.calm);
-    expect(pixels.length).toBeGreaterThan(80);
-    expect(pixels.every((pixel) => pixel.tone === "line" || pixel.tone === "fur" || pixel.tone === "light" || pixel.tone === "eye" || pixel.tone === "nose")).toBe(true);
+  it("hält die bewegten Posen als getrennte Assets auseinander", () => {
+    expect(CAPYBARA_FRAMES.walkA).not.toBe(CAPYBARA_FRAMES.walkB);
+    expect(CAPYBARA_FRAMES.happyA).not.toBe(CAPYBARA_FRAMES.happyB);
+    expect(CAPYBARA_FRAMES.sneezeA).not.toBe(CAPYBARA_FRAMES.sneezeC);
+    expect(CAPYBARA_FRAMES.hopA).not.toBe(CAPYBARA_FRAMES.hopC);
+    expect(CAPYBARA_FRAMES.lookLeft).not.toBe(CAPYBARA_FRAMES.lookRight);
   });
 
-  it("hält bewegte Posen als eigene Varianten auseinander", () => {
-    expect(CAPYBARA_FRAMES.walkA).not.toEqual(CAPYBARA_FRAMES.walkB);
-    expect(CAPYBARA_FRAMES.lookLeft).not.toEqual(CAPYBARA_FRAMES.lookRight);
-    expect(CAPYBARA_FRAMES.calm).not.toEqual(CAPYBARA_FRAMES.blink);
+  it("legt die ruhenden und kontextbezogenen Zustände fest", () => {
+    expect(CAPYBARA_FRAMES.calm).toContain("capybara-idle");
+    expect(CAPYBARA_FRAMES.worry).toContain("capybara-worry");
+    expect(CAPYBARA_FRAMES.sleep).toContain("capybara-sleep");
   });
 });

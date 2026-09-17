@@ -12,7 +12,8 @@ function createConfigDirectory(withMascot: boolean): string {
   const config = JSON.parse(
     readFileSync(join(repositoryRoot, "config/wrapt.example.json"), "utf8"),
   ) as Record<string, unknown>;
-  if (!withMascot) delete config.mascot;
+  if (withMascot) config.mascot = { enabled: true };
+  else delete config.mascot;
   const directory = mkdtempSync(join(tmpdir(), "wrapt-mascot-config-"));
   directories.push(directory);
   writeFileSync(join(directory, "wrapt.local.json"), JSON.stringify(config), "utf8");
@@ -26,8 +27,12 @@ afterEach(() => {
 });
 
 describe("Maskottchen-Konfiguration", () => {
-  it("ist ohne eigenen Abschnitt standardmäßig aktiv", () => {
-    expect(readMascotConfig(createConfigDirectory(false))).toEqual({ enabled: true });
+  it("ist ohne eigenen Abschnitt standardmäßig deaktiviert", () => {
+    expect(readMascotConfig(createConfigDirectory(false))).toEqual({ enabled: false });
+  });
+
+  it("bewahrt eine ausdrücklich aktivierte Einstellung", () => {
+    expect(readMascotConfig(createConfigDirectory(true))).toEqual({ enabled: true });
   });
 
   it("schreibt nur den Maskottchen-Abschnitt atomar", () => {

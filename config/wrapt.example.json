@@ -141,6 +141,9 @@
       "alwaysShowLimits": false
     }
   },
+  "mascot": {
+    "enabled": false
+  },
   "plugins": {},
   "hermes": {
     "enabled": true,

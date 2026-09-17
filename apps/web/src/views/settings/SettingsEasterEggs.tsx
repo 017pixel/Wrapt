@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type CSSProperties } from "react";
+import { useState } from "react";
 import type { MascotConfig, MascotConfigResponse } from "@wrapt/contracts";
 import { Card } from "../../components/Card";
 import { SparklesIcon } from "../../components/icons";
@@ -13,7 +13,7 @@ export function SettingsEasterEggs() {
   const mascot = useQuery(wraptQueries.mascot());
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const enabled = mascot.data?.mascot.enabled ?? true;
+  const enabled = mascot.data?.mascot.enabled ?? false;
 
   const save = async (next: MascotConfig) => {
     setSaving(true);
@@ -49,26 +49,30 @@ export function SettingsEasterEggs() {
           <div className="mascot-setting-body">
             <button
               type="button"
-              className="settings-toggle-row"
+              className="settings-toggle-row mascot-toggle"
+              role="switch"
+              aria-checked={enabled}
+              aria-busy={saving}
               disabled={saving}
               onClick={() => void save({ enabled: !enabled })}
             >
-              <span><strong>Maskottchen anzeigen</strong></span>
+              <span className="mascot-toggle-copy">
+                <strong>Maskottchen anzeigen</strong>
+                <small>{saving ? "Wird gespeichert …" : enabled ? "In der Statusleiste aktiv" : "In der Statusleiste pausiert"}</small>
+              </span>
               <span
                 className={`settings-toggle-switch ${enabled ? "is-on" : ""}`}
-                role="switch"
-                aria-checked={enabled}
+                aria-hidden="true"
               >
                 <span className="settings-toggle-thumb" />
               </span>
             </button>
             <p className="mascot-setting-hint">
-              Das Capybara lebt zwischen Version und Limits in der Statusleiste. Ein Klick begrüßt es;
-              es reagiert auf knappe Limits, ruhende Verbindungen und ungespeicherte Arbeitsflächen.
+              Klick die Vorschau oder das Capybara unten, um seine Freude zu sehen.
             </p>
           </div>
         </div>
-        {message ? <p className="context-menu-settings-message" role="status">{message}</p> : null}
+        {message ? <p className="mascot-setting-message" role="status">{message}</p> : null}
       </Card>
     </section>
   );
@@ -76,14 +80,17 @@ export function SettingsEasterEggs() {
 
 function CapybaraPreview() {
   const reducedMotion = usePrefersReducedMotion();
-  const { frame, offset } = useCapybaraBehavior("calm", reducedMotion);
+  const { frame, action, poke } = useCapybaraBehavior("calm", reducedMotion);
   return (
-    <div
+    <button
+      type="button"
       className="mascot-preview"
-      aria-hidden="true"
-      style={{ "--capy-offset": `${offset}px` } as CSSProperties}
+      data-action={action}
+      data-frame={frame}
+      onClick={poke}
+      aria-label="Capybara testen"
     >
-      <CapybaraSprite frame={frame} pixelSize={4} label="Capybara-Vorschau" />
-    </div>
+      <CapybaraSprite frame={frame} size={95} label="Capybara-Vorschau" />
+    </button>
   );
 }

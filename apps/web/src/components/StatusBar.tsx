@@ -71,6 +71,7 @@ export function StatusBar() {
   const usage = useQuery(wraptQueries.usage());
   const contextMenu = useQuery(wraptQueries.contextMenu());
   const usageMonitoring = useQuery(wraptQueries.usageMonitoring());
+  const mascot = useQuery(wraptQueries.mascot());
   const activeOrbitBoard = orbitDocument.boards.find((board) => board.id === orbitDocument.activeBoardId);
   const isOrbit = location.pathname === "/workbench";
   const codex = usage.data?.providers.find((provider) => provider.providerId === "codex");
@@ -104,7 +105,7 @@ export function StatusBar() {
   const statusBarStyle = { "--status-limit-font-size": `${menuConfig.statusBar.fontSizePx}px` } as CSSProperties;
 
   return (
-    <footer className="status-bar hidden md:flex">
+    <footer className={`status-bar hidden md:flex${mascot.data?.mascot.enabled === true ? " has-mascot" : ""}`}>
       <span className="status-bar-item">
         {health.isLoading ? <Spinner /> : <StateDot state={health.isError ? "error" : "active"} />}
         <span className="status-bar-value font-mono">v{health.data?.version ?? "—"}</span>

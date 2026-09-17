@@ -4,9 +4,10 @@ import { wraptQueries } from "../../lib/queryOptions";
 import { useOrbitStore } from "../../stores/orbit";
 import { CapybaraSprite } from "./CapybaraSprite";
 import { mascotContextFrom, mascotMood, selectMascotLine } from "./mascotLines";
-import { CAPYBARA_ITEM_WIDTH, useCapybaraBehavior, usePrefersReducedMotion } from "./useCapybaraBehavior";
+import { CAPYBARA_ITEM_WIDTH, WALK_STEP_MS, useCapybaraBehavior, usePrefersReducedMotion } from "./useCapybaraBehavior";
 
 const BUBBLE_VISIBLE_MS = 4_200;
+const STATUS_SPRITE_SIZE = 80;
 
 /**
  * Capybara in der Statusleiste. Die Komponente lädt ihren Zustand selbst,
@@ -14,7 +15,7 @@ const BUBBLE_VISIBLE_MS = 4_200;
  */
 export function StatusMascot() {
   const mascot = useQuery(wraptQueries.mascot());
-  if (mascot.data?.mascot.enabled === false) return null;
+  if (mascot.data?.mascot.enabled !== true) return null;
   return <StatusMascotCreature />;
 }
 
@@ -76,8 +77,14 @@ function StatusMascotCreature() {
     <div
       className={`status-mascot is-${mood}`}
       data-frame={behavior.frame}
+      data-action={behavior.action}
+      data-facing={behavior.facing}
       data-mood={mood}
-      style={{ "--capy-offset": `${behavior.offset}px` } as CSSProperties}
+      style={{
+        "--capy-offset": `${behavior.offset}px`,
+        "--capy-item-width": `${CAPYBARA_ITEM_WIDTH}px`,
+        "--capy-step": `${WALK_STEP_MS}ms`,
+      } as CSSProperties}
     >
       <div ref={stageRef} className="status-mascot-stage">
         <button
@@ -86,12 +93,14 @@ function StatusMascotCreature() {
           onClick={handlePoke}
           aria-label="Capybara begrüßen"
         >
-          <CapybaraSprite frame={behavior.frame} pixelSize={2} label="Capybara-Maskottchen" />
+          <CapybaraSprite frame={behavior.frame} size={STATUS_SPRITE_SIZE} label="Capybara-Maskottchen" />
         </button>
       </div>
       {line !== null ? (
-        <span key={lineKey} className="status-mascot-bubble" role="status">
-          {line}
+        <span className="status-mascot-bubble-anchor">
+          <span key={lineKey} className="status-mascot-bubble" role="status">
+            {line}
+          </span>
         </span>
       ) : null}
     </div>

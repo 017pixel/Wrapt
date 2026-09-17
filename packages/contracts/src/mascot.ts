@@ -6,7 +6,7 @@ import { z } from "zod";
  * Schalter und spätere Ablageorte ohne Formatwechsel ergänzt werden können.
  */
 export const mascotConfigSchema = z.object({
-  enabled: z.boolean().default(true),
+  enabled: z.boolean().default(false),
 }).prefault({});
 
 export const mascotConfigResponseSchema = z.object({
