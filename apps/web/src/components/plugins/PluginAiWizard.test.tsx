@@ -90,7 +90,8 @@ describe("KI-Plugin-Setup", () => {
     const copiedPrompt = writeText.mock.calls[0]?.[0] as string;
     expect(copiedPrompt).toContain("11111111-1111-4111-8111-111111111111");
     expect(copiedPrompt).not.toContain("Wenn dieser Prompt kopiert wurde");
-    expect(screen.getByRole("status")).toBeTruthy();
+    // Der Abschluss entsteht erst nach dem Schreiben der Zwischenablage.
+    expect(await screen.findByRole("status")).toBeTruthy();
     expect(screen.getByText("Prompt ist bereit")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Prompt kopieren" })).toBeNull();
 
