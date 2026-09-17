@@ -62,7 +62,7 @@ Nachweis läuft mit `pnpm test:extension-deployment` und verändert keine aktive
 
 ## Terminal verbindet nicht
 
-- `journalctl -u wrapt.service -n 100 --no-pager` auf WebSocket- oder PTY-Fehler prüfen.
+- `journalctl --user -u wrapt.service -n 100 --no-pager` auf WebSocket- oder PTY-Fehler prüfen.
 - Sicherstellen, dass `TERMINAL_ALLOWED_USERS` den Tailscale-Login in Kleinschreibung enthält.
 - Der Server muss mit `@fastify/websocket` v11 den Socket direkt verwenden; `connection.socket` ist die alte API und führt zu Code 1006.
 - Nach einem Produktionsbuild den Wrapt-Dienst neu starten, damit `dist/` nicht hinter dem Source-Code zurückbleibt.
@@ -160,8 +160,8 @@ Nachweis läuft mit `pnpm test:extension-deployment` und verändert keine aktive
 
 ## User-Dienste starten zu früh
 
-- `systemctl restart code-server.service` ausführen.
-- Logs mit `journalctl -u code-server.service -n 100 --no-pager` prüfen.
+- `systemctl --user restart code-server.service` ausführen.
+- Logs mit `journalctl --user -u code-server.service -n 100 --no-pager` prüfen.
 - `deploy/systemd/install.sh` wartet nach dem Start auf den Health-Endpunkt; ein einmaliger unmittelbarer Curl direkt nach `systemctl start` kann zu früh sein.
 
 ## Hermes Agent

@@ -72,17 +72,19 @@ Folgende Env-Variablen können die nicht-sensiblen Defaults überschreiben:
 HERMES_ENABLED=true
 HERMES_HOST=127.0.0.1
 HERMES_PORT=9119
-HERMES_CLI_PATH=/home/your-user/.local/bin/hermes
-HERMES_HOME=/home/your-user/.hermes
 HERMES_PROXY_PREFIX=/hermes
 HERMES_DASHBOARD_UNIT=hermes-dashboard.service
 HERMES_GATEWAY_UNIT=hermes-gateway.service
 HERMES_UPDATE_UNIT=hermes-update.service
 ```
 
-`HERMES_HOME` enthält die sensible Hermes-Konfiguration und bleibt außerhalb des Repositories.
-Die Dienste werden immer als User-Units mit `systemctl --user` gesteuert. `sudo`, Root-Helper und
-eine systemweite Unit gehören nicht zum Hermes-Integrationspfad.
+Die Pfade `HERMES_CLI_PATH`, `HERMES_HOME`, `HERMES_CHECKOUT_DIRECTORY` und
+`HERMES_PYTHON_PATH` sind optionale Overrides. Sie gehören regulär in
+`config/wrapt.local.json` unter `hermes.*`; eine aktive Env-Variable würde die Config
+still überschreiben. `HERMES_HOME` enthält die sensible Hermes-Konfiguration und bleibt
+außerhalb des Repositories. Die Dienste werden immer als User-Units mit
+`systemctl --user` gesteuert. `sudo`, Root-Helper und eine systemweite Unit gehören nicht
+zum Hermes-Integrationspfad.
 
 ## OpenCode Web
 
@@ -415,12 +417,13 @@ Jeder Wert lässt sich per Umgebungsvariable überschreiben (`PREVIEW_GATEWAY_V2
 `PREVIEW_DEV_SERVER_LOG_BYTES`,
 `PREVIEW_DEV_SERVER_START_TIMEOUT_MS`).
 
-Zwei Werte sind ausschließlich für Entwicklung und Tests gedacht:
+Zwei Werte sind ausschließlich für Entwicklung und Tests gedacht und gehören in die
+aufrufende Shell, nicht in die `.env`:
 
-```dotenv
+```bash
 # Slot-Origins als http://127.0.0.1:<internalPort> ausgeben statt HTTPS über Tailscale
 PREVIEW_PUBLIC_ORIGIN_MODE=loopback-http
-# Identität ohne vorgeschalteten Tailscale-Proxy (in Produktion leer lassen)
+# Identität ohne vorgeschalteten Tailscale-Proxy
 WRAPT_DEV_TAILSCALE_USER=user@example.com
 ```
 
@@ -473,7 +476,7 @@ scripts/ki-account.sh use arbeit         # per Name, E-Mail oder Profilpfad akti
 scripts/ki-account.sh use claude privat  # bei mehrdeutigen Namen das Werkzeug voranstellen
 ```
 
-Lokale automatisierte Browsertests können den ansonsten von Tailscale Serve gesetzten Identitätsheader über den Vite-Proxy ergänzen. `WRAPT_DEV_TAILSCALE_USER` ist ausschließlich zusammen mit einem isolierten Test-Backend und einer separaten Datenbank zu verwenden. Der Produktionsserver wertet diese Variable nicht aus und akzeptiert weiterhin nur den tatsächlich am Request vorhandenen Tailscale-Header.
+Lokale automatisierte Browsertests können den ansonsten von Tailscale Serve gesetzten Identitätsheader über den Vite-Proxy ergänzen. `WRAPT_DEV_TAILSCALE_USER` ist ausschließlich zusammen mit einem isolierten Test-Backend und einer separaten Datenbank zu verwenden und gehört in die aufrufende Shell. Läuft der Server mit `NODE_ENV=production` (so wie der systemd-Dienst), bricht er beim Start ab, sobald die Variable gesetzt ist; in `.env` darf sie deshalb nie stehen. In Produktion akzeptiert der Server weiterhin nur den tatsächlich am Request vorhandenen Tailscale-Header.
 
 ## Codex- und OpenCode-Terminals
 
