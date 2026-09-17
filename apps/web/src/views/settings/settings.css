@@ -182,6 +182,9 @@
 
   .mascot-preview {
     display: grid;
+    position: relative;
+    --capy-zzz-top: 10px;
+    --capy-zzz-right: 12px;
     width: 148px;
     min-height: 116px;
     place-items: center;
@@ -192,6 +195,44 @@
     padding: 0;
     cursor: pointer;
     transition: transform var(--duration-fast) var(--ease-standard);
+  }
+
+  /* Wie in der Statusleiste dreht der Körper mit der Blickrichtung mit. */
+  .mascot-preview .capy-sprite {
+    transform: scaleX(var(--capy-facing, 1));
+  }
+
+  .mascot-preview[data-facing="left"] {
+    --capy-facing: -1;
+  }
+
+  .mascot-preview-frame {
+    display: grid;
+    gap: var(--space-3);
+    align-content: start;
+  }
+
+  .mascot-preview-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .mascot-preview-actions button {
+    min-height: 44px;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    padding: 0 var(--space-3);
+    color: var(--color-muted);
+    font-size: var(--text-xs);
+    cursor: pointer;
+    transition: border-color var(--duration-base) var(--ease-standard), color var(--duration-base) var(--ease-standard);
+  }
+
+  .mascot-preview-actions button:hover {
+    border-color: var(--color-line-strong);
+    color: var(--color-text);
   }
 
   .mascot-preview:focus-visible {

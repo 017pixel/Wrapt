@@ -1,12 +1,17 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { MascotConfig, MascotConfigResponse } from "@wrapt/contracts";
 import { Card } from "../../components/Card";
 import { SparklesIcon } from "../../components/icons";
 import { CapybaraSprite } from "../../components/mascot/CapybaraSprite";
+import { CapybaraZzz } from "../../components/mascot/CapybaraZzz";
 import { useCapybaraBehavior, usePrefersReducedMotion } from "../../components/mascot/useCapybaraBehavior";
+import { useCapybaraGaze } from "../../components/mascot/useCapybaraGaze";
 import { apiClient } from "../../lib/apiClient";
 import { wraptQueries } from "../../lib/queryOptions";
+
+const PREVIEW_SIZE = 95;
+const PREVIEW_NAP_MS = 15_000;
 
 export function SettingsEasterEggs() {
   const queryClient = useQueryClient();
@@ -68,7 +73,8 @@ export function SettingsEasterEggs() {
               </span>
             </button>
             <p className="mascot-setting-hint">
-              Klick die Vorschau oder das Capybara unten, um seine Freude zu sehen.
+              Klick die Vorschau für Freude. Gähnen, Party und Nickerchen löst du direkt aus;
+              nach einer Weile Ruhe schläft es von selbst ein.
             </p>
           </div>
         </div>
@@ -80,17 +86,35 @@ export function SettingsEasterEggs() {
 
 function CapybaraPreview() {
   const reducedMotion = usePrefersReducedMotion();
-  const { frame, action, poke } = useCapybaraBehavior("calm", reducedMotion);
+  const previewRef = useRef<HTMLButtonElement>(null);
+  // Die Vorschau ist zentriert; die Blickmitte ergibt sich aus ihrer Breite.
+  const gaze = useCapybaraGaze(previewRef, true);
+  const behavior = useCapybaraBehavior("calm", reducedMotion, undefined, {
+    napDelayMs: PREVIEW_NAP_MS,
+    gaze,
+  });
   return (
-    <button
-      type="button"
-      className="mascot-preview"
-      data-action={action}
-      data-frame={frame}
-      onClick={poke}
-      aria-label="Capybara testen"
-    >
-      <CapybaraSprite frame={frame} size={95} label="Capybara-Vorschau" />
-    </button>
+    <div className="mascot-preview-frame">
+      <button
+        ref={previewRef}
+        type="button"
+        className="mascot-preview"
+        data-action={behavior.action}
+        data-facing={behavior.facing}
+        data-frame={behavior.frame}
+        data-gaze={gaze ?? "none"}
+        data-sleeping={String(behavior.sleeping)}
+        onClick={behavior.poke}
+        aria-label="Capybara testen"
+      >
+        <CapybaraSprite frame={behavior.frame} size={PREVIEW_SIZE} label="Capybara-Vorschau" />
+        {behavior.sleeping ? <CapybaraZzz /> : null}
+      </button>
+      <div className="mascot-preview-actions">
+        <button type="button" onClick={() => behavior.play("yawn")}>Gähnen</button>
+        <button type="button" onClick={() => behavior.play("party")}>Party</button>
+        <button type="button" onClick={() => behavior.nap()}>Nickerchen</button>
+      </div>
+    </div>
   );
 }
