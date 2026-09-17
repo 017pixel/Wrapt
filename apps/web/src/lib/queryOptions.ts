@@ -146,17 +146,19 @@ export const wraptQueries = {
     queryOptions({
       queryKey: ["usage"],
       queryFn: ({ signal }) => apiClient.usage(signal),
-      refetchInterval: 60_000,
-      // Der 1-Minuten-Takt der Statusleiste soll auch laufen, wenn der Tab
-      // nicht im Fokus ist, und beim Zurückkehren sofort aktualisieren.
+      // Der Server hält den Live-Cache selbst warm; ein 30-Sekunden-Takt hält
+      // die Statusleiste nah am aktuellen Stand, ohne CodexBar zu belasten.
+      refetchInterval: 30_000,
+      // Der Takt soll auch laufen, wenn der Tab nicht im Fokus ist, und beim
+      // Zurückkehren sofort aktualisieren.
       refetchIntervalInBackground: true,
       refetchOnWindowFocus: true,
-      staleTime: 30_000,
+      staleTime: 15_000,
     }),
   // `keepPreviousData`: Beim Wechsel des Zeitraums bleibt die alte Auswertung
   // stehen, statt die Seite für die Dauer der Anfrage zu leeren.
   usageDashboard: (range: string, refetchInterval = 60_000) => queryOptions({ queryKey: ["usage", "dashboard", range], queryFn: ({signal}) => apiClient.usageDashboard(range, signal), refetchInterval, staleTime: 30_000, placeholderData: keepPreviousData }),
-  usageTimeline: (refetchInterval = 60_000) => queryOptions({ queryKey: ["usage", "timeline"], queryFn: ({signal}) => apiClient.usageTimeline(signal), refetchInterval, staleTime: 30_000, placeholderData: keepPreviousData }),
+  usageTimeline: (refetchInterval = 30_000) => queryOptions({ queryKey: ["usage", "timeline"], queryFn: ({signal}) => apiClient.usageTimeline(signal), refetchInterval, staleTime: 15_000, placeholderData: keepPreviousData }),
   accounts: () => queryOptions({ queryKey: ["accounts"], queryFn: ({signal}) => apiClient.accounts(signal), staleTime: 15_000 }),
   discoveredAccounts: () => queryOptions({ queryKey: ["accounts", "discovered"], queryFn: ({signal}) => apiClient.discoverAccounts(signal), staleTime: 15_000 }),
   orbit: () => queryOptions({ queryKey: ["orbit"], queryFn: ({signal}) => apiClient.orbit(signal), staleTime: 1_000 }),

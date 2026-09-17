@@ -120,9 +120,13 @@ export function Usage() {
   const [tab,setTab]=useHashTab(tabs.map((item)=>item.id) as Tab[], TAB_HASH_PREFIX, "overview"); const [range,setRange]=useState<UsageRange>("30d"); const client=useQueryClient();
   const query=useQuery({ ...wraptQueries.usageDashboard(range), enabled: routeActive });
   // Der Sync läuft auf dem Server im Hintergrund: Die Mutation antwortet sofort
-  // mit dem aktuellsten Stand, danach lädt die Seite nach, sobald der Refresh fertig ist.
+  // mit dem aktuellsten Stand, danach lädt die Seite nach. Die Limitdaten sind
+  // meist deutlich früher fertig als die Auswertung und werden deshalb getrennt
+  // nachgeladen, sobald `liveRunning` endet.
   const [backgroundSyncing,setBackgroundSyncing]=useState(false);
-  const sync=useMutation({mutationFn:()=>apiClient.syncUsage(),onSuccess:()=>{void client.invalidateQueries({queryKey:["usage"]});setBackgroundSyncing(true);}});
+  const [limitsSyncing,setLimitsSyncing]=useState(false);
+  const liveRefreshApplied=useRef(false);
+  const sync=useMutation({mutationFn:()=>apiClient.syncUsage(),onSuccess:()=>{liveRefreshApplied.current=false;void client.invalidateQueries({queryKey:["usage"],exact:true});setLimitsSyncing(true);setBackgroundSyncing(true);}});
   const { mutate: syncUsage } = sync;
   useEffect(()=>{
     if(!backgroundSyncing)return;
@@ -130,13 +134,23 @@ export function Usage() {
     const poll=async()=>{
       try{
         const status=await apiClient.usageSyncStatus();
+        if(!active)return;
+        if(!status.liveRunning&&!liveRefreshApplied.current){
+          liveRefreshApplied.current=true;
+          // Limits sofort aktualisieren (Statusleiste, Zeitleiste und der
+          // Live-Anteil der Auswertung); die restliche Auswertung folgt am Ende.
+          setLimitsSyncing(false);
+          void client.invalidateQueries({queryKey:["usage"]});
+        }
         if(!status.running){
-          if(active){setBackgroundSyncing(false);void client.invalidateQueries({queryKey:["usage"]});}
+          setLimitsSyncing(false);
+          setBackgroundSyncing(false);
+          void client.invalidateQueries({queryKey:["usage"]});
         }
       }catch{/* beim nächsten Poll erneut versuchen */}
     };
-    const timer=setInterval(()=>void poll(),2500);
     void poll();
+    const timer=setInterval(()=>void poll(),1500);
     return ()=>{active=false;clearInterval(timer);};
   },[backgroundSyncing,client]);
   const timelineQuery=useQuery({ ...wraptQueries.usageTimeline(), enabled: routeActive && tab==="overview" });
@@ -156,7 +170,7 @@ export function Usage() {
   const prefs=useUsagePreferences();
   const activeDays=useMemo(()=>query.data?.daily.filter((d)=>d.totalTokens>0).length??0,[query.data]);
   return <div className="page-scroll"><div className="page-frame usage-page"><header className="usage-hero"><h1>Nutzung und Limits</h1></header><TabBar label="Nutzungsbereiche" items={tabs} activeId={tab} onSelect={setTab}/>
-  {tab!=="accounts"?<QueryBoundary {...query} loadingLabel="Statistiken werden geladen…">{(data)=><><section className="usage-toolbar"><div><DatabaseIcon className="h-4 w-4"/>{data.live.lastSuccessfulFetchAt?<LiveDatenstand iso={data.live.lastSuccessfulFetchAt}/> :<span>Noch kein erfolgreicher Abruf</span>}</div>{(tab==="history"||tab==="breakdown")?<div className="usage-range">{ranges.map((item)=><button className={range===item?"is-active":""} key={item} onClick={()=>setRange(item)}>{rangeLabel[item]}</button>)}</div>:null}<button className="icon-button usage-sync-button" disabled={sync.isPending||backgroundSyncing} aria-busy={sync.isPending||backgroundSyncing} aria-label="Synchronisieren" title="Synchronisieren" onClick={()=>syncUsage()}><RefreshIcon className="h-4 w-4"/></button></section>
+  {tab!=="accounts"?<QueryBoundary {...query} loadingLabel="Statistiken werden geladen…">{(data)=><><section className="usage-toolbar"><div><DatabaseIcon className="h-4 w-4"/>{limitsSyncing?<span>Limits werden aktualisiert…</span>:data.live.lastSuccessfulFetchAt?<LiveDatenstand iso={data.live.lastSuccessfulFetchAt}/> :<span>Noch kein erfolgreicher Abruf</span>}</div>{(tab==="history"||tab==="breakdown")?<div className="usage-range">{ranges.map((item)=><button className={range===item?"is-active":""} key={item} onClick={()=>setRange(item)}>{rangeLabel[item]}</button>)}</div>:null}<button className="icon-button usage-sync-button" disabled={sync.isPending||backgroundSyncing} aria-busy={sync.isPending||backgroundSyncing} aria-label="Synchronisieren" title="Synchronisieren" onClick={()=>syncUsage()}><RefreshIcon className={sync.isPending||backgroundSyncing?"h-4 w-4 animate-spin":"h-4 w-4"}/></button></section>
   {tab==="overview"?<>{prefs.showUsageKpis?<section className="usage-kpis"><article><ActivityIcon/><span>Tokens heute</span><strong>{number.format(data.totals.todayTokens)}</strong></article><article><DatabaseIcon/><span>Tokens im Zeitraum</span><strong>{number.format(data.totals.totalTokens)}</strong></article><article><CoinsIcon/><span>Kosten im Zeitraum</span><strong>{money.format(data.totals.totalCost)}</strong></article><article><NutzungIcon/><span>Aktive Tage</span><strong>{activeDays}</strong></article></section>:null}<QueryBoundary {...timelineQuery} loadingLabel="Limits werden geladen…">{(timeline)=><UsageOverview timeline={timeline} codexResetHistory={{data:codexResetHistoryQuery.data,isPending:codexResetHistoryQuery.isPending,isError:codexResetHistoryQuery.isError}}/>}</QueryBoundary>{prefs.showDetailedProviderCards?<div className="usage-providers">{data.live.providers.filter((provider)=>provider.status!=="disabled").map((provider)=><section className="usage-provider" key={provider.providerId}><header className="usage-provider-heading"><div><p className="usage-provider-kicker">{providerStatusLabel(provider.status)}</p><h2 className="usage-provider-title">{provider.providerName}</h2></div><Badge tone={provider.status==="available"?"ok":provider.status==="partial"?"warn":provider.status==="disabled"?"default":"bad"}>{provider.accounts.length} Accounts</Badge></header>{provider.error?provider.status==="disabled"?<p className="usage-disabled-note"><EyeOffIcon className="h-4 w-4"/>{provider.error.message}</p>:<div className="usage-alert"><WarningIcon className="h-4 w-4"/>{provider.error.message}</div>:null}<div className="usage-accounts">{provider.accounts.map((account)=><section className="usage-account" key={account.id}><header className="usage-account-heading"><p className="usage-account-name">{account.email??account.label}</p>{account.plan?<Badge>{account.plan}</Badge>:null}</header><div className="usage-windows">{account.windows.map((window)=><WindowCard key={window.id} window={window}/>)}</div></section>)}</div></section>)}</div>:null}{prefs.showForecasts?<section className="usage-forecast"><div className="usage-section-heading"><div><p className="usage-provider-kicker">Vorausschau</p><h2>Limitprognosen</h2></div></div>{data.forecasts.length?data.forecasts.map((forecast)=><ForecastCard key={`${forecast.providerId}-${forecast.accountId}-${forecast.windowId}`} forecast={forecast}/>):<p className="usage-empty">Mindestens drei Messpunkte desselben aktuellen Limitfensters werden für eine Prognose benötigt.</p>}</section>:null}</>:null}
   {tab==="history"?<section className="usage-chart-card"><div className="usage-section-heading"><div><p className="usage-provider-kicker">Zeitreihe</p><h2>Tokens nach Tag</h2></div><div className="usage-chart-legend"><span>Gesamt</span><span>Output</span></div></div><TokenChart data={data.daily}/><div className="usage-projection"><span>30-Tage-Hochrechnung</span><strong>{number.format(data.totals.projected30DayTokens)} Tokens · {money.format(data.totals.projected30DayCost)}</strong></div></section>:null}
   {tab==="breakdown"?<div className="usage-breakdown-grid"><Breakdown title={data.projectRange==="all"?"Projekte (alle Zeit)":`Projekte (letzte ${data.projectRange.replace("d", " Tage")})`} items={data.projects}/><Breakdown title={range==="all"?"Modelle (alle Zeit)":"Modelle im gewählten Zeitraum"} items={data.models}/></div>:null}</>}</QueryBoundary>:<AccountManager/>}</div></div>;
