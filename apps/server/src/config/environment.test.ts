@@ -22,21 +22,8 @@ describe("Wrapt-Umgebungsvariablen", () => {
     });
   });
 
-  it("hebt die vorherigen lokalen Produktstände auf den aktuellen Stand", () => {
-    expect(canonicalizeWraptEnvironment({ APP_VERSION: "0.95.0" }).APP_VERSION).toBe("1.8.0");
-    expect(canonicalizeWraptEnvironment({ APP_VERSION: "0.96.1" }).APP_VERSION).toBe("1.8.0");
-    expect(canonicalizeWraptEnvironment({ APP_VERSION: "0.97.0" }).APP_VERSION).toBe("1.8.0");
-    expect(canonicalizeWraptEnvironment({ APP_VERSION: "0.98.0" }).APP_VERSION).toBe("1.8.0");
-    expect(canonicalizeWraptEnvironment({ APP_VERSION: "0.99.0" }).APP_VERSION).toBe("1.8.0");
-    expect(canonicalizeWraptEnvironment({ APP_VERSION: "0.99.5" }).APP_VERSION).toBe("1.8.0");
-    expect(canonicalizeWraptEnvironment({ APP_VERSION: "1.0.0" }).APP_VERSION).toBe("1.8.0");
-    expect(canonicalizeWraptEnvironment({ APP_VERSION: "1.0.1" }).APP_VERSION).toBe("1.8.0");
-    expect(canonicalizeWraptEnvironment({ APP_VERSION: "1.0.2" }).APP_VERSION).toBe("1.8.0");
-    expect(canonicalizeWraptEnvironment({ APP_VERSION: "1.1.0" }).APP_VERSION).toBe("1.8.0");
-    expect(canonicalizeWraptEnvironment({ APP_VERSION: "1.1.1" }).APP_VERSION).toBe("1.8.0");
-    expect(canonicalizeWraptEnvironment({ APP_VERSION: "1.5.1" }).APP_VERSION).toBe("1.8.0");
-    expect(canonicalizeWraptEnvironment({ APP_VERSION: "1.5.2" }).APP_VERSION).toBe("1.8.0");
-    expect(canonicalizeWraptEnvironment({ APP_VERSION: "1.6.0" }).APP_VERSION).toBe("1.8.0");
-    expect(canonicalizeWraptEnvironment({ APP_VERSION: "1.7.0" }).APP_VERSION).toBe("1.8.0");
+  it("reicht unbekannte Variablen unverändert durch", () => {
+    // Die Produktversion kommt aus package.json; eine gesetzte APP_VERSION wird nicht mehr umgeschrieben.
+    expect(canonicalizeWraptEnvironment({ APP_VERSION: "0.95.0" }).APP_VERSION).toBe("0.95.0");
   });
 });

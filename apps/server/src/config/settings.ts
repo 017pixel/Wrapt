@@ -1,4 +1,4 @@
-import { chmodSync, existsSync } from "node:fs";
+import { chmodSync, existsSync, readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
@@ -29,13 +29,24 @@ try { chmodSync(resolve(configDirectory, "wrapt.local.json"), 0o600); } catch (e
 }
 // Zentrale Personalisierung. Env-Variablen überschreiben diese Werte weiterhin.
 const wb = loadWraptConfig(configDirectory);
+// Die Produktversion steht ausschließlich in der Wurzel-package.json. Eine frühere
+// APP_VERSION aus der .env wird bewusst ignoriert, damit Health-Anzeige, Footer und
+// Update-Status nie hinter dem tatsächlich laufenden Stand zurückbleiben.
+function readAppVersion(): string {
+  try {
+    const parsed = JSON.parse(readFileSync(join(projectRoot, "package.json"), "utf8")) as { version?: unknown };
+    return typeof parsed.version === "string" && parsed.version.trim().length > 0 ? parsed.version.trim() : "0.0.0";
+  } catch {
+    return "0.0.0";
+  }
+}
+const appVersion = readAppVersion();
 const settingsSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   WRAPT_E2E: booleanFromEnvironment(false),
   WRAPT_E2E_ALLOW_DESTRUCTIVE_ORBIT_RESET: booleanFromEnvironment(false),
   HOST: z.string().default("127.0.0.1"),
   PORT: integerFromEnvironment(3010),
-  APP_VERSION: z.string().regex(/^\d+\.\d+\.\d+$/).default("1.8.0"),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"]).default("info"),
   CONFIG_DIR: z.string().default("./config"),
   WEB_DIST_DIR: z.string().default("./apps/web/dist"),
@@ -197,7 +208,7 @@ export const settings = Object.freeze({
   allowDestructiveOrbitReset: environment.WRAPT_E2E && environment.WRAPT_E2E_ALLOW_DESTRUCTIVE_ORBIT_RESET,
   host: environment.HOST,
   port: environment.PORT,
-  appVersion: environment.APP_VERSION,
+  appVersion,
   logLevel: environment.LOG_LEVEL,
   configDirectory,
   appName: wb.branding.appName,
