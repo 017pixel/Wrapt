@@ -7,8 +7,8 @@ import { useHashTab } from "../lib/hashTabs";
 import { searchSettings, type SettingsSearchResult } from "../lib/settingsSearch";
 import { wraptQueries } from "../lib/queryOptions";
 import { useRouteActivity } from "../lib/routeActivity";
+import { TabBar } from "../components/TabBar";
 import { SettingsSearch } from "./settings/SettingsSearch";
-import { SettingsTabBar } from "./settings/SettingsTabBar";
 import { SettingsEasterEggs } from "./settings/SettingsEasterEggs";
 import { SettingsGeneral } from "./settings/SettingsGeneral";
 import { SettingsNavigation } from "./settings/SettingsNavigation";
@@ -20,6 +20,7 @@ import { SettingsWorkspace } from "./settings/SettingsWorkspace";
 import {
   normalizeSettingsTab,
   settingsTabIds,
+  settingsTabs,
   type SettingsNavigationTarget,
 } from "./settings/settingsTabs";
 import "../components/appearance.css";
@@ -75,7 +76,12 @@ export function Settings() {
           onSelect={selectSearchResult}
         />
 
-        <SettingsTabBar activeTab={activeTab} onSelect={setTab} />
+        <TabBar
+          label="Einstellungsbereiche"
+          items={settingsTabs}
+          activeId={activeTab}
+          onSelect={setTab}
+        />
 
         <div className="settings-tab-content">
           {activeTab === "allgemein" ? (

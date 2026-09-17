@@ -1,20 +1,20 @@
 /**
- * Mausrad-Steuerung für die horizontal scrollbare Einstellungen-Tab-Leiste.
+ * Mausrad-Steuerung für horizontal scrollbare Tab-Leisten.
  * Ein normales Mausrad liefert nur `deltaY`; über der Leiste wird daraus ein
  * horizontaler Scroll. Am Anfang und Ende bleibt das Standardverhalten erhalten,
  * damit die Seite weiter vertikal scrollt.
  */
-export interface SettingsTabScrollTarget {
+export interface TabScrollTarget {
   scrollWidth: number;
   clientWidth: number;
   scrollLeft: number;
 }
 
-export const SETTINGS_TAB_WHEEL_LINE_HEIGHT = 40;
-export const SETTINGS_TAB_WHEEL_PAGE_RATIO = 0.9;
+export const TAB_WHEEL_LINE_HEIGHT = 40;
+export const TAB_WHEEL_PAGE_RATIO = 0.9;
 
-export function scrollSettingsTabsByWheel(
-  target: SettingsTabScrollTarget,
+export function scrollTabsByWheel(
+  target: TabScrollTarget,
   deltaX: number,
   deltaY: number,
   deltaMode = 0,
@@ -24,9 +24,9 @@ export function scrollSettingsTabsByWheel(
 
   const raw = Math.abs(deltaX) > Math.abs(deltaY) ? deltaX : deltaY;
   const factor = deltaMode === 1
-    ? SETTINGS_TAB_WHEEL_LINE_HEIGHT
+    ? TAB_WHEEL_LINE_HEIGHT
     : deltaMode === 2
-      ? target.clientWidth * SETTINGS_TAB_WHEEL_PAGE_RATIO
+      ? target.clientWidth * TAB_WHEEL_PAGE_RATIO
       : 1;
   const delta = raw * factor;
   if (delta === 0) return false;
