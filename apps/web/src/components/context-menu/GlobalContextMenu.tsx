@@ -56,11 +56,11 @@ export function GlobalContextMenu({
     const close = () => onClose();
     document.addEventListener("pointerdown", outside);
     window.addEventListener("resize", close);
-    window.addEventListener("scroll", close, true);
+    window.addEventListener("scroll", close);
     return () => {
       document.removeEventListener("pointerdown", outside);
       window.removeEventListener("resize", close);
-      window.removeEventListener("scroll", close, true);
+      window.removeEventListener("scroll", close);
     };
   }, [onClose]);
 

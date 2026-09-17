@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { contextMenuSurfaceSchema, hostContextMenuSurfaceSchema } from "@wrapt/extension-contracts";
 import { contextMenuConfigSchema, defaultContextMenuConfig, type ContextMenuConfigResponse } from "@wrapt/contracts";
@@ -91,7 +91,7 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
   const [request, setRequest] = useState<GlobalContextMenuRequest | null>(null);
   const config = contextMenuConfigSchema.parse(configQuery.data?.contextMenu ?? defaultContextMenuConfig);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const receive = (event: Event) => {
       const customEvent = event as CustomEvent<GlobalContextMenuRequest>;
       if (!customEvent.detail || !surfaceEnabled(customEvent.detail, config)) return;

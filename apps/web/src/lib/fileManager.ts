@@ -6,26 +6,30 @@ export type PreviewKind =
   | "video"
   | "audio"
   | "pdf"
-  | "html"
   | "markdown"
   | "text"
   | "fallback";
 
 const CODE_EXTENSIONS = new Set([
   "ts", "mts", "cts", "tsx", "js", "mjs", "cjs", "jsx", "json", "jsonc", "css", "scss", "less",
-  "html", "htm", "xml", "svg", "yaml", "yml", "toml", "ini", "env", "gitignore", "dockerignore",
-  "npmrc", "py", "sh", "bash", "zsh", "sql", "java", "go", "rs", "c", "h", "cpp", "hpp", "cs",
-  "rb", "php", "swift", "kt", "kts", "diff", "patch", "log", "csv", "txt", "conf",
+  "html", "htm", "xml", "svg", "yaml", "yml", "toml", "ini", "env", "envrc", "gitignore", "dockerignore",
+  "npmrc", "editorconfig", "prettierrc", "eslintrc", "py", "sh", "bash", "zsh", "fish", "sql", "java", "go",
+  "rs", "c", "h", "cpp", "hpp", "cs", "rb", "php", "swift", "kt", "kts", "dart", "lua", "r", "ex", "exs",
+  "clj", "cljc", "fs", "fsx", "vb", "ps1", "bat", "cmd", "graphql", "gql", "proto", "gradle", "properties",
+  "diff", "patch", "log", "csv", "tsv", "txt", "conf",
+]);
+
+const TEXT_FILENAMES = new Set([
+  "dockerfile", "makefile", "procfile", "readme", "license", "copying", "changelog", "authors", "contributors",
 ]);
 
 const IMAGE_EXTENSIONS = new Set(["png", "jpg", "jpeg", "gif", "webp", "avif", "ico", "bmp"]);
 const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "mov", "mkv", "avi"]);
 const AUDIO_EXTENSIONS = new Set(["mp3", "wav", "ogg", "oga", "flac", "m4a", "opus"]);
-const HTML_EXTENSIONS = new Set(["html", "htm"]);
 
 export function extensionOf(name: string): string {
   const index = name.lastIndexOf(".");
-  return index > 0 ? name.slice(index + 1).toLowerCase() : "";
+  return index >= 0 ? name.slice(index + 1).toLowerCase() : "";
 }
 
 export function previewKindOf(entry: Pick<FilesystemEntry, "name">): PreviewKind {
@@ -36,8 +40,7 @@ export function previewKindOf(entry: Pick<FilesystemEntry, "name">): PreviewKind
   if (VIDEO_EXTENSIONS.has(extension)) return "video";
   if (AUDIO_EXTENSIONS.has(extension)) return "audio";
   if (extension === "pdf") return "pdf";
-  if (HTML_EXTENSIONS.has(extension)) return "html";
-  if (CODE_EXTENSIONS.has(extension) || lower === "dockerfile" || lower === "makefile") return "code";
+  if (CODE_EXTENSIONS.has(extension) || TEXT_FILENAMES.has(lower) || lower === ".env" || lower.startsWith(".env.")) return "code";
   return "fallback";
 }
 

@@ -24,10 +24,23 @@ import ruby from "highlight.js/lib/languages/ruby";
 import php from "highlight.js/lib/languages/php";
 import diff from "highlight.js/lib/languages/diff";
 import dockerfile from "highlight.js/lib/languages/dockerfile";
+import swift from "highlight.js/lib/languages/swift";
+import kotlin from "highlight.js/lib/languages/kotlin";
+import lua from "highlight.js/lib/languages/lua";
+import powershell from "highlight.js/lib/languages/powershell";
+import dos from "highlight.js/lib/languages/dos";
+import graphql from "highlight.js/lib/languages/graphql";
+import protobuf from "highlight.js/lib/languages/protobuf";
+import dart from "highlight.js/lib/languages/dart";
+import clojure from "highlight.js/lib/languages/clojure";
+import elixir from "highlight.js/lib/languages/elixir";
+import fsharp from "highlight.js/lib/languages/fsharp";
+import r from "highlight.js/lib/languages/r";
+import vbnet from "highlight.js/lib/languages/vbnet";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import { apiClient } from "../../lib/apiClient";
-import { previewKindOf, formatBytes, formatDate, type PreviewKind } from "../../lib/fileManager";
+import { extensionOf, previewKindOf, formatBytes, formatDate, type PreviewKind } from "../../lib/fileManager";
 import { CloseIcon, DownloadIcon, FileIcon, CodeFileIcon, RefreshIcon, BookmarkIcon } from "../icons";
 import { useResponsiveShell } from "../../lib/useResponsiveShell";
 
@@ -52,6 +65,19 @@ hljs.registerLanguage("ruby", ruby);
 hljs.registerLanguage("php", php);
 hljs.registerLanguage("diff", diff);
 hljs.registerLanguage("dockerfile", dockerfile);
+hljs.registerLanguage("swift", swift);
+hljs.registerLanguage("kotlin", kotlin);
+hljs.registerLanguage("lua", lua);
+hljs.registerLanguage("powershell", powershell);
+hljs.registerLanguage("dos", dos);
+hljs.registerLanguage("graphql", graphql);
+hljs.registerLanguage("protobuf", protobuf);
+hljs.registerLanguage("dart", dart);
+hljs.registerLanguage("clojure", clojure);
+hljs.registerLanguage("elixir", elixir);
+hljs.registerLanguage("fsharp", fsharp);
+hljs.registerLanguage("r", r);
+hljs.registerLanguage("vbnet", vbnet);
 
 function highlightCode(code: string, language: string | null): string {
   if (!language || !hljs.getLanguage(language)) {
@@ -67,7 +93,6 @@ const KIND_LABELS: Record<PreviewKind, string> = {
   video: "Video",
   audio: "Audio",
   pdf: "PDF-Dokument",
-  html: "Website",
   markdown: "Markdown",
   text: "Text",
   fallback: "Datei",
@@ -75,7 +100,8 @@ const KIND_LABELS: Record<PreviewKind, string> = {
 
 function useLanguage(name: string): string | null {
   return useMemo(() => {
-    const extension = name.slice(name.lastIndexOf(".") + 1).toLowerCase();
+    const extension = extensionOf(name);
+    const lowerName = name.toLowerCase();
     const map: Record<string, string> = {
       ts: "typescript", mts: "typescript", cts: "typescript", tsx: "typescript",
       js: "javascript", mjs: "javascript", cjs: "javascript", jsx: "javascript",
@@ -84,11 +110,22 @@ function useLanguage(name: string): string | null {
       md: "markdown", markdown: "markdown", py: "python", sh: "bash", bash: "bash", zsh: "bash",
       sql: "sql", yaml: "yaml", yml: "yaml", toml: "ini", ini: "ini",
       java: "java", go: "go", rs: "rust", c: "c", h: "c", cpp: "cpp", hpp: "cpp",
-      cs: "csharp", rb: "ruby", php: "php", diff: "diff", patch: "diff",
+      cs: "csharp", rb: "ruby", php: "php", diff: "diff", patch: "diff", swift: "swift",
+      kt: "kotlin", kts: "kotlin", lua: "lua", ps1: "powershell", bat: "dos", cmd: "dos",
+      graphql: "graphql", gql: "graphql", proto: "protobuf", dart: "dart", clj: "clojure", cljc: "clojure",
+      ex: "elixir", exs: "elixir", fs: "fsharp", fsx: "fsharp", r: "r", vb: "vbnet", fish: "bash",
+      env: "ini", conf: "ini", properties: "ini", editorconfig: "ini", prettierrc: "json", eslintrc: "json",
+      npmrc: "ini", gitignore: "bash", dockerignore: "bash",
     };
-    if (name.toLowerCase() === "dockerfile") return "dockerfile";
+    if (lowerName === "dockerfile") return "dockerfile";
     return map[extension] ?? null;
   }, [name]);
+}
+
+function PreviewDownload({ entry }: { entry: FilesystemEntry }) {
+  return <a className="quiet-button file-preview-download" href={apiClient.fileManagerDownloadUrl(entry.path)}>
+    <DownloadIcon className="h-3.5 w-3.5" />Herunterladen
+  </a>;
 }
 
 export function FilePreview({ entry }: { entry: FilesystemEntry }) {
@@ -104,7 +141,7 @@ export function FilePreview({ entry }: { entry: FilesystemEntry }) {
 
   if (kind === "code" || kind === "text") {
     if (preview.isLoading) return <div className="file-preview-loading"><span /><span /><span /><span /></div>;
-    if (preview.isError) return <div className="file-preview-error">Die Datei konnte nicht gelesen werden.</div>;
+    if (preview.isError) return <div className="file-preview-error"><span>Die Datei konnte nicht gelesen werden.</span><PreviewDownload entry={entry} /></div>;
     if (!preview.data) return null;
     const highlighted = highlightCode(preview.data.text, kind === "text" ? null : language);
     const lines = highlighted.split("\n");
@@ -118,7 +155,7 @@ export function FilePreview({ entry }: { entry: FilesystemEntry }) {
 
   if (kind === "markdown") {
     if (preview.isLoading) return <div className="file-preview-loading"><span /><span /><span /><span /></div>;
-    if (preview.isError) return <div className="file-preview-error">Die Datei konnte nicht gelesen werden.</div>;
+    if (preview.isError) return <div className="file-preview-error"><span>Die Datei konnte nicht gelesen werden.</span><PreviewDownload entry={entry} /></div>;
     if (!preview.data) return null;
     const html = DOMPurify.sanitize(marked.parse(preview.data.text, { async: false }) as string, { ADD_ATTR: ["target"] });
     return <div className="file-preview-markdown">
@@ -128,7 +165,7 @@ export function FilePreview({ entry }: { entry: FilesystemEntry }) {
   }
 
   if (kind === "image") {
-    return <div className="file-preview-media"><img src={mediaUrl} alt={entry.name} loading="lazy" /></div>;
+    return <div className="file-preview-media"><img src={mediaUrl} alt={entry.name} loading="eager" decoding="async" /></div>;
   }
 
   if (kind === "video") {
@@ -143,14 +180,11 @@ export function FilePreview({ entry }: { entry: FilesystemEntry }) {
     return <iframe className="file-preview-pdf" src={mediaUrl} title={entry.name} />;
   }
 
-  if (kind === "html") {
-    return <iframe className="file-preview-html" src={mediaUrl} title={entry.name} sandbox="" />;
-  }
-
   return <div className="file-preview-fallback">
     <span className="file-preview-fallback-icon"><FileIcon className="h-10 w-10" /></span>
     <strong>{entry.name}</strong>
     <p>Für dieses Format gibt es keine Vorschau. Lade die Datei herunter, um sie zu öffnen.</p>
+    <PreviewDownload entry={entry} />
   </div>;
 }
 
@@ -241,7 +275,7 @@ export function QuickLook({ open, entry, isFavorite, onClose, onNavigate, onDown
           <button type="button" className="icon-button" onClick={() => setReloadKey((key) => key + 1)} aria-label="Neu laden" title="Neu laden"><RefreshIcon className="h-4 w-4" /></button>
           <button type="button" className={`icon-button ${isFavorite ? "is-active" : ""}`} onClick={() => onToggleFavorite(entry.path)} aria-label={isFavorite ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"} title={isFavorite ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"}><BookmarkIcon className={`h-4 w-4 ${isFavorite ? "fill-current" : ""}`} /></button>
           <button type="button" className="icon-button" onClick={() => onDownload(entry)} aria-label="Herunterladen" title="Herunterladen"><DownloadIcon className="h-4 w-4" /></button>
-          {kind === "code" || kind === "markdown" || kind === "text" || kind === "html" ? (
+          {kind === "code" || kind === "markdown" || kind === "text" ? (
             <button type="button" className="icon-button" onClick={() => onOpenInEditor(entry)} aria-label="Im Editor öffnen" title="Im Editor öffnen"><CodeFileIcon className="h-4 w-4" /></button>
           ) : null}
           <button ref={closeButtonRef} type="button" className="icon-button" onClick={onClose} aria-label="Vorschau schließen" title="Schließen (Esc)"><CloseIcon className="h-4 w-4" /></button>

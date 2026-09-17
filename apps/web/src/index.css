@@ -2054,7 +2054,7 @@ a:hover .app-icon,
     .usage-window-heading { gap: 16px; }
     .usage-window-value strong { font-size: 22px; }
     .usage-meter { margin-top: 16px; }
-    .usage-toolbar{align-items:stretch;flex-direction:column}.usage-toolbar>div:first-child{min-height:32px}.usage-range{align-self:stretch}.usage-range button{flex:1;min-height:40px}.usage-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.usage-breakdown-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.managed-account-grid{grid-template-columns:minmax(0,1fr)}.account-form{grid-template-columns:minmax(0,1fr)}.account-form input,.account-form select{width:100%;min-width:0}.account-path,.account-form-actions{grid-column:auto}.account-form-actions{flex-direction:column}.account-form-actions button{width:100%}.account-discovery .usage-section-heading{align-items:stretch;flex-direction:column}.account-discovery .usage-section-heading>button{align-self:flex-start}.managed-account header{align-items:flex-start;flex-wrap:wrap}.managed-account header>div:nth-child(2){flex-basis:calc(100% - 50px)}.managed-account-badges{width:100%;align-items:flex-start;flex-direction:row;padding-left:50px}.account-login-overlay{align-items:end;padding:0}.account-login-sheet{height:92dvh;border-radius:0;padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom))}.usage-projection{flex-direction:column}.usage-kpis article{min-height:112px}.usage-reset-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.usage-reset-list{gap:8px}.usage-reset-list>li{flex-wrap:wrap;padding:12px}.usage-reset-history-list>li{align-items:flex-start;flex-direction:column}.usage-reset-history-date{display:flex;width:100%;flex-basis:auto;flex-grow:0;align-items:center;justify-content:space-between;gap:8px}.usage-page .settings-tabs{margin-right:0;margin-left:0;padding-right:0;padding-left:0}
+    .usage-toolbar{align-items:stretch;flex-direction:column}.usage-toolbar>div:first-child{min-height:32px}.usage-range{align-self:stretch}.usage-range button{flex:1;min-height:40px}.usage-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.usage-breakdown-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.managed-account-grid{grid-template-columns:minmax(0,1fr)}.account-form{grid-template-columns:minmax(0,1fr)}.account-form input,.account-form select{width:100%;min-width:0}.account-path,.account-form-actions{grid-column:auto}.account-form-actions{flex-direction:column}.account-form-actions button{width:100%}.account-discovery .usage-section-heading{align-items:stretch;flex-direction:column}.account-discovery .usage-section-heading>button{align-self:flex-start}.managed-account header{align-items:flex-start;flex-wrap:wrap}.managed-account header>div:nth-child(2){flex-basis:calc(100% - 50px)}.managed-account-badges{width:100%;align-items:flex-start;flex-direction:row;padding-left:50px}.account-login-overlay{align-items:end;padding:0}.account-login-sheet{height:92dvh;border-radius:0;padding:16px;padding-bottom:calc(16px + env(safe-area-inset-bottom))}.usage-projection{flex-direction:column}.usage-kpis article{min-height:112px}.usage-reset-stats{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.usage-reset-list{gap:8px}.usage-reset-list>li{flex-wrap:wrap;padding:12px}.usage-reset-history-list>li{align-items:flex-start;flex-direction:column}.usage-reset-history-date{display:flex;width:100%;flex-basis:auto;flex-grow:0;align-items:center;justify-content:space-between;gap:8px}.usage-page .tab-bar{margin-right:0;margin-left:0;padding-right:0;padding-left:0}
     .quota-timeline{padding:16px}.qt-head{align-items:stretch;flex-direction:column;gap:12px}.qt-controls{justify-content:space-between}.qt-nav .icon-button,.qt-today,.qt-modes button{min-height:44px}.qt-summary{grid-template-columns:repeat(3,minmax(0,1fr))}.qt-summary-wide{grid-column:span 1}.qt-chart{grid-template-columns:200px var(--qt-track-width, 1000px)}.qt-lane-head{flex-direction:column;gap:4px}.qt-lane-limits{align-items:flex-start;flex-direction:row;flex-wrap:wrap}.qt-lane-window-info{font-size:9px}.qt-legend{gap:10px}
     .usage-overview-toolbar{align-items:stretch;flex-direction:column}.usage-overview-actions{justify-content:space-between;flex-wrap:wrap}.usage-accounts-now{padding:16px}.account-add-card-heading{align-items:stretch;flex-direction:column}.account-add-card-heading>button{align-self:flex-start}.account-add-dialog .account-form{grid-template-columns:1fr}.account-add-dialog .account-form-actions{grid-column:auto;align-items:stretch;flex-direction:column}.account-add-dialog .account-form-actions button{width:100%}
   }
@@ -3969,6 +3969,14 @@ a:hover .app-icon,
 .file-manager-icon-button.is-active { background: var(--color-accent-soft); color: var(--color-accent); }
 .file-manager-icon-button:disabled { opacity: .35; cursor: default; }
 .app-shell[data-input-mode="touch"] .file-manager-icon-button { width: 44px; min-width: 44px; height: 44px; }
+.file-manager-upload-button {
+  width: auto;
+  min-width: 96px;
+  gap: 6px;
+  padding: 0 10px;
+}
+.file-manager-upload-button span { font-size: 12px; font-weight: 600; }
+.app-shell[data-input-mode="touch"] .file-manager-upload-button { width: auto; min-width: 78px; }
 
 .file-manager-actions {
   display: flex;
@@ -4404,8 +4412,10 @@ a:hover .app-icon,
 .file-preview-loading span:nth-child(3) { width: 70%; }
 .file-preview-error {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 10px;
   padding: 40px 20px;
   color: var(--color-warn);
   font-size: 13px;
@@ -4506,7 +4516,7 @@ a:hover .app-icon,
 .file-preview-media video { max-width: 100%; max-height: 100%; border-radius: 8px; }
 .file-preview-media audio { width: min(560px, 94%); }
 
-.file-preview-pdf, .file-preview-html {
+.file-preview-pdf {
   width: 100%;
   height: 100%;
   border: 0;
@@ -4536,6 +4546,7 @@ a:hover .app-icon,
 }
 .file-preview-fallback strong { color: var(--color-text); font-size: 14px; }
 .file-preview-fallback p { font-size: 12.5px; max-width: 300px; }
+.file-preview-download { min-height: 44px; color: var(--color-accent); text-decoration: none; }
 
 /* --- Responsive Anpassungen --- */
 
@@ -4580,6 +4591,7 @@ a:hover .app-icon,
   gap: var(--space-1); padding: var(--space-1) var(--space-2);
 }
 .file-manager-actionbar .file-manager-icon-button { width: 52px; min-width: 44px; height: 44px; flex: 1 1 0; }
+.file-manager.is-compact .file-manager-actionbar .file-manager-upload-button { width: auto; min-width: 78px; flex: 1.35 1 0; }
 .file-manager-search-row {
   display: flex; align-items: center; gap: var(--space-2);
   border-bottom: 1px solid var(--color-line); padding: var(--space-2);

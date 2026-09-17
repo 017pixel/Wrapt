@@ -57,4 +57,18 @@ describe("Dateimanager-Navigation und Pfadzustand", () => {
     expect(useFileManagerStore.getState().favorites).toEqual([]);
     expect(useFileManagerStore.getState().ui).toMatchObject({ selectedPath: null, previewPath: null, previewOpen: false, detailOpen: false });
   });
+
+  it("klappt einen Ordner samt bereits geöffneten Unterordnern ein", () => {
+    const parent = `${root}/projects`;
+    const child = `${parent}/Wrapt`;
+    const grandchild = `${child}/apps`;
+    const store = useFileManagerStore.getState();
+
+    store.setExpanded(parent, true);
+    store.setExpanded(child, true);
+    store.setExpanded(grandchild, true);
+    store.setExpanded(parent, false);
+
+    expect(useFileManagerStore.getState().ui.expanded).toEqual(new Set());
+  });
 });

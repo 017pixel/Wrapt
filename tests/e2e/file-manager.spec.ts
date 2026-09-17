@@ -7,6 +7,10 @@ function row(page: Page, suffix: string) {
   return page.locator(`[data-fm-row][data-path$="${suffix}"]`);
 }
 
+async function goHome(page: Page) {
+  await page.getByRole("button", { name: "Home", exact: true }).click();
+}
+
 test.describe("Dateimanager desktop", () => {
   test.use({
     extraHTTPHeaders: { "tailscale-user-login": "file-manager@example.com" },
@@ -16,9 +20,11 @@ test.describe("Dateimanager desktop", () => {
   test("zeigt das Drei-Pane-Layout und navigiert über Breadcrumbs und Baum", async ({ page }) => {
     test.skip(skip(), "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
     await page.goto(`${workbench}/wrapt/files`);
+    await goHome(page);
     await expect(page.locator(".file-manager")).toBeVisible();
     await expect(page.locator(".file-manager-tree-pane")).toBeVisible();
     await expect(page.locator(".file-manager-content")).toBeVisible();
+    await expect(page.locator(".file-manager-upload-button")).toContainText("Hochladen");
 
     await row(page, "/apps").click();
     await expect(page.getByRole("button", { name: "apps", exact: true })).toHaveClass(/is-current/);
@@ -27,11 +33,29 @@ test.describe("Dateimanager desktop", () => {
     await expect(row(page, "/apps")).toBeVisible();
   });
 
+  test("geht mit der linken Pfeiltaste zurück und klappt Ordner im Baum ein", async ({ page }) => {
+    test.skip(skip(), "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
+    await page.goto(`${workbench}/wrapt/files`);
+    await goHome(page);
+    await row(page, "/apps").click();
+    await expect(page.locator(".file-manager")).toBeFocused();
+    await page.keyboard.press("ArrowLeft");
+    await expect(page.getByRole("button", { name: "Home", exact: true })).toHaveClass(/is-current/);
+
+    const appsTree = page.locator('[data-fm-tree-row][data-path$="/apps"]').first();
+    await appsTree.click();
+    await expect(appsTree).toHaveAttribute("aria-expanded", "true");
+    await appsTree.click();
+    await expect(appsTree).toHaveAttribute("aria-expanded", "false");
+  });
+
   test("öffnet den Quick Look mit Leertaste und wechselt per Pfeiltasten", async ({ page }) => {
     test.skip(skip(), "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
     await page.goto(`${workbench}/wrapt/files`);
-    await row(page, "/package.json").click();
-    await page.keyboard.press(" ");
+    await goHome(page);
+    await row(page, "/package.json").hover();
+    await expect(page.locator(".file-manager-detail-pane")).toHaveCount(0);
+    await page.keyboard.press("Space");
     const quickLook = page.getByRole("dialog", { name: /Vorschau von package\.json/ });
     await expect(quickLook).toBeVisible();
     await expect(quickLook).toContainText('"name"');
@@ -43,9 +67,23 @@ test.describe("Dateimanager desktop", () => {
     await expect(page.getByRole("dialog", { name: /Vorschau von / })).toHaveCount(0);
   });
 
+  test("zeigt HTML im Vorschau-Panel als Quelltext", async ({ page }) => {
+    test.skip(skip(), "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
+    await page.goto(`${workbench}/wrapt/files`);
+    await goHome(page);
+    await row(page, "/apps").click();
+    await row(page, "/apps/web").click();
+    await row(page, "/apps/web/index.html").click();
+    const detail = page.locator(".file-manager-detail-pane");
+    await expect(detail.locator(".file-preview-code")).toBeVisible();
+    await expect(detail).toContainText("<!doctype html>");
+    await expect(detail.locator(".file-preview-html")).toHaveCount(0);
+  });
+
   test("zeigt Code im Vorschau-Panel und schaltet auf Raster um", async ({ page }) => {
     test.skip(skip(), "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
     await page.goto(`${workbench}/wrapt/files`);
+    await goHome(page);
     await row(page, "/package.json").click();
     const detail = page.locator(".file-manager-detail-pane");
     await expect(detail).toBeVisible();
@@ -60,6 +98,7 @@ test.describe("Dateimanager desktop", () => {
   test("öffnet das Kontextmenü mit Dateiaktionen", async ({ page }) => {
     test.skip(skip(), "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
     await page.goto(`${workbench}/wrapt/files`);
+    await goHome(page);
     await row(page, "/package.json").click({ button: "right" });
     const menu = page.locator('.global-context-menu[data-surface="host.context-menu.file"]');
     await expect(menu).toBeVisible();
@@ -73,6 +112,7 @@ test.describe("Dateimanager desktop", () => {
   test("filtert die Liste über die Suche", async ({ page }) => {
     test.skip(skip(), "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
     await page.goto(`${workbench}/wrapt/files`);
+    await goHome(page);
     await page.getByPlaceholder("Suchen").fill("package.json");
     await expect(page.locator(".file-manager-row")).toHaveCount(1);
     await expect(row(page, "/package.json")).toContainText("package.json");

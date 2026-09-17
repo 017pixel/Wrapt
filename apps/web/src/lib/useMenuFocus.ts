@@ -12,7 +12,7 @@ export function useMenuFocus<T extends HTMLElement>(
     if (!open || !menu) return;
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const items = () => [...menu.querySelectorAll<HTMLElement>('[role="menuitem"]:not([disabled])')];
-    window.setTimeout(() => items()[0]?.focus(), 0);
+    window.setTimeout(() => items()[0]?.focus({ preventScroll: true }), 0);
     const keydown = (event: KeyboardEvent) => {
       const available = items();
       const current = available.indexOf(document.activeElement as HTMLElement);

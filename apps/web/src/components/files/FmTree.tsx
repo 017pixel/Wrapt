@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { CSSProperties } from "react";
 import type { FilesystemEntry } from "@wrapt/contracts";
@@ -93,33 +93,30 @@ export function FmTree({ root, currentPath }: FmTreeProps) {
   }, [expanded, setExpanded]);
 
   const onOpen = useCallback((path: string) => {
+    if (path === currentPath) {
+      setExpanded(path, !expanded.has(path));
+      return;
+    }
     navigateTo(path, true);
+    setExpanded(path, true);
     select(null);
     setPreview(false);
     setDetailOpen(false);
     if (responsive.isTouchShell) setTreeOpen(false);
-  }, [navigateTo, responsive.isTouchShell, select, setDetailOpen, setPreview, setTreeOpen]);
+  }, [currentPath, expanded, navigateTo, responsive.isTouchShell, select, setDetailOpen, setExpanded, setPreview, setTreeOpen]);
 
   const isAtRoot = currentPath === root;
 
-  // Der aktuelle Pfad und alle Vorfahren bleiben aufgeklappt, damit der Baum
-  // die aktuelle Position sichtbar macht (auch nach Remote-Sync).
-  const ancestors = useMemo(() => {
-    const result: string[] = [];
-    let current = currentPath;
-    while (current.startsWith(`${root}/`)) {
-      result.push(current);
-      if (current === root) break;
-      current = parentPath(current);
+  // Navigation aus Breadcrumbs, Inhalt oder Remote-Sync öffnet den Pfad
+  // einmalig. Danach bleibt ein erneuter Klick ein echtes Einklappen.
+  useEffect(() => {
+    if (!root || !currentPath.startsWith(`${root}/`)) return;
+    let path = currentPath;
+    while (path.startsWith(`${root}/`)) {
+      setExpanded(path, true);
+      path = parentPath(path);
     }
-    return new Set(result);
-  }, [currentPath, root]);
-
-  const visibleExpanded = useMemo(() => {
-    const next = new Set(expanded);
-    for (const path of ancestors) next.add(path);
-    return next;
-  }, [ancestors, expanded]);
+  }, [currentPath, root, setExpanded]);
 
   return <nav className="file-manager-tree" role="tree" aria-label="Server-Dateibaum">
     <div
@@ -137,6 +134,6 @@ export function FmTree({ root, currentPath }: FmTreeProps) {
       <span className="file-manager-tree-icon"><FolderSearchIcon className="h-3.5 w-3.5" aria-hidden /></span>
       <span className="file-manager-tree-name">Home</span>
     </div>
-    <TreeBranch directory={root} depth={1} expanded={visibleExpanded} currentPath={currentPath} onToggle={onToggle} onOpen={onOpen} />
+    <TreeBranch directory={root} depth={1} expanded={expanded} currentPath={currentPath} onToggle={onToggle} onOpen={onOpen} />
   </nav>;
 }

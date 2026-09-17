@@ -213,7 +213,11 @@ export const useFileManagerStore = create<FileManagerStore>()((set) => ({
   setExpanded: (path, expanded) => set((state) => {
     const next = new Set(state.ui.expanded);
     if (expanded) next.add(path);
-    else next.delete(path);
+    else {
+      for (const item of next) {
+        if (isSameOrChild(item, path)) next.delete(item);
+      }
+    }
     return { ui: { ...state.ui, expanded: next } };
   }),
   select: (selectedPath) => set((state) => ({ ui: { ...state.ui, selectedPath } })),

@@ -80,7 +80,7 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
   // der Aktionsleiste ein. Auf größeren Flächen ist sie immer sichtbar.
   const [searchOpen, setSearchOpen] = useState(false);
   const uploadInputRef = useRef<HTMLInputElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null); const hoveredPathRef = useRef<string | null>(null);
   const longPressRef = useRef<{ timer: number | null; x: number; y: number; suppressClick: boolean }>({ timer: null, x: 0, y: 0, suppressClick: false });
 
   const isCompact = responsive.mode === "compact";
@@ -150,13 +150,14 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
   const openEntry = useCallback((entry: FilesystemEntry) => {
     if (entry.kind === "directory") {
       if (!entry.readable) return;
+      setExpanded(entry.path, true);
       goTo(entry.path);
       return;
     }
     select(entry.path);
     if (isCompact) setPreview(true, entry.path);
     else setDetailOpen(true);
-  }, [goTo, isCompact, select, setDetailOpen, setPreview]);
+  }, [goTo, isCompact, select, setDetailOpen, setExpanded, setPreview]);
 
   const quickLookFor = useCallback((entry: FilesystemEntry | null) => {
     if (!entry || entry.kind === "directory") return;
@@ -314,24 +315,30 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
     return true;
   }, []);
 
+  const focusEntry = (event: React.PointerEvent<HTMLDivElement>, entry: FilesystemEntry) => { hoveredPathRef.current = entry.path; if (event.pointerType === "mouse") event.currentTarget.focus({ preventScroll: true }); };
+
   useEffect(() => () => {
     if (longPressRef.current.timer !== null) window.clearTimeout(longPressRef.current.timer);
   }, []);
+
+  const canGoBack = Boolean(root && currentPath !== root && history.length > 0);
+  const historyBack = useCallback(() => { if (!canGoBack) return; goBack(); select(null); setPreview(false); setDetailOpen(false); }, [canGoBack, goBack, select, setDetailOpen, setPreview]);
 
   const handleKeyDown = useCallback((event: React.KeyboardEvent) => {
     const target = event.target;
     if (target instanceof HTMLElement && target.closest("input, textarea, select, button, a")) return;
     if (event.key === " " || event.code === "Space") {
       event.preventDefault();
-      quickLookFor(selectedEntry);
+      quickLookFor(visibleEntries.find((entry) => entry.path === hoveredPathRef.current) ?? selectedEntry);
       return;
     }
+    if (event.key === "ArrowLeft" && canGoBack) { event.preventDefault(); historyBack(); return; }
     if (event.key === "ArrowDown" || event.key === "ArrowUp") {
       event.preventDefault();
       const index = visibleEntries.findIndex((entry) => entry.path === ui.selectedPath);
       const next = event.key === "ArrowDown" ? index + 1 : index - 1;
       const target = visibleEntries[next];
-      if (target) select(target.path);
+      if (target) { hoveredPathRef.current = null; select(target.path); }
       return;
     }
     if (event.key === "Enter" && selectedEntry) {
@@ -344,16 +351,7 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
       goTo(parentPath(currentPath));
       return;
     }
-  }, [breadcrumbs.length, currentPath, goTo, openEntry, quickLookFor, select, selectedEntry, ui.selectedPath, visibleEntries]);
-
-  const canGoBack = Boolean(root && currentPath !== root && history.length > 0);
-  const historyBack = useCallback(() => {
-    if (!canGoBack) return;
-    goBack();
-    select(null);
-    setPreview(false);
-    setDetailOpen(false);
-  }, [canGoBack, goBack, select, setDetailOpen, setPreview]);
+  }, [breadcrumbs.length, canGoBack, currentPath, goTo, historyBack, openEntry, quickLookFor, select, selectedEntry, ui.selectedPath, visibleEntries]);
 
   // Auf Desktop sind Baum und Vorschau-Panel standardmäßig geöffnet; auf
   // Touch-Geräten bleiben sie geschlossen und öffnen als Drawer/Sheet.
@@ -390,7 +388,7 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
     <button type="button" className="file-manager-icon-button" onClick={() => setMkdirOpen(true)} aria-label="Neuen Ordner anlegen" title="Neuer Ordner"><PlusIcon className="h-4 w-4" /></button>
   );
   const uploadButton = (
-    <button type="button" className="file-manager-icon-button" onClick={() => uploadInputRef.current?.click()} disabled={uploading !== null} aria-label="Dateien hochladen" title="Dateien hochladen"><UploadIcon className="h-4 w-4" /></button>
+    <button type="button" className="file-manager-icon-button file-manager-upload-button" onClick={() => uploadInputRef.current?.click()} disabled={uploading !== null} aria-busy={uploading !== null} aria-label="Dateien hochladen" title="Dateien hochladen"><UploadIcon className="h-4 w-4" /><span>Hochladen</span></button>
   );
   const refreshButton = (
     <button type="button" className="file-manager-icon-button" onClick={invalidate} aria-label="Aktualisieren" title="Aktualisieren"><RefreshIcon className="h-4 w-4" /></button>
@@ -403,7 +401,7 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
   );
 
   return (
-    <div className={`file-manager ${isCompact ? "is-compact" : isTablet ? "is-tablet" : "is-desktop"}`} data-view={viewMode} data-minimal={minimal ? "true" : undefined} onKeyDown={handleKeyDown}>
+    <div tabIndex={-1} className={`file-manager ${isCompact ? "is-compact" : isTablet ? "is-tablet" : "is-desktop"}`} data-view={viewMode} data-minimal={minimal ? "true" : undefined} onClickCapture={(event) => { if (event.target instanceof Element && event.target.closest("[data-fm-row], [data-fm-tree-row], .file-manager-breadcrumb button")) event.currentTarget.focus(); }} onKeyDown={handleKeyDown}>
       {/* Toolbar mit Breadcrumbs und Aktionen */}
       <div className="file-manager-toolbar">
         <div className="file-manager-breadcrumbs" role="navigation" aria-label="Aktueller Serverpfad">
@@ -532,12 +530,13 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
                 data-path={entry.path}
                 tabIndex={-1}
                 className={`file-manager-row ${isSelected ? "is-selected" : ""} ${entry.readable ? "" : "is-unreadable"}`}
-                onClick={(event) => { if (consumeLongPressClick()) return; event.currentTarget.focus(); openEntry(entry); }}
+                onClick={() => { if (consumeLongPressClick()) return; openEntry(entry); }}
+                onPointerEnter={(event) => focusEntry(event, entry)}
                 onContextMenu={(event) => handleContext(event, entry)}
                 onPointerDown={(event) => onRowPointerDown(event, entry)}
                 onPointerMove={onRowPointerMove}
                 onPointerUp={onRowPointerUp}
-                onPointerLeave={onRowPointerUp}
+                onPointerLeave={() => { onRowPointerUp(); hoveredPathRef.current = null; }}
               >
                 <span className="file-manager-row-icon">
                   {isDirectory ? <FolderIcon className="h-4 w-4" aria-hidden /> : <FileIcon className="h-4 w-4" aria-hidden />}
@@ -562,12 +561,13 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
                 data-path={entry.path}
                 tabIndex={-1}
                 className={`file-manager-grid-item ${isSelected ? "is-selected" : ""}`}
-                onClick={(event) => { if (consumeLongPressClick()) return; event.currentTarget.focus(); openEntry(entry); }}
+                onClick={() => { if (consumeLongPressClick()) return; openEntry(entry); }}
+                onPointerEnter={(event) => focusEntry(event, entry)}
                 onContextMenu={(event) => handleContext(event, entry)}
                 onPointerDown={(event) => onRowPointerDown(event, entry)}
                 onPointerMove={onRowPointerMove}
                 onPointerUp={onRowPointerUp}
-                onPointerLeave={onRowPointerUp}
+                onPointerLeave={() => { onRowPointerUp(); hoveredPathRef.current = null; }}
               >
                 <span className={`file-manager-grid-thumb is-${kind}`}>
                   {isDirectory ? <FolderIcon className="h-7 w-7" aria-hidden /> : kind === "image" || kind === "video" ? <img src={apiClient.fileManagerMediaUrl(entry.path)} alt="" loading="lazy" /> : kind === "code" || kind === "markdown" || kind === "text" ? <CodeFileIcon className="h-7 w-7" aria-hidden /> : <FileIcon className="h-7 w-7" aria-hidden />}
