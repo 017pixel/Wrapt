@@ -1,6 +1,6 @@
 {
   "name": "wrapt",
-  "version": "1.11.0",
+  "version": "1.12.0",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@10.29.2",

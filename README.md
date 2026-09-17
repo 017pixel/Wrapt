@@ -4,7 +4,7 @@ Die selbst gehostete Remote-Development-Workbench für den privaten Arbeitsplatz
 Wrapt verbindet Projekte, Terminals, Editoren, Coding-Agenten, Previews, Dateien,
 Automatisierungen und Systemdiagnose in einer Oberfläche.
 
-**Aktuelle Version 1.11.0 · MIT · Node.js 22+ · pnpm 10 · [Changelog](CHANGELOG.md)**
+**Aktuelle Version 1.12.0 · MIT · Node.js 22+ · pnpm 10 · [Changelog](CHANGELOG.md)**
 
 ![Wrapt-Dashboard mit anonymisiertem Beispielserver](docs/screenshots/01-dashboard.png)
 
