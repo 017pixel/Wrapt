@@ -192,7 +192,10 @@ sync_opencode_web() {
     warn "scripts/sync-opencode-web.sh fehlt — OpenCode Web wird nicht geprüft."
     return 0
   fi
-  bash "$repo_root/scripts/sync-opencode-web.sh"
+  # OpenCode ist optional. Fehlt die Binary oder schlägt der Start fehl, bleibt der
+  # Backend-Neustart trotzdem möglich; der Hinweis steht im Neustart-Log.
+  bash "$repo_root/scripts/sync-opencode-web.sh" \
+    || warn "OpenCode Web konnte nicht bereitgestellt werden — der Backend-Neustart läuft weiter."
 }
 
 # Plant den Dienst-Neustart in einer eigenen, transienten systemd-Einheit ein.

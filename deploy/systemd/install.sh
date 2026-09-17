@@ -66,6 +66,12 @@ fi
 if [[ -r "$repo_root/scripts/install-opencode-web-unit.sh" ]]; then
   bash "$repo_root/scripts/install-opencode-web-unit.sh"
 fi
+# Eigene tmux-Supervisor-Unit: Sie hält die Terminal-Sitzungen unabhängig vom
+# Backend-Neustart. Ohne sie fällt der Server auf einen tmux-Server im eigenen
+# Prozess zurück und Terminal-Prozesse enden mit dem Backend.
+if [[ -r "$repo_root/scripts/install-terminal-supervisor-unit.sh" ]]; then
+  bash "$repo_root/scripts/install-terminal-supervisor-unit.sh"
+fi
 
 ready=false
 health_url="${WRAPT_HEALTH_URL:-${WORKBENCH_HEALTH_URL:-http://127.0.0.1:3010}}/api/v1/health"

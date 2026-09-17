@@ -9,7 +9,8 @@ log()  { printf '\033[1;34m[opencode-web-unit]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[warn]\033[0m %s\n' "$*"; }
 
 # shellcheck disable=SC2016 # Das ist JavaScript — ${...} darf die Shell nicht ersetzen.
-unit_name="$(node -e '
+read_config="$(
+  node -e '
 const { readFileSync } = require("node:fs");
 const { join } = require("node:path");
 const dir = process.argv[1];
@@ -17,8 +18,32 @@ let config = {};
 for (const name of ["wrapt.local.json", "wrapt.example.json", "workbench.local.json"]) {
   try { config = JSON.parse(readFileSync(join(dir, name), "utf8")); break; } catch { /* nächster Kandidat */ }
 }
-process.stdout.write(config.opencodeWeb?.serviceUnit ?? "opencode-web.service");
-' "$repo_root/config")"
+const home = config.system?.homeDirectory ?? process.env.HOME ?? "";
+const web = config.opencodeWeb ?? {};
+console.log(web.serviceUnit ?? "opencode-web.service");
+console.log(web.cliPath ?? config.cli?.opencode ?? "");
+console.log(`${home}/.npm-global/bin/opencode`);
+' "$repo_root/config"
+)"
+unit_name="$(printf '%s\n' "$read_config" | sed -n '1p')"
+configured_cli="$(printf '%s\n' "$read_config" | sed -n '2p')"
+fallback_cli="$(printf '%s\n' "$read_config" | sed -n '3p')"
+# Reihenfolge wie in deploy/systemd/render-units.mjs: Config, dann PATH, dann Home-Fallback.
+if [[ -n "$configured_cli" ]]; then
+  cli_path="$configured_cli"
+elif command -v opencode >/dev/null 2>&1; then
+  cli_path="$(command -v opencode)"
+else
+  cli_path="$fallback_cli"
+fi
+
+# OpenCode ist optional: Ohne Binary wird keine Unit installiert, die beim nächsten
+# Login nur in einen Startfehler läuft.
+if [[ ! -x "$cli_path" ]]; then
+  warn "OpenCode-Binary fehlt oder ist nicht ausführbar: $cli_path — Unit wird nicht installiert."
+  warn "OpenCode installieren oder cli.opencode in config/wrapt.local.json setzen."
+  exit 0
+fi
 
 target_dir="$HOME/.config/systemd/user"
 target="$target_dir/$unit_name"
