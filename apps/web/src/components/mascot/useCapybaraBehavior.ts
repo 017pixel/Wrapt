@@ -2,13 +2,23 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CapybaraFrameName } from "./capybaraFrames";
 import {
   CAPYBARA_ANIMATIONS,
+  buildCapybaraPartyPlan,
   capybaraActionForMotion,
+  capybaraNapDelayMs,
+  capybaraPhaseForHour,
+  capybaraWeightsForHour,
   pickCapybaraAction,
   planCapybaraWalk,
-  type CapybaraAction,
   type CapybaraAnimationName,
+  type CapybaraAnimationStep,
   type CapybaraFacing,
 } from "./capybaraMotion";
+import { useCapybaraIdle } from "./useCapybaraIdle";
+import {
+  useCapybaraSequencer,
+  type CapybaraSequenceStep,
+  type CapybaraVisualAction,
+} from "./useCapybaraSequence";
 import type { MascotMood } from "./mascotLines";
 
 const MOOD_FRAME: Readonly<Record<MascotMood, CapybaraFrameName>> = {
@@ -23,23 +33,70 @@ export const WALK_STEP_MS = 230;
 const ACTION_MIN_MS = 1_200;
 const ACTION_SPAN_MS = 3_000;
 const BLINK_MS = 170;
+const GAZE_POLL_MS = 250;
 
 export interface CapybaraStage {
   readonly width: number;
   readonly itemWidth: number;
 }
 
-type CapybaraVisualAction = CapybaraAction | CapybaraAnimationName | "idle" | "sleep";
+export interface CapybaraBehaviorOptions {
+  /** Überschreibt die aus der Tageszeit abgeleitete Nickerchen-Frist. */
+  readonly napDelayMs?: number;
+  /** Prüf- und Testhilfe: erzwingt eine bestimmte Stunde für Frist und Gewichtung. */
+  readonly hour?: number;
+  /** Blickrichtung aus useCapybaraGaze. */
+  readonly gaze?: CapybaraFacing | null;
+}
 
 export interface CapybaraBehavior {
   readonly frame: CapybaraFrameName;
   readonly offset: number;
   readonly action: CapybaraVisualAction;
   readonly facing: CapybaraFacing;
+  readonly sleeping: boolean;
   readonly poke: () => void;
+  readonly play: (animation: "yawn" | "party" | "hop") => void;
+  readonly nap: () => void;
 }
 
 const DEFAULT_STAGE: CapybaraStage = { width: 0, itemWidth: CAPYBARA_ITEM_WIDTH };
+
+const celebrateStep = (step: CapybaraAnimationStep): CapybaraSequenceStep => ({
+  ...step,
+  action: "celebrate",
+});
+const yawnStep = (step: CapybaraAnimationStep): CapybaraSequenceStep => ({
+  ...step,
+  action: "wake",
+});
+const hopStep = (step: CapybaraAnimationStep): CapybaraSequenceStep => ({
+  ...step,
+  action: "hop",
+});
+const REDUCED_CELEBRATE: readonly CapybaraSequenceStep[] = [
+  { frame: "happyB", action: "celebrate", duration: 300 },
+];
+
+/** Partytanz als Sequenz, geclampt auf die Laufspur der Bühne. */
+function partySequence(
+  origin: number,
+  maxOffset: number,
+  random: () => number,
+): { readonly steps: readonly CapybaraSequenceStep[]; readonly duration: number } {
+  const plan = buildCapybaraPartyPlan(random);
+  const clamp = (offset: number) => Math.min(maxOffset, Math.max(0, offset));
+  return {
+    duration: plan.reduce((sum, step) => sum + step.duration, 0),
+    steps: plan.map((step) => ({
+      frame: step.frame,
+      action: step.action,
+      duration: step.duration,
+      facing: step.facing,
+      offset: clamp(origin + step.offsetDelta),
+    })),
+  };
+}
 
 export function usePrefersReducedMotion(): boolean {
   const [reduced, setReduced] = useState(false);
@@ -54,11 +111,12 @@ export function usePrefersReducedMotion(): boolean {
   return reduced;
 }
 
-/** Steuert Laufstrecke, zufällige Aktionen und die direkte Klickreaktion. */
+/** Steuert Laufstrecke, Zufallsaktionen, Nickerchen, Blick und Party. */
 export function useCapybaraBehavior(
   mood: MascotMood,
   reducedMotion: boolean,
   stage: CapybaraStage = DEFAULT_STAGE,
+  options: CapybaraBehaviorOptions = {},
 ): CapybaraBehavior {
   const baseFrame = MOOD_FRAME[mood];
   const baseFrameRef = useRef(baseFrame);
@@ -66,6 +124,20 @@ export function useCapybaraBehavior(
   const maxOffset = Math.max(0, stage.width - stage.itemWidth);
   const maxOffsetRef = useRef(maxOffset);
   maxOffsetRef.current = maxOffset;
+  const hourOverrideRef = useRef(options.hour);
+  hourOverrideRef.current = options.hour;
+
+  const hourOverride = options.hour;
+  const hour = hourOverride ?? new Date().getHours();
+  const napDelayMs = options.napDelayMs ?? capybaraNapDelayMs(capybaraPhaseForHour(hour));
+  const idle = useCapybaraIdle(napDelayMs, mood !== "sleep");
+  const [forcedNap, setForcedNap] = useState(false);
+  const sleeping = mood === "sleep" || idle || forcedNap;
+  const sleepingRef = useRef(sleeping);
+  sleepingRef.current = sleeping;
+  const gaze = options.gaze ?? null;
+  const gazeRef = useRef(gaze);
+  gazeRef.current = gaze;
 
   const [pose, setPose] = useState<{
     frame: CapybaraFrameName;
@@ -74,53 +146,96 @@ export function useCapybaraBehavior(
     facing: CapybaraFacing;
   }>({ frame: baseFrame, offset: 0, action: "idle", facing: "right" });
   const positionRef = useRef(0);
-  const pokeActiveRef = useRef(false);
-  const pokeTimers = useRef<number[]>([]);
 
-  const setPoseFrame = useCallback((frame: CapybaraFrameName, action: CapybaraVisualAction, facing?: CapybaraFacing) => {
-    setPose((current) => {
-      const nextFacing = facing ?? current.facing;
-      return current.frame === frame && current.action === action && current.facing === nextFacing
-        ? current
-        : { ...current, frame, action, facing: nextFacing };
-    });
-  }, []);
+  const setPoseFrame = useCallback(
+    (frame: CapybaraFrameName, action: CapybaraVisualAction, facing?: CapybaraFacing) => {
+      setPose((current) => {
+        const nextFacing = facing ?? current.facing;
+        return current.frame === frame && current.action === action && current.facing === nextFacing
+          ? current
+          : { ...current, frame, action, facing: nextFacing };
+      });
+    },
+    [],
+  );
 
   const applyPosition = useCallback((offset: number) => {
     const clamped = Math.min(maxOffsetRef.current, Math.max(0, offset));
     positionRef.current = clamped;
-    setPose((current) => current.offset === clamped ? current : { ...current, offset: clamped });
+    setPose((current) => (current.offset === clamped ? current : { ...current, offset: clamped }));
   }, []);
 
-  const clearPokeTimers = useCallback(() => {
-    pokeTimers.current.forEach((timer) => window.clearTimeout(timer));
-    pokeTimers.current = [];
+  /**
+   * Ruhebild: Nickerchen, Blickrichtung oder Stimmung. Beim Blick dreht sich
+   * der Körper mit; die Pose „lookRight“ wird dafür gespiegelt, damit die
+   * Augen immer in Richtung des Zeigers zeigen.
+   */
+  const idleFrame = useCallback((): { frame: CapybaraFrameName; facing?: CapybaraFacing } => {
+    if (sleepingRef.current) return { frame: "sleep" };
+    const look = gazeRef.current;
+    if (look !== null) return { frame: "lookRight", facing: look };
+    return { frame: baseFrameRef.current };
   }, []);
 
-  // Der Startpunkt verteilt sich einmalig über die verfügbare Laufstrecke.
-  const startChosen = useRef(false);
+  const showIdle = useCallback(() => {
+    const next = idleFrame();
+    const action: CapybaraVisualAction = sleepingRef.current
+      ? "sleep"
+      : next.facing !== undefined
+        ? "look"
+        : "idle";
+    setPoseFrame(next.frame, action, next.facing);
+  }, [idleFrame, setPoseFrame]);
+
+  const { run: runSequence, busy: busyRef, stop: stopSequence } = useCapybaraSequencer(
+    setPoseFrame,
+    applyPosition,
+    showIdle,
+  );
+
+  const startOffset = useRef(false);
   useEffect(() => {
-    if (startChosen.current || maxOffset <= 0) return;
-    startChosen.current = true;
+    if (startOffset.current || maxOffset <= 0) return;
+    startOffset.current = true;
     applyPosition(maxOffset * (0.15 + Math.random() * 0.7));
   }, [applyPosition, maxOffset]);
   useEffect(() => {
-    if (startChosen.current) applyPosition(positionRef.current);
+    if (startOffset.current) applyPosition(positionRef.current);
   }, [applyPosition, maxOffset]);
+
+  // Ruhe und Blick bestimmen das Grundbild, solange keine Sequenz läuft.
+  useEffect(() => {
+    if (busyRef.current) return;
+    showIdle();
+  }, [busyRef, gaze, showIdle, sleeping]);
+
+  // Aufwachen nach dem Nickerchen: erst gähnen, dann weiter.
+  const wasSleeping = useRef(sleeping);
+  useEffect(() => {
+    const previous = wasSleeping.current;
+    wasSleeping.current = sleeping;
+    if (previous && !sleeping && !busyRef.current) {
+      runSequence(CAPYBARA_ANIMATIONS.yawn.map((step) => ({ ...step, action: "wake" as const })));
+    }
+  }, [busyRef, runSequence, sleeping]);
 
   useEffect(() => {
     if (mood === "sleep") {
       setPoseFrame("sleep", "sleep");
       return;
     }
-    setPoseFrame(baseFrame, "idle");
     let cancelled = false;
-    const timers: number[] = [];
-    const wait = (milliseconds: number) => new Promise<void>((resolve) => {
-      timers.push(window.setTimeout(resolve, milliseconds));
-    });
+    const timers = new Set<number>();
+    const wait = (milliseconds: number) =>
+      new Promise<void>((resolve) => {
+        const timer = window.setTimeout(() => {
+          timers.delete(timer);
+          resolve();
+        }, milliseconds);
+        timers.add(timer);
+      });
     const show = (frame: CapybaraFrameName, action: CapybaraVisualAction) => {
-      if (!cancelled && !pokeActiveRef.current) setPoseFrame(frame, action);
+      if (!cancelled && !busyRef.current) setPoseFrame(frame, action);
     };
     const playAnimation = async (name: CapybaraAnimationName) => {
       for (const step of CAPYBARA_ANIMATIONS[name]) {
@@ -133,8 +248,12 @@ export function useCapybaraBehavior(
     const run = async () => {
       while (!cancelled) {
         await wait(ACTION_MIN_MS + Math.random() * ACTION_SPAN_MS);
-        if (cancelled) return;
-        const action = capybaraActionForMotion(pickCapybaraAction(Math.random), reducedMotion);
+        while (!cancelled && (busyRef.current || sleepingRef.current || gazeRef.current !== null)) {
+          await wait(GAZE_POLL_MS);
+        }
+        if (cancelled || busyRef.current) return;
+        const weights = capybaraWeightsForHour(hourOverrideRef.current ?? new Date().getHours());
+        const action = capybaraActionForMotion(pickCapybaraAction(Math.random, weights), reducedMotion);
 
         if (action === "walk") {
           if (maxOffsetRef.current <= 24) {
@@ -144,7 +263,7 @@ export function useCapybaraBehavior(
             const plan = planCapybaraWalk(positionRef.current, maxOffsetRef.current, Math.random);
             const steps = Math.max(2, Math.ceil(plan.distance / 16));
             for (let step = 1; step <= steps && !cancelled; step += 1) {
-              if (!pokeActiveRef.current) {
+              if (!busyRef.current) {
                 setPoseFrame(step % 2 === 0 ? "walkA" : "walkB", "walk", plan.direction);
                 applyPosition(plan.from + ((plan.to - plan.from) * step) / steps);
               }
@@ -154,7 +273,11 @@ export function useCapybaraBehavior(
         } else if (action === "look") {
           show(Math.random() < 0.5 ? "lookLeft" : "lookRight", "look");
           await wait(700 + Math.random() * 700);
-        } else if (action === "hop" || action === "sneeze") {
+        } else if (action === "party") {
+          const party = partySequence(positionRef.current, maxOffsetRef.current, Math.random);
+          runSequence(party.steps);
+          await wait(party.duration);
+        } else if (action === "hop" || action === "sneeze" || action === "yawn") {
           await playAnimation(action);
         } else if (action === "doubleBlink") {
           show("blink", "blink");
@@ -167,7 +290,7 @@ export function useCapybaraBehavior(
           show("blink", "blink");
           await wait(BLINK_MS);
         }
-        show(baseFrameRef.current, "idle");
+        if (!busyRef.current) showIdle();
       }
     };
     void run();
@@ -175,29 +298,51 @@ export function useCapybaraBehavior(
       cancelled = true;
       timers.forEach((timer) => window.clearTimeout(timer));
     };
-  }, [applyPosition, baseFrame, mood, reducedMotion, setPoseFrame]);
+  }, [applyPosition, busyRef, mood, reducedMotion, runSequence, setPoseFrame, showIdle]);
 
   const poke = useCallback(() => {
-    clearPokeTimers();
-    pokeActiveRef.current = true;
-    let elapsed = 0;
-    const sequence = reducedMotion
-      ? [{ frame: "happyB" as const, duration: 240 }]
-      : CAPYBARA_ANIMATIONS.celebrate;
-    sequence.forEach((step) => {
-      const timer = window.setTimeout(() => setPoseFrame(step.frame, "celebrate"), elapsed);
-      pokeTimers.current.push(timer);
-      elapsed += step.duration;
-    });
-    const resetTimer = window.setTimeout(() => {
-      pokeActiveRef.current = false;
-      setPoseFrame(baseFrameRef.current, mood === "sleep" ? "sleep" : "idle");
-      pokeTimers.current = [];
-    }, elapsed);
-    pokeTimers.current.push(resetTimer);
-  }, [clearPokeTimers, mood, reducedMotion, setPoseFrame]);
+    const wasAsleep = sleepingRef.current;
+    setForcedNap(false);
+    if (wasAsleep) {
+      // Aus dem Nickerchen heraus wird zuerst gegähnt.
+      runSequence(CAPYBARA_ANIMATIONS.yawn.map(yawnStep));
+      return;
+    }
+    const celebrate = reducedMotion ? REDUCED_CELEBRATE : CAPYBARA_ANIMATIONS.celebrate.map(celebrateStep);
+    runSequence(celebrate);
+  }, [reducedMotion, runSequence]);
 
-  useEffect(() => () => clearPokeTimers(), [clearPokeTimers]);
+  const play = useCallback(
+    (animation: "yawn" | "party" | "hop") => {
+      setForcedNap(false);
+      let steps: readonly CapybaraSequenceStep[];
+      if (animation === "yawn") {
+        steps = CAPYBARA_ANIMATIONS.yawn.map(yawnStep);
+      } else if (reducedMotion) {
+        steps = REDUCED_CELEBRATE;
+      } else if (animation === "hop") {
+        steps = CAPYBARA_ANIMATIONS.hop.map(hopStep);
+      } else {
+        steps = partySequence(positionRef.current, maxOffsetRef.current, Math.random).steps;
+      }
+      runSequence(steps);
+    },
+    [reducedMotion, runSequence],
+  );
 
-  return { frame: pose.frame, offset: pose.offset, action: pose.action, facing: pose.facing, poke };
+  const nap = useCallback(() => {
+    stopSequence();
+    setForcedNap(true);
+  }, [stopSequence]);
+
+  return {
+    frame: pose.frame,
+    offset: pose.offset,
+    action: pose.action,
+    facing: pose.facing,
+    sleeping,
+    poke,
+    play,
+    nap,
+  };
 }

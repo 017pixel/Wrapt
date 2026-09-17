@@ -3,8 +3,16 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import { wraptQueries } from "../../lib/queryOptions";
 import { useOrbitStore } from "../../stores/orbit";
 import { CapybaraSprite } from "./CapybaraSprite";
+import { CapybaraZzz } from "./CapybaraZzz";
 import { mascotContextFrom, mascotMood, selectMascotLine } from "./mascotLines";
-import { CAPYBARA_ITEM_WIDTH, WALK_STEP_MS, useCapybaraBehavior, usePrefersReducedMotion } from "./useCapybaraBehavior";
+import {
+  CAPYBARA_ITEM_WIDTH,
+  WALK_STEP_MS,
+  useCapybaraBehavior,
+  usePrefersReducedMotion,
+} from "./useCapybaraBehavior";
+import { useCapybaraGaze } from "./useCapybaraGaze";
+import { useMascotReactions, type MascotReaction } from "./useMascotReactions";
 
 const BUBBLE_VISIBLE_MS = 4_200;
 const STATUS_SPRITE_SIZE = 80;
@@ -47,7 +55,16 @@ function StatusMascotCreature() {
     () => ({ width: stageWidth, itemWidth: CAPYBARA_ITEM_WIDTH }),
     [stageWidth],
   );
-  const behavior = useCapybaraBehavior(mood, reducedMotion, stage);
+  const centerOffset = useRef(CAPYBARA_ITEM_WIDTH / 2);
+  const gaze = useCapybaraGaze(stageRef, mood !== "sleep", centerOffset);
+  const behavior = useCapybaraBehavior(mood, reducedMotion, stage, { gaze });
+  centerOffset.current = behavior.offset + CAPYBARA_ITEM_WIDTH / 2;
+  const react = useCallback(
+    (reaction: MascotReaction) => behavior.play(reaction),
+    [behavior],
+  );
+  useMascotReactions(react);
+
   const [line, setLine] = useState<string | null>(null);
   const [lineKey, setLineKey] = useState(0);
   const lastLine = useRef<string | undefined>(undefined);
@@ -80,6 +97,8 @@ function StatusMascotCreature() {
       data-action={behavior.action}
       data-facing={behavior.facing}
       data-mood={mood}
+      data-gaze={gaze ?? "none"}
+      data-sleeping={String(behavior.sleeping)}
       style={{
         "--capy-offset": `${behavior.offset}px`,
         "--capy-item-width": `${CAPYBARA_ITEM_WIDTH}px`,
@@ -94,6 +113,7 @@ function StatusMascotCreature() {
           aria-label="Capybara begrüßen"
         >
           <CapybaraSprite frame={behavior.frame} size={STATUS_SPRITE_SIZE} label="Capybara-Maskottchen" />
+          {behavior.sleeping ? <CapybaraZzz /> : null}
         </button>
       </div>
       {line !== null ? (

@@ -59,6 +59,54 @@
   user-select: none;
 }
 
+/* Die Zzz steigen schwebend über dem Kopf auf, schwanken leicht und
+   verblassen am Ende. Die drei Frames sind bewusst unterschiedlich groß. */
+.capy-zzz {
+  position: absolute;
+  top: var(--capy-zzz-top, -34px);
+  right: var(--capy-zzz-right, 6px);
+  display: block;
+  width: 48px;
+  height: 40px;
+  pointer-events: none;
+}
+
+.capy-zzz-letter {
+  position: absolute;
+  bottom: 0;
+  left: 12px;
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  opacity: 0;
+  animation: capy-zzz-rise 1.7s var(--ease-standard) infinite;
+}
+
+.capy-zzz-1 {
+  width: 16px;
+  height: 16px;
+  animation-delay: 0s;
+}
+
+.capy-zzz-2 {
+  width: 20px;
+  height: 20px;
+  animation-delay: .55s;
+}
+
+.capy-zzz-3 {
+  width: 24px;
+  height: 24px;
+  animation-delay: 1.1s;
+}
+
+@keyframes capy-zzz-rise {
+  0% { opacity: 0; transform: translate(0, 6px); }
+  25% { opacity: 1; }
+  55% { transform: translate(-4px, -8px); }
+  100% { opacity: 0; transform: translate(3px, -22px); }
+}
+
 /* Kopf und oberer Rücken ragen sichtbar über die Leiste, die Füße bleiben
    knapp über der Unterkante stehen. */
 .status-mascot-button .capy-sprite {
@@ -130,4 +178,14 @@
   .status-mascot-bubble {
     animation: none;
   }
+
+  /* Ohne Bewegung bleiben die Zzz als ruhige, sichtbare Zeichen stehen. */
+  .capy-zzz-letter {
+    animation: none;
+    opacity: 1;
+  }
+
+  .capy-zzz-1 { bottom: 2px; left: 6px; }
+  .capy-zzz-2 { bottom: 10px; left: 12px; }
+  .capy-zzz-3 { bottom: 18px; left: 18px; }
 }
