@@ -16,6 +16,7 @@ import {
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { RouteServices } from "../api/services.js";
+import { UsageSyncCoordinator } from "./sync-coordinator.js";
 
 export async function registerUsageRoutes(app: FastifyInstance, services: RouteServices) {
   app.get("/commands", async () => commandsResponseSchema.parse(await services.commands.list()));
@@ -25,27 +26,19 @@ export async function registerUsageRoutes(app: FastifyInstance, services: RouteS
     const range = usageRangeSchema.parse((request.query as {range?:unknown}).range ?? "30d");
     return usageDashboardResponseSchema.parse(await services.analytics.dashboard(range));
   });
-  let usageSyncRunning = false;
-  let lastUsageSyncCompletedAt: string | null = null;
-  const startUsageSync = () => {
-    if (usageSyncRunning) return;
-    usageSyncRunning = true;
-    void (async () => {
-      try {
-        services.usage.invalidate();
-        await Promise.allSettled([services.analytics.sync(), services.usageTimeline.refresh()]);
-      } finally {
-        usageSyncRunning = false;
-        lastUsageSyncCompletedAt = new Date().toISOString();
-      }
-    })();
-  };
+  const usageSync = new UsageSyncCoordinator({
+    refreshLimits: async () => {
+      await services.usage.refresh();
+      await services.usageTimeline.refresh();
+    },
+    refreshAnalytics: () => services.analytics.sync(),
+  });
   // Status für die Oberfläche, damit sie nach einem Klick automatisch nachlädt,
   // sobald der Hintergrund-Sync abgeschlossen ist.
-  app.get("/usage/sync/status", async () => usageSyncStatusSchema.parse({ running: usageSyncRunning, lastCompletedAt: lastUsageSyncCompletedAt }));
+  app.get("/usage/sync/status", async () => usageSyncStatusSchema.parse(usageSync.status()));
   // Der Sync läuft im Hintergrund; die Antwort kommt sofort mit dem aktuellsten
   // Stand, statt auf CodexBar zu warten.
-  app.post("/usage/sync", { config: { rateLimit: { max: 6, timeWindow: "1 minute" } } }, async () => { startUsageSync(); return usageDashboardResponseSchema.parse(await services.analytics.dashboard("30d")); });
+  app.post("/usage/sync", { config: { rateLimit: { max: 6, timeWindow: "1 minute" } } }, async () => { usageSync.start(); return usageDashboardResponseSchema.parse(await services.analytics.dashboard("30d")); });
   app.get("/accounts", async () => accountsResponseSchema.parse({ accounts: await services.accounts.listWithState() }));
   app.get("/accounts/discover", async () => discoveredAccountsResponseSchema.parse({ accounts: await services.accounts.discover() }));
   app.post("/accounts", async (request, reply) => {

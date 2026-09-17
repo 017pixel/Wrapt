@@ -1135,9 +1135,9 @@ export const usageTimelineResponseSchema = z.object({
 
 export const usageSyncStatusSchema = z.object({
   running: z.boolean(),
+  liveRunning: z.boolean().default(false), // Limitdaten sind meist vor der Auswertung fertig
   lastCompletedAt: isoDateSchema.nullable(),
 });
-export type UsageSyncStatus = z.infer<typeof usageSyncStatusSchema>;
 
 export const WRAPT_LIMITS = {
   maxResidentTools: 10,

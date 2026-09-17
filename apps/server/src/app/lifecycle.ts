@@ -12,6 +12,7 @@ export async function startBackgroundServices(app: FastifyInstance, deps: AppDep
     throw new Error("NODE_ENV=test benötigt WRAPT_E2E=true für einen isolierten Serverstart.");
   }
   if (!isolatedTest) {
+    deps.liveUsage.start();
     deps.analytics.start();
     deps.usageTimeline.start();
     deps.hermesResultSync.start();
@@ -34,6 +35,7 @@ export async function startBackgroundServices(app: FastifyInstance, deps: AppDep
 export function registerShutdown(app: FastifyInstance, deps: AppDependencies, state: LifecycleState) {
   app.addHook("onClose", async () => {
     deps.previewDevServers.stopWatchdog();
+    deps.liveUsage.stop();
     await deps.analytics.stop();
     await deps.usageTimeline.stop();
     await deps.hermesResultSync.stop();

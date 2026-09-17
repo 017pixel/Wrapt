@@ -116,4 +116,77 @@ describe("CodexbarUsageService stale-while-revalidate", () => {
     await vi.advanceTimersByTimeAsync(0);
     expect(called.length).toBe(first + 3);
   });
+
+  it("refresh erzwingt einen Abruf auch bei noch gültigem Cache", async () => {
+    const called: string[] = [];
+    const service = createCodexbarUsageService({ ttlMilliseconds: 60_000, client: client(called) });
+    await service.getUsage();
+    const first = called.length;
+
+    const fresh = await service.refresh();
+    expect(called.length).toBe(first + 3);
+    expect(fresh.cached).toBe(false);
+  });
+
+  it("aktualisiert einen abgelaufenen Cache im Hintergrund, solange der Takt läuft", async () => {
+    const called: string[] = [];
+    const service = createCodexbarUsageService({ ttlMilliseconds: 60_000, client: client(called), refreshIntervalMilliseconds: 30_000 });
+    service.start();
+    await service.getUsage();
+    const first = called.length;
+
+    // Zwei Ticks: Beim zweiten ist die TTL abgelaufen, der Refresh läuft ohne Anfrage.
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(called.length).toBe(first);
+    await vi.advanceTimersByTimeAsync(30_001);
+    expect(called.length).toBe(first + 3);
+
+    service.stop();
+    await vi.advanceTimersByTimeAsync(120_000);
+    expect(called.length).toBe(first + 3);
+  });
+
+  it("fragt nach einem fehlgeschlagenen Refresh nicht bei jedem Aufruf erneut ab", async () => {
+    const attempts: string[] = [];
+    let failing = false;
+    const service = createCodexbarUsageService({
+      ttlMilliseconds: 60_000,
+      client: {
+        getUsage: async (provider: "codex" | "opencodego" | "claude") => {
+          attempts.push(provider);
+          if (failing) throw new Error("CodexBar down");
+          return [usagePayload(provider)];
+        },
+      } as unknown as CodexbarClient,
+    });
+    await service.getUsage();
+    const afterFirstFetch = attempts.length;
+
+    failing = true;
+    service.invalidate();
+    await vi.advanceTimersByTimeAsync(0);
+    // Der Fehlversuch fragt die drei aktiven Anbieter genau einmal ab.
+    expect(attempts.length).toBe(afterFirstFetch + 3);
+
+    // Trotz abgelaufener TTL gilt jetzt eine Wartezeit bis zum nächsten Versuch.
+    await service.getUsage();
+    await service.getUsage();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(attempts.length).toBe(afterFirstFetch + 3);
+  });
+
+  it("benachrichtigt Abonnements nach jedem erfolgreichen Refresh", async () => {
+    const service = createCodexbarUsageService({ ttlMilliseconds: 60_000, client: client([]) });
+    const listener = vi.fn();
+    const unsubscribe = service.subscribe(listener);
+
+    await service.getUsage();
+    expect(listener).toHaveBeenCalledTimes(1);
+    await service.refresh();
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    unsubscribe();
+    await service.refresh();
+    expect(listener).toHaveBeenCalledTimes(2);
+  });
 });

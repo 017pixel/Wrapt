@@ -11,11 +11,28 @@ interface CodexbarCacheOptions {
   client: CodexbarClient;
   primaryWindowFallback?: CodexOAuthPrimaryWindowFallback;
   monitoring?: () => UsageMonitoring;
+  /**
+   * Takt, in dem ein abgelaufener Cache auch ohne Request im Hintergrund
+   * aktualisiert wird. Default: halbe TTL, mindestens 15 Sekunden.
+   */
+  refreshIntervalMilliseconds?: number;
 }
 
 export interface CodexbarUsageService {
   getUsage(): Promise<UsageResponse>;
+  /** Erzwingt einen Refresh und liefert den frischen Stand. Läuft bereits einer, wird dieser abgewartet. */
+  refresh(): Promise<UsageResponse>;
   invalidate(): void;
+  /** Erhält nach jedem erfolgreichen Refresh den neuen Stand. Rückgabe beendet das Abonnement. */
+  subscribe(listener: () => void): () => void;
+  /** Startet den Hintergrund-Takt, damit der Cache warm bleibt. */
+  start(): void;
+  stop(): void;
+}
+
+/** Fehlgeschlagene Refreshes erst nach dieser Pause erneut versuchen. */
+function retryDelayMilliseconds(ttlMilliseconds: number): number {
+  return Math.max(15_000, Math.min(ttlMilliseconds, 60_000));
 }
 
 function staleProvider(provider: ProviderUsage): ProviderUsage {
@@ -31,18 +48,37 @@ export function createCodexbarUsageService(options: CodexbarCacheOptions): Codex
   let expiresAt = 0;
   let cached: UsageResponse | undefined;
   let pending: Promise<UsageResponse> | undefined;
+  let timer: NodeJS.Timeout | undefined;
+  const listeners = new Set<() => void>();
+
+  const refreshIntervalMilliseconds = options.refreshIntervalMilliseconds
+    ?? Math.max(15_000, Math.floor(options.ttlMilliseconds / 2));
+
+  const notify = () => {
+    for (const listener of [...listeners]) {
+      try {
+        listener();
+      } catch {
+        // Ein fehlerhaftes Abonnement darf den Refresh nicht abbrechen.
+      }
+    }
+  };
 
   const startRefresh = (): Promise<UsageResponse> => {
     pending = refresh()
       .then((fresh) => {
         cached = fresh;
         expiresAt = Date.now() + options.ttlMilliseconds;
+        notify();
         return fresh;
       })
       .catch((error: unknown) => {
         if (cached) {
           // Fehler bei vorhandenen Daten: letzten erfolgreichen Stand mit
-          // stale-Markierung liefern, statt den Cache zu verwerfen.
+          // stale-Markierung liefern, statt den Cache zu verwerfen. Der neue
+          // Versuch wartet eine Pause, damit ein Ausfall nicht bei jedem
+          // Request erneut alle Anbieter abfragt.
+          expiresAt = Date.now() + retryDelayMilliseconds(options.ttlMilliseconds);
           return { ...cached, providers: cached.providers.map(staleProvider), cached: true };
         }
         const code = errorCode(error);
@@ -97,12 +133,41 @@ export function createCodexbarUsageService(options: CodexbarCacheOptions): Codex
     return { providers, fetchedAt: now, lastSuccessfulFetchAt: now, cached: false };
   };
 
+  // Hält den Cache auch ohne Anfragen warm: Beim Öffnen der Seite liegen die
+  // Limitdaten dann bereits vor, statt erst einen Kaltstart auszulösen.
+  const backgroundTick = () => {
+    if (pending || Date.now() < expiresAt) return;
+    void startRefresh();
+  };
+
   return {
     invalidate() {
       // Cache als abgelaufen markieren und sofort im Hintergrund aktualisieren.
       // Vorhandene Daten bleiben erhalten, damit kein aufrufender Request wartet.
       expiresAt = 0;
       if (cached && !pending) void startRefresh();
+    },
+    async refresh() {
+      // Für den ausdrücklichen Sync: immer ein frischer Stand. Ein bereits
+      // laufender Refresh wird abgewartet, statt doppelt abzufragen.
+      if (pending) return pending;
+      return startRefresh();
+    },
+    subscribe(listener: () => void) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    start() {
+      if (timer) return;
+      timer = setInterval(backgroundTick, refreshIntervalMilliseconds);
+      timer.unref();
+    },
+    stop() {
+      if (!timer) return;
+      clearInterval(timer);
+      timer = undefined;
     },
     async getUsage() {
       // Stale-while-revalidate: Liegt ein Cache vor, wird er sofort geliefert.

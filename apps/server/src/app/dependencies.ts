@@ -258,6 +258,10 @@ export async function createAppDependencies(app: FastifyInstance) {
   const analytics = new UsageAnalyticsService({ database: usageDatabase, client: codexbarClient, live: liveUsage, intervalMilliseconds: settings.usageSnapshotIntervalMilliseconds, monitoring: () => usageMonitoringService.get(), opencodeUsagePath: join(settings.sharedHomes.opencode.sharedHome, "opencode.db") });
   const accounts = new AccountService({ database: usageDatabase, allowedRoots: settings.terminalAllowedRoots, profilesRoot: settings.wraptProfilesRoot, codexbarConfigPath: settings.codexbarConfigPath, codexbarCliPath: settings.codexbarCliPath, claudeCliPath: settings.claudeCliPath, sharedHomes: settings.sharedHomes });
   const usageTimeline = new UsageTimelineService({ accounts, client: codexbarClient, live: liveUsage, database: usageDatabase, ttlMilliseconds: settings.codexbarCacheMilliseconds });
+  // Die Timeline ist eine Ableitung des Live-Caches: Nach jedem Refreshtakt
+  // wird sie im Hintergrund neu gebaut, damit die Oberfläche beim nächsten
+  // Abruf bereits den aktuellen Stand erhält.
+  liveUsage.subscribe(() => usageTimeline.invalidate());
   const projectFiles = createProjectFileService(projects);
   const localPorts = createLocalPortService({
     cacheMilliseconds: settings.localPortCacheMilliseconds,
