@@ -55,4 +55,20 @@ describe("SettingsEasterEggs", () => {
     fireEvent.click(await screen.findByRole("switch", { name: /Maskottchen anzeigen/ }));
     expect((await screen.findByRole("status")).textContent).toContain("Die Einstellung konnte nicht gespeichert werden.");
   });
+
+  it("löst Gähnen, Party und Nickerchen direkt in der Vorschau aus", async () => {
+    renderSettings();
+    const preview = await screen.findByRole("button", { name: "Capybara testen" });
+    expect(preview.getAttribute("data-sleeping")).toBe("false");
+
+    fireEvent.click(screen.getByRole("button", { name: "Gähnen" }));
+    await waitFor(() => expect(preview.getAttribute("data-action")).toBe("wake"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Party" }));
+    await waitFor(() => expect(preview.getAttribute("data-frame")).toBe("party"));
+
+    fireEvent.click(screen.getByRole("button", { name: "Nickerchen" }));
+    await waitFor(() => expect(preview.getAttribute("data-sleeping")).toBe("true"));
+    expect(preview.getAttribute("data-frame")).toBe("sleep");
+  });
 });

@@ -63,6 +63,65 @@ test("erreicht jeden Einstellungs-Tab und rendert seinen Fachbereich", async ({ 
   }
 });
 
+test("testet die neuen Capybara-Aktionen", async ({ page }) => {
+  await page.goto("/wrapt/settings");
+  await page.getByRole("button", { name: "Easter Eggs", exact: true }).click();
+
+  const preview = page.getByRole("button", { name: "Capybara testen" });
+  await expect(preview).toBeVisible();
+
+  // Blick folgt der Maus, sobald sie in der Nähe ist.
+  await preview.hover();
+  await expect(preview).toHaveAttribute("data-action", "look");
+
+  // Blickrichtung: links, rechts und außerhalb der Reichweite.
+  const box = await preview.boundingBox();
+  if (!box) throw new Error("Capybara-Vorschau hat keine Größe");
+  await page.mouse.move(box.x - 30, box.y + box.height / 2);
+  await expect(preview).toHaveAttribute("data-gaze", "left");
+  await expect(preview).toHaveAttribute("data-facing", "left");
+  await page.mouse.move(box.x + box.width + 30, box.y + box.height / 2);
+  await expect(preview).toHaveAttribute("data-gaze", "right");
+  await expect(preview).toHaveAttribute("data-facing", "right");
+  await page.mouse.move(2, 2);
+  await expect(preview).toHaveAttribute("data-gaze", "none");
+
+  await page.getByRole("button", { name: "Gähnen", exact: true }).click();
+  await expect(preview).toHaveAttribute("data-action", "wake");
+  await expect(preview).toHaveAttribute("data-frame", /yawn/);
+
+  await page.getByRole("button", { name: "Party", exact: true }).click();
+  await expect(preview).toHaveAttribute("data-frame", "party");
+
+  // Nickerchen schläfert sofort ein und zeigt die drei Zzz-Frames.
+  await page.getByRole("button", { name: "Nickerchen", exact: true }).click();
+  await expect(preview).toHaveAttribute("data-sleeping", "true");
+  await expect(preview).toHaveAttribute("data-frame", "sleep");
+  await expect(preview.locator(".capy-zzz img")).toHaveCount(3);
+
+  // Klick weckt es mit einem Gähnen, der nächste Klick jubelt.
+  await preview.click();
+  await expect(preview).toHaveAttribute("data-sleeping", "false");
+  await expect(preview).toHaveAttribute("data-action", "wake");
+  await preview.click();
+  await expect(preview).toHaveAttribute("data-action", "celebrate");
+});
+
+test("schläft nach kurzer Ruhe von selbst ein", async ({ page }) => {
+  await page.goto("/wrapt/settings");
+  await page.getByRole("button", { name: "Easter Eggs", exact: true }).click();
+
+  const preview = page.getByRole("button", { name: "Capybara testen" });
+  await expect(preview).toHaveAttribute("data-sleeping", "false");
+
+  // Die Vorschau nutzt eine kurze Frist, damit sich das Nickerchen zeigen lässt.
+  await expect(preview).toHaveAttribute("data-sleeping", "true", { timeout: 25_000 });
+  await expect(preview).toHaveAttribute("data-frame", "sleep");
+
+  await preview.click();
+  await expect(preview).toHaveAttribute("data-sleeping", "false");
+});
+
 test("testet Capybara-Vorschau und Schalter", async ({ page }) => {
   await page.goto("/wrapt/settings");
   await page.getByRole("button", { name: "Easter Eggs", exact: true }).click();
