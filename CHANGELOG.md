@@ -2,6 +2,168 @@
 
 Alle Änderungen werden in fünf kurzen Stichpunkten pro Kategorie dokumentiert.
 
+## [1.10.3] - 2026-09-17
+
+### Erstellt
+- Kopierbarer Installationsprompt für Coding-Agenten in der README
+- Getrennter manueller Installationsweg mit Entwicklungs- und Produktions-URL
+- Agent-Setup prüft Entwicklungs- und Dienststart getrennt
+- Installer richtet den tmux-Terminal-Supervisor automatisch ein
+- Hinweise zum ersten Start von T3 Code und OpenCode Web
+
+### Verändert
+- Produktversion kommt jetzt aus package.json statt aus einer Umgebungsvariablen
+- README nennt die aktuelle Version und verlinkt den Changelog
+- Beispiel-.env übersteuert keine persönlichen Pfade mehr
+- Health-Check-Dokumentation nennt die tatsächlichen Antwortfelder
+- Optionaler OpenCode blockiert keinen Backend-Neustart mehr
+
+### Gelöscht
+- Veraltete Versionsangabe 1.0.1 aus der README
+- Fehlerhafter Verweis auf eine nicht vorhandene README-Kurzform
+- APP_VERSION-Eintrag aus der Beispiel-.env
+- Veraltete APP_VERSION-Umschreibung im Server
+- Doppeltes Dateimanager-Bild aus der Oberflächen-Übersicht
+
+## [1.10.2] - 2026-09-15
+
+### Erstellt
+- Freie Laufstrecke für das Maskottchen über der Statusleiste
+- Abgerundete Sprechblasenspitze statt aufgesetztem Viereck
+- Sanft einblendende Sprechblase mit ruhigem Ursprung an der Figur
+- Eigene Ebene der Statusleiste über dem Terminalbereich
+- Weiche, mitlaufende Bewegung der Sprechblase beim Laufen
+
+### Verändert
+- Das Capybara schaut mit Kopf und oberem Rücken über die Leiste hinaus
+- Die Figur ist größer und läuft sichtbar auf der Unterkante
+- Die Sprechblase wirkt runder, weicher und besser lesbar
+- Die Sprechblase folgt jeder Bewegung ohne ruckartige Sprünge
+- Die Laufschritte sind weiter und passen zur größeren Figur
+
+### Gelöscht
+- Begrenzung der Figur auf die Höhe der Statusleiste
+- Eckige Spitze der alten Sprechblase
+- Sprunghafte Positionswechsel der Sprechblase
+- Verdecken des Kopfes über dem Terminalbereich
+- Alte Stilregeln der früheren Maskottchen-Blase
+
+## [1.10.1] - 2026-09-15
+
+### Erstellt
+- Opt-in-Schalter für das Capybara-Easter-Egg
+- Deaktivierter Capybara-Standard für neue Konfigurationen
+- Verständlicher Pausenstatus in den Einstellungen
+- Speicherung der persönlichen Maskottchen-Auswahl
+- Prüfung des Ein- und Ausschaltens in der Oberfläche
+
+### Verändert
+- Das Capybara erscheint nur noch nach bewusster Aktivierung
+- Fehlende Maskottchen-Konfigurationen werden als deaktiviert gelesen
+- Die Einstellungen zeigen den Schalter standardmäßig aus
+- Bereits ausdrücklich aktivierte Konfigurationen bleiben erhalten
+- Dokumentation und Beispielkonfiguration beschreiben das Opt-in-Verhalten
+
+### Gelöscht
+- Automatisches Anzeigen des Capybaras beim ersten Start entfernt
+- Aktivierter Standardwert aus dem gemeinsamen Konfigurationsschema entfernt
+- Aktivierter Fallback während des Ladens entfernt
+- Unklare Standardannahme in den Einstellungs-Tests entfernt
+- Unbeabsichtigtes Capybara-Flackern vor der Konfigurationsantwort entfernt
+
+## [1.10.0] - 2026-09-14
+
+### Erstellt
+- Verständlicher Upload-Button mit sichtbarer Beschriftung
+- Einklappbarer Dateibaum mit Kaskade für Unterordner
+- Vorschau per Leertaste nach dem Überfahren einer Datei
+- Quelltextvorschau für HTML und weitere gängige Codeformate
+- Download-Aktion für nicht direkt darstellbare Dateien
+
+### Verändert
+- Zurück-Navigation reagiert jetzt auf die linke Pfeiltaste
+- Dateizeilen übernehmen den Fokus beim Überfahren mit der Maus
+- Vorschau erkennt Punktdateien und zusätzliche Textformate
+- Vorschau-Bilder laden im Detailbereich sofort
+- Mobile Upload-Aktion bleibt als gut erreichbares Touch-Ziel sichtbar
+- Einstellungen-Tabs nutzen Pfeil-Buttons statt einer sichtbaren Scrollleiste
+
+### Gelöscht
+- Verwirrender reiner Aufwärtspfeil als Upload-Symbol
+- Eingebettete HTML-Website in der Dateivorschau
+- Erzwungenes Offenhalten des aktuell gewählten Ordners
+- Fehlende Tastaturverbindung zur Zurück-Navigation
+- Vorschau ohne Download-Möglichkeit bei unbekannten Formaten
+
+## [1.9.2] - 2026-09-14
+
+### Erstellt
+- Kompaktere Capybara-Darstellung in der Statusleiste
+- Kompaktere Capybara-Vorschau in den Einstellungen
+- Freier Zwischenraum zwischen den beiden Vorderbeinen
+- Bereinigte Pixel für alle Capybara-Animationsphasen
+- Einheitliche Figurengröße über alle Ansichten
+
+### Verändert
+- Das Capybara wird überall um 15 Prozent kleiner angezeigt
+- Die Laufstrecke und die Sprechblase behalten ihre Position
+- Die Animation nutzt weiterhin die gut sichtbaren Laufphasen
+- Die Darstellung bleibt bei jeder Blickrichtung sauber ausgerichtet
+- Die Vorschau übernimmt die kompaktere Größe direkt
+
+### Gelöscht
+- Helle Restpixel zwischen den Vorderbeinen entfernt
+- Überstehende Größe der Statusleistenfigur entfernt
+- Überstehende Größe der Einstellungs-Vorschau entfernt
+- Uneinheitliche Größenangaben für die Figur entfernt
+- Sichtbarer weißer Spalt im Original-Sprite entfernt
+
+## [1.9.1] - 2026-09-14
+
+### Erstellt
+- Richtungsabhängige Darstellung für die Laufbewegung
+- Bessere Sichtbarkeit der Laufphasen in der Statusleiste
+- Höher platzierte Capybara-Darstellung
+- Dezenter Akzent für die Klick-Sprechblase
+- Ruhigeres Timing der Laufanimation
+
+### Verändert
+- Das Capybara sitzt vollständig innerhalb der Statusleiste
+- Die Laufbilder wechseln langsamer und klarer erkennbar
+- Beim Klick bleibt der Button-Hintergrund transparent
+- Die Sprechblase trägt den Akzent jetzt allein
+- Die Blickrichtung folgt dem tatsächlichen Laufziel
+
+### Gelöscht
+- Aufhellung der gesamten Capybara-Fläche beim Hover entfernt
+- Blauer Hintergrund hinter der Klickanimation entfernt
+- Zu tief abgeschnittene Fußpartie entfernt
+- Feste Blickrichtung während des Laufens entfernt
+- Übermäßig schnelles Wechseln der Laufbilder entfernt
+
+## [1.9.0] - 2026-09-14
+
+### Erstellt
+- Neues detailliertes Capybara im 64-Pixel-Format
+- Fröhliche Reaktion auf Klicks in Statusleiste und Vorschau
+- Lauf-, Sprung-, Nies-, Blick- und Schlafbewegungen
+- Testbare Capybara-Vorschau im Easter-Eggs-Bereich
+- Klarer Aktiv- und Pausenstatus für das Maskottchen
+
+### Verändert
+- Capybara bleibt bei jeder Größe scharf und gut erkennbar
+- Statusleisten-Bühne nutzt den verfügbaren Platz besser aus
+- Einstellungsbereich ist übersichtlicher und luftiger aufgebaut
+- Vorschau und Umschalter sind vollständig per Tastatur bedienbar
+- Bewegungen berücksichtigen die reduzierte Bewegungsdarstellung
+
+### Gelöscht
+- Alte vereinfachte Capybara-Darstellung entfernt
+- Einfache Einzelframe-Reaktion durch eine Animationsfolge ersetzt
+- Nicht interaktive Vorschau entfernt
+- Überholte Farbzuordnung der früheren Darstellung entfernt
+- Doppelte Erklärung im Einstellungsbereich entfernt
+
 ## [1.8.0] - 2026-09-14
 
 ### Erstellt
