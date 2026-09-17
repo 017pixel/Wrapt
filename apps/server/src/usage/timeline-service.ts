@@ -153,21 +153,29 @@ export class UsageTimelineService {
     await this.pending;
   }
 
-  /** Ersetzt den Cache im Hintergrund. Läuft ein Refresh bereits, wird er abgewartet. */
+  /**
+   * Ersetzt den Cache im Hintergrund. Läuft ein Build bereits, wird er abgewartet.
+   * Anschließend wird nur dann neu gebaut, wenn der Cache einen älteren
+   * Live-Stand widerspiegelt — ein Build, der während eines Live-Refreshs lief,
+   * wird so zuverlässig nachgezogen, statt bis zur nächsten TTL veraltet zu bleiben.
+   */
   async refresh(): Promise<void> {
+    if (this.pending) await this.pending.catch(() => undefined);
+    const live = await this.options.live.getUsage();
+    if (this.cached && this.cached.fetchedAt === live.fetchedAt) return;
     await this.load();
   }
 
   /** Markiert den Cache als zu aktualisieren und startet einen Hintergrund-Refresh. */
   invalidate(): void {
-    if (this.cached && !this.pending) void this.refresh();
+    void this.refresh().catch(() => undefined);
   }
 
   async get(): Promise<UsageTimelineResponse> {
     if (this.cached) {
       // Stale-while-revalidate: Der letzte Stand wird sofort geliefert; ein
       // abgelaufener Cache lädt im Hintergrund nach, statt den Request zu blockieren.
-      if (Date.now() - this.cachedAt >= this.cacheTtlMilliseconds && !this.pending) void this.refresh();
+      if (Date.now() - this.cachedAt >= this.cacheTtlMilliseconds && !this.pending) void this.refresh().catch(() => undefined);
       return this.cached;
     }
     return this.load();

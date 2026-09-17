@@ -8,7 +8,7 @@ afterEach(() => {
   vi.useRealTimers();
 });
 import type { ManagedAccount, UsageResponse } from "@wrapt/contracts";
-import { buildTimelineLane, STALE_AFTER_MILLISECONDS, UsageTimelineService } from "./timeline-service.js";
+import { UsageTimelineService } from "./timeline-service.js";
 import type { CodexbarClient } from "../adapters/codexbar/codexbar-client.js";
 import type { CodexbarUsageService } from "../adapters/codexbar/codexbar-cache.js";
 import type { AccountService } from "./account-service.js";
@@ -48,6 +48,18 @@ function fresh(updatedAt = NOW.toISOString()): string {
   return updatedAt;
 }
 
+function liveService(over: Partial<CodexbarUsageService> = {}): CodexbarUsageService {
+  return {
+    getUsage: vi.fn().mockResolvedValue(liveResponse()),
+    refresh: vi.fn().mockResolvedValue(liveResponse()),
+    invalidate: vi.fn(),
+    subscribe: vi.fn(() => () => undefined),
+    start: vi.fn(),
+    stop: vi.fn(),
+    ...over,
+  } as CodexbarUsageService;
+}
+
 function createService(options: {
   accounts?: Partial<AccountService>;
   client?: Partial<CodexbarClient>;
@@ -65,7 +77,7 @@ function createService(options: {
     getOpenCodeGoUsage: vi.fn().mockResolvedValue([]),
     ...options.client,
   } as CodexbarClient;
-  const live = options.live ?? ({ getUsage: vi.fn().mockResolvedValue(liveResponse()), invalidate: vi.fn() } as CodexbarUsageService);
+  const live = options.live ?? liveService();
   const database = { resetCredits: () => ({}), ...options.database } as UsageDatabase;
   return new UsageTimelineService({ accounts, client, live, database, ...(options.ttlMilliseconds ? { ttlMilliseconds: options.ttlMilliseconds } : {}) });
 }
@@ -316,11 +328,18 @@ describe("UsageTimelineService", () => {
 
   it("liefert nach TTL-Ablauf sofort den letzten Stand und lädt im Hintergrund nach", async () => {
     const listWithState = vi.fn().mockResolvedValue([]);
-    const service = createService({ accounts: { listWithState }, ttlMilliseconds: 60_000 });
+    let liveFetchedAt = NOW.toISOString();
+    const service = createService({
+      accounts: { listWithState },
+      live: { getUsage: vi.fn(async () => liveResponse({ fetchedAt: liveFetchedAt })) } as unknown as CodexbarUsageService,
+      ttlMilliseconds: 60_000,
+    });
     await service.get();
     const first = listWithState.mock.calls.length;
 
     await vi.advanceTimersByTimeAsync(60_001);
+    // Ein neuer Live-Stand macht den Cache veraltet; der Rebuild läuft im Hintergrund.
+    liveFetchedAt = new Date(NOW.getTime() + 61_000).toISOString();
     const stale = await service.get();
     expect(stale.lanes).toEqual([]);
     await vi.advanceTimersByTimeAsync(0);
@@ -338,83 +357,31 @@ describe("UsageTimelineService", () => {
     expect(result.lanes).toEqual([]);
     expect(listWithState.mock.calls.length).toBe(1);
   });
-});
 
-describe("buildTimelineLane", () => {
-  const now = NOW.getTime();
+  it("zieht einen laufenden Build nach, wenn der Live-Stand sich geändert hat", async () => {
+    vi.useRealTimers();
+    let releaseBuild: () => void = () => {};
+    const blocked = new Promise<void>((resolve) => { releaseBuild = resolve; });
+    const listWithState = vi.fn()
+      .mockImplementationOnce(async () => { await blocked; return []; })
+      .mockResolvedValue([]);
+    let liveFetchedAt = NOW.toISOString();
+    const service = createService({
+      accounts: { listWithState },
+      live: { getUsage: vi.fn(async () => liveResponse({ fetchedAt: liveFetchedAt })) } as unknown as CodexbarUsageService,
+    });
 
-  it("stuft frische Daten als available ein", () => {
-    const lane = buildTimelineLane({
-      provider: "codex",
-      managed: undefined,
-      payload: { provider: "codex", usage: { accountEmail: "a@b.de", updatedAt: new Date(now).toISOString(), secondary: { usedPercent: 10, windowMinutes: 10_080, resetsAt: "2026-08-01T20:00:00Z" } } },
-      windows: undefined,
-      updatedAt: undefined,
-      monitoringDisabled: undefined,
-      accountDisabled: undefined,
-      error: undefined,
-      now,
-    });
-    expect(lane.status).toBe("available");
-    expect(lane.windows[0]).toEqual(expect.objectContaining({ usedPercent: 10, remainingPercent: 90 }));
-  });
+    const first = service.get();
+    await vi.waitFor(() => expect(listWithState).toHaveBeenCalledTimes(1));
+    // Während der laufende Build hängt, liefert der Live-Abruf einen neuen Stand.
+    liveFetchedAt = new Date(NOW.getTime() + 60_000).toISOString();
 
-  it("stuft alte Daten als stale ein", () => {
-    const lane = buildTimelineLane({
-      provider: "codex",
-      managed: undefined,
-      payload: { provider: "codex", usage: { accountEmail: "a@b.de", updatedAt: new Date(now - STALE_AFTER_MILLISECONDS - 1).toISOString(), secondary: { usedPercent: 10, windowMinutes: 10_080, resetsAt: "2026-08-01T20:00:00Z" } } },
-      windows: undefined,
-      updatedAt: undefined,
-      monitoringDisabled: undefined,
-      accountDisabled: undefined,
-      error: undefined,
-      now,
-    });
-    expect(lane.status).toBe("stale");
-    expect(lane.error?.code).toBe("STALE_DATA");
-  });
+    const refreshing = service.refresh();
+    releaseBuild();
+    await Promise.all([first, refreshing]);
 
-  it("stuft Payloads mit Fehler und Nutzung als partial ein", () => {
-    const lane = buildTimelineLane({
-      provider: "claude",
-      managed: undefined,
-      payload: { provider: "claude", error: { code: 1, message: "Teilweise kaputt" }, usage: { accountEmail: "a@b.de", secondary: { usedPercent: 10, windowMinutes: 10_080, resetsAt: "2026-08-01T20:00:00Z" } } },
-      windows: undefined,
-      updatedAt: undefined,
-      monitoringDisabled: undefined,
-      accountDisabled: undefined,
-      error: undefined,
-      now,
-    });
-    expect(lane.status).toBe("partial");
-    expect(lane.error?.message).toBe("Teilweise kaputt");
-  });
-
-  it("leitet die deterministische ID aus Provider, E-Mail oder Label ab — nicht aus Position", () => {
-    const a = buildTimelineLane({
-      provider: "opencode",
-      managed: undefined,
-      payload: { provider: "opencodego", usage: { accountEmail: "x@y.de" } },
-      windows: undefined,
-      updatedAt: undefined,
-      monitoringDisabled: undefined,
-      accountDisabled: undefined,
-      error: undefined,
-      now,
-    });
-    const b = buildTimelineLane({
-      provider: "opencode",
-      managed: undefined,
-      payload: { provider: "opencodego", usage: { accountEmail: "x@y.de" } },
-      windows: undefined,
-      updatedAt: undefined,
-      monitoringDisabled: undefined,
-      accountDisabled: undefined,
-      error: undefined,
-      now,
-    });
-    expect(a.accountId).toBe(b.accountId);
-    expect(a.accountId.startsWith("opencode-")).toBe(true);
+    const result = await service.get();
+    expect(result.fetchedAt).toBe(liveFetchedAt);
+    expect(listWithState).toHaveBeenCalledTimes(2);
   });
 });

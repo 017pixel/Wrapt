@@ -13,7 +13,6 @@
   "apps/server/src/previews/slots.ts": 648,
   "apps/server/src/services/t3Proxy.ts": 454,
   "apps/server/src/skills/skillEditorService.ts": 502,
-  "apps/server/src/usage/timeline-service.test.ts": 420,
   "apps/web/src/components/extensions/ExtensionSettings.tsx": 419,
   "apps/web/src/components/files/FileManagerPanel.tsx": 755,
   "apps/web/src/components/orbit/OrbitNodeView.tsx": 665,

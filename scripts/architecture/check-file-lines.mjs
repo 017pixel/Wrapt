@@ -60,7 +60,6 @@ const ALLOWED_FILES = new Map([
   ["apps/server/src/previews/slots.ts", "historisch gewachsen, Aufteilung offen"],
   ["apps/server/src/services/t3Proxy.ts", "historisch gewachsen, Aufteilung offen"],
   ["apps/server/src/skills/skillEditorService.ts", "historisch gewachsen, Aufteilung offen"],
-  ["apps/server/src/usage/timeline-service.test.ts", "historisch gewachsen, Aufteilung offen"],
   ["apps/web/src/components/extensions/ExtensionSettings.tsx", "historisch gewachsen, Aufteilung offen"],
   ["apps/web/src/components/files/FileManagerPanel.tsx", "historisch gewachsen, Aufteilung offen"],
   ["apps/web/src/components/orbit/OrbitNodeView.tsx", "historisch gewachsen, Aufteilung offen"],
