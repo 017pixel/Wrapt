@@ -11,10 +11,10 @@ Anmeldung durch die bestehende Tailscale-Identität geschützt. Sie ist in fachl
 - **Rechtsklick**, **Benachrichtigungen**, **System**, **Erweiterungen**, **Werkzeuge** und
   **Workspace** behalten ihre jeweiligen Fachbereiche.
 - **Easter Eggs** enthält das optionale Capybara-Maskottchen, das standardmäßig deaktiviert ist.
-  Es läuft in der Statusleiste zufällig umher, schaut dem Mauszeiger nach, wird nach längerer Ruhe
-  müde (nachts schneller) und feiert selten mit Partyhut, nach einem gelungenen Neustart sofort.
-  Die Vorschau im Bereich löst Gähnen, Party und Nickerchen direkt aus und schläft dort schon nach
-  einer kurzen Frist ein.
+  Es läuft in der Statusleiste zufällig umher, wird nach längerer Ruhe müde (nachts schneller) und
+  feiert selten mit Partyhut und Konfetti, nach einem gelungenen Neustart sofort. Die Größe lässt
+  sich zwischen 50 und 200 Prozent einstellen; die Vorschau im Bereich löst Gähnen, Party und
+  Nickerchen direkt aus und schläft dort schon nach einer kurzen Frist ein.
 - **Start-App** legt fest, welche sichtbare Seite beim Öffnen des Root-Pfads geladen wird. Eine
   ausgeblendete Seite kann nicht als Startseite ausgewählt werden.
 

@@ -28,18 +28,18 @@ afterEach(() => {
 
 describe("Maskottchen-Konfiguration", () => {
   it("ist ohne eigenen Abschnitt standardmäßig deaktiviert", () => {
-    expect(readMascotConfig(createConfigDirectory(false))).toEqual({ enabled: false });
+    expect(readMascotConfig(createConfigDirectory(false))).toEqual({ enabled: false, scale: 1 });
   });
 
   it("bewahrt eine ausdrücklich aktivierte Einstellung", () => {
-    expect(readMascotConfig(createConfigDirectory(true))).toEqual({ enabled: true });
+    expect(readMascotConfig(createConfigDirectory(true))).toEqual({ enabled: true, scale: 1 });
   });
 
   it("schreibt nur den Maskottchen-Abschnitt atomar", () => {
     const directory = createConfigDirectory(false);
-    persistMascotConfig(directory, { enabled: false });
+    persistMascotConfig(directory, { enabled: false, scale: 1 });
 
-    expect(readMascotConfig(directory)).toEqual({ enabled: false });
+    expect(readMascotConfig(directory)).toEqual({ enabled: false, scale: 1 });
     expect(loadWraptConfig(directory).paths.projectsRoot).toBe(
       loadWraptConfig(createConfigDirectory(true)).paths.projectsRoot,
     );

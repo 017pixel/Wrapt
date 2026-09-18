@@ -1,4 +1,7 @@
 import blink from "./assets/capybara-blink.png";
+import confettiA from "./assets/capybara-confetti-a.png";
+import confettiB from "./assets/capybara-confetti-b.png";
+import confettiC from "./assets/capybara-confetti-c.png";
 import happyA from "./assets/capybara-happy-a.png";
 import happyB from "./assets/capybara-happy-b.png";
 import happyC from "./assets/capybara-happy-c.png";
@@ -79,4 +82,11 @@ export const CAPYBARA_ZZZ_FRAMES: readonly string[] = Object.freeze([
   zzzSmall,
   zzzMedium,
   zzzLarge,
+]);
+
+/** Konfettifetzen fallen während der Party über dem Capybara. */
+export const CAPYBARA_CONFETTI_FRAMES: readonly string[] = Object.freeze([
+  confettiA,
+  confettiB,
+  confettiC,
 ]);

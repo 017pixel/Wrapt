@@ -3,7 +3,6 @@ import {
   CAPYBARA_ANIMATIONS,
   buildCapybaraPartyPlan,
   capybaraActionForMotion,
-  capybaraGazeForPointer,
   capybaraNapDelayMs,
   capybaraPhaseForHour,
   capybaraWeightsForPhase,
@@ -134,25 +133,6 @@ describe("buildCapybaraPartyPlan", () => {
     const duration = plan.reduce((sum, step) => sum + step.duration, 0);
     expect(duration).toBeGreaterThan(1_000);
     expect(duration).toBeLessThan(3_000);
-  });
-});
-
-describe("capybaraGazeForPointer", () => {
-  const stage = { left: 100, top: 900, right: 500, bottom: 942 };
-
-  it("schaut zum Zeiger, wenn er in der Nähe der Leiste ist", () => {
-    expect(capybaraGazeForPointer({ x: 120, y: 880 }, stage, 300)).toBe("left");
-    expect(capybaraGazeForPointer({ x: 480, y: 880 }, stage, 300)).toBe("right");
-  });
-
-  it("ignoriert Zeiger außerhalb der Reichweite", () => {
-    expect(capybaraGazeForPointer({ x: 300, y: 500 }, stage, 300)).toBeNull();
-    expect(capybaraGazeForPointer({ x: 10, y: 880 }, stage, 300)).toBeNull();
-    expect(capybaraGazeForPointer({ x: 700, y: 880 }, stage, 300)).toBeNull();
-  });
-
-  it("bleibt bei einer leeren Bühne neutral", () => {
-    expect(capybaraGazeForPointer({ x: 0, y: 0 }, { left: 0, top: 0, right: 0, bottom: 0 }, 0)).toBeNull();
   });
 });
 

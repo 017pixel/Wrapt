@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { wraptQueries } from "../../lib/queryOptions";
 import { useOrbitStore } from "../../stores/orbit";
+import { CapybaraConfetti } from "./CapybaraConfetti";
 import { CapybaraSprite } from "./CapybaraSprite";
 import { CapybaraZzz } from "./CapybaraZzz";
 import { mascotContextFrom, mascotMood, selectMascotLine } from "./mascotLines";
@@ -11,11 +12,10 @@ import {
   useCapybaraBehavior,
   usePrefersReducedMotion,
 } from "./useCapybaraBehavior";
-import { useCapybaraGaze } from "./useCapybaraGaze";
 import { useMascotReactions, type MascotReaction } from "./useMascotReactions";
 
 const BUBBLE_VISIBLE_MS = 4_200;
-const STATUS_SPRITE_SIZE = 80;
+const STATUS_SPRITE_SIZE = 88;
 
 /**
  * Capybara in der Statusleiste. Die Komponente lädt ihren Zustand selbst,
@@ -24,10 +24,10 @@ const STATUS_SPRITE_SIZE = 80;
 export function StatusMascot() {
   const mascot = useQuery(wraptQueries.mascot());
   if (mascot.data?.mascot.enabled !== true) return null;
-  return <StatusMascotCreature />;
+  return <StatusMascotCreature scale={mascot.data.mascot.scale} />;
 }
 
-function StatusMascotCreature() {
+function StatusMascotCreature({ scale }: { readonly scale: number }) {
   const health = useQuery(wraptQueries.health());
   const usage = useQuery(wraptQueries.usage());
   const orbitDirty = useOrbitStore((state) => state.dirty);
@@ -51,14 +51,13 @@ function StatusMascotCreature() {
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
+  const itemWidth = Math.round(CAPYBARA_ITEM_WIDTH * scale);
+  const spriteSize = Math.round(STATUS_SPRITE_SIZE * scale);
   const stage = useMemo(
-    () => ({ width: stageWidth, itemWidth: CAPYBARA_ITEM_WIDTH }),
-    [stageWidth],
+    () => ({ width: stageWidth, itemWidth }),
+    [stageWidth, itemWidth],
   );
-  const centerOffset = useRef(CAPYBARA_ITEM_WIDTH / 2);
-  const gaze = useCapybaraGaze(stageRef, mood !== "sleep", centerOffset);
-  const behavior = useCapybaraBehavior(mood, reducedMotion, stage, { gaze });
-  centerOffset.current = behavior.offset + CAPYBARA_ITEM_WIDTH / 2;
+  const behavior = useCapybaraBehavior(mood, reducedMotion, stage);
   const react = useCallback(
     (reaction: MascotReaction) => behavior.play(reaction),
     [behavior],
@@ -97,11 +96,12 @@ function StatusMascotCreature() {
       data-action={behavior.action}
       data-facing={behavior.facing}
       data-mood={mood}
-      data-gaze={gaze ?? "none"}
       data-sleeping={String(behavior.sleeping)}
+      data-scale={String(scale)}
       style={{
         "--capy-offset": `${behavior.offset}px`,
-        "--capy-item-width": `${CAPYBARA_ITEM_WIDTH}px`,
+        "--capy-item-width": `${itemWidth}px`,
+        "--capy-sprite-size": `${spriteSize}px`,
         "--capy-step": `${WALK_STEP_MS}ms`,
       } as CSSProperties}
     >
@@ -112,8 +112,9 @@ function StatusMascotCreature() {
           onClick={handlePoke}
           aria-label="Capybara begrüßen"
         >
-          <CapybaraSprite frame={behavior.frame} size={STATUS_SPRITE_SIZE} label="Capybara-Maskottchen" />
+          <CapybaraSprite frame={behavior.frame} size={spriteSize} label="Capybara-Maskottchen" />
           {behavior.sleeping ? <CapybaraZzz /> : null}
+          {behavior.frame === "party" ? <CapybaraConfetti /> : null}
         </button>
       </div>
       {line !== null ? (

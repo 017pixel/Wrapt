@@ -28,12 +28,12 @@ const MOOD_FRAME: Readonly<Record<MascotMood, CapybaraFrameName>> = {
   calm: "calm",
 };
 
-export const CAPYBARA_ITEM_WIDTH = 78;
+export const CAPYBARA_ITEM_WIDTH = 86;
 export const WALK_STEP_MS = 230;
+const IDLE_POLL_MS = 250;
 const ACTION_MIN_MS = 1_200;
 const ACTION_SPAN_MS = 3_000;
 const BLINK_MS = 170;
-const GAZE_POLL_MS = 250;
 
 export interface CapybaraStage {
   readonly width: number;
@@ -45,8 +45,6 @@ export interface CapybaraBehaviorOptions {
   readonly napDelayMs?: number;
   /** Prüf- und Testhilfe: erzwingt eine bestimmte Stunde für Frist und Gewichtung. */
   readonly hour?: number;
-  /** Blickrichtung aus useCapybaraGaze. */
-  readonly gaze?: CapybaraFacing | null;
 }
 
 export interface CapybaraBehavior {
@@ -66,9 +64,11 @@ const celebrateStep = (step: CapybaraAnimationStep): CapybaraSequenceStep => ({
   ...step,
   action: "celebrate",
 });
+// Beim Gähnen schaut es nach rechts, damit das offene Maul sichtbar bleibt.
 const yawnStep = (step: CapybaraAnimationStep): CapybaraSequenceStep => ({
   ...step,
   action: "wake",
+  facing: "right",
 });
 const hopStep = (step: CapybaraAnimationStep): CapybaraSequenceStep => ({
   ...step,
@@ -135,10 +135,6 @@ export function useCapybaraBehavior(
   const sleeping = mood === "sleep" || idle || forcedNap;
   const sleepingRef = useRef(sleeping);
   sleepingRef.current = sleeping;
-  const gaze = options.gaze ?? null;
-  const gazeRef = useRef(gaze);
-  gazeRef.current = gaze;
-
   const [pose, setPose] = useState<{
     frame: CapybaraFrameName;
     offset: number;
@@ -165,27 +161,14 @@ export function useCapybaraBehavior(
     setPose((current) => (current.offset === clamped ? current : { ...current, offset: clamped }));
   }, []);
 
-  /**
-   * Ruhebild: Nickerchen, Blickrichtung oder Stimmung. Beim Blick dreht sich
-   * der Körper mit; die Pose „lookRight“ wird dafür gespiegelt, damit die
-   * Augen immer in Richtung des Zeigers zeigen.
-   */
-  const idleFrame = useCallback((): { frame: CapybaraFrameName; facing?: CapybaraFacing } => {
-    if (sleepingRef.current) return { frame: "sleep" };
-    const look = gazeRef.current;
-    if (look !== null) return { frame: "lookRight", facing: look };
-    return { frame: baseFrameRef.current };
-  }, []);
-
+  /** Ruhebild: Nickerchen oder Stimmung. */
   const showIdle = useCallback(() => {
-    const next = idleFrame();
-    const action: CapybaraVisualAction = sleepingRef.current
-      ? "sleep"
-      : next.facing !== undefined
-        ? "look"
-        : "idle";
-    setPoseFrame(next.frame, action, next.facing);
-  }, [idleFrame, setPoseFrame]);
+    if (sleepingRef.current) {
+      setPoseFrame("sleep", "sleep");
+      return;
+    }
+    setPoseFrame(baseFrameRef.current, "idle");
+  }, [setPoseFrame]);
 
   const { run: runSequence, busy: busyRef, stop: stopSequence } = useCapybaraSequencer(
     setPoseFrame,
@@ -207,7 +190,7 @@ export function useCapybaraBehavior(
   useEffect(() => {
     if (busyRef.current) return;
     showIdle();
-  }, [busyRef, gaze, showIdle, sleeping]);
+  }, [busyRef, showIdle, sleeping]);
 
   // Aufwachen nach dem Nickerchen: erst gähnen, dann weiter.
   const wasSleeping = useRef(sleeping);
@@ -248,8 +231,8 @@ export function useCapybaraBehavior(
     const run = async () => {
       while (!cancelled) {
         await wait(ACTION_MIN_MS + Math.random() * ACTION_SPAN_MS);
-        while (!cancelled && (busyRef.current || sleepingRef.current || gazeRef.current !== null)) {
-          await wait(GAZE_POLL_MS);
+        while (!cancelled && (busyRef.current || sleepingRef.current)) {
+          await wait(IDLE_POLL_MS);
         }
         if (cancelled || busyRef.current) return;
         const weights = capybaraWeightsForHour(hourOverrideRef.current ?? new Date().getHours());

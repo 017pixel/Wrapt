@@ -70,28 +70,13 @@ test("testet die neuen Capybara-Aktionen", async ({ page }) => {
   const preview = page.getByRole("button", { name: "Capybara testen" });
   await expect(preview).toBeVisible();
 
-  // Blick folgt der Maus, sobald sie in der Nähe ist.
-  await preview.hover();
-  await expect(preview).toHaveAttribute("data-action", "look");
-
-  // Blickrichtung: links, rechts und außerhalb der Reichweite.
-  const box = await preview.boundingBox();
-  if (!box) throw new Error("Capybara-Vorschau hat keine Größe");
-  await page.mouse.move(box.x - 30, box.y + box.height / 2);
-  await expect(preview).toHaveAttribute("data-gaze", "left");
-  await expect(preview).toHaveAttribute("data-facing", "left");
-  await page.mouse.move(box.x + box.width + 30, box.y + box.height / 2);
-  await expect(preview).toHaveAttribute("data-gaze", "right");
-  await expect(preview).toHaveAttribute("data-facing", "right");
-  await page.mouse.move(2, 2);
-  await expect(preview).toHaveAttribute("data-gaze", "none");
-
   await page.getByRole("button", { name: "Gähnen", exact: true }).click();
   await expect(preview).toHaveAttribute("data-action", "wake");
   await expect(preview).toHaveAttribute("data-frame", /yawn/);
 
   await page.getByRole("button", { name: "Party", exact: true }).click();
   await expect(preview).toHaveAttribute("data-frame", "party");
+  await expect(preview.locator(".capy-confetti-piece")).toHaveCount(3);
 
   // Nickerchen schläfert sofort ein und zeigt die drei Zzz-Frames.
   await page.getByRole("button", { name: "Nickerchen", exact: true }).click();
@@ -137,6 +122,17 @@ test("testet Capybara-Vorschau und Schalter", async ({ page }) => {
   await expect(preview).toHaveAttribute("data-action", "celebrate");
   await expect(preview).toHaveAttribute("data-frame", "happyA");
 
+  // Größenregler skaliert die Vorschau sofort.
+  const slider = page.getByRole("slider", { name: "Größe" });
+  await expect(slider).toHaveValue("100");
+  await slider.fill("150");
+  await expect(slider).toHaveValue("150");
+  // Gespeichert wird erst beim Loslassen des Reglers.
+  await slider.blur();
+  await expect(preview).toHaveAttribute("data-scale", "1.5");
+  await expect.poll(() => sprite.evaluate((image) => image.getAttribute("width")))
+    .toBe("158");
+
   const toggle = page.getByRole("switch", { name: /Maskottchen anzeigen/ });
   await expect(toggle).toHaveAttribute("aria-checked", "false");
   await expect(page.getByText("In der Statusleiste pausiert", { exact: true })).toBeVisible();
@@ -148,8 +144,14 @@ test("testet Capybara-Vorschau und Schalter", async ({ page }) => {
       "Das Capybara ist unterwegs.",
       { exact: true },
     )).toBeVisible();
-    await expect(page.getByRole("button", { name: "Capybara begrüßen" })).toBeVisible();
+    // Die Statusleiste übernimmt die gespeicherte Größe (150 % von 88 px).
+    const mascot = page.locator(".status-mascot");
+    await expect(mascot).toHaveAttribute("data-scale", "1.5");
+    await expect(page.getByRole("button", { name: "Capybara begrüßen" }).locator("img"))
+      .toHaveAttribute("width", "132");
   } finally {
+    await slider.fill("100");
+    await slider.blur();
     if ((await toggle.getAttribute("aria-checked")) === "true") {
       await toggle.click();
       await expect(toggle).toHaveAttribute("aria-checked", "false");

@@ -10,11 +10,10 @@ function renderBehavior(
   mood: Parameters<typeof useCapybaraBehavior>[0] = "calm",
 ) {
   return renderHook(
-    (props: { hour?: number; gaze?: "left" | "right" | null; napDelayMs?: number; mood: typeof mood }) =>
+    (props: { hour?: number; napDelayMs?: number; mood: typeof mood }) =>
       useCapybaraBehavior(props.mood, false, stage, {
         hour: 12,
         ...(props.napDelayMs !== undefined ? { napDelayMs: props.napDelayMs } : {}),
-        ...(props.gaze !== undefined ? { gaze: props.gaze } : {}),
       }),
     { initialProps: { mood, ...options } },
   );
@@ -31,11 +30,12 @@ describe("useCapybaraBehavior", () => {
   });
 
   it("schläft nach der Ruhefrist ein und gähnt beim Aufwachen", () => {
-    const { result } = renderBehavior({ napDelayMs: 1_000 });
+    // Die Frist liegt über der Gähndauer, sonst schläft es direkt wieder ein.
+    const { result } = renderBehavior({ napDelayMs: 2_000 });
     expect(result.current.sleeping).toBe(false);
 
     act(() => {
-      vi.advanceTimersByTime(1_000);
+      vi.advanceTimersByTime(2_000);
     });
     expect(result.current.sleeping).toBe(true);
     expect(result.current.frame).toBe("sleep");
@@ -51,34 +51,7 @@ describe("useCapybaraBehavior", () => {
     expect(result.current.frame).toBe("yawnA");
 
     act(() => {
-      vi.advanceTimersByTime(970);
-    });
-    expect(result.current.frame).toBe("calm");
-  });
-
-  it("blickt zum Zeiger, solange er in der Nähe ist", () => {
-    const { result, rerender } = renderBehavior({ gaze: null });
-    expect(result.current.frame).toBe("calm");
-
-    // Die Blickpose wird gespiegelt, damit die Augen zum Zeiger zeigen.
-    rerender({ mood: "calm", gaze: "left", hour: 12 });
-    act(() => {
-      vi.advanceTimersByTime(1);
-    });
-    expect(result.current.frame).toBe("lookRight");
-    expect(result.current.action).toBe("look");
-    expect(result.current.facing).toBe("left");
-
-    rerender({ mood: "calm", gaze: "right", hour: 12 });
-    act(() => {
-      vi.advanceTimersByTime(1);
-    });
-    expect(result.current.frame).toBe("lookRight");
-    expect(result.current.facing).toBe("right");
-
-    rerender({ mood: "calm", gaze: null, hour: 12 });
-    act(() => {
-      vi.advanceTimersByTime(1);
+      vi.advanceTimersByTime(1_150);
     });
     expect(result.current.frame).toBe("calm");
   });
@@ -95,7 +68,7 @@ describe("useCapybaraBehavior", () => {
     expect(result.current.action).toBe("celebrate");
 
     act(() => {
-      vi.advanceTimersByTime(2_000);
+      vi.advanceTimersByTime(2_400);
     });
     expect(result.current.frame).toBe("calm");
   });
@@ -137,7 +110,7 @@ describe("useCapybaraBehavior", () => {
     expect(result.current.frame).toBe("yawnA");
 
     act(() => {
-      vi.advanceTimersByTime(1_000);
+      vi.advanceTimersByTime(1_150);
     });
     expect(result.current.frame).toBe("calm");
   });

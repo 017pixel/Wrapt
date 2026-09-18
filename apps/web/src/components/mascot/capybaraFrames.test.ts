@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CAPYBARA_FRAMES, CAPYBARA_GRID, CAPYBARA_ZZZ_FRAMES } from "./capybaraFrames";
+import { CAPYBARA_CONFETTI_FRAMES, CAPYBARA_FRAMES, CAPYBARA_GRID, CAPYBARA_ZZZ_FRAMES } from "./capybaraFrames";
 
 describe("Capybara-Frames", () => {
   it("verwendet für jeden Zustand ein eigenes 64x64-Asset", () => {
@@ -30,5 +30,13 @@ describe("Capybara-Frames", () => {
     expect(CAPYBARA_ZZZ_FRAMES).toHaveLength(3);
     expect(CAPYBARA_ZZZ_FRAMES[0]).toContain("zzz-small");
     expect(CAPYBARA_ZZZ_FRAMES[2]).toContain("zzz-large");
+  });
+
+  it("stellt drei Konfettifetzen für die Party bereit", () => {
+    expect(CAPYBARA_CONFETTI_FRAMES).toHaveLength(3);
+    CAPYBARA_CONFETTI_FRAMES.forEach((asset) => {
+      expect(asset).toContain("confetti");
+    });
+    expect(new Set(CAPYBARA_CONFETTI_FRAMES).size).toBe(3);
   });
 });

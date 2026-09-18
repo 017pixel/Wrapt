@@ -14,25 +14,25 @@ export interface CapybaraAnimationStep {
 /** Einzelne Frames statt CSS-Interpolation, damit der Pixelstil erhalten bleibt. */
 export const CAPYBARA_ANIMATIONS: Readonly<Record<CapybaraAnimationName, readonly CapybaraAnimationStep[]>> = {
   celebrate: [
-    { frame: "happyA", duration: 120 },
-    { frame: "happyB", duration: 140 },
-    { frame: "happyC", duration: 160 },
-    { frame: "happyB", duration: 140 },
+    { frame: "happyA", duration: 170 },
+    { frame: "happyB", duration: 200 },
+    { frame: "happyC", duration: 220 },
+    { frame: "happyB", duration: 200 },
   ],
   hop: [
-    { frame: "hopA", duration: 120 },
-    { frame: "hopB", duration: 130 },
-    { frame: "hopC", duration: 170 },
+    { frame: "hopA", duration: 150 },
+    { frame: "hopB", duration: 170 },
+    { frame: "hopC", duration: 200 },
   ],
   sneeze: [
-    { frame: "sneezeA", duration: 140 },
-    { frame: "sneezeB", duration: 170 },
-    { frame: "sneezeC", duration: 230 },
+    { frame: "sneezeA", duration: 170 },
+    { frame: "sneezeB", duration: 200 },
+    { frame: "sneezeC", duration: 260 },
   ],
   yawn: [
-    { frame: "yawnA", duration: 260 },
-    { frame: "yawnB", duration: 460 },
-    { frame: "yawnA", duration: 240 },
+    { frame: "yawnA", duration: 300 },
+    { frame: "yawnB", duration: 520 },
+    { frame: "yawnA", duration: 280 },
   ],
 };
 
@@ -165,37 +165,12 @@ export interface CapybaraPartyStep {
 export function buildCapybaraPartyPlan(random: () => number): readonly CapybaraPartyStep[] {
   const shuffle = 6 + Math.round(random() * 6);
   return [
-    { frame: "party", action: "celebrate", duration: 280, facing: "right", offsetDelta: 0 },
-    { frame: "hopA", action: "hop", duration: 130, facing: "left", offsetDelta: -shuffle },
-    { frame: "party", action: "celebrate", duration: 240, facing: "left", offsetDelta: -shuffle },
-    { frame: "hopB", action: "hop", duration: 140, facing: "right", offsetDelta: shuffle },
-    { frame: "party", action: "celebrate", duration: 240, facing: "right", offsetDelta: shuffle },
-    { frame: "happyA", action: "celebrate", duration: 160, facing: "right", offsetDelta: 0 },
-    { frame: "party", action: "celebrate", duration: 300, facing: "right", offsetDelta: 0 },
+    { frame: "party", action: "celebrate", duration: 420, facing: "right", offsetDelta: 0 },
+    { frame: "hopA", action: "hop", duration: 200, facing: "left", offsetDelta: -shuffle },
+    { frame: "party", action: "celebrate", duration: 380, facing: "left", offsetDelta: -shuffle },
+    { frame: "hopB", action: "hop", duration: 220, facing: "right", offsetDelta: shuffle },
+    { frame: "party", action: "celebrate", duration: 380, facing: "right", offsetDelta: shuffle },
+    { frame: "happyA", action: "celebrate", duration: 220, facing: "right", offsetDelta: 0 },
+    { frame: "party", action: "celebrate", duration: 460, facing: "right", offsetDelta: 0 },
   ];
-}
-
-export interface CapybaraGazeArea {
-  readonly left: number;
-  readonly top: number;
-  readonly right: number;
-  readonly bottom: number;
-}
-
-const GAZE_REACH_Y = 140;
-const GAZE_REACH_X = 80;
-
-/**
- * Blickrichtung zum Mauszeiger, sobald er in die Nähe der Leiste kommt.
- * Sonst sieht das Capybara nach vorn (null).
- */
-export function capybaraGazeForPointer(
-  pointer: { readonly x: number; readonly y: number },
-  area: CapybaraGazeArea,
-  mascotCenterX: number,
-): CapybaraFacing | null {
-  if (area.right <= area.left || area.bottom <= area.top) return null;
-  if (pointer.y < area.top - GAZE_REACH_Y || pointer.y > area.bottom + GAZE_REACH_Y) return null;
-  if (pointer.x < area.left - GAZE_REACH_X || pointer.x > area.right + GAZE_REACH_X) return null;
-  return pointer.x < mascotCenterX ? "left" : "right";
 }

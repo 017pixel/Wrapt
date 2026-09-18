@@ -7,6 +7,8 @@ import { z } from "zod";
  */
 export const mascotConfigSchema = z.object({
   enabled: z.boolean().default(false),
+  /** Anzeigegröße als Vielfaches der Standardgröße (0,5 = halb, 2 = doppelt). */
+  scale: z.number().min(0.5).max(2).default(1),
 }).prefault({});
 
 export const mascotConfigResponseSchema = z.object({

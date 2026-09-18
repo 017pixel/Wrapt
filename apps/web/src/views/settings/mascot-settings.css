@@ -1,0 +1,221 @@
+@layer components {
+  .mascot-setting {
+    display: grid;
+    grid-template-columns: minmax(148px, auto) minmax(0, 1fr);
+    align-items: stretch;
+    gap: var(--space-6);
+  }
+
+  .mascot-preview {
+    display: grid;
+    position: relative;
+    /* Positionen folgen der Vorschaugröße; das Konfetti fällt innerhalb der Fläche. */
+    --capy-zzz-top: calc(var(--mascot-preview-sprite, 105px) * 0.076);
+    --capy-zzz-right: calc(var(--mascot-preview-sprite, 105px) * 0.095);
+    --capy-confetti-top: calc(var(--mascot-preview-sprite, 105px) * 0.019);
+    --capy-confetti-right: calc(var(--mascot-preview-sprite, 105px) * 0.038);
+    width: max(148px, calc(var(--mascot-preview-sprite, 105px) * 1.35));
+    min-height: max(116px, calc(var(--mascot-preview-sprite, 105px) * 1.1));
+    place-items: center;
+    overflow: hidden;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-md);
+    background: var(--surface-sunken);
+    padding: 0;
+    cursor: pointer;
+    transition: transform var(--duration-fast) var(--ease-standard);
+  }
+
+  /* Wie in der Statusleiste dreht der Körper mit der Blickrichtung mit. */
+  .mascot-preview .capy-sprite {
+    width: var(--mascot-preview-sprite, 105px);
+    height: var(--mascot-preview-sprite, 105px);
+    transform: scaleX(var(--capy-facing, 1));
+  }
+
+  .mascot-preview[data-facing="left"] {
+    --capy-facing: -1;
+  }
+
+  .mascot-preview-frame {
+    display: grid;
+    gap: var(--space-3);
+    align-content: start;
+  }
+
+  .mascot-preview-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2);
+  }
+
+  .mascot-preview-actions button {
+    min-height: 44px;
+    border: 1px solid var(--color-line);
+    border-radius: var(--radius-sm);
+    background: transparent;
+    padding: 0 var(--space-3);
+    color: var(--color-muted);
+    font-size: var(--text-xs);
+    cursor: pointer;
+    transition:
+      border-color var(--duration-base) var(--ease-standard),
+      color var(--duration-base) var(--ease-standard);
+  }
+
+  .mascot-preview-actions button:hover {
+    border-color: var(--color-line-strong);
+    color: var(--color-text);
+  }
+
+  .mascot-preview:focus-visible {
+    outline: 2px solid var(--focus-ring-color);
+    outline-offset: var(--focus-ring-offset);
+  }
+
+  .mascot-preview:active {
+    transform: scale(0.98);
+  }
+
+  .mascot-setting-body {
+    display: grid;
+    min-width: 0;
+    align-content: center;
+    gap: var(--space-4);
+  }
+
+  .mascot-toggle {
+    min-height: 60px;
+    align-items: center;
+    padding: var(--space-2) 0 var(--space-4);
+  }
+
+  .mascot-toggle-copy {
+    display: grid;
+    min-width: 0;
+    gap: var(--space-1);
+  }
+
+  .mascot-toggle-copy strong {
+    color: var(--color-text);
+    font-size: var(--text-md);
+    font-weight: 550;
+  }
+
+  .mascot-toggle-copy small {
+    color: var(--color-faint);
+    font-size: var(--text-xs);
+  }
+
+  .mascot-toggle .settings-toggle-switch {
+    width: 44px;
+    height: 24px;
+    border-radius: var(--radius-md);
+  }
+
+  .mascot-toggle .settings-toggle-thumb {
+    width: 16px;
+    height: 16px;
+  }
+
+  .mascot-toggle .settings-toggle-switch.is-on .settings-toggle-thumb {
+    transform: translateX(18px);
+  }
+
+  .mascot-setting-hint {
+    max-width: 48ch;
+    margin: 0;
+    color: var(--color-muted);
+    font-size: var(--text-sm);
+    line-height: 1.55;
+  }
+
+  .mascot-setting-message {
+    margin: var(--space-4) 0 0;
+    border-top: 1px solid var(--color-line-soft);
+    padding-top: var(--space-3);
+    color: var(--color-muted);
+    font-size: var(--text-sm);
+  }
+
+  .mascot-scale {
+    display: grid;
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+  }
+
+  .mascot-scale-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+    color: var(--color-text);
+    font-size: var(--text-sm);
+  }
+
+  .mascot-scale-value {
+    color: var(--color-muted);
+    font-family: var(--font-mono, inherit);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .mascot-scale input[type="range"] {
+    width: 100%;
+    height: 44px;
+    margin: 0;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .mascot-scale input[type="range"]::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--color-ink-700);
+  }
+
+  .mascot-scale input[type="range"]::-webkit-slider-thumb {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    margin-top: -7px;
+    border: 1px solid var(--color-accent-line);
+    border-radius: 50%;
+    background: var(--color-accent);
+  }
+
+  .mascot-scale input[type="range"]::-moz-range-track {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--color-ink-700);
+  }
+
+  .mascot-scale input[type="range"]::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border: 1px solid var(--color-accent-line);
+    border-radius: 50%;
+    background: var(--color-accent);
+  }
+
+  .mascot-scale input[type="range"]:focus-visible {
+    outline: 2px solid var(--focus-ring-color);
+    outline-offset: 2px;
+  }
+
+  .mascot-scale input[type="range"]:disabled {
+    cursor: progress;
+    opacity: 0.6;
+  }
+}
+
+@media (max-width: 720px) {
+  .mascot-setting {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mascot-preview {
+    width: 100%;
+    min-height: max(132px, calc(var(--mascot-preview-sprite, 105px) * 1.1));
+  }
+}

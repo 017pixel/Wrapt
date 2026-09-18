@@ -39,7 +39,7 @@
   padding: 0;
   cursor: pointer;
   transform: translateX(var(--capy-offset, 0px));
-  transition: transform var(--capy-step, 230ms) linear;
+  transition: transform var(--capy-step, 230ms) cubic-bezier(.33, 0, .67, 1);
 }
 
 .status-mascot-button:focus-visible {
@@ -63,55 +63,57 @@
    verblassen am Ende. Die drei Frames sind bewusst unterschiedlich groß. */
 .capy-zzz {
   position: absolute;
-  top: var(--capy-zzz-top, -34px);
-  right: var(--capy-zzz-right, 6px);
+  /* Position folgt der Sprite-Größe, damit die Zzz bei jeder Größe über dem Kopf schweben. */
+  top: var(--capy-zzz-top, calc(var(--capy-sprite-size, 88px) * -0.364));
+  right: var(--capy-zzz-right, calc(var(--capy-sprite-size, 88px) * 0.045));
   display: block;
-  width: 48px;
-  height: 40px;
+  width: 30px;
+  height: 30px;
   pointer-events: none;
 }
 
 .capy-zzz-letter {
   position: absolute;
   bottom: 0;
-  left: 12px;
+  left: 8px;
   display: block;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   opacity: 0;
-  animation: capy-zzz-rise 1.7s var(--ease-standard) infinite;
+  animation: capy-zzz-rise 2.6s cubic-bezier(.4, 0, .6, 1) infinite;
 }
 
 .capy-zzz-1 {
-  width: 16px;
-  height: 16px;
+  width: 10px;
+  height: 11px;
   animation-delay: 0s;
 }
 
 .capy-zzz-2 {
-  width: 20px;
-  height: 20px;
-  animation-delay: .55s;
+  width: 12px;
+  height: 13px;
+  animation-delay: .85s;
 }
 
 .capy-zzz-3 {
-  width: 24px;
-  height: 24px;
-  animation-delay: 1.1s;
+  width: 14px;
+  height: 15px;
+  animation-delay: 1.7s;
 }
 
 @keyframes capy-zzz-rise {
-  0% { opacity: 0; transform: translate(0, 6px); }
-  25% { opacity: 1; }
-  55% { transform: translate(-4px, -8px); }
-  100% { opacity: 0; transform: translate(3px, -22px); }
+  0% { opacity: 0; transform: translate(0, 5px); }
+  20% { opacity: .8; }
+  55% { opacity: .8; transform: translate(-3px, -7px); }
+  100% { opacity: 0; transform: translate(2px, -16px); }
 }
 
 /* Kopf und oberer Rücken ragen sichtbar über die Leiste, die Füße bleiben
    knapp über der Unterkante stehen. */
 .status-mascot-button .capy-sprite {
-  transform: translateY(-13px) scaleX(var(--capy-facing, 1));
+  transform: translateY(calc(var(--capy-sprite-size, 88px) * -.1625)) scaleX(var(--capy-facing, 1));
   transform-origin: center;
+  transition: transform var(--duration-fast) var(--ease-standard);
 }
 
 .status-mascot[data-facing="left"] {
@@ -130,7 +132,7 @@
   max-width: min(280px, 55vw);
   pointer-events: none;
   transform: translateX(calc(var(--capy-offset, 0px) + var(--capy-item-width, 78px) / 2)) translateX(-50%);
-  transition: transform var(--capy-step, 230ms) linear;
+  transition: transform var(--capy-step, 230ms) cubic-bezier(.33, 0, .67, 1);
 }
 
 .status-mascot-bubble {
@@ -169,6 +171,52 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
+/* Beim Jubeln wippt das Capybara sanft auf und ab. */
+.status-mascot[data-action="celebrate"] .capy-sprite {
+  animation: capy-bounce .7s cubic-bezier(.4, 0, .6, 1) infinite;
+}
+
+@keyframes capy-bounce {
+  0%, 100% { transform: translateY(calc(var(--capy-sprite-size, 88px) * -.1625)) translateY(0) scaleX(var(--capy-facing, 1)); }
+  50% { transform: translateY(calc(var(--capy-sprite-size, 88px) * -.1625)) translateY(-3px) scaleX(var(--capy-facing, 1)); }
+}
+
+/* Konfetti fällt während der Party über dem Capybara. */
+.capy-confetti {
+  position: absolute;
+  top: var(--capy-confetti-top, calc(var(--capy-sprite-size, 88px) * -0.523));
+  right: var(--capy-confetti-right, calc(var(--capy-sprite-size, 88px) * -0.159));
+  display: block;
+  width: 44px;
+  height: 44px;
+  pointer-events: none;
+}
+
+.capy-confetti-piece {
+  position: absolute;
+  inset: 0;
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  opacity: 0;
+  animation: capy-confetti-fall 1.5s cubic-bezier(.35, 0, .75, .9) forwards;
+}
+
+.capy-confetti-piece:nth-child(2) {
+  animation-delay: .18s;
+}
+
+.capy-confetti-piece:nth-child(3) {
+  animation-delay: .36s;
+}
+
+@keyframes capy-confetti-fall {
+  0% { opacity: 0; transform: translate(0, -10px) rotate(0deg); }
+  15% { opacity: .95; }
+  70% { opacity: .95; }
+  100% { opacity: 0; transform: translate(-4px, 26px) rotate(24deg); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .status-mascot-button,
   .status-mascot-bubble-anchor {
@@ -177,6 +225,14 @@
 
   .status-mascot-bubble {
     animation: none;
+  }
+
+  .status-mascot[data-action="celebrate"] .capy-sprite {
+    animation: none;
+  }
+
+  .capy-confetti {
+    display: none;
   }
 
   /* Ohne Bewegung bleiben die Zzz als ruhige, sichtbare Zeichen stehen. */
