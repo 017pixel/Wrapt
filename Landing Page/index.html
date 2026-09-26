@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wrapt: Workbench für Coding-Agenten</title>
+  <meta name="description" content="Wrapt bündelt T3 Code, Hermes Agent, Terminals, Previews und Plugins auf dem eigenen Server und macht die Arbeit von mehreren Geräten aus zugänglich." />
+  <meta name="theme-color" content="#0a0a0a" />
+  <script>document.documentElement.classList.add("js");</script>
+  <link rel="stylesheet" href="./styles.css" />
+  <meta property="og:type" content="website" />
+  <meta property="og:locale" content="de_DE" />
+  <meta property="og:site_name" content="Wrapt" />
+  <meta property="og:title" content="Wrapt: Workbench für Coding-Agenten" />
+  <meta property="og:description" content="T3 Code, Hermes Agent, Terminals, Previews und Plugins auf dem eigenen Server, erreichbar von mehreren Geräten." />
+  <meta property="og:url" content="https://017pixel.github.io/Wrapt/" />
+</head>
+<body>
+  <a class="skip" href="#main">Zum Inhalt springen</a>
+
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="Wrapt, zum Seitenanfang">
+      <span class="brand__dot" aria-hidden="true"></span>
+      <span class="brand__name">Wrapt</span>
+    </a>
+    <nav class="nav" aria-label="Hauptnavigation">
+      <a href="#entstehung">Entstehung</a>
+      <a href="#werkzeuge">Werkzeuge</a>
+      <a href="#erweiterungen">Erweiterungen</a>
+      <a href="#open-source">Open Source</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="hero__text reveal">
+        <h1 class="hero__title">Ein Coding-Workspace für deine Agenten. Auf jedem Gerät derselbe Stand</h1>
+        <p class="hero__lead">Wrapt bündelt T3 Code, Hermes, Terminals, Previews und Plugins auf deinem eigenen Server. Projekte, Threads und Terminals laufen dort weiter, während du am Rechner, am Laptop oder am Handy weiterarbeitest.</p>
+        <p class="hero__note">Der Name spielt auf den Wrap an: Verschiedene Bestandteile, zusammen in einem Ganzen.</p>
+        <a class="hero__jump" href="#entstehung">So funktioniert’s</a>
+      </div>
+
+      <div class="stage tilt reveal">
+        <div class="stage__frame">
+          <figure class="stage__desktop">
+            <img src="./assets/wrapt-desktop.svg" alt="Wrapt am Rechner: Seitenleiste, Agent-Thread mit laufendem Build und Projektübersicht für ein Beispielprojekt." width="1280" height="800" />
+          </figure>
+          <figure class="stage__mobile">
+            <img src="./assets/wrapt-mobile.svg" alt="Dieselbe Arbeitsfläche auf dem Handy als installierbare Web-App mit Push-Hinweis „Agent fertig“." width="390" height="844" />
+          </figure>
+          <div class="stage__server">
+            <span class="stage__dot" aria-hidden="true"></span>
+            <span>Server-Knoten</span>
+          </div>
+          <span class="stage__wire" aria-hidden="true"></span>
+        </div>
+        <p class="stage__caption">Rechner und Handy greifen auf denselben Server zu. Projekte, Threads und der aktuelle Stand liegen dort, nicht auf einem einzelnen Gerät.</p>
+      </div>
+    </section>
+
+    <section class="section section--entstehung" id="entstehung">
+      <div class="section__head reveal">
+        <h2>Entstehung</h2>
+      </div>
+      <div class="section__body reveal">
+        <p>Angefangen hat es mit T3 Code. Ich habe darin gearbeitet und gemerkt, dass mir eine Umgebung fehlte, in der T3 Code, Hermes Agent und meine eigenen Werkzeuge zusammenlaufen, auf einem Server, der weiterläuft, wenn ich den Rechner zuklappe. Wrapt ist diese Umgebung. Sie läuft auf meinem eigenen Server und ist von mehreren Geräten aus erreichbar.</p>
+        <aside class="note">
+          <p class="note__lead">Ein Harness für Harness-Harnesse</p>
+          <p class="note__text">Wrapt verbindet mehrere Harnesses und Werkzeuge in einer Umgebung, statt sie nebeneinander zu betreiben.</p>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="werkzeuge">
+      <div class="section__head reveal">
+        <h2>Werkzeuge</h2>
+      </div>
+      <div class="section__body reveal">
+        <p>T3 Code, Hermes Agent und die Terminals liegen in derselben Oberfläche. Du öffnest einen Agent-Thread, schreibst eine Nachricht oder arbeitest direkt im Terminal, ohne zwischen Programmen zu wechseln. Was auf dem Server läuft, siehst du im Browser und greifst mit denselben Flächen darauf zu, egal an welchem Gerät du sitzt.</p>
+      </div>
+      <figure class="shot tilt reveal">
+        <img src="./assets/wrapt-desktop.svg" alt="Wrapt-Oberfläche mit Seitenleiste, Agent-Thread, Werkzeugleiste und Eingabefeld für einen Agenten." width="1280" height="800" />
+      </figure>
+    </section>
+
+    <section class="section" id="previews">
+      <div class="section__head reveal">
+        <h2>Previews und Server</h2>
+      </div>
+      <div class="section__body reveal">
+        <p>Für Frontend-Arbeit startet Wrapt den Dev-Server und bindet die Vorschau in die Oberfläche ein. Du öffnest die laufende Seite im Panel oder kopierst die Adresse und lädst sie in einem eigenen Browser. Über Tailscale erreichst du Oberfläche und Vorschau auch von außerhalb deines Netzes. Das Dashboard zeigt dazu Ressourcen und aktive Prozesse des Servers.</p>
+      </div>
+      <figure class="shot tilt reveal">
+        <img src="./assets/wrapt-preview.svg" alt="Wrapt-Preview: Dev-Server mit Port 5173, Schaltflächen zum Adresse kopieren und Neustarten sowie ein öffentlicher Beispieldatensatz." width="1280" height="760" />
+      </figure>
+    </section>
+
+    <section class="section" id="mobile">
+      <div class="section__head reveal">
+        <h2>Mobile Nutzung</h2>
+      </div>
+      <div class="section__body reveal">
+        <p>Auf dem Handy nutzt du Wrapt als installierbare Web-App. Wenn ein Agent fertig ist, kommt ein Push-Hinweis. Du öffnest den Thread direkt und siehst den Stand, ohne den Rechner aufzuklappen.</p>
+      </div>
+      <figure class="shot shot--mobile tilt reveal">
+        <img src="./assets/wrapt-mobile.svg" alt="Mobile Wrapt-Ansicht mit Push-Hinweis und Installationszeile „Wrapt als App nutzen“." width="390" height="844" />
+      </figure>
+    </section>
+
+    <section class="section" id="erweiterungen">
+      <div class="section__head reveal">
+        <h2>Erweiterungen</h2>
+      </div>
+      <div class="section__body reveal">
+        <p>Wrapt lässt sich um eigene Plugins ergänzen. Der Codex-Account-Switcher ist ein Beispiel: Er sitzt als Aktionsleiste in der Oberfläche, wechselt zwischen verwalteten Konten und zeigt seine deklarierten Berechtigungen. Eigene Erweiterungen bringen neue Flächen und Werkzeuge mit, ohne den Kern zu verändern.</p>
+      </div>
+      <figure class="shot tilt reveal">
+        <img src="./assets/wrapt-plugin.svg" alt="Wrapt-Plugin „Codex-Account-Switcher“ als Topbar mit zwei Beispielkonten und deren Berechtigungen." width="1180" height="680" />
+      </figure>
+    </section>
+
+    <section class="section section--open" id="open-source">
+      <div class="section__head reveal">
+        <h2>Open Source</h2>
+      </div>
+      <div class="section__body reveal">
+        <p>Wrapt ist Open Source und steht unter der MIT-Lizenz. Der gesamte Quellcode liegt auf GitHub. Du kannst ihn forken, an deine Umgebung anpassen und eigene Änderungen als Pull Request beisteuern.</p>
+        <p class="cta-row">
+          <a class="cta" href="https://github.com/017pixel/Wrapt">Auf GitHub ansehen</a>
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p class="footer__copy">Wrapt, MIT-Lizenz, Copyright 2026 017pixel</p>
+    <nav class="footer__links" aria-label="Rechtliches und Dokumentation">
+      <a href="https://github.com/017pixel/Wrapt/blob/master/LICENSE">Lizenz (MIT)</a>
+      <a href="https://github.com/017pixel/Wrapt/blob/master/docs/installation.md">Installationsdokumentation</a>
+    </nav>
+  </footer>
+
+  <script src="./script.js" defer></script>
+</body>
+</html>

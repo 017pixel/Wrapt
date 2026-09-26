@@ -1,0 +1,64 @@
+name: Landingpage deployen
+
+# Läuft bei Landingpage-Änderungen und am Workflow selbst.
+on:
+  push:
+    branches: [master]
+    paths:
+      - "Landing Page/**"
+      - ".github/workflows/deploy-landing-page.yml"
+  pull_request:
+    paths:
+      - "Landing Page/**"
+      - ".github/workflows/deploy-landing-page.yml"
+  workflow_dispatch:
+
+# Nur ein Pages-Lauf gleichzeitig; Builds dürfen sich ablösen.
+concurrency:
+  group: pages-landing
+  cancel-in-progress: true
+
+# Standard: nur Lesen des Quellcodes. Deploy erhält eigene Rechte.
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - name: Pages konfigurieren
+        uses: actions/configure-pages@v5
+      # Landingpage baut sich selbstständig nach "Landing Page/dist/".
+      - name: Landingpage bauen
+        run: node "Landing Page/build.mjs"
+      # Es wird ausschließlich die Landingpage-Ausgabe hochgeladen.
+      - name: Seitenartefakt hochladen
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: "Landing Page/dist/"
+
+  deploy:
+    needs: build
+    # Deploy nur bei Push auf master oder manuellem Start, nie im PR.
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    # Laufende Deploys werden nicht abgebrochen.
+    concurrency:
+      group: pages-landing-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Auf GitHub Pages veröffentlichen
+        id: deployment
+        uses: actions/deploy-pages@v4
