@@ -1,3 +1,4 @@
+/* global window, document, IntersectionObserver */
 (function () {
   "use strict";
 
