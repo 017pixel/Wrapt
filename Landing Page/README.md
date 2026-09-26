@@ -13,7 +13,7 @@ fertige Ausgabe, alle Quellen liegen daneben.
 | `styles.css` | Layout, Theme-Variablen, Tilt und Responsive Styles |
 | `script.js` | Cursor-Tilt und sparsame Scrollzustände |
 | `build.mjs` | Erzeugt `dist/` aus den Quellen und dem Wrapt-Theme |
-| `assets/` | Freigegebene Wrapt-Ansichten als SVG |
+| `assets/` | Echte, datenschutzkonform geschwärzte Wrapt-Ansichten als PNG |
 | `dist/` | Generierte Ausgabe, nicht direkt bearbeiten |
 
 Die Farb- und Motion-Token stammen aus dem `@theme`-Block in
