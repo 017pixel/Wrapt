@@ -10,10 +10,10 @@ fertige Ausgabe, alle Quellen liegen daneben.
 | Datei | Aufgabe |
 | --- | --- |
 | `index.html` | Semantische Seitenstruktur und deutsche Texte |
-| `styles.css` | Layout, Theme-Variablen, Tilt und Responsive Styles |
-| `script.js` | Cursor-Tilt und sparsame Scrollzustände |
+| `styles.css` | Layout, Theme-Variablen, Tilt, Raster und Responsive Styles |
+| `script.js` | Cursor-Tilt, weiches Scrollen und sparsame Scrollzustände |
 | `build.mjs` | Erzeugt `dist/` aus den Quellen und dem Wrapt-Theme |
-| `assets/` | Echte, datenschutzkonform geschwärzte Wrapt-Ansichten als PNG |
+| `assets/` | Echte Wrapt-Ansichten aus der Demo-Instanz mit reinen Beispieldaten als PNG |
 | `dist/` | Generierte Ausgabe, nicht direkt bearbeiten |
 
 Die Farb- und Motion-Token stammen aus dem `@theme`-Block in
@@ -57,10 +57,32 @@ python3 -m http.server 4173 --directory dist
 Danach `http://127.0.0.1:4173/` im Browser öffnen. Alternativ funktioniert jeder
 andere statische Server, zum Beispiel `npx serve dist`.
 
+## Screenshot-Instanz
+
+Die Assets unter `assets/` stammen aus einer isolierten Wrapt-Instanz mit reinen
+Dummy-Daten (Port 3410). Sie berührt die laufende Workbench nicht. Der komplette
+Ablauf für Agenten steht im Skill `.agents/skills/landingpage-screenshots/`.
+
+```bash
+WRAPT_E2E_WEB_OUT_DIR="$TMPDIR/wrapt-screenshots-web" pnpm build   # isolierter Web-Build
+node scripts/start-screenshot-server.mjs --reset                  # Fixture starten (Config, DB, Ports im Temp-Root)
+node scripts/capture-landing-screenshots.mjs                      # PNGs nach "Landing Page/assets/"
+node scripts/start-screenshot-server.mjs --stop                   # Fixture stoppen, Root bleibt erhalten
+```
+
+Sichtbar sind nur erfundene Daten (`demo-server`, `demo@example.com`). Ohne
+`--reset` werden vorhandene Dummy-Daten wiederverwendet.
+
 ## Hinweise
 
 - Die Seite ist bei 360, 390, 768, 1024 und 1440 px ohne horizontales Scrollen
   nutzbar.
+- Gleiche-Seiten-Sprunglinks scrollen weich und halten den Sticky-Header frei.
+  Bei `prefers-reduced-motion: reduce` wird sofort gesprungen.
+- Ab 1024 px legt `body::before` ein dezentes Raster an beide Ränder; zur Mitte
+  fadet es aus, unter 1024 px ist es aus. Der Inhalt liegt darüber.
+- Auf schmalen Geräten bleibt die Hauptnavigation einzeilig und horizontal
+  scrollbar.
 - Diese Vorschau startet und stoppt keine Wrapt-Dienste. Laufende
   Preview-Sessions und Dev-Server bleiben unberührt.
 - Veröffentlicht wird ausschließlich `dist/`. Der GitHub-Actions-Workflow liegt
