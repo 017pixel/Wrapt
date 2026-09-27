@@ -6,88 +6,40 @@
   root.classList.add("js");
 
   var motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-  var hoverQuery = window.matchMedia("(hover: hover) and (pointer: fine)");
 
-  var MAX_DEG = 3;
-  var MAX_LIFT = 10;
-  var MAX_SCALE = 1.012;
+  function setupSmoothScroll() {
+    var links = Array.prototype.slice.call(document.querySelectorAll('a[href^="#"]'));
+    if (!links.length) return;
+    var header = document.querySelector(".topbar");
 
-  var tiltNodes = [];
-  var tiltActive = false;
-
-  function resetTilt(node) {
-    node.style.setProperty("--rx", "0deg");
-    node.style.setProperty("--ry", "0deg");
-    node.style.setProperty("--ty", "0px");
-    node.style.setProperty("--s", "1");
-    node.classList.remove("is-tilting");
-  }
-
-  function mountTilt(node) {
-    if (node.dataset.tiltBound) return;
-    node.dataset.tiltBound = "1";
-    var frame = null;
-    var pointerX = 0.5;
-    var pointerY = 0.5;
-
-    function render() {
-      frame = null;
-      var rx = (0.5 - pointerY) * MAX_DEG * 2;
-      var ry = (pointerX - 0.5) * MAX_DEG * 2;
-      node.style.setProperty("--rx", rx.toFixed(2) + "deg");
-      node.style.setProperty("--ry", ry.toFixed(2) + "deg");
-      node.style.setProperty("--ty", (-MAX_LIFT).toFixed(0) + "px");
-      node.style.setProperty("--s", String(MAX_SCALE));
+    function headerOffset() {
+      var height = header ? header.getBoundingClientRect().height : 0;
+      return Math.round(height + 16);
     }
 
-    function schedule() {
-      if (frame === null) frame = window.requestAnimationFrame(render);
-    }
+    links.forEach(function (link) {
+      link.addEventListener("click", function (event) {
+        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+        var href = link.getAttribute("href");
+        if (!href || href === "#") return;
+        var target = document.getElementById(href.slice(1));
+        if (!target) return;
 
-    function onMove(event) {
-      var rect = node.getBoundingClientRect();
-      if (!rect.width || !rect.height) return;
-      pointerX = (event.clientX - rect.left) / rect.width;
-      pointerY = (event.clientY - rect.top) / rect.height;
-      node.classList.add("is-tilting");
-      schedule();
-    }
+        event.preventDefault();
+        var top = target.getBoundingClientRect().top + window.pageYOffset - headerOffset();
+        if (top < 0) top = 0;
+        window.scrollTo({ top: top, behavior: motionQuery.matches ? "auto" : "smooth" });
 
-    function onLeave() {
-      if (frame !== null) {
-        window.cancelAnimationFrame(frame);
-        frame = null;
-      }
-      resetTilt(node);
-    }
-
-    node.addEventListener("pointermove", onMove);
-    node.addEventListener("pointerleave", onLeave);
-    node.addEventListener("blur", onLeave);
-  }
-
-  function refreshTilt() {
-    var enabled = hoverQuery.matches && !motionQuery.matches;
-    if (enabled === tiltActive) return;
-    tiltActive = enabled;
-    tiltNodes.forEach(function (node) {
-      if (enabled) {
-        mountTilt(node);
-      } else {
-        resetTilt(node);
-      }
+        if (window.history && typeof window.history.pushState === "function") {
+          window.history.pushState(null, "", href);
+        } else {
+          window.location.hash = href;
+        }
+        if (typeof target.focus === "function") {
+          try { target.focus({ preventScroll: true }); } catch { target.focus(); }
+        }
+      });
     });
-  }
-
-  function setupTilt() {
-    tiltNodes = Array.prototype.slice.call(document.querySelectorAll(".tilt"));
-    if (!tiltNodes.length) return;
-    tiltActive = false;
-    refreshTilt();
-    if (typeof motionQuery.addEventListener === "function") {
-      motionQuery.addEventListener("change", refreshTilt);
-      hoverQuery.addEventListener("change", refreshTilt);
-    }
   }
 
   function setupReveal() {
@@ -116,8 +68,8 @@
   }
 
   function init() {
+    setupSmoothScroll();
     setupReveal();
-    setupTilt();
   }
 
   if (document.readyState === "loading") {
