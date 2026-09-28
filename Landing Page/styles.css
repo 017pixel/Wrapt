@@ -69,7 +69,7 @@
   --lp-gap: clamp(72px, 11vw, 132px);
 }
 
-*, *::before, *::after { box-sizing: border-box; }
+*, *::before, *::after { box-sizing: border-box; overscroll-behavior-y: none; }
 html, body { overflow-x: clip; }
 html { scroll-behavior: smooth; scroll-padding-top: 84px; }
 body {
@@ -347,18 +347,6 @@ a { color: inherit; }
   .hero__lead { max-width: 48ch; }
   .nav { justify-content: flex-end; }
   .nav a { font-size: 14px; }
-  body::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background-image:
-      repeating-linear-gradient(to right, var(--color-line) 0 1px, transparent 1px 32px),
-      repeating-linear-gradient(to bottom, var(--color-line) 0 1px, transparent 1px 32px);
-    -webkit-mask-image: linear-gradient(90deg, #000 0%, transparent 32%, transparent 68%, #000 100%);
-    mask-image: linear-gradient(90deg, #000 0%, transparent 32%, transparent 68%, #000 100%);
-  }
 }
 
 @media (min-width: 1280px) {

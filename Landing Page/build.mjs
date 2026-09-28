@@ -6,6 +6,7 @@
 
 import { cp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -104,23 +105,30 @@ async function build() {
   const themeCss = await readFile(themePath, "utf8").catch(() => fail("apps/web/src/index.css nicht lesbar"));
   const tokens = extractTheme(themeCss);
 
-  const [html, styles, script] = await Promise.all([
+  const [html, styles, docsStyles, script] = await Promise.all([
     readFile(join(here, "index.html"), "utf8"),
     readFile(join(here, "styles.css"), "utf8"),
+    readFile(join(here, "docs.css"), "utf8"),
     readFile(join(here, "script.js"), "utf8"),
   ]);
-
   await rm(distDir, { recursive: true, force: true });
   await mkdir(distDir, { recursive: true });
 
   await cp(assetsDir, join(distDir, "assets"), { recursive: true });
   await writeFile(join(distDir, "index.html"), html);
   await writeFile(join(distDir, "styles.css"), injectTheme(styles, tokens));
+  await writeFile(join(distDir, "docs.css"), docsStyles);
   await writeFile(join(distDir, "script.js"), script);
   await writeFile(join(distDir, ".nojekyll"), "");
   const fontCount = await copyFonts();
 
-  console.log(`Fertig: ${tokens.size} Theme-Token übernommen, ${fontCount} Fonts kopiert.`);
+  execFileSync(process.execPath, [resolve(repoRoot, "docs-webseite/build.mjs")], {
+    cwd: repoRoot,
+    stdio: "inherit",
+  });
+  await cp(resolve(repoRoot, "docs-webseite/dist"), join(distDir, "doku"), { recursive: true });
+
+  console.log(`Fertig: ${tokens.size} Theme-Token übernommen, ${fontCount} Fonts kopiert, Doku unter /doku gebündelt.`);
   console.log(`Ausgabe: ${distDir}`);
 }
 

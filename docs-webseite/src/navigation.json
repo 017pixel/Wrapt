@@ -1,0 +1,46 @@
+[
+  {
+    "title": "Einstieg",
+    "items": [
+      { "id": "start", "source": "start/ueberblick.md" }
+    ]
+  },
+  {
+    "title": "Wrapt nutzen",
+    "items": [
+      { "id": "produkt/arbeitsbereich", "source": "produkt/arbeitsbereich.md" },
+      { "id": "produkt/orbit", "source": "produkt/orbit.md" },
+      { "id": "produkt/werkzeuge", "source": "produkt/werkzeuge.md" },
+      { "id": "produkt/terminal", "source": "produkt/terminal.md" },
+      { "id": "produkt/previews", "source": "produkt/previews.md" },
+      { "id": "produkt/plugins-extensions", "source": "produkt/plugins-extensions.md" },
+      { "id": "produkt/notizen-nutzung", "source": "produkt/notizen-nutzung.md" }
+    ]
+  },
+  {
+    "title": "Einrichten und betreiben",
+    "items": [
+      { "id": "betrieb/installation-erster-start", "source": "betrieb/installation-erster-start.md" },
+      { "id": "betrieb/konfigurieren", "source": "betrieb/konfigurieren.md" },
+      { "id": "betrieb/zugriff-sicherheit", "source": "betrieb/zugriff-sicherheit.md" },
+      { "id": "betrieb/sichern-wiederherstellen-update", "source": "betrieb/sichern-wiederherstellen-update.md" },
+      { "id": "betrieb/altbestand-und-migration", "source": "betrieb/altbestand-und-migration.md" },
+      { "id": "betrieb/fehlerdiagnose", "source": "betrieb/fehlerdiagnose.md" }
+    ]
+  },
+  {
+    "title": "Projekt",
+    "items": [
+      { "id": "projekt/ueber-wrapt", "source": "projekt/ueber-wrapt.md" },
+      { "id": "projekt/architektur", "source": "projekt/architektur.md" },
+      { "id": "projekt/open-source", "source": "projekt/open-source.md" },
+      { "id": "projekt/mitarbeiten", "source": "projekt/mitarbeiten.md" }
+    ]
+  },
+  {
+    "title": "Änderungen",
+    "items": [
+      { "id": "changelog", "source": "changelog.md" }
+    ]
+  }
+]

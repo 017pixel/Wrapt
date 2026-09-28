@@ -11,8 +11,9 @@ fertige Ausgabe, alle Quellen liegen daneben.
 | --- | --- |
 | `index.html` | Semantische Seitenstruktur und deutsche Texte |
 | `styles.css` | Layout, Theme-Variablen, Tilt, Raster und Responsive Styles |
+| `docs.css` | Layout der Doku-Einstiegsfläche auf der Landingpage |
 | `script.js` | Cursor-Tilt, weiches Scrollen und sparsame Scrollzustände |
-| `build.mjs` | Erzeugt `dist/` aus den Quellen und dem Wrapt-Theme |
+| `build.mjs` | Erzeugt die Landingpage und bündelt die Doku unter `dist/doku/` |
 | `assets/` | Echte Wrapt-Ansichten aus der Demo-Instanz mit reinen Beispieldaten als PNG |
 | `dist/` | Generierte Ausgabe, nicht direkt bearbeiten |
 
@@ -29,9 +30,11 @@ node build.mjs
 
 Das Skript legt `dist/` neu an, kopiert `assets/` (inklusive der
 mitgelieferten Fonts unter `assets/fonts/`) und schreibt `index.html`,
-`styles.css`, `script.js` sowie `.nojekyll`. Fehlt eine lokale Font-Datei,
-greift der Build auf `apps/web/node_modules/` zurück (`pnpm install`);
-gibt es sie auch dort nicht, nutzt die Seite den System-Fallback.
+`styles.css`, `docs.css`, `script.js` sowie `.nojekyll`. Danach baut es `docs-webseite/`
+und kopiert die Ausgabe nach `dist/doku/`. So liegt die Dokumentation unter
+`https://017pixel.github.io/Wrapt/doku/`. Fehlt eine lokale Font-Datei,
+greift der Landingpage-Build auf `apps/web/node_modules/` zurück
+(`pnpm install`); gibt es sie auch dort nicht, nutzt die Seite den System-Fallback.
 
 ## Lokale Vorschau
 
@@ -79,11 +82,11 @@ Sichtbar sind nur erfundene Daten (`demo-server`, `demo@example.com`). Ohne
   nutzbar.
 - Gleiche-Seiten-Sprunglinks scrollen weich und halten den Sticky-Header frei.
   Bei `prefers-reduced-motion: reduce` wird sofort gesprungen.
-- Ab 1024 px legt `body::before` ein dezentes Raster an beide Ränder; zur Mitte
-  fadet es aus, unter 1024 px ist es aus. Der Inhalt liegt darüber.
 - Auf schmalen Geräten bleibt die Hauptnavigation einzeilig und horizontal
   scrollbar.
 - Diese Vorschau startet und stoppt keine Wrapt-Dienste. Laufende
   Preview-Sessions und Dev-Server bleiben unberührt.
+- Der Versionsmarker `docs-revision.txt` wird bei reinen Doku-Änderungen angepasst,
+  damit der vorhandene GitHub-Pages-Trigger den Build startet.
 - Veröffentlicht wird ausschließlich `dist/`. Der GitHub-Actions-Workflow liegt
   außerhalb dieses Ordners unter `.github/workflows/`.

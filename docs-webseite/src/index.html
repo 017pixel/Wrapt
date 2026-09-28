@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="description" content="Die Wrapt-Dokumentation: Einstieg, Funktionen, Betrieb, Sicherheit und Changelog." />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="de_DE" />
+    <meta property="og:site_name" content="Wrapt" />
+    <meta property="og:title" content="Wrapt Dokumentation" />
+    <meta property="og:description" content="Einstieg, Funktionen, Betrieb und Entwicklung von Wrapt." />
+    <meta property="og:url" content="https://017pixel.github.io/Wrapt/doku/" />
+    <title>Wrapt Dokumentation</title>
+    <link rel="icon" href="./assets/wrapt-dashboard.png" type="image/png" />
+    <link rel="stylesheet" href="./theme.css" />
+    <link rel="stylesheet" href="./shell.css" />
+    <link rel="stylesheet" href="./content.css" />
+    <link rel="stylesheet" href="./responsive.css" />
+    <script src="./app.js" type="module"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#doc-content">Zum Inhalt springen</a>
+    <header class="topbar" id="top">
+      <a class="brand" href="#/start" aria-label="Wrapt Dokumentation, Startseite">
+        <span class="brand__mark" aria-hidden="true">W</span>
+        <span class="brand__name">Wrapt</span>
+        <span class="brand__section">Dokumentation</span>
+      </a>
+      <div class="topbar__actions">
+        <a class="topbar__link" href="../" aria-label="Zur Wrapt-Landingpage">Website</a>
+        <button class="search-trigger" type="button" data-open-search aria-label="Dokumentation durchsuchen">
+          <span>Suchen</span><kbd>Ctrl / ⌘ K</kbd>
+        </button>
+        <a class="topbar__github" href="https://github.com/017pixel/Wrapt">GitHub</a>
+      </div>
+    </header>
+
+    <div class="docs-layout">
+      <aside class="sidebar" aria-label="Dokumentationsnavigation">
+        <nav id="desktop-navigation"></nav>
+        <div class="sidebar__footer">
+          <a href="https://github.com/017pixel/Wrapt/blob/master/LICENSE">MIT-Lizenz</a>
+          <span>Wrapt</span>
+        </div>
+      </aside>
+
+      <main class="doc-main" id="doc-content" tabindex="-1">
+        <div class="doc-main__inner">
+          <div class="breadcrumbs" id="breadcrumbs" aria-label="Pfad"></div>
+          <article class="prose" id="article" aria-live="polite">
+            <p class="loading">Dokumentation wird geladen …</p>
+          </article>
+          <nav class="page-turn" id="page-turn" aria-label="Weitere Dokumentationsseiten"></nav>
+          <footer class="doc-footer">
+            <span>Wrapt, selbst gehostete Workbench</span>
+            <div>
+              <a href="https://github.com/017pixel/Wrapt">Quellcode</a>
+              <a href="https://github.com/017pixel/Wrapt/blob/master/LICENSE">Lizenz</a>
+              <a href="../">Landingpage</a>
+            </div>
+          </footer>
+        </div>
+      </main>
+
+      <aside class="toc" aria-label="Auf dieser Seite">
+        <p class="toc__title">Auf dieser Seite</p>
+        <nav id="table-of-contents"></nav>
+      </aside>
+    </div>
+
+    <nav class="mobile-bar" aria-label="Mobile Dokumentationsnavigation">
+      <button type="button" data-open-navigation>Seiten</button>
+      <button type="button" data-open-search>Suche</button>
+      <a href="#top">Nach oben</a>
+    </nav>
+
+    <dialog class="search-dialog" id="search-dialog" aria-labelledby="search-title">
+      <form method="dialog" class="search-dialog__frame">
+        <div class="search-dialog__head">
+          <label id="search-title" for="search-input">Dokumentation durchsuchen</label>
+          <button type="button" class="dialog-close" data-close-search aria-label="Suche schließen">Schließen</button>
+        </div>
+        <input id="search-input" type="search" autocomplete="off" placeholder="Thema oder Begriff eingeben" />
+        <p class="search-dialog__hint">Suche in Seiten und Changelog. Mit Escape schließen.</p>
+        <div id="search-results" class="search-results" role="listbox" aria-label="Suchergebnisse"></div>
+      </form>
+    </dialog>
+
+    <dialog class="navigation-dialog" id="navigation-dialog" aria-labelledby="navigation-title">
+      <div class="navigation-dialog__frame">
+        <div class="navigation-dialog__head">
+          <h2 id="navigation-title">Dokumentationsseiten</h2>
+          <button type="button" class="dialog-close" data-close-navigation>Schließen</button>
+        </div>
+        <nav id="mobile-navigation"></nav>
+      </div>
+    </dialog>
+  </body>
+</html>
