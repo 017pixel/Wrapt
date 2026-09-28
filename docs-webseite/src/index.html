@@ -12,7 +12,7 @@
     <meta property="og:description" content="Einstieg, Funktionen, Betrieb und Entwicklung von Wrapt." />
     <meta property="og:url" content="https://017pixel.github.io/Wrapt/doku/" />
     <title>Wrapt Dokumentation</title>
-    <link rel="icon" href="./assets/wrapt-dashboard.png" type="image/png" />
+    <link rel="icon" href="./assets/wrapt-icon.png" type="image/png" />
     <link rel="stylesheet" href="./theme.css" />
     <link rel="stylesheet" href="./shell.css" />
     <link rel="stylesheet" href="./content.css" />
@@ -23,7 +23,7 @@
     <a class="skip-link" href="#doc-content">Zum Inhalt springen</a>
     <header class="topbar" id="top">
       <a class="brand" href="#/start" aria-label="Wrapt Dokumentation, Startseite">
-        <span class="brand__mark" aria-hidden="true">W</span>
+        <img class="brand__mark" src="./assets/wrapt-icon.png" alt="" width="34" height="34" />
         <span class="brand__name">Wrapt</span>
         <span class="brand__section">Dokumentation</span>
       </a>
@@ -46,8 +46,15 @@
       </aside>
 
       <main class="doc-main" id="doc-content" tabindex="-1">
+        <section class="docs-home-hero" id="docs-home-hero" aria-label="Wrapt-Dokumentation bei Nacht" hidden>
+          <div class="docs-home-hero__inner">
+            <div class="docs-home-hero__content" id="docs-home-hero-content">
+              <div class="breadcrumbs" id="breadcrumbs" aria-label="Pfad"></div>
+              <div class="docs-home-hero__copy prose" id="docs-home-hero-copy"></div>
+            </div>
+          </div>
+        </section>
         <div class="doc-main__inner">
-          <div class="breadcrumbs" id="breadcrumbs" aria-label="Pfad"></div>
           <article class="prose" id="article" aria-live="polite">
             <p class="loading">Dokumentation wird geladen …</p>
           </article>

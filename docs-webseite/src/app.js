@@ -8,12 +8,18 @@ const searchDialog = document.querySelector("#search-dialog");
 const navigationDialog = document.querySelector("#navigation-dialog");
 const searchInput = document.querySelector("#search-input");
 const searchResults = document.querySelector("#search-results");
+const docMain = document.querySelector(".doc-main");
+const homeHero = document.querySelector("#docs-home-hero");
+const homeHeroContent = document.querySelector("#docs-home-hero-content");
+const homeHeroCopy = document.querySelector("#docs-home-hero-copy");
+const docInner = document.querySelector(".doc-main__inner");
 
 let groups = [];
 let pages = [];
 let pageById = new Map();
 let currentId = "";
 let releaseFilter = "all";
+const dialogCloseTimers = new WeakMap();
 
 function escapeText(value) {
   return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
@@ -74,7 +80,21 @@ function renderPageTurn(page) {
 function renderPage(id) {
   const page = pageById.get(id) ?? pageById.get("start");
   currentId = page.id;
+  const isHome = page.id === "start";
+  homeHero.hidden = !isHome;
+  docMain.classList.toggle("doc-main--home", isHome);
   article.innerHTML = page.content;
+  if (isHome) {
+    const intro = [article.querySelector("h1"), article.querySelector(".lead")].filter(Boolean);
+    homeHeroCopy.replaceChildren(...intro);
+    homeHeroContent.prepend(breadcrumb);
+  } else {
+    homeHeroCopy.replaceChildren();
+    docInner.prepend(breadcrumb);
+  }
+  article.classList.remove("route-enter");
+  void article.offsetWidth;
+  article.classList.add("route-enter");
   article.setAttribute("aria-label", page.title);
   document.title = `${page.title} · Wrapt Dokumentation`;
   renderBreadcrumb(page);
@@ -97,8 +117,8 @@ function handleRoute() {
   const changed = id !== currentId;
   if (changed) renderPage(id);
   if (anchor) scrollToAnchor(anchor);
-  else if (changed) window.scrollTo({ top: 0, behavior: "auto" });
-  if (navigationDialog.open) navigationDialog.close();
+  else if (changed) window.scrollTo({ top: 0, behavior: "smooth" });
+  if (navigationDialog.open) closeDialog(navigationDialog);
 }
 
 function excerpt(page, query) {
@@ -147,8 +167,31 @@ function updateSearch() {
   searchResults.innerHTML = matches.map((page) => `<a class="search-result" role="option" href="#/${page.id}"><span class="search-result__group">${escapeText(page.group)}</span><strong>${escapeText(page.title)}</strong><span class="search-result__excerpt">${escapeText(excerpt(page, query))}</span></a>`).join("");
 }
 
+function openDialog(dialog) {
+  const timer = dialogCloseTimers.get(dialog);
+  if (timer) window.clearTimeout(timer);
+  dialogCloseTimers.delete(dialog);
+  dialog.classList.remove("is-closing");
+  if (!dialog.open) dialog.showModal();
+}
+
+function closeDialog(dialog) {
+  if (!dialog.open || dialog.classList.contains("is-closing")) return;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    dialog.close();
+    return;
+  }
+  dialog.classList.add("is-closing");
+  const timer = window.setTimeout(() => {
+    dialog.classList.remove("is-closing");
+    if (dialog.open) dialog.close();
+    dialogCloseTimers.delete(dialog);
+  }, 200);
+  dialogCloseTimers.set(dialog, timer);
+}
+
 function openSearch() {
-  if (!searchDialog.open) searchDialog.showModal();
+  openDialog(searchDialog);
   searchInput.value = "";
   updateSearch();
   requestAnimationFrame(() => searchInput.focus());
@@ -187,23 +230,38 @@ function bindReleaseFilters() {
 }
 
 function bindControls() {
+  for (const dialog of [searchDialog, navigationDialog]) {
+    dialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      closeDialog(dialog);
+    });
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) closeDialog(dialog);
+    });
+    dialog.addEventListener("close", () => {
+      const timer = dialogCloseTimers.get(dialog);
+      if (timer) window.clearTimeout(timer);
+      dialogCloseTimers.delete(dialog);
+      dialog.classList.remove("is-closing");
+    });
+  }
   document.querySelectorAll("[data-open-search]").forEach((button) => button.addEventListener("click", openSearch));
-  document.querySelector("[data-close-search]").addEventListener("click", () => searchDialog.close());
-  document.querySelector("[data-open-navigation]").addEventListener("click", () => navigationDialog.showModal());
-  document.querySelector("[data-close-navigation]").addEventListener("click", () => navigationDialog.close());
+  document.querySelector("[data-close-search]").addEventListener("click", () => closeDialog(searchDialog));
+  document.querySelector("[data-open-navigation]").addEventListener("click", () => openDialog(navigationDialog));
+  document.querySelector("[data-close-navigation]").addEventListener("click", () => closeDialog(navigationDialog));
   searchInput.addEventListener("input", updateSearch);
   searchDialog.querySelector("form").addEventListener("submit", (event) => {
     event.preventDefault();
     const firstResult = searchResults.querySelector("a[href]");
     if (!firstResult) return;
     window.location.hash = firstResult.getAttribute("href");
-    searchDialog.close();
+    closeDialog(searchDialog);
   });
   searchResults.addEventListener("click", (event) => {
-    if (event.target.closest("a")) searchDialog.close();
+    if (event.target.closest("a")) closeDialog(searchDialog);
   });
   navigationDialog.addEventListener("click", (event) => {
-    if (event.target.closest("a")) navigationDialog.close();
+    if (event.target.closest("a")) closeDialog(navigationDialog);
   });
   window.addEventListener("keydown", (event) => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLocaleLowerCase("en-US") === "k") {

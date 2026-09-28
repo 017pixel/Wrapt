@@ -60,6 +60,7 @@ body {
   text-rendering: optimizeLegibility;
 }
 
+html { scroll-behavior: smooth; scroll-padding-top: 88px; }
 body { padding-top: var(--docs-topbar-height); }
 a { color: inherit; }
 button, input { font: inherit; }
@@ -109,17 +110,11 @@ button { color: inherit; }
 }
 
 .brand__mark {
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  border: 1px solid var(--color-accent-line);
-  border-radius: var(--radius);
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
-  font-family: var(--font-mono);
-  font-size: 15px;
-  font-weight: 600;
+  display: block;
+  width: 34px;
+  height: 34px;
+  flex: none;
+  object-fit: contain;
 }
 
 .brand__name { font-size: 16px; font-weight: 700; letter-spacing: -.02em; }
@@ -198,6 +193,37 @@ kbd {
 
 .doc-main { min-width: 0; padding: 30px var(--docs-gutter) 48px; }
 .doc-main__inner { width: min(100%, var(--docs-content-width)); margin: 0 auto; }
+.doc-main.doc-main--home { position: relative; z-index: 2; padding: 0 0 48px; }
+.doc-main--home .doc-main__inner { width: min(100%, 868px); padding: 30px var(--docs-gutter) 0; }
+
+.docs-home-hero {
+  display: flex;
+  width: calc(100% + var(--docs-toc-width));
+  height: clamp(420px, 46vw, 620px);
+  align-items: flex-start;
+  overflow: hidden;
+  background-color: var(--color-ink-950);
+  background-image:
+    linear-gradient(to bottom, var(--color-ink-950) 0%, color-mix(in srgb, var(--color-ink-950) 64%, transparent) 17%, transparent 40%, color-mix(in srgb, var(--color-ink-950) 38%, transparent) 63%, var(--color-ink-950) 100%),
+    url("./assets/nachthimmel-baum.webp");
+  background-repeat: no-repeat;
+  background-position: center, 72% center;
+  background-size: 100% 100%, cover;
+  animation: docs-hero-appear 720ms ease-out both;
+}
+
+.docs-home-hero[hidden] { display: none; }
+.docs-home-hero__inner { display: flex; width: 100%; height: 100%; }
+.docs-home-hero__content {
+  width: min(100%, 868px);
+  margin-left: max(0px, calc((100% - var(--docs-toc-width) - 868px) / 2));
+  padding: clamp(24px, 6vw, 72px) var(--docs-gutter) 0;
+}
+
+.docs-home-hero__content .breadcrumbs { margin-bottom: 18px; }
+.docs-home-hero__copy { max-width: 780px; }
+@keyframes docs-hero-appear { from { opacity: 0; } to { opacity: 1; } }
+
 .breadcrumbs { display: flex; min-height: 24px; align-items: center; gap: 8px; margin: 0 0 24px; color: var(--color-faint); font-size: 13px; }
 .breadcrumbs a { color: var(--color-muted); text-decoration: none; }
 .breadcrumbs a:hover { color: var(--color-text); }
@@ -230,6 +256,15 @@ kbd {
   color: var(--color-text);
   box-shadow: var(--shadow-overlay);
 }
+
+.search-dialog[open]:not(.is-closing), .navigation-dialog[open]:not(.is-closing) { animation: docs-dialog-in 190ms cubic-bezier(.16, 1, .3, 1) both; }
+.search-dialog[open].is-closing, .navigation-dialog[open].is-closing { animation: docs-dialog-out 150ms ease-in both; }
+.search-dialog[open]::backdrop, .navigation-dialog[open]::backdrop { animation: docs-backdrop-in 190ms ease-out both; }
+.search-dialog[open].is-closing::backdrop, .navigation-dialog[open].is-closing::backdrop { animation: docs-backdrop-out 150ms ease-in both; }
+@keyframes docs-dialog-in { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes docs-dialog-out { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(8px) scale(.985); } }
+@keyframes docs-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes docs-backdrop-out { from { opacity: 1; } to { opacity: 0; } }
 
 .search-dialog::backdrop, .navigation-dialog::backdrop { background: rgb(0 0 0 / .72); backdrop-filter: blur(4px); }
 .search-dialog__frame, .navigation-dialog__frame { display: grid; gap: 14px; padding: 18px; }

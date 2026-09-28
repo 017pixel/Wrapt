@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.1] - 2026-09-28
+
+### Verändert
+- Dokumentationsstartseite zeigt Pfad, Titel und Einführung im Bildbereich
+- Nachthimmelmotiv reicht über die rechte Inhaltsleiste bis zum rechten Bildschirmrand
+- Aktive Seitenlinks verwenden ausschließlich blauen Text
+- Wrapt-App-Icon ersetzt den Buchstaben im Doku-Kopf
+- Suche und mobile Seitenauswahl erhalten Ein- und Ausblendanimationen; Navigation scrollt weich
+
 ## [0.1.0] - 2026-09-28
 
 ### Erstellt
