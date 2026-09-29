@@ -140,7 +140,6 @@ export function LocalPreviewRuntime({
     previewNodeId,
     projectId,
     ...(sessionKey === undefined ? {} : { sessionKey }),
-    graphRevision: graphQuery.data?.graph.updatedAt ?? null,
     visible,
     reloadKey,
     ...(onSlotAssigned === undefined ? {} : { onSlotAssigned }),

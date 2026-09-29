@@ -24,7 +24,6 @@ export interface UsePreviewRuntimeSessionInput {
   previewNodeId: string | null;
   projectId: string | null;
   sessionKey?: string;
-  graphRevision: string | null;
   visible: boolean;
   reloadKey: number;
   onSlotAssigned?: (slotId: number, url: string) => void;
@@ -90,7 +89,6 @@ export function usePreviewRuntimeSession(input: UsePreviewRuntimeSessionInput) {
       targetPort: input.targetPort,
       isolate: input.isolate,
       storageProfileId: input.storageProfileId,
-      graphRevision: input.graphRevision,
     });
     const current = assignmentRef.current;
     if (current && current.requestFingerprint === requestFingerprint
@@ -147,7 +145,6 @@ export function usePreviewRuntimeSession(input: UsePreviewRuntimeSessionInput) {
     return () => { active = false; };
   }, [
     effectiveSessionKey,
-    input.graphRevision,
     input.isolate,
     input.path,
     input.projectId,
