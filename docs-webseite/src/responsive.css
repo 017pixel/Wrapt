@@ -53,7 +53,7 @@
   .search-trigger kbd { display: none; }
   .doc-main { padding-top: 18px; }
   .docs-home-hero { height: clamp(320px, 92vw, 440px); background-position: center, 100% center; }
-  .docs-home-hero__content { padding-top: 24px; }
+  .docs-home-hero__content { padding: 20px var(--docs-gutter) 0; }
   .docs-home-hero__content .breadcrumbs { flex-wrap: wrap; gap: 4px; margin-bottom: 14px; font-size: 11px; }
   .docs-home-hero__copy .lead { font-size: 16px; line-height: 1.55; }
   .docs-home-hero__copy h1 { margin-bottom: 12px; }

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.2] - 2026-09-29
+
+### Verändert
+- Mausrad über dem Startbild bewegt die Seite wieder normal nach unten
+- Einführungstext, Titel und Pfad stehen jetzt direkt über den drei Themenkarten
+- Fester Abstand von 32 Pixeln zwischen Einführung und Karten
+- Startbild beschneidet überstehende Inhalte ohne eigenes Scrollverhalten
+- Abstände gelten einheitlich auf Desktop, Tablet, Handy und im Querformat
+
 ## [0.1.1] - 2026-09-28
 
 ### Verändert
