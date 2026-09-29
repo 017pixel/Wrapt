@@ -291,6 +291,9 @@
 .notes-sidebar.is-collapsed .notes-sidebar-resizer { display: none; }
 
 body.is-resizing-notes-sidebar { cursor: col-resize; user-select: none; }
+/* Beim Ziehen folgt die Breite dem Zeiger ohne Verzögerung — sonst misst
+   die persistente Breite einen Zwischenstand der 180-ms-Animation. */
+body.is-resizing-notes-sidebar .notes-sidebar { transition: none; }
 
 @media (max-width: 900px), (pointer: coarse) and (max-width: 1366px) {
   .notes-group-head,

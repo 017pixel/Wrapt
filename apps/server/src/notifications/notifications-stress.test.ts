@@ -44,7 +44,9 @@ function t3Database(path: string): DatabaseSync {
 }
 
 describe("Notification-Stresstest", () => {
-  it("bündelt 2000 OpenCode-Abschlüsse aus 50 Läufen auf 50 Meldungen – ohne T3- oder Subagenten-Duplikate", { timeout: 30_000 }, () => {
+  // Das Zeitbudget deckt belastete CI-Maschinen ab: Der Test misst keine
+  // Geschwindigkeit, sondern die Bündelungslogik bei 2000 Ereignissen.
+  it("bündelt 2000 OpenCode-Abschlüsse aus 50 Läufen auf 50 Meldungen – ohne T3- oder Subagenten-Duplikate", { timeout: 60_000 }, () => {
     const path = directory();
     const opencodePath = join(path, "opencode.sqlite");
     const db = openCodeDatabase(opencodePath);
