@@ -1,0 +1,25 @@
+[package]
+name = "wrapt-launcher"
+version = "1.21.0"
+description = "Lokaler Launcher für Wrapt"
+authors = ["Wrapt"]
+edition = "2021"
+rust-version = "1.88"
+
+[lib]
+name = "wrapt_launcher_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+open = "5"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tauri = { version = "2", features = ["tray-icon"] }
+tauri-plugin-autostart = "2"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

@@ -1,0 +1,15 @@
+{
+  "name": "@wrapt/launcher",
+  "version": "1.21.0",
+  "private": true,
+  "description": "Lokaler Tauri-Launcher für Wrapt",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "icons": "tauri icon src-tauri/icons/wrapt.svg"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.0.0"
+  }
+}

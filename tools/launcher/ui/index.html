@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="dark">
+    <title>Wrapt Launcher</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="shell">
+      <header class="header">
+        <span class="brand-mark" aria-hidden="true">W</span>
+        <div>
+          <p class="eyebrow">Lokaler Betrieb</p>
+          <h1>Wrapt Launcher</h1>
+        </div>
+      </header>
+
+      <section class="status-card" aria-live="polite">
+        <div class="status-heading">
+          <span id="status-dot" class="status-dot pending"></span>
+          <h2 id="status-title">Status wird geprüft</h2>
+        </div>
+        <p id="status-detail" class="muted">Verbindung zu 127.0.0.1:3010</p>
+        <div class="metadata">
+          <span>Version</span><code id="version">—</code>
+          <span>Prozesskennung</span><code id="boot-id">—</code>
+          <span>Verwaltung</span><code id="ownership">—</code>
+        </div>
+      </section>
+
+      <section class="actions" aria-label="Serveraktionen">
+        <button id="open-workbench" class="button primary">Oberfläche öffnen</button>
+        <div class="button-row">
+          <button id="start-server" class="button secondary">Start</button>
+          <button id="stop-server" class="button secondary">Stop</button>
+          <button id="restart-server" class="button secondary">Neustart</button>
+        </div>
+      </section>
+
+      <p id="feedback" class="feedback" role="status"></p>
+
+      <section class="settings">
+        <div class="section-heading">
+          <h2>Lokales Repository</h2>
+          <button id="save-path" class="text-button">Speichern</button>
+        </div>
+        <label class="field-label" for="repository">Wrapt-Projektordner</label>
+        <input id="repository" class="path-input" type="text" spellcheck="false" autocomplete="off">
+        <p class="file-path">Serverlog: <span id="log-path">wird geladen</span></p>
+        <button id="open-logs" class="button secondary log-button">Serverlogs öffnen</button>
+      </section>
+
+      <footer class="footer">
+        <label class="toggle-row" for="autostart">
+          <span>Launcher und Server beim Login starten</span>
+          <input id="autostart" type="checkbox">
+        </label>
+        <span class="app-version">Launcher v1.17.0</span>
+      </footer>
+    </main>
+    <script src="./app.js"></script>
+  </body>
+</html>
