@@ -9,7 +9,7 @@
 > verifizierte Release-Slots kopiert, über einen atomaren Pointer aktiviert und durch einen
 > Entrypoint-Health-Handshake bestätigt. Der hostseitige Capability-Broker prüft Grants vor
 > jedem Aufruf erneut. Serverseitige Fremd-Entrypoints und nicht deklarative Pakete bleiben
-> fail-closed. Siehe die [aktuelle Reality-Matrix](../goals/extension-platform-v1.md#aktuelle-reality-matrix).
+> fail-closed. Siehe die [aktuelle Reality-Matrix](../../plans/extension-platform-v1.md#aktuelle-reality-matrix).
 
 ## Kontext
 

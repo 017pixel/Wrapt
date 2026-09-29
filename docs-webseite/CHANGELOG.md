@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.3] - 2026-09-29
+
+### Erstellt
+- Das Startkapitel zeigt Dashboard und Notizen als angewinkeltes Handy-Bildpaar
+- Das Markdown-Kürzel `:::phones` bündelt mehrere Handyaufnahmen in einer Reihe
+
+### Verändert
+- Alle Produktaufnahmen stammen aus der isolierten Demo-Instanz mit Stand 1.24.0
+- Desktop-Motive zeigen den Laptop-Maßstab mit 1728 × 1117 Pixeln statt 1280 × 720
+- Die Suche in der Kopfzeile erscheint als reiner Text mit Tastenkürzel statt als umrandetes Feld
+- Handybilder sind kleiner, rechts ausgerichtet und leicht gedreht
+
+### Behoben
+- Mausrad über Tabellen und Codeblöcken scrollt die Seite jetzt weiter
+
 ## [0.1.2] - 2026-09-29
 
 ### Verändert

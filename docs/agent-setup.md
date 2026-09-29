@@ -1,7 +1,7 @@
 # Agent-Setup — Wrapt einrichten
 
-Diese Datei ist die präzise Schritt-für-Schritt-Anleitung **für einen Coding-Agenten**
-(z. B. Claude Code, Codex, OpenCode), der Wrapt auf einem Server einrichtet.
+Diese Datei ist die Schritt-für-Schritt-Anleitung **für einen Coding-Agenten**
+(z. B. Claude Code, Codex, OpenCode), der Wrapt auf einem Linux-Server einrichtet.
 Der Agent führt die Schritte aus, fragt den Benutzer nach den benötigten Werten und
 verifiziert am Ende, dass alles läuft. Der kopierbare Einstiegsprompt steht in der
 [README unter „Mit einem Coding-Agenten“](../README.md#mit-einem-coding-agenten-empfohlen).
@@ -13,10 +13,11 @@ verifiziert am Ende, dass alles läuft. Der kopierbare Einstiegsprompt steht in 
 
 ## 0. Voraussetzungen (prüfen, nicht raten)
 
-- **Betriebssystem:** Linux mit systemd (für den Dienstbetrieb). Entwicklung geht auch ohne.
+- **Betriebssystem:** Linux mit systemd für den dauerhaften Dienstbetrieb. Lokaler Vordergrundbetrieb auf macOS ist in der [Installationsanleitung](installation.md#lokaler-betrieb-auf-macos) beschrieben.
 - **Node.js ≥ 22** und **pnpm 10** (`scripts/install-deps.sh` prüft Node und richtet pnpm bei
   Bedarf über Corepack ein).
-- **git**, **curl** und **tmux** — für Repository, Verifikation und Terminal-Sessions.
+- **git**, **curl** und **tmux** — für Repository und Verifikation; tmux wird für persistente
+  Terminal-Sitzungen benötigt.
 - **jq** — nur für das Tailscale-Serve-Skript (Rollback des Proxy-Zustands).
 - **Tailscale** — für den privaten Remote-Zugriff (optional; lokal läuft es auch ohne).
 - **code-server** — optional, nur für den eingebetteten Editor.
@@ -37,11 +38,13 @@ Stelle dem Benutzer diese Fragen und sammle die Antworten (Pflicht = *):
 1. **Systembenutzer & Home-Verzeichnis*** — z. B. `alice` / `/home/alice`
    (Standard: aktueller Benutzer, `id -un` / `$HOME`).
 2. **Projekt-Wurzelverzeichnis*** — wo liegen die Projekte? z. B. `/home/alice/projects`.
-3. **Tailscale-Hostname & IP** — z. B. `server-name.tailnet.ts.net` / `100.x.y.z`
-   (nur nötig für Remote-Zugriff; sonst Platzhalter lassen).
-4. **HTTPS-Port für Tailscale** — Standard `8443`.
-5. **Erlaubte Login-E-Mails** — die Tailscale-Identitäten, die auf die Wrapt dürfen
-   (z. B. `alice@example.com`).
+3. **Zugriffsweg*** — privater Remote-Zugriff über Tailscale oder Browserzugriff nur
+   direkt auf diesem Server. Für Remote-Zugriff ohne Tailscale nicht öffentlich freigeben.
+4. **Tailscale-Werte** — Hostname, IP, HTTPS-Port (Standard `8443`) und erlaubte
+   Login-E-Mails, nur wenn Tailscale-Remotezugriff gewählt wurde.
+5. **Lokaler Benutzername** — bei rein lokalem Zugriff der Benutzer, unter dem Wrapt
+   läuft. Dafür wird `security.localLoopbackTrust` aktiviert; es erlaubt keinen Zugriff
+   von anderen Geräten. Bei Bedarf den Namen auch in `tailscale.adminUsers` eintragen.
 6. **Optionale CLI-Pfade** — `codex`, `opencode`, `claude`, `codexbar`, `tmux`
    (Standard: automatische Erkennung im PATH).
 7. **CodexBar** — soll die Nutzungshistorie aktiviert werden? Falls ja: Pfad zur
@@ -52,7 +55,9 @@ Stelle dem Benutzer diese Fragen und sammle die Antworten (Pflicht = *):
 
 ## 2. Konfigurationsdateien erzeugen
 
-Es gibt genau **zwei** lokale, gitignorierte Dateien mit persönlichen Werten:
+Die zwei zentralen lokalen, gitignorierten Dateien mit persönlichen Werten sind
+`config/wrapt.local.json` und `.env`. Wenn code-server beim systemd-Installationslauf
+gefunden wird, legt der Installer zusätzlich `config/code-server.yaml` aus seiner Vorlage an.
 
 ### a) `config/wrapt.local.json`
 Kopiere `config/wrapt.example.json` nach `config/wrapt.local.json` und trage die
@@ -63,8 +68,9 @@ Antworten aus Schritt 1 ein. Bedeutung der Felder:
 | `branding.appName` / `shortName` | Anzeigename der App (Titel, Manifest, Footer). |
 | `system.user` / `homeDirectory` | Dienstbenutzer und dessen Home. |
 | `tailscale.hostname` / `ip` / `httpsPort` | Für Dev-Server-Hosts und den Reverse-Proxy. |
-| `tailscale.allowedUsers` | Erlaubte Login-E-Mails (Terminal/Editor-Zugriff). |
-| `tailscale.adminUsers` | Optional. Ohne Eintrag gilt der erste erlaubte Benutzer als Administrator. |
+| `tailscale.allowedUsers` | Erlaubte Login-E-Mails für Zugriffe mit Tailscale-Identität. Bei rein lokalem Zugriff kann die Liste leer bleiben. |
+| `tailscale.adminUsers` | Administratoren. Ohne Eintrag gilt der erste erlaubte Tailscale-Benutzer als Administrator; lokaler Zugriff erhält dadurch nicht automatisch Adminrechte. |
+| `security.localLoopbackTrust` / `localUsername` | Vertrauenswürdiger Zugriff über direkte Loopback-Verbindungen und dessen lokale Identität. Standardmäßig deaktiviert. |
 | `paths.*` | Projekt-Roots, Datenverzeichnis, Datenbank, Backups, Assets, Profile. |
 | `paths.codexSharedHome` / `claudeSharedHome` / `opencodeSharedHome` | Optional. Gemeinsame Homes der KI-Werkzeuge für den Accountwechsel (Standard: `<home>/.codex`, `<home>/.claude`, `<home>/.local/share/opencode`). |
 | `cli.*` | Pfade zu `codexbar`, `codex`, `opencode`, `claude`, `tmux`. |
@@ -110,12 +116,21 @@ geschützten API-Aufrufe mit HTTP 401.
 ```bash
 pnpm build && pnpm start
 ```
+Für Zugriff ohne Tailscale muss `security.localLoopbackTrust` aktiviert sein; der Browser muss
+direkt auf demselben Rechner zugreifen. Für Remote-Zugriff den privaten Tailscale-Proxy
+verwenden. Details stehen unter [Lokaler Zugriff ohne Tailscale](configuration.md#lokaler-zugriff-ohne-tailscale).
 
 **Als systemd-Dienst** (Linux, empfohlener dauerhafter Betrieb):
 ```bash
 bash deploy/systemd/install.sh                    # rendert User-Units aus der Config und installiert sie (kein sudo)
+```
+Nur wenn Tailscale-Remotezugriff gewählt wurde, den privaten Proxy zusätzlich einrichten:
+```bash
 bash deploy/proxy/configure-tailscale-serve.sh    # veröffentlicht privat im Tailnet (nutzt intern sudo)
-sudo bash deploy/systemd/install-codexbar.sh      # optionaler CodexBar-Dienst (systemweit, deshalb sudo)
+```
+CodexBar ist optional und benötigt für seine systemweite Unit `sudo`:
+```bash
+sudo bash deploy/systemd/install-codexbar.sh
 ```
 Die systemd-Units werden aus den Templates in `deploy/systemd/units/` gerendert und mit den
 Werten aus `config/wrapt.local.json` gefüllt (siehe `deploy/systemd/render-units.mjs`).
@@ -129,7 +144,9 @@ T3 Code und OpenCode Web sind danach noch nicht gestartet. Sie richten sich beim
 Backend-Neustart selbst ein (Unit-Sicherung, Prozessstart, Healthcheck; T3 Code installiert
 bei Bedarf das npm-Paket) — auslösen über Einstellungen → „Dienst neu starten“ oder
 `bash scripts/restart-backend.sh`. Sofort nur für T3 Code: `bash scripts/sync-t3-channel.sh`,
-für OpenCode Web: `bash scripts/sync-opencode-web.sh`.
+für OpenCode Web: `bash scripts/sync-opencode-web.sh`. Vor einem Backend-Neustart muss der
+Agent die Neustartregel aus `AGENTS.md` beachten und den Benutzer fragen. Ohne bestätigten
+Neustart bleiben diese optionalen Dienste zunächst nur eingerichtet beziehungsweise aktiviert.
 
 **Optional: Hermes anbinden** (nur wenn bereits installiert):
 ```bash
@@ -175,15 +192,16 @@ werden dabei nie gelöscht, sondern verschoben und gesichert.
    ```
    Antwort enthält `"status":"ok"`, `"appName"` mit dem konfigurierten Namen und `"version"`
    aus `package.json`.
-2. **UI erreichbar:** `http://127.0.0.1:3010/wrapt/` (bzw. über Tailscale-Host:Port).
+2. **UI erreichbar:** lokal unter `http://127.0.0.1:3010/wrapt/`, wenn Loopback-Vertrauen
+   aktiviert ist; sonst über den konfigurierten Tailscale-Host und HTTPS-Port.
    Bei laufender Entwicklung (`pnpm dev`) ist die Oberfläche unter
    `http://127.0.0.1:5173/wrapt/` erreichbar.
 3. **Projekte sichtbar:** Im Orbit erscheinen die Projekte aus `paths.projectsRoot`.
 4. **Terminal/Previews/Usage** laden ohne Fehler; ein Terminal lässt sich unter einer
    erlaubten Root öffnen.
 5. **Optionale Dienste:** `systemctl --user is-active wrapt-terminal-supervisor.service`
-   und bei Bedarf `t3-code.service`, `opencode-web.service`, `code-server.service`,
-   `hermes-dashboard.service`.
+   und bei Bedarf `code-server.service` und `hermes-dashboard.service`. T3 Code und
+   OpenCode Web erst nach dem bestätigten ersten Backend-Neustart als aktiv erwarten.
 
 Melde dem Benutzer am Ende kurz: Was läuft, welche optionalen Dienste aktiv sind und
 welche Werte in `config/wrapt.local.json` gesetzt wurden (ohne Secrets auszugeben).

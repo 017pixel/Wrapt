@@ -30,4 +30,4 @@ curl -s -X POST http://127.0.0.1:3010/api/v1/system/restart \
 
 Fertig-Erkennung über `GET /api/v1/health`: `bootId` wechselt bei Backend-Neustart,
 `webBuildId` bei Frontend-Rebuild. Der Dienst läuft root-frei als User-Unit `wrapt.service`
-(`systemctl --user`, kein `sudo`). Workspace-, Orbit- und Galerie-Daten bleiben bei Neustarts erhalten.
+(`systemctl --user`, kein `sudo`). Layout-, Orbit- und Galerie-Daten bleiben bei Neustarts erhalten.

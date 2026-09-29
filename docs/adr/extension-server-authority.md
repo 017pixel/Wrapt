@@ -8,7 +8,7 @@
 > Aktualisierung 2026-08-24: Diese ADR beschreibt die Zielentscheidung. Deklarative UI-Catalog-
 > und lokale Pakete werden inzwischen erst nach Release-Slot-Prüfung, atomarem Runtime-Pointer,
 > Health-Handshake und serverseitigem Capability-Recheck aktiv gemeldet. Fremde serverseitige
-> Entrypoints bleiben fail-closed. Der genaue Umfang steht in der [Reality-Matrix](../goals/extension-platform-v1.md#aktuelle-reality-matrix).
+> Entrypoints bleiben fail-closed. Der genaue Umfang steht in der [Reality-Matrix](../../plans/extension-platform-v1.md#aktuelle-reality-matrix).
 
 ## Kontext
 

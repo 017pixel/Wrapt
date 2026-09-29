@@ -39,7 +39,7 @@ Vor jedem Abschluss `pnpm typecheck` (und bei Bedarf `pnpm lint`) laufen lassen.
 
 ## Neustart-Workflow (Frontend / Backend / beides)
 
-Nach Code-Änderungen bringst du sie so in die **laufende** Workbench, ohne Workspace-Daten zu
+Nach Code-Änderungen bringst du sie so in die **laufende** Workbench, ohne Layout-Daten zu
 verlieren. Es gibt drei gleichwertige Wege — Skript, API oder UI-Button.
 
 ### 1. Shell-Skripte (empfohlen für Agenten — du siehst die Build-Ausgabe)
@@ -147,7 +147,7 @@ keinen Parallelbetrieb beider Kanäle.
 
 ## Keine Daten verlieren
 
-- **Workspace-Zustand** (geöffnete Panels, Arbeitsflächen) liegt im Browser-`localStorage` → von Neustarts unberührt.
+- **Layout-Zustand** (geöffnete Panels, Arbeitsflächen) liegt im Browser-`localStorage` → von Neustarts unberührt.
 - **Orbit-Daten, Galerie, Accounts** liegen in SQLite unter `~/.local/share/wrapt/wrapt.sqlite`
   (eine alte Kopie `data/workbench.sqlite` im Repo wurde entfernt) → unberührt.
 - **Laufende Terminals** überleben einen **Backend-**Neustart: Sie laufen in einem dedizierten

@@ -12,6 +12,9 @@ const docMain = document.querySelector(".doc-main");
 const homeHero = document.querySelector("#docs-home-hero");
 const homeHeroContent = document.querySelector("#docs-home-hero-content");
 const homeHeroCopy = document.querySelector("#docs-home-hero-copy");
+const pageHero = document.querySelector("#docs-page-hero");
+const pageHeroContent = document.querySelector("#docs-page-hero-content");
+const pageHeroCopy = document.querySelector("#docs-page-hero-copy");
 const docInner = document.querySelector(".doc-main__inner");
 
 let groups = [];
@@ -81,13 +84,23 @@ function renderPage(id) {
   const page = pageById.get(id) ?? pageById.get("start");
   currentId = page.id;
   const isHome = page.id === "start";
+  const hasPageHero = !isHome && Boolean(page.heroImage);
   homeHero.hidden = !isHome;
+  pageHero.hidden = !hasPageHero;
   docMain.classList.toggle("doc-main--home", isHome);
   article.innerHTML = page.content;
+  pageHeroCopy.replaceChildren();
+  if (page.heroImage) pageHero.style.setProperty("--page-hero-image", "url(\"./assets/" + page.heroImage + "\")");
   if (isHome) {
     const intro = [article.querySelector("h1"), article.querySelector(".lead")].filter(Boolean);
     homeHeroCopy.replaceChildren(...intro);
     homeHeroContent.prepend(breadcrumb);
+  } else if (hasPageHero) {
+    homeHeroCopy.replaceChildren();
+    const intro = [article.querySelector("h1"), article.querySelector(".lead")].filter(Boolean);
+    pageHeroCopy.replaceChildren(...intro);
+    pageHero.setAttribute("aria-label", page.title + " – Einführung");
+    pageHeroContent.prepend(breadcrumb);
   } else {
     homeHeroCopy.replaceChildren();
     docInner.prepend(breadcrumb);

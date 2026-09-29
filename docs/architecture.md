@@ -60,17 +60,17 @@ In Orbit erscheint bei fokussierten Preview-Gruppen eine kontextuelle Aktionsins
 nur die zur Anzahl aktiver Panels passenden Raster, gemeinsamen Reload, externes Öffnen und den
 Sprung in den Preview Hub; bei anderen Werkzeugen bleibt sie vollständig verborgen.
 
-## Projekte und Workspace
+## Projekte und Orbit
 
 Alle direkten, nicht versteckten Verzeichnisse unter `PROJECTS_ROOT` werden bei der Abfrage erkannt. `projects.local.json` überschreibt diese Erkennung nicht, sondern ergänzt explizite Metadaten und Preview-URLs. Eine gecachte Aktivitätsanalyse kombiniert den letzten Wrapt-Zugriff, die jüngste relevante Dateiänderung und den letzten Git-Commit. Die Sidebar zeigt daraus nur die neuesten Projekte; eine Suche stellt weiterhin sämtliche verfügbaren Verzeichnisse bereit. Projektpfade werden nur serverseitig erzeugt; der Browser übermittelt Projekt-IDs.
 
 Der Orbit-Serverbrowser ergänzt diese flache Erkennung durch einen lazy geladenen Dateibaum unter einer separaten Allowlist-Root. Die API liefert nur Metadaten direkter Kinder, paginiert große Ordner und folgt keinen symbolischen Verweisen. Ein ausgewählter Unterordner wird nach kanonischer Pfadprüfung mit einer stabilen, pfadgebundenen ID in SQLite registriert. Danach verhält er sich für Orbit, Terminal, Agenten und Code-Server wie jedes konfigurierte Projekt. Der Root-Ordner selbst bleibt ausgeschlossen.
 
-Der aktive Workspace verwendet das validierte Orbit-Schema Version 6. Boards enthalten Knoten, Kanten, Viewport und Arbeitsgebietsgrenzen. Projekt-Hubs stellen den gemeinsamen Kontext her; Werkzeuge, Preview-Gruppen und ihre Slot-Kinder, Notizen, Snippets, Dateien, Bereiche und Nutzungsanzeigen bleiben frei beweglich und skalierbar. Preview-Slots verwenden `parentId`, folgen dadurch einer Gruppe ohne iframe-Neuladen und können aus ihr herausgelöst oder wieder angedockt werden.
+Das aktive Orbit-Dokument enthält Boards mit Knoten, Kanten, Viewport und Arbeitsgebietsgrenzen. Projekt-Hubs stellen den gemeinsamen Kontext her; Werkzeuge, Preview-Gruppen und ihre Slot-Kinder, Notizen, Snippets, Dateien, Bereiche und Nutzungsanzeigen bleiben frei beweglich und skalierbar. Preview-Slots verwenden `parentId`, folgen dadurch einer Gruppe ohne iframe-Neuladen und können aus ihr herausgelöst oder wieder angedockt werden.
 
 Die kanonische Orbit-Datei liegt revisioniert in derselben lokalen SQLite-Datenbank wie die Nutzungsdaten. Der Browser speichert Änderungen nach kurzer Ruhezeit und fragt in einem konfigurierbaren Intervall nach neueren Revisionen. Bei einem Revisionskonflikt wird die aktuelle Serverrevision geladen und die noch nicht gespeicherte lokale Änderung erneut darauf geschrieben. Hermes-Status, Aufgaben, Cron und Ergebnisse sind additive Knotentypen; alte Dokumente der Versionen 6 und 7 bleiben lesbar, geschrieben wird Version 8. Da die Wrapt für eine Person ausgelegt ist, genügt dieses deterministische Last-Edit-Verfahren ohne Mehrbenutzer-CRDT.
 
-Ein vorhandener Workspace der Schema-Version 3 in `localStorage` wird nur dann in Orbit-Boards migriert, wenn auf dem Server noch kein Orbit-Dokument existiert. Gruppen und Tabs werden als Live-Werkzeugknoten übernommen, Projekt-Hubs und Verbindungen ergänzt. Anschließend ist SQLite die geräteübergreifende Quelle; der alte lokale Zustand bleibt als Rückfallkopie unangetastet.
+Ein gespeichertes Layout in `localStorage` wird nur dann in Orbit-Boards migriert, wenn auf dem Server noch kein Orbit-Dokument existiert. Gruppen und Tabs werden als Live-Werkzeugknoten übernommen, Projekt-Hubs und Verbindungen ergänzt. Anschließend ist SQLite die geräteübergreifende Quelle; der lokale Layout-Zustand bleibt als Rückfallkopie erhalten.
 
 Besuchte React-Routen bleiben für die Dauer der Browser-Session in einem persistenten Outlet gemountet. Orbit-Live-Knoten besitzen stabile Laufzeit-IDs, sodass xterm sich nach einem Canvas- oder Routenwechsel wieder an dieselbe PTY-Sitzung hängt. Iframes bleiben innerhalb ihres Knotens gemountet und werden bei Verschieben, Skalieren oder Maximieren nicht neu geladen.
 
@@ -91,14 +91,15 @@ alle Operationen (Umbenennen, Verschieben, Löschen, Ordner anlegen) laufen atom
 Dateisystem. Aus dem Dateimanager lassen sich Ordner im Terminal oder Editor öffnen, als
 Projekt registrieren oder als Orbit-Knoten einbetten.
 
-## Benachrichtigungen und Inbox
+## Benachrichtigungen
 
 Das Benachrichtigungsmodul (`apps/server/src/notifications/`) sammelt Einträge aus T3 Code,
 Hermes, Codex, OpenCode, Claude Code und langen Terminal-Prozessen in einer eigenen SQLite-Tabelle.
-Die Inbox ist bewusst ein globaler Wrapt-Verlauf: Jede erlaubte Wrapt-Identität sieht
-dieselben Einträge. Push-Abos sind dagegen einer konkreten Tailscale-/Wrapt-Identität
-zugeordnet. `user_id` begrenzt Registrierung, Entfernen und Testversand, während ein neues globales
-Inbox-Ereignis an alle registrierten Geräte mit aktivierter Quellen-Policy zugestellt wird.
+Die gespeicherten Benachrichtigungen bilden serverseitig einen globalen Verlauf: Jede erlaubte
+Wrapt-Identität sieht dieselben Einträge. Push-Abos sind dagegen einer konkreten
+Tailscale-/Wrapt-Identität zugeordnet. `user_id` begrenzt Registrierung, Entfernen und Testversand,
+während neue globale Benachrichtigungen an alle registrierten Geräte mit aktivierter
+Quellen-Policy zugestellt werden.
 
 Eine Live-Verbindung liefert neue Einträge sofort aus, mit Polling-Fallback. Web-Push folgt dem
 vorhandenen Ereignisweg `NotificationDatabase.create` → `notification.created` →
@@ -120,9 +121,10 @@ erlaubte relative Wrapt-Deep-Links. Der Service Worker zeigt jeden empfangenen P
 markiert den Eintrag beim Klick nach Möglichkeit als gelesen und fokussiert oder öffnet die PWA.
 Quellen-Synchronisierer (`agent-session-sync`, `t3-status-sync`, `terminal-status-sync`) binden
 den Gelesen-/Erledigt-Zustand an den tatsächlichen Status der zugehörigen Aufgabe. Schwellen und
-Zustellwege sind pro Quelle zentral konfigurierbar; die Inbox im Browser bietet Chronologie,
-Deep-Links in die Sitzung beziehungsweise den T3-Thread, Swipe-Aktionen und kopierbare
-Fehlerberichte.
+Zustellwege sind pro Quelle zentral konfigurierbar. Die Browseroberfläche zeigt passende neue
+Einträge als Toasts und erlaubt den Sprung über deren Deep-Link. Eine separate Inbox- oder
+Verlaufsseite gibt es derzeit nicht; `/inbox` leitet zum Startbereich weiter. Die gespeicherten
+Einträge und Benachrichtigungs-API bleiben davon unberührt.
 
 ## KI-Skills
 
@@ -151,7 +153,7 @@ Bereich „Wrapt-Diagnose" Bereitschaftsprüfungen, Betriebshinweise, Audit und 
 - `packages/extension-contracts`: versionierte Extension IDs, öffentliche Extension-Verträge
   und Compatibility-Schemas; wird vor Server und Web gebaut.
 - `apps/server`: API, PTY-, Browser- und Hermes-Manager, Systemmetriken, Port- und Projekterkennung, Reverse Proxys und statische Web-Auslieferung.
-- `apps/web`: React-Oberfläche, Navigation, xterm.js, Browser- und Preview-Geräteansicht, Hermes-Chat sowie persistenter Workspace.
+- `apps/web`: React-Oberfläche, Navigation, xterm.js, Browser- und Preview-Geräteansicht, Hermes-Chat sowie persistentes Layout.
 - `config`: zentrale Laufzeitwerte sowie committete Beispiele und lokal ignorierte Serverkonfigurationen.
 - `deploy`: System- und User-systemd-Units sowie Tailscale-Serve-Skripte.
 

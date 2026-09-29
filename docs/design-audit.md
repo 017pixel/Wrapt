@@ -18,7 +18,7 @@ Tabs, direkte Anker und eine fehlertolerante Suche mit Alias-Begriffen.
 
 - **Token-System:** Konsequente T3-Nightly-Palette im `@theme`-Block von `apps/web/src/index.css`; kaum Farb-Hardcodes in Komponenten; saubere Typo-, Radius- und Elevation-Skala.
 - **Dashboard:** Abgeleiteter Systemstatus („Alles betriebsbereit“ mit konkreter Problemliste), Skeleton- und Fehlerzustände pro Panel, adaptive Chart-Skalen, Messzeitpunkte und Vergleichsfenster sichtbar.
-- **Zustandsdisziplin:** Confirm-Dialoge für destruktive Aktionen (Terminal löschen, Workspace-Reset, T3-Kanalwechsel), EmptyStates, Offline-Banner, Fehlertexte mit Handlungsoption.
+- **Zustandsdisziplin:** Confirm-Dialoge für destruktive Aktionen (Terminal löschen, Layout-Reset, T3-Kanalwechsel), EmptyStates, Offline-Banner, Fehlertexte mit Handlungsoption.
 - **Barrierefreiheit Grundlagen:** Skip-Link, `aria-live`-Seitentitel, `role=switch` mit `aria-checked`, Fokus-Rückgabe nach Menü-/Dialog-Schließen, `aria-modal`-Dialoge.
 - **Mobile:** Eigenständiges Layout mit Drawer-Navigation, Swipe-Geste, Safe-Areas, dynamischer Viewport-Höhe, unterer Navigation statt Sidebar.
 - **Texte:** Durchgehend präzises Deutsch ohne Marketing-Sprech, konsistente Terminologie.

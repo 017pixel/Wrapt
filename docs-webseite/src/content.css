@@ -21,10 +21,10 @@
 .prose blockquote[data-kind="danger"] { border-color: var(--color-bad); }
 .prose blockquote[data-kind="success"] { border-color: var(--color-ok); }
 .prose code { border: 1px solid var(--color-line-soft); border-radius: var(--radius-sm); background: var(--color-ink-800); padding: 2px 5px; color: var(--color-text); font-family: var(--font-mono); font-size: .88em; }
-.prose pre { overflow-x: auto; border: 1px solid var(--color-line); border-radius: var(--radius); background: var(--color-ink-950); padding: 16px; color: var(--color-text); line-height: 1.55; tab-size: 2; }
+.prose pre { overflow-x: auto; overscroll-behavior-x: contain; overscroll-behavior-y: auto; border: 1px solid var(--color-line); border-radius: var(--radius); background: var(--color-ink-950); padding: 16px; color: var(--color-text); line-height: 1.55; tab-size: 2; }
 .prose pre code { border: 0; background: none; padding: 0; font-size: 13px; }
-.prose table { display: block; width: 100%; overflow-x: auto; border-collapse: collapse; border: 1px solid var(--color-line); font-size: 14px; }
-.table-scroll { width: 100%; overflow-x: auto; }
+.prose table { width: 100%; border-collapse: collapse; border: 1px solid var(--color-line); font-size: 14px; }
+.table-scroll { width: 100%; overflow-x: auto; overscroll-behavior-x: contain; overscroll-behavior-y: auto; }
 .prose th, .prose td { min-width: 124px; border-bottom: 1px solid var(--color-line-soft); padding: 10px 12px; text-align: left; vertical-align: top; }
 .prose th { background: var(--color-ink-900); color: var(--color-text); font-weight: 600; }
 .prose td { color: var(--color-muted); }
@@ -32,6 +32,19 @@
 .prose figure { margin: 24px 0; }
 .prose figure img { margin: 0; }
 .prose figcaption { margin-top: 8px; color: var(--color-faint); font-size: 13px; }
+
+.prose figure.figure--phone { float: right; width: min(38%, 216px); margin: 6px 0 18px 26px; transform: rotate(2deg); }
+.prose figure.figure--phone img { border-radius: 20px; box-shadow: var(--shadow-raised); }
+.phone-pair { display: flex; float: right; width: min(48%, 452px); justify-content: flex-end; align-items: flex-start; gap: 20px; margin: 6px 0 20px 28px; }
+.phone-pair figure { min-width: 0; flex: 1 1 0; margin: 0; }
+.phone-pair figure:first-child { transform: rotate(-2.4deg); }
+.phone-pair figure:last-child { transform: rotate(2.4deg); }
+.phone-pair img { border-radius: 20px; box-shadow: var(--shadow-raised); }
+@media (hover: hover) {
+  .prose figure.figure--phone, .phone-pair figure { transition: transform 240ms cubic-bezier(.16, 1, .3, 1); }
+  .prose figure.figure--phone:hover, .phone-pair figure:hover { transform: rotate(0); }
+}
+.prose::after { display: block; clear: both; content: ""; }
 .prose hr { height: 1px; margin: 30px 0; border: 0; background: var(--color-line); }
 .loading { color: var(--color-muted); }
 .prose .lead { max-width: 60ch; margin: 0 0 28px; color: var(--color-muted); font-size: 18px; line-height: 1.6; }

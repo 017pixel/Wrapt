@@ -1,6 +1,6 @@
 # Installation und erster Start
 
-Wrapt ist eine selbst gehostete Entwicklungsumgebung im Browser. Der Server bindet standardmäßig an Loopback; für privaten Zugriff von anderen Geräten wird ein vorgeschalteter Tailscale-Zugang eingerichtet.
+Wrapt ist eine selbst gehostete Entwicklungsumgebung im Browser. Der Server bindet standardmäßig an Loopback; für privaten Zugriff von anderen Geräten richtest du einen vorgeschalteten Tailscale-Zugang ein.
 
 ## Voraussetzungen
 

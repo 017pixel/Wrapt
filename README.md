@@ -4,7 +4,7 @@ Die selbst gehostete Remote-Development-Workbench für den privaten Arbeitsplatz
 Wrapt verbindet Projekte, Terminals, Editoren, Coding-Agenten, Previews, Dateien,
 Automatisierungen und Systemdiagnose in einer Oberfläche.
 
-**Aktuelle Version 1.13.0 · MIT · Node.js 22+ · pnpm 10 · [Changelog](CHANGELOG.md)**
+**Aktuelle Version 1.23.0 · MIT · Node.js 22+ · pnpm 10 · [Changelog](CHANGELOG.md)**
 
 ![Wrapt-Dashboard mit anonymisiertem Beispielserver](docs/screenshots/01-dashboard.png)
 
@@ -13,18 +13,20 @@ vorgesehen; öffentliche Freigaben per Funnel gehören bewusst nicht zum Betrieb
 
 ## Was Wrapt bietet
 
-- Einen freien Orbit-Workspace für Projekte, Terminals, Agenten, Previews und Notizen.
+- Orbit-Boards für Projekte, Terminals, Agenten, Previews und Notizen.
 - Browserbasierte Werkzeuge für T3 Code, code-server, Codex, OpenCode und Claude Code.
 - Persistente PTY-Terminals mit tmux-Supervisor, Wiederaufnahme und Projektbindung.
 - Direkte Development-Previews und einen Dateimanager.
 - Hermes Agent mit offizieller Weboberfläche, Chat, Cron, Skills und Verwaltung.
-- Inbox, Nutzungsanalyse, Accountwechsel und lokale Systemdiagnose.
+- Benachrichtigungen, Nutzungsanalyse, Accountwechsel und lokale Systemdiagnose.
 - Ein versioniertes Extension-System und persönliche, deklarative Plugins mit Least Privilege.
 
 ## Installation
 
-Wrapt braucht Linux mit Node.js 22+, pnpm 10 und tmux. Ein Coding-Agent auf dem
-Zielserver richtet alles ein; Skripte und Handarbeit führen zum selben Ergebnis.
+Für den Server benötigt Wrapt Node.js 22+ und pnpm 10. Linux mit systemd ist der
+empfohlene Weg für den dauerhaften Serverbetrieb; lokal lässt sich Wrapt auf macOS
+im Vordergrund starten. Persistente Terminals benötigen tmux. Ein Coding-Agent auf
+dem Zielserver richtet den Linux-Dienst ein; Skripte und Handarbeit führen zum selben Ergebnis.
 Die vollständigen Wege und Prüfungen stehen in der
 [Installationsanleitung](docs/installation.md).
 
@@ -38,26 +40,34 @@ das Ergebnis. Den Dienstwechsel bestätigt er vorher ausdrücklich.
 Richte Wrapt auf diesem Server ein. Repository: https://github.com/017pixel/Wrapt.git
 
 1. Prüfe die Voraussetzungen: Linux mit systemd, Node.js >= 22, pnpm 10, tmux,
-   git, curl und jq. Für dauerhaften Betrieb ohne offene SSH-Sitzung:
-   loginctl enable-linger "$(id -un)". Installiere fehlende Systempakete nur
-   nach meiner Bestätigung.
+   git und curl. jq ist nur für Tailscale Serve nötig. Für dauerhaften Betrieb
+   ohne offene SSH-Sitzung kann `loginctl enable-linger "$(id -un)"` nötig sein.
+   Installiere fehlende Systempakete nur nach meiner Bestätigung.
 2. Klone das Repository nach ~/Wrapt und lies AGENTS.md, README.md,
    docs/installation.md und docs/agent-setup.md vollständig.
-3. Frage mich nach den Werten, die du nicht sicher ableiten kannst: Dienstbenutzer
-   und Home, Projektwurzel, Tailscale-Hostname und -IP, HTTPS-Port und die
-   erlaubten Login-E-Mails. Ohne Tailscale-Plan genügen Platzhalter.
-4. Lege config/wrapt.local.json und .env aus den Vorlagen an und trage die Werte
-   in config/wrapt.local.json ein. Persönliche Pfade gehören nicht in die .env.
-   Secrets niemals ausgeben oder committen.
+3. Frage mich, ob der Browserzugriff über Tailscale oder ausschließlich lokal auf
+   diesem Server erfolgen soll. Für Tailscale frage nach Hostname, IP, HTTPS-Port
+   und erlaubten Login-E-Mails. Für lokalen Zugriff setze `security.localLoopbackTrust`
+   auf `true` und `security.localUsername` auf den tatsächlichen Systembenutzer.
+   Lokales Vertrauen erlaubt keinen Zugriff von anderen Geräten. Wenn ich entfernten
+   Zugriff ohne Tailscale möchte, richte keinen öffentlichen Zugang ein und melde
+   die fehlende Voraussetzung.
+4. Frage nach Dienstbenutzer und Home sowie Projektwurzel, sofern sie sich nicht
+   sicher ableiten lassen. Lege `config/wrapt.local.json` und `.env` aus den
+   Vorlagen an. Bei ausschließlich lokalem Zugriff lasse `tailscale.allowedUsers`
+   leer. Trage den lokalen Benutzernamen bei Bedarf auch in `tailscale.adminUsers`
+   ein, damit er Adminrechte erhält.
+   Persönliche Pfade gehören nicht in die `.env`. Secrets niemals ausgeben oder committen.
 5. Führe bash scripts/install-deps.sh aus.
 6. Richte den Dienst mit bash deploy/systemd/install.sh ein. Frage mich vorher,
    ob der Dienstwechsel jetzt stattfinden darf.
-7. Prüfe curl -f http://127.0.0.1:3010/api/v1/health, öffne
-   http://127.0.0.1:3010/wrapt/ und stelle sicher, dass die Projekte aus
-   paths.projectsRoot erscheinen.
-8. Optional: bash deploy/proxy/configure-tailscale-serve.sh für den privaten
-   Tailscale-Zugang; bash scripts/install-hermes.sh nur, wenn Hermes schon
-   installiert ist.
+7. Prüfe `curl -f http://127.0.0.1:3010/api/v1/health`. Öffne die Oberfläche
+   lokal unter `http://127.0.0.1:3010/wrapt/` oder bei gewähltem Tailscale-Zugang
+   über den konfigurierten HTTPS-Host. Stelle sicher, dass die Projekte aus
+   `paths.projectsRoot` erscheinen.
+8. Nur bei gewähltem Tailscale-Zugang: `bash deploy/proxy/configure-tailscale-serve.sh`.
+   `bash scripts/install-hermes.sh` nur ausführen, wenn Hermes bereits installiert
+   ist und ich die Anbindung möchte.
 9. Melde am Ende kurz: was läuft, welche optionalen Dienste aktiv sind, welcher
    Prüfpunkt offen ist. Keine Secrets wiedergeben.
 ```
@@ -72,8 +82,9 @@ cp .env.example .env
 bash scripts/install-deps.sh
 ```
 
-Passe vor dem ersten Start `config/wrapt.local.json` an: `system`, `paths` und die
-erlaubten Tailscale-Identitäten müssen zur Zielumgebung passen. Die `.env` enthält nur
+Passe vor dem ersten Start `config/wrapt.local.json` an: `system` und `paths` müssen
+zur Zielumgebung passen. `tailscale.allowedUsers` wird für Tailnet-Zugriff verwendet.
+Die `.env` enthält nur
 Secrets und neutrale Runtime-Werte; `HOST=127.0.0.1` bleibt in Produktion unverändert.
 Alle Beispielwerte verwenden neutrale Konten wie `user@example.com` und `your-user`.
 
@@ -103,6 +114,11 @@ WRAPT_DEV_TAILSCALE_USER=user@example.com pnpm dev
 Der Wert muss in `tailscale.allowedUsers` stehen und gehört nur in diese Shell — niemals in
 die `.env`, denn der Dienst läuft in Produktion mit `NODE_ENV=production` und lehnt die
 Variable beim Start ab.
+
+Für den Produktionsstart oder Launcher ohne Tailscale ist lokaler Browserzugriff nur über
+`security.localLoopbackTrust` möglich. Diese Einstellung gilt ausschließlich, wenn der
+Browser auf demselben Rechner zugreift. Details und Adminrechte stehen in der
+[Konfigurationsanleitung](docs/configuration.md#lokaler-zugriff-ohne-tailscale).
 
 Der private Tailscale-Zugang wird anschließend mit
 `bash deploy/proxy/configure-tailscale-serve.sh` eingerichtet (das Skript nutzt intern
@@ -160,9 +176,9 @@ Die Wrapt-Aufnahmen stammen aus einer isolierten Dokumentationsinstanz; eingebet
 Werkzeuge wurden zusätzlich einzeln auf persönliche Inhalte geprüft. Es sind nur
 Beispielkonten und neutrale Projektdaten sichtbar; T3 Code ist im Dark Mode dargestellt.
 
-| Orbit-Workbench | Dateimanager |
+| Orbit | Dateimanager |
 | :--: | :--: |
-| ![Orbit-Workbench mit Beispielprojekten](docs/screenshots/02-workbench.png) | ![Dateimanager](docs/screenshots/06-gallery.png) |
+| ![Orbit mit Beispielprojekten](docs/screenshots/02-workbench.png) | ![Dateimanager](docs/screenshots/06-gallery.png) |
 
 | T3 Code im Dark Mode | code-server |
 | :--: | :--: |

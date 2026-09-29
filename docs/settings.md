@@ -1,15 +1,21 @@
 # Einstellungen
 
 Die Einstellungsseite ist unter `/wrapt/settings` erreichbar und bleibt auch ohne eigene
-Anmeldung durch die bestehende Tailscale-Identität geschützt. Sie ist in fachliche Tabs geteilt:
+Anmeldung durch die bestehende Tailscale-Identität geschützt. Die Navigation trennt clientweite
+Einstellungen, das lokale Layout und verbundene Wrapt-Instanzen:
 
-- **Allgemein** bündelt Status, die wichtigsten Verknüpfungen, App-Installation, Version und
-  den Schnellzugriff für Frontend-, Backend- oder gemeinsamen Neustart.
-- **Design** verwaltet dunkle Theme-Vorlagen und eigene Farbrollen. Änderungen werden sofort auf
-  die Workbench angewendet; ein heller Modus gehört nicht zum Produktvertrag.
+- **Client-weit** enthält Allgemein, Design, Navigation, Rechtsklick, Benachrichtigungen, System,
+  Erweiterungen, Werkzeuge, Easter Eggs und Start-App.
+- **Allgemein** bündelt Status, Verknüpfungen, App-Installation, Version und Neustart.
+- **Design** verwaltet Theme-Vorlagen und eigene Farbrollen. Änderungen werden sofort auf die
+  Workbench angewendet; ein heller Modus gehört nicht zum Produktvertrag.
 - **Navigation** bündelt Dashboard-Bereiche, Orbit-Sidebar und globale Seiten-Sichtbarkeit.
-- **Rechtsklick**, **Benachrichtigungen**, **System**, **Erweiterungen**, **Werkzeuge** und
-  **Workspace** behalten ihre jeweiligen Fachbereiche.
+- **Layout** verwaltet geöffnete Panels, bis zu acht Arbeitsflächen und das Zurücksetzen des
+  lokalen Zustands.
+- **Workspaces** verwaltet verbundene lokale und entfernte Wrapt-Instanzen, prüft ihren
+  Verbindungsstatus und wechselt zwischen erreichbaren Instanzen. Derselbe Wechsel ist über den
+  Workspace-Wechsler in der Seitenleiste verfügbar. Die Liste bleibt browserlokal und wird beim
+  Wechsel per URL-Fragment zur Zielinstanz übertragen; Layout und Darstellung bleiben je Instanz.
 - **Easter Eggs** enthält das optionale Capybara-Maskottchen, das standardmäßig deaktiviert ist.
   Es läuft in der Statusleiste zufällig umher, wird nach längerer Ruhe müde (nachts schneller) und
   feiert selten mit Partyhut und Konfetti, nach einem gelungenen Neustart sofort. Die Größe lässt
@@ -27,11 +33,12 @@ akzeptiert bis zu drei Bearbeitungsfehler pro Suchanfrage. Dadurch funktionieren
 
 Ein Treffer öffnet den passenden Tab, springt direkt zum Einstellungsbereich und markiert das Ziel
 kurz. `Enter` öffnet den besten Treffer, `Escape` leert die Suche. Alte Links auf
-`#einstellungen:oberflaeche` bleiben gültig und öffnen den neuen Tab **Navigation**.
+`#einstellungen:oberflaeche` bleiben gültig und öffnen den Tab **Navigation**. Alte Links auf
+`#einstellungen:workspace` öffnen weiter den Bereich **Layout**.
 
 ## Speicherung und Neustart
 
-Browserbezogene Einstellungen wie Theme, Navigation, Workspace und Start-App bleiben in den
+Browserbezogene Einstellungen wie Theme, Navigation, Layout und Start-App bleiben in den
 bestehenden versionierten Browser-Speichern. Serverweite Werte werden weiterhin über die
 bestehenden typisierten APIs und `config/wrapt.local.json` verwaltet. Die Neustartaktionen in
 **Allgemein** und **System** verwenden denselben sicheren Restart-Workflow:
@@ -40,6 +47,6 @@ bestehenden typisierten APIs und `config/wrapt.local.json` verwaltet. Die Neusta
 - **Backend** baut den Server neu und startet den Dienst neu.
 - **Beides** führt beide Schritte in der vorgesehenen Reihenfolge aus.
 
-Ein Backend-Neustart erhält Workspace-Daten und laufende Terminals. Für Diagnose und Rollback
+Ein Backend-Neustart erhält Layout-Daten und laufende Terminals. Für Diagnose und Rollback
 bleiben [`docs/configuration.md`](configuration.md) und
 [`docs/troubleshooting.md`](troubleshooting.md) maßgeblich.

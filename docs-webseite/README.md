@@ -1,6 +1,6 @@
 # Wrapt-Dokumentation
 
-Die statische Dokumentationsseite wird aus Markdown unter `content/`, der Navigation unter `src/navigation.json` und lokal gespeicherten Screenshots gebaut.
+Die statische Dokumentationsseite entsteht aus Markdown unter `content/`, der Navigation in `src/navigation.json` und den Screenshots in `assets/`.
 
 ## Lokal bauen
 
@@ -10,14 +10,14 @@ node docs-webseite/build.mjs
 node "Landing Page/build.mjs"
 ```
 
-Der erste Befehl teilt `CHANGELOG.md` in einzelne Versionsdateien unter `content/changelog/releases/` auf. Der Doku-Build erzeugt `docs-webseite/dist/`. Der Landingpage-Build legt die Doku zusätzlich unter `Landing Page/dist/doku/` ab.
+Der erste Befehl teilt `CHANGELOG.md` in einzelne Versionsdateien unter `content/changelog/releases/` auf. Danach erzeugt der Doku-Build `docs-webseite/dist/`, und der Landingpage-Build legt die Doku zusätzlich unter `Landing Page/dist/doku/` ab.
 
 ## Dokumentationsseiten ergänzen
 
-Neue Seiten gehören in einen thematischen Unterordner von `content/`. Danach werden `src/navigation.json` und die Links auf der Übersichtsseite geprüft. Überschriften, Links, Listen, Tabellen, Codeblöcke, Bilder und einfache Flussdiagramme werden beim Build verarbeitet.
+Neue Seiten gehören in einen thematischen Unterordner von `content/`. Danach `src/navigation.json` und die Links auf der Übersichtsseite prüfen. Der Build verarbeitet Überschriften, Links, Listen, Tabellen, Codeblöcke, Bilder und einfache Flussdiagramme.
 
-Screenshots kommen nur aus anonymisierten öffentlichen Motiven oder einer isolierten Demo-Instanz. Die aktuellen Regeln stehen in `docs/screenshots/README.md`.
+Screenshots stammen nur aus anonymisierten öffentlichen Motiven oder aus einer isolierten Demo-Instanz mit Dummy-Daten. Die Regeln stehen in `.agents/skills/docs-webseite-screenshots/SKILL.md`; Desktop-Motive sind 1728 × 1117 Pixel groß (16-Zoll-MacBook-Maßstab, nicht hineingezoomt), mobile Motive 390 × 844.
 
 ## GitHub Pages
 
-Die bestehende Pages-Aktion veröffentlicht `Landing Page/dist/`. Sie nimmt die Doku unter `doku/` mit auf. Der Workflow startet bei Änderungen an `Landing Page/**`; der Skill „Doku aktualisieren“ pflegt deshalb auch `Landing Page/docs-revision.txt`, damit eine reine Doku-Veröffentlichung denselben Pages-Build auslöst.
+Die Pages-Aktion veröffentlicht `Landing Page/dist/` und nimmt die Doku unter `doku/` mit. Der Workflow startet bei Änderungen an `Landing Page/**`; der Skill `docs-webseite-screenshots` pflegt deshalb auch `Landing Page/docs-revision.txt`, damit eine reine Doku-Veröffentlichung denselben Pages-Build auslöst.

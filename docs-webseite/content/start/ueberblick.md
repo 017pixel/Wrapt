@@ -1,6 +1,6 @@
 # Wrapt Dokumentation
 
-Wrapt bündelt Coding-Agenten, Werkzeuge und Arbeitsbereiche auf einem eigenen Server. Diese Dokumentation erklärt den Einstieg, die Funktionen, den Betrieb und die Entwicklung.
+Wrapt ist eine Workbench für Entwicklung im Browser. Sie läuft auf einem eigenen Server und verbindet Projekte, Terminals, Werkzeuge und Vorschauen.
 
 :::flow
 **Deine Geräte** | Browser auf Rechner, Tablet oder Handy
@@ -8,20 +8,11 @@ Wrapt bündelt Coding-Agenten, Werkzeuge und Arbeitsbereiche auf einem eigenen S
 **Werkzeuge** | T3 Code, Terminals, code-server, Hermes Agent und Previews
 :::
 
-## Schnell zum richtigen Thema
+## Was Wrapt ist
 
-- [Wrapt installieren](../betrieb/installation-erster-start.md) und den ersten Zugriff einrichten.
-- [Arbeitsbereiche und Navigation](../produkt/arbeitsbereich.md) verstehen.
-- [T3 Code, Hermes, OpenCode und code-server](../produkt/werkzeuge.md) in Wrapt nutzen.
-- [Sicherheit und Zugriff](../betrieb/zugriff-sicherheit.md) für den eigenen Server prüfen.
-- [Ältere Daten und Migrationen](../betrieb/altbestand-und-migration.md) bei einem bestehenden Wrapt-Stand einordnen.
-- [Changelog](../changelog.md) nach Version und Änderungstyp durchsehen.
+Wrapt ist die gemeinsame Oberfläche für Werkzeuge, die sonst getrennt laufen. T3 Code, Hermes Agent, OpenCode Web und code-server behalten ihre eigenen Prozesse und Konten; Wrapt übernimmt Projektwahl, Zugriffsschutz und die Verbindung zwischen Browser und Server. Der Arbeitsstand liegt auf dem Server, deshalb kannst du an einem anderen Gerät weitermachen.
 
-## Was ist Wrapt?
-
-Wrapt ist eine selbst gehostete Remote-Development-Workbench. Der Server hält Projekte, Terminals und Werkzeugdienste bereit. Du greifst mit einem Browser darauf zu und kannst an einem anderen Gerät mit demselben Arbeitsstand weitermachen.
-
-Wrapt verbindet eigenständige Open-Source-Werkzeuge in einer Oberfläche. T3 Code, Hermes Agent, OpenCode Web und code-server behalten dabei ihre eigenen Prozesse und Daten. [Mehr zur Projektidee](../projekt/ueber-wrapt.md) und [zur Architektur](../projekt/architektur.md).
+Wie die Teile zusammenspielen, steht unter [Architektur](../projekt/architektur.md); was Wrapt selbst macht und was die Werkzeuge übernehmen, unter [Über Wrapt](../projekt/ueber-wrapt.md).
 
 ![Wrapt-Dashboard mit Systemstatus und den zuletzt genutzten Projekten](../assets/01-dashboard.png)
 
@@ -30,13 +21,18 @@ Wrapt verbindet eigenständige Open-Source-Werkzeuge in einer Oberfläche. T3 Co
 | Wenn du … | Dann öffne … |
 | --- | --- |
 | Wrapt zum ersten Mal einrichtest | [Installation und erster Start](../betrieb/installation-erster-start.md) |
-| eine Funktion suchst | [Wrapt nutzen](../produkt/arbeitsbereich.md) |
-| die Serverkonfiguration änderst | [Konfiguration](../betrieb/konfigurieren.md) |
+| dich in der Oberfläche zurechtfinden willst | [Arbeitsbereich und Navigation](../produkt/arbeitsbereich.md) |
+| ein Coding-Werkzeug suchst | [Coding-Werkzeuge](../produkt/werkzeuge.md) |
+| die Zugriffsregeln prüfst | [Zugriff und Sicherheit](../betrieb/zugriff-sicherheit.md) |
+| ältere Daten einordnest | [Ältere Daten und Migrationen](../betrieb/altbestand-und-migration.md) |
 | einen Fehler untersuchst | [Fehlerdiagnose](../betrieb/fehlerdiagnose.md) |
-| Code oder Dokumentation beitragen willst | [Mitarbeiten](../projekt/mitarbeiten.md) |
+| nach Änderungen suchst | [Changelog](../changelog.md) |
 
-## Geräteansichten
+## Auf Handy und Tablet
 
-Die Oberfläche passt sich an breite und schmale Bildschirme an. Die Werkzeuge und Sitzungen liegen auf dem Server; die mobile Ansicht zeigt denselben Arbeitsstand mit kompakter Navigation.
+Die Oberfläche passt sich an breite und schmale Bildschirme an. Werkzeuge und Sitzungen laufen auf dem Server; die mobile Ansicht zeigt denselben Arbeitsstand mit kompakter Navigation.
 
-![Wrapt auf einem Mobilgerät mit kompakter Dashboardansicht](../assets/wrapt-mobil.png)
+:::phones
+![Dashboard auf dem Mobilgerät mit kompakter Statusübersicht](../assets/wrapt-mobil.png)
+![Notizen auf dem Mobilgerät mit geöffneter Checkliste](../assets/wrapt-mobil-notizen.png)
+:::

@@ -10,6 +10,17 @@
   .docs-layout { display: block; }
   .doc-main { padding-top: 26px; }
   .docs-home-hero { background-position: center, 78% center; }
+  .docs-page-hero {
+    width: calc(100% + var(--docs-gutter) + var(--docs-gutter));
+    height: auto;
+    min-height: clamp(320px, 76vw, 430px);
+    margin: -26px calc(0px - var(--docs-gutter)) 20px;
+  }
+  .docs-page-hero::before { background-position: center, 82% center; }
+  .docs-page-hero__inner { width: 100%; height: auto; min-height: inherit; justify-content: flex-start; align-items: flex-end; }
+  .docs-page-hero__content { width: 100%; margin: 0; padding: 20px var(--docs-gutter) 12px; }
+  .docs-page-hero__content .breadcrumbs { justify-content: flex-start; flex-wrap: wrap; gap: 4px; margin-bottom: 14px; font-size: 11px; text-align: left; }
+  .docs-page-hero__copy { margin-left: 0; text-align: left; }
   .mobile-bar {
     position: fixed;
     z-index: 45;
@@ -49,11 +60,15 @@
   .topbar__actions { gap: 4px; }
   .topbar__link, .topbar__github { min-height: 44px; padding: 0 8px; font-size: 12px; }
   .topbar__link { display: none; }
-  .search-trigger { min-height: 44px; gap: 0; padding: 0 10px; font-size: 13px; }
+  .search-trigger { min-height: 44px; gap: 0; padding: 0 6px; font-size: 13px; }
   .search-trigger kbd { display: none; }
+  .prose figure.figure--phone { float: none; width: min(58%, 204px); margin: 16px 0 16px auto; }
+  .phone-pair { float: none; width: 100%; gap: 12px; margin: 16px 0; }
   .doc-main { padding-top: 18px; }
   .docs-home-hero { height: clamp(320px, 92vw, 440px); background-position: center, 100% center; }
   .docs-home-hero__content { padding: 20px var(--docs-gutter) 0; }
+  .docs-page-hero { margin-top: -18px; min-height: clamp(300px, 88vw, 400px); }
+  .docs-page-hero::before { background-position: center, 100% center; }
   .docs-home-hero__content .breadcrumbs { flex-wrap: wrap; gap: 4px; margin-bottom: 14px; font-size: 11px; }
   .docs-home-hero__copy .lead { font-size: 16px; line-height: 1.55; }
   .docs-home-hero__copy h1 { margin-bottom: 12px; }

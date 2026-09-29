@@ -1,8 +1,8 @@
 # Installation
 
 Diese Anleitung beschreibt die geprüften Installationswege für den aktuellen Stand. Der
-empfohlene Dauerbetrieb nutzt Linux und systemd-User-Units. Für Entwicklung und einen
-Vordergrundstart reichen Node.js und pnpm. Wer die Einrichtung einem Coding-Agenten
+empfohlene Dauerbetrieb nutzt Linux und systemd-User-Units. Für Entwicklung und lokalen
+Vordergrundbetrieb wird macOS unterstützt. Wer die Einrichtung einem Coding-Agenten
 überlassen will, nimmt den kopierbaren Prompt aus der [README](../README.md#mit-einem-coding-agenten-empfohlen).
 
 ## Voraussetzungen
@@ -58,7 +58,9 @@ Bearbeite danach `config/wrapt.local.json`:
 
 1. `system.user` und `system.homeDirectory` auf den Dienstbenutzer setzen.
 2. Alle Werte unter `paths` auf vorhandene, beschreibbare Verzeichnisse anpassen.
-3. Unter `tailscale.allowedUsers` ausschließlich erlaubte Login-E-Mails eintragen.
+3. Für Tailnet-Zugriff unter `tailscale.allowedUsers` ausschließlich erlaubte Login-E-Mails
+   eintragen. Bei rein lokalem Zugriff kann die Liste leer bleiben; dafür muss
+   `security.localLoopbackTrust` wie unten beschrieben aktiviert sein.
 4. Optional `tailscale.adminUsers` für administrative Mutationen setzen. Ohne Eintrag
    gilt aus Kompatibilitätsgründen der erste erlaubte Benutzer als Administrator.
 5. CLI- und Integrationspfade prüfen oder optionale Funktionen deaktiviert lassen.
@@ -127,6 +129,82 @@ pnpm start
 
 Der Server bindet an `127.0.0.1:3010` und liefert das gebaute Frontend aus. Dieser Weg
 endet mit der Shell-Sitzung und ist deshalb nicht für einen dauerhaften Server vorgesehen.
+
+### Lokaler Betrieb auf macOS
+
+macOS verwendet für den lokalen Betrieb den Vordergrundstart. Nach `pnpm install` und einem
+Build mit `pnpm build` startest du Wrapt mit `pnpm start`. Der Server bleibt an
+`127.0.0.1:3010` gebunden. Ein Frontend-Neubau wird sofort ausgeliefert; für Backend-Änderungen
+meldet das Neustart-Skript ohne Launcher klar, dass der Server über das Start-Terminal neu
+gestartet werden muss. systemd und launchd sind für diesen lokalen macOS-Weg nicht erforderlich.
+Für persistente Terminals muss tmux installiert sein (`brew install tmux`). Wenn der konfigurierte
+Linux-Pfad auf dem Mac fehlt, sucht Wrapt tmux in `PATH` und den üblichen Homebrew-Verzeichnissen.
+
+Für Browserzugriff ohne Tailscale muss `security.localLoopbackTrust` in
+`config/wrapt.local.json` ausdrücklich aktiviert werden. Das gilt nur für direkte
+Loopback-Verbindungen, wenn der Browser auf demselben Mac läuft. `security.localUsername`
+benennt dabei den lokalen Benutzer; `tailscale.allowedUsers` muss ihn nicht enthalten.
+Adminrechte werden separat über `tailscale.adminUsers` vergeben. Diese Einstellung ermöglicht
+keinen Remote-Zugriff. Details stehen unter
+[Lokaler Zugriff ohne Tailscale](configuration.md#lokaler-zugriff-ohne-tailscale).
+
+Der Launcher startet den Produktionsserver mit `WRAPT_MANAGED_BY=launcher`. Bei einem
+Neustart über die Wrapt-Oberfläche übergibt das Backend seine Prozess-ID als
+`WRAPT_SERVER_PID` an das Neustart-Skript. Dieses beendet den Server mit `SIGTERM`; der
+Launcher startet ihn anschließend neu, solange die Serververwaltung aktiv ist. Im
+Development-Modus setzt `pnpm dev` `WRAPT_DEV_WATCH=1`; dann übernimmt `tsx watch` den
+Backend-Neustart selbst.
+
+### Launcher auf macOS und Windows
+
+Der eigenständige Tauri-Launcher verwaltet den Serverprozess, zeigt Version und Prozess-ID,
+öffnet die Oberfläche und schreibt die Serverausgabe nach
+`<paths.dataDir>/launcher/server.log`. Beim ersten Start ermittelt er das Repository aus
+seinem Build-Pfad oder dem aktuellen Verzeichnis. Der gefundene Pfad kann in den
+Launcher-Einstellungen geändert werden. Wird „Launcher und Server beim Login starten“
+aktiviert, startet der Login-Aufruf den Launcher mit dem Serverstart; eine bereits laufende
+Instanz wird nicht dupliziert. Das Schließen des Fensters legt den Launcher in den Tray,
+„Beenden“ stoppt einen vom Launcher gestarteten Server.
+
+Voraussetzungen sind Rust 1.88 oder neuer, Node.js 22 oder neuer, pnpm 10 sowie die
+plattformspezifischen Tauri-Buildwerkzeuge. Der Launcher liegt in `tools/launcher/` und gehört
+nicht zum pnpm-Monorepo-Build:
+
+```bash
+cd tools/launcher
+npm install
+npm run tauri dev
+```
+
+Für eine lokale macOS-App:
+
+```bash
+npm run tauri build
+```
+
+Das App-Bundle liegt danach unter `src-tauri/target/release/bundle/macos/`. Für lokale Nutzung
+ist kein Signing oder Notarisieren erforderlich.
+
+Der Launcher kann auch unter Windows gebaut werden. Diese Schritte bauen die Launcher-App;
+sie belegen keine vollständige Serverunterstützung unter nativem Windows. Die Wrapt-Konfiguration
+verlangt derzeit Unix-artige absolute Pfade. Prüfe daher vor einer Windows-Nutzung, ob Server,
+Konfiguration und benötigte Terminalwerkzeuge in der konkreten Umgebung funktionieren. Die
+Windows-Buildvoraussetzungen umfassen Visual Studio C++ Build Tools, WebView2, NSIS und Git for
+Windows (Bash für Neustarts aus der Wrapt-Oberfläche):
+
+```powershell
+cd tools/launcher
+npm install
+npm run tauri dev
+npm run tauri build
+```
+
+Windows-Builds werden hier nicht ausgeführt. Beim Start prüft der Launcher zuerst den
+Health-Endpunkt auf `127.0.0.1:3010` und startet keinen zweiten Server, wenn dort bereits Wrapt
+antwortet. Ein ausdrücklicher „Stop“-Befehl deaktiviert den automatischen Neustart. Die
+Variablen `WRAPT_MANAGED_BY`, `WRAPT_SERVER_PID` und
+`WRAPT_DEV_WATCH` sind im Abschnitt [Lokaler Betrieb auf macOS](#lokaler-betrieb-auf-macos)
+dokumentiert.
 
 ### Produktion als systemd-User-Dienst
 

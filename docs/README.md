@@ -42,7 +42,7 @@ README, Installation und Konfiguration.
 - [Extension Server Authority](adr/extension-server-authority.md)
 - [Extension Frontend Registries](adr/extension-frontend-registries.md)
 
-Dateien unter `docs/goals/`, `docs/naechste-schritte.md` und `docs/previews-spikes.md`
+Dateien unter `plans/`, `docs/naechste-schritte.md` und `docs/previews-spikes.md`
 dokumentieren Planung oder historische Entscheidungen. Sie sind keine Installationsanleitung.
 
 ## Dokumentationsstandard

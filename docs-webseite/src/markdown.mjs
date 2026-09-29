@@ -69,7 +69,8 @@ function inlineMarkdown(value, source, pageIds, contentRoot, assetNames) {
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
     .replace(/\*([^*]+)\*/g, "<em>$1</em>");
 
-  return text.replace(/\u0000(\d+)\u0000/g, (_match, index) => tokens[Number(index)] ?? "");
+  const tokenDelimiter = String.fromCharCode(0);
+  return text.replace(new RegExp(`${tokenDelimiter}(\\d+)${tokenDelimiter}`, "g"), (_match, index) => tokens[Number(index)] ?? "");
 }
 
 function isTableSeparator(line) {
@@ -91,6 +92,19 @@ function renderTable(lines, index, renderInline) {
   const head = `<thead><tr>${headings.map((cell) => `<th scope="col">${renderInline(cell)}</th>`).join("")}</tr></thead>`;
   const body = rows.map((row) => `<tr>${headings.map((_cell, i) => `<td>${renderInline(row[i] ?? "")}</td>`).join("")}</tr>`).join("");
   return { html: `<div class="table-scroll"><table>${head}${body ? `<tbody>${body}</tbody>` : ""}</table></div>`, next: cursor };
+}
+
+function figureClasses(raw) {
+  return (raw ?? "")
+    .split(/\s+/)
+    .map((name) => name.replace(/^\./, ""))
+    .filter((name) => /^[a-z0-9-]+$/.test(name));
+}
+
+function imageLine(line) {
+  const match = line.trim().match(/^!\[([^\]]*)\]\(([^)]+)\)(?:\s*\{([^}]*)\})?$/);
+  if (!match) return null;
+  return { alt: match[1].trim(), target: match[2].trim(), classes: figureClasses(match[3]) };
 }
 
 function parseFence(line) {
@@ -127,11 +141,30 @@ export function renderMarkdown(markdown, source, pageIds, contentRoot, assetName
       continue;
     }
 
-    const image = line.trim().match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+    const image = imageLine(line);
     if (image) {
-      const src = safeImage(image[2].trim(), source, contentRoot, assetNames);
-      if (src) output.push(`<figure><img src="${src}" alt="${escapeHtml(image[1].trim())}" loading="lazy" /><figcaption>${escapeHtml(image[1].trim())}</figcaption></figure>`);
+      const src = safeImage(image.target, source, contentRoot, assetNames);
+      if (src) {
+        const classes = ["figure", ...image.classes.map((name) => `figure--${name}`)];
+        output.push(`<figure class="${classes.join(" ")}"><img src="${src}" alt="${escapeHtml(image.alt)}" loading="lazy" /><figcaption>${escapeHtml(image.alt)}</figcaption></figure>`);
+      }
       index += 1;
+      continue;
+    }
+
+    if (line.trim() === ":::phones") {
+      const figures = [];
+      index += 1;
+      while (index < lines.length && lines[index].trim() !== ":::") {
+        const entry = imageLine(lines[index]);
+        if (entry) {
+          const src = safeImage(entry.target, source, contentRoot, assetNames);
+          if (src) figures.push(`<figure><img src="${src}" alt="${escapeHtml(entry.alt)}" loading="lazy" /></figure>`);
+        }
+        index += 1;
+      }
+      if (index < lines.length) index += 1;
+      if (figures.length) output.push(`<div class="phone-pair" role="group">${figures.join("")}</div>`);
       continue;
     }
 

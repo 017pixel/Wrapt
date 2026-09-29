@@ -1,6 +1,6 @@
 # Mitarbeiten
 
-Wrapt wird offen entwickelt. Beiträge können Fehler beheben, Abläufe vereinfachen, Dokumentation verbessern oder Integrationen ergänzen. Vor einer größeren Änderung lohnt sich ein kurzer Blick in die vorhandene Architektur und die betroffenen Produktseiten.
+Wrapt wird offen entwickelt. Beiträge können Fehler beheben, Abläufe vereinfachen, die Dokumentation verbessern oder Integrationen ergänzen. Vor einer größeren Änderung lohnt sich ein Blick in die vorhandene Architektur und die betroffenen Produktseiten.
 
 ## Vor dem Einstieg
 
@@ -11,7 +11,7 @@ Wrapt wird offen entwickelt. Beiträge können Fehler beheben, Abläufe vereinfa
 
 ## Lokal entwickeln
 
-Wrapt ist ein pnpm-Monorepo und benötigt Node.js 22 oder neuer sowie pnpm 10. Der übliche Entwicklungsstart baut zuerst die Contracts und startet Backend und Weboberfläche mit Hot Reload:
+Wrapt ist ein pnpm-Monorepo und braucht Node.js 22 oder neuer sowie pnpm 10. Der übliche Entwicklungsstart baut zuerst die Contracts und startet Backend und Weboberfläche mit Hot Reload:
 
 ```bash
 pnpm install --frozen-lockfile
@@ -22,7 +22,7 @@ Für den Serverstart muss eine lokale Konfiguration aus den Beispielvorlagen ein
 
 ## Änderungen prüfen
 
-Für eine Änderung sind die Checks relevant, die ihre betroffenen Bereiche abdecken. Die zentralen Projektbefehle sind:
+Relevant sind die Checks, die die betroffenen Bereiche abdecken. Die zentralen Projektbefehle sind:
 
 ```bash
 pnpm typecheck
@@ -39,16 +39,16 @@ Bei UI-Änderungen sollte der echte Ablauf im Browser geprüft werden. Nutze fü
 
 - Schreibe neue API-Schemas zuerst in `packages/contracts`, bevor Server und Oberfläche sie verwenden.
 - Baue `packages/extension-contracts` vor Änderungen, die dessen Schemas betreffen.
-- Halte handgeschriebene Dateien unter 400 physischen Zeilen und Module nach fachlicher Verantwortung getrennt.
+- Halte handgeschriebene Dateien unter 400 physischen Zeilen und trenne Module nach fachlicher Verantwortung.
 - Verwende den vorhandenen Wrapt-Stil und die Tokens aus `apps/web/src/index.css` für UI-Änderungen.
-- Bewahre bestehende Datenformate und öffentliche Schnittstellen; Breaking Changes benötigen eine Migration und eine Erklärung ihrer Folgen.
+- Bewahre bestehende Datenformate und öffentliche Schnittstellen; Breaking Changes brauchen eine Migration und eine Erklärung ihrer Folgen.
 - Dokumentiere neue Einstellungen mit neutralen Beispielwerten. Secrets und personenbezogene Daten gehören nicht in das Repository.
 
 ## Dokumentation verbessern
 
 Die Doku soll die Bedienung und das tatsächliche Verhalten der aktuellen Implementierung beschreiben. Wenn ein neues Feature sichtbar oder konfigurierbar wird, aktualisiere die passende Produkt- oder Betriebsseite und ergänze bei Bedarf den [Changelog](../changelog.md).
 
-Schreibe Aufgaben schrittweise, verlinke verwandte Seiten und verwende Befehle relativ zum Repository-Root. Screenshots müssen aus einer isolierten Dokumentationsinstanz stammen. Für Details zum privaten Betrieb und zu Sicherheitsgrenzen siehe [Zugriff und Sicherheit](../betrieb/zugriff-sicherheit.md).
+Schreibe Aufgaben schrittweise, verlinke verwandte Seiten und verwende Befehle relativ zum Repository-Root. Screenshots müssen aus einer isolierten Dokumentationsinstanz stammen. Details zum privaten Betrieb und zu den Sicherheitsgrenzen stehen unter [Zugriff und Sicherheit](../betrieb/zugriff-sicherheit.md).
 
 ## Pull Request vorbereiten
 
@@ -59,4 +59,4 @@ Beschreibe in einem Pull Request kurz:
 - welche Checks ausgeführt wurden,
 - ob Screenshots oder Dokumentation aktualisiert wurden.
 
-Füge nur Änderungen bei, die zu diesem Beitrag gehören. Den Pull Request kannst du im [GitHub-Repository](https://github.com/017pixel/Wrapt/pulls) erstellen.
+Füge nur Änderungen bei, die zu diesem Beitrag gehören. Den Pull Request erstellst du im [GitHub-Repository](https://github.com/017pixel/Wrapt/pulls).

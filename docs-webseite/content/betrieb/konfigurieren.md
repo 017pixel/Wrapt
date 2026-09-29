@@ -1,6 +1,6 @@
 # Wrapt konfigurieren
 
-Die Instanzkonfiguration liegt in **config/wrapt.local.json**. Als Startpunkt dient **config/wrapt.example.json**. Laufzeitwerte und Secrets können in **.env** gesetzt werden; ein dort definierter Wert überschreibt den gleichnamigen Konfigurationswert.
+Die Instanzkonfiguration liegt in **config/wrapt.local.json**. Als Startpunkt dient **config/wrapt.example.json**. Laufzeitwerte und Secrets können in **.env** stehen; ein dort definierter Wert überschreibt den gleichnamigen Konfigurationswert.
 
 ## Die beiden lokalen Dateien
 
@@ -13,38 +13,42 @@ Beide Dateien sind umgebungsspezifisch. Nimm sie nicht in öffentliche Commits o
 
 ## Pfade und Projektzugriff
 
-Bearbeite in **paths** vor allem:
+In **paths** sind vor allem diese Einträge wichtig:
 
-- **projectsRoot**: Ordner, dessen direkte Projektverzeichnisse Wrapt anzeigen darf.
-- **terminalAllowedRoots**: erlaubte Start- und Arbeitsverzeichnisse für Terminals.
-- **terminalDefaultCwd**: Startverzeichnis, wenn kein anderes zulässiges Verzeichnis ausgewählt wird.
-- **dataDir** und **databasePath**: persistente Wrapt-Daten und SQLite-Datenbank.
-- **orbitBackupDir** und **orbitAssetDir**: Revisionssicherungen und Orbit-Dateien.
-- **fileGalleryDir** und **wraptProfilesRoot**: Galerieinhalte und optionale Werkzeugprofile.
+| Einstellung | Bedeutung |
+| --- | --- |
+| **projectsRoot** | Ordner, dessen direkte Projektverzeichnisse Wrapt anzeigen darf. |
+| **terminalAllowedRoots** | Erlaubte Start- und Arbeitsverzeichnisse für Terminals. |
+| **terminalDefaultCwd** | Startverzeichnis, wenn kein anderes zulässiges Verzeichnis ausgewählt wird. |
+| **dataDir**, **databasePath** | Persistente Wrapt-Daten und SQLite-Datenbank. |
+| **orbitBackupDir**, **orbitAssetDir** | Revisionssicherungen und Orbit-Dateien. |
+| **fileGalleryDir**, **wraptProfilesRoot** | Galerieinhalte und optionale Werkzeugprofile. |
 
-Verwende absolute Pfade, die im Dienstkontext tatsächlich existieren und beschreibbar sind. Begrenze Projekt- und Terminal-Roots auf den nötigen Bereich. Ein erlaubter Terminal-Root gewährt einem Terminal Zugriff auf Dateien darunter.
+Verwende absolute Pfade, die im Dienstkontext existieren und beschreibbar sind. Begrenze Projekt- und Terminal-Wurzeln auf den nötigen Bereich. Ein erlaubter Terminal-Root gibt einem Terminal Zugriff auf alle Dateien darunter.
 
 ## Tailscale-Identitäten und Rollen
 
-Unter **tailscale.allowedUsers** stehen die Tailscale-Login-Identitäten, die die Workbench verwenden dürfen. **tailscale.adminUsers** legt administrative Mutationen fest. Ist diese Liste leer, gilt aus Kompatibilitätsgründen der erste Eintrag aus **allowedUsers** als Administrator. Für eine klare Rollenverteilung trage die Admins daher ausdrücklich ein.
+Unter **tailscale.allowedUsers** stehen die Tailscale-Login-Identitäten, die die Workbench verwenden dürfen. **tailscale.adminUsers** legt fest, wer administrative Mutationen ausführen darf. Ist diese Liste leer, gilt aus Kompatibilitätsgründen der erste Eintrag aus **allowedUsers** als Administrator. Für eine klare Rollenverteilung trage die Admins daher ausdrücklich ein.
 
-Die lokale Instanz bindet standardmäßig an **127.0.0.1** und verwendet Port **3010**. Lass **HOST** im Normalbetrieb auf Loopback. Der private Zugang von anderen Geräten sollte über Tailscale Serve erfolgen; mehr dazu unter [Zugriff und Sicherheit](../betrieb/zugriff-sicherheit.md).
+Die lokale Instanz bindet standardmäßig an **127.0.0.1** und verwendet Port **3010**. Lass **HOST** im Normalbetrieb auf Loopback. Der private Zugang von anderen Geräten läuft über Tailscale Serve; mehr dazu unter [Zugriff und Sicherheit](../betrieb/zugriff-sicherheit.md).
 
 ## Lokaler Zugriff ohne Tailscale
 
-**security.localLoopbackTrust** ist standardmäßig ausgeschaltet. Wenn es aktiviert wird, kann ein Browser auf demselben Rechner Wrapt ohne Tailscale-Identität öffnen. Das ermöglicht keinen Zugriff von entfernten Geräten und unterscheidet lokale Prozesse nicht nach Betriebssystemkonto. Aktiviere diese Option deshalb nur, wenn Prozesse auf dem Rechner als vertrauenswürdig gelten.
+**security.localLoopbackTrust** ist standardmäßig ausgeschaltet. Wenn es aktiviert ist, kann ein Browser auf demselben Rechner Wrapt ohne Tailscale-Identität öffnen. Das erlaubt keinen Zugriff von entfernten Geräten und unterscheidet lokale Prozesse nicht nach Betriebssystemkonto. Aktiviere die Option daher nur, wenn Prozesse auf dem Rechner als vertrauenswürdig gelten.
 
-**security.localUsername** benennt den lokalen Benutzer. Er erhält dadurch nicht automatisch Adminrechte: Dafür ist **tailscale.adminUsers** zuständig. Sind sowohl die Adminliste als auch **allowedUsers** leer, hat der lokale Benutzer keine Adminrechte.
+**security.localUsername** benennt den lokalen Benutzer. Er erhält dadurch nicht automatisch Adminrechte, dafür ist **tailscale.adminUsers** zuständig. Sind Adminliste und **allowedUsers** leer, hat der lokale Benutzer keine Adminrechte.
 
 ## Optionale Integrationen
 
 Integrationen bleiben lokal und optional:
 
-- **T3 Code**: Kanal und Dienstkonfiguration liegen in **t3**. Stable und Nightly nutzen denselben Datenbestand. Ein Kanalwechsel wird mit **bash scripts/restart-backend.sh** angewendet, das den gewählten Kanal vor dem Backend-Neustart synchronisiert.
-- **code-server**: Die systemd-Installation richtet ihn ein, wenn die Binary verfügbar ist. Der Dienst bleibt auf Loopback und wird über **/editor/** eingebettet.
-- **Hermes Agent**: Die Verbindung zeigt auf eine vorhandene Installation. Hermes-Home, Sessions und Zugangsdaten verbleiben bei Hermes.
-- **OpenCode Web**: Die offizielle Oberfläche läuft als Loopback-User-Dienst und wird über **/opencode** eingebettet.
-- **Codex, Claude Code und OpenCode**: CLI-Pfade und gemeinsame Homes stehen in **paths** und **cli**.
+| Integration | Konfiguration |
+| --- | --- |
+| T3 Code | Kanal und Dienstkonfiguration liegen in **t3**. Stable und Nightly nutzen denselben Datenbestand. Ein Kanalwechsel wird mit **bash scripts/restart-backend.sh** angewendet, das den gewählten Kanal vor dem Backend-Neustart synchronisiert. |
+| code-server | Die systemd-Installation richtet ihn ein, wenn die Binary verfügbar ist. Der Dienst bleibt auf Loopback und wird über **/editor/** eingebettet. |
+| Hermes Agent | Die Verbindung zeigt auf eine vorhandene Installation. Hermes-Home, Sessions und Zugangsdaten verbleiben bei Hermes. |
+| OpenCode Web | Die offizielle Oberfläche läuft als Loopback-User-Dienst und wird über **/opencode** eingebettet. |
+| Codex, Claude Code und OpenCode | CLI-Pfade und gemeinsame Homes stehen in **paths** und **cli**. |
 
 Ändere Ports nur nach Prüfung auf Kollisionen. T3, Hermes, code-server und OpenCode Web werden nicht durch eigene öffentliche Portfreigaben verfügbar gemacht.
 
@@ -62,7 +66,7 @@ Die Konfiguration wird beim Start gelesen. Für eine laufende Linux-Instanz:
 systemctl --user restart wrapt.service
 ~~~
 
-Bei lokalem Vordergrundbetrieb beendest du den laufenden Serverprozess kontrolliert und startest ihn erneut. Änderungen an Quellcode benötigen zusätzlich einen Build; dafür sind die Neustartskripte vorgesehen.
+Bei lokalem Vordergrundbetrieb beendest du den laufenden Serverprozess kontrolliert und startest ihn erneut. Änderungen an Quellcode brauchen zusätzlich einen Build; dafür sind die Neustartskripte vorgesehen.
 
 ## Weiterführende Schritte
 

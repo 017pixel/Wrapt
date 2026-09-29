@@ -2,6 +2,354 @@
 
 Alle Änderungen werden in fünf kurzen Stichpunkten pro Kategorie dokumentiert.
 
+## [1.24.0] - 2026-09-28
+
+### Erstellt
+- Orbit lässt sich in den Einstellungen bewusst aktivieren
+- Projektstart öffnet ohne Orbit den Editor oder das Terminal
+- Fünf neue Maskottchen-Aktionen: Strecken, Schnuppern, Winken, Verbeugen und Wackeln
+- Neue Vorschauknöpfe zum Ausprobieren der Maskottchen-Aktionen
+- Zusätzliche Animationsschritte für Gähnen und Party
+
+### Verändert
+- Orbit ist beim Start standardmäßig ausgeblendet
+- Orbit-Werkzeuge stehen in der Sidebar vor den Projekten
+- Gähnen beginnt und endet mit ruhigeren Bewegungen
+- Die Party hat zwei längere Sprünge und einen sanfteren Abschluss
+- Die neuen Maskottchen-Aktionen erscheinen auch im automatischen Verhalten
+
+### Gelöscht
+- Orbit-Eintrag aus der anfänglichen Desktop-Navigation
+- Orbit-Eintrag aus der anfänglichen mobilen Navigation
+- Orbit als Standardziel für Projekte bei ausgeschaltetem Orbit
+- Orbit-Aktion im Preview-Menü bei ausgeschaltetem Orbit
+- Orbit-Aktion bei Terminal-Sessions bei ausgeschaltetem Orbit
+
+### Behoben
+- Werkzeugpalette blieb unter der Projektliste verborgen
+- Werkzeuge sind per Klick und Ziehen wieder erreichbar
+- Bestehende Sidebar-Auswahl bleibt beim Versionswechsel erhalten
+- Gähnen wechselt nicht mehr unvermittelt in die Ruhepose
+- Party-Sprünge enden nicht mehr nach wenigen Augenblicken
+
+## [1.23.0] - 2026-09-28
+
+### Erstellt
+- Sechs zusätzliche Orbit-Bausteine für Aufgaben, Dateien, Galerien und Hermes
+- Getrennte Sidebar-Bereiche für Seiten und Orbit-Elemente
+- Eigenständige Geräteansichten für Telefon, Tablet und Desktop in Preview-Gruppen
+- Synchronisierung gleichzeitiger Änderungen an der Serverliste
+- Browserprüfungen für Orbit-Palette und Serverauswahl
+
+### Verändert
+- Notizen haben eine feste Dokumentleiste mit vollständigem Seitenpfad
+- Aufgaben, Snippets und Notizkarten im Orbit sind übersichtlicher gestaltet
+- Preview-Steuerung schwebt über dem gewählten Gerät
+- Installationsanleitung erklärt lokalen und entfernten Zugriff getrennt
+- Serverwechsel erscheint erst bei mehreren verbundenen Hosts
+
+### Gelöscht
+- Automatisch erfundener lokaler Server im entfernten Browser
+- Fester tmux-Fensterindex bei Terminalaktionen
+- Gemeinsamer Scrollbereich für Seiten und Orbit-Palette
+- Umleitung neuer Orbit-Aufgaben in die Notizen-Seite
+- Veraltete Inbox- und Plattformzusagen in der Dokumentation
+
+### Behoben
+- Terminals behalten Runtime und Verlauf beim Browserwechsel und bei anderen tmux-Fensternummern
+- Servernamen und Einträge bleiben bei gleichzeitigen Tab-Änderungen erhalten
+- Notiztitel werden gesichert; Fehler beim Bearbeiten werden angezeigt
+- Ein ausgefallener Code-Server öffnet keinen kaputten Editor mehr
+- Orbit-Navigation bleibt auf iPads erreichbar; Simulatorsteuerung bleibt im Bild
+
+## [1.22.2] - 2026-09-27
+
+### Erstellt
+- Viewport-gebundener Arbeitsflächen-Schalter mit Tastaturbedienung
+- Lade-, Fehler- und Projektzuordnungszustände für Orbit-Werkzeuge
+- Wiederherstellbare Aktion bei fehlgeschlagenem Werkzeugstart
+- Gebündelte PTY-Anpassung für Terminal-Zoom im Orbit
+- Regressionstests für Menü, Werkzeugladen und Terminal-Zoom
+
+### Verändert
+- Arbeitsflächenmenü wird außerhalb der scrollenden Steuerleiste angezeigt
+- Notiztext erhält sichtbaren Innenabstand am linken und rechten Rand
+- Terminal füllt die Orbit-Fläche ohne äußeren Rahmen
+- Terminalschrift gleicht den Canvas-Zoom invers aus
+- Bereichstitel deckt die gestrichelte Rahmenlinie vollständig ab
+
+### Gelöscht
+- Grüne Synchronisierungspunkte an Orbit-Knoten
+- Schwarze Außenlinien am Orbit-Terminal
+- Transparenter Bereichstitel, durch den die Rahmenlinie sichtbar war
+- Endloser T3-Code-Ladezustand bei fehlender Projektzuordnung
+- Nichtssagende Fehlerseite bei nicht erreichbarem OpenCode-Webdienst
+
+### Behoben
+- Arbeitsflächenmenü wird nicht mehr von der Steuerleiste abgeschnitten
+- Neue Notizen beginnen nicht mehr direkt an der linken Kante
+- Synchronisierungspunkte stören Notiz-, Snippet- und Limit-Knoten nicht mehr
+- T3 Code kann auch ohne gespeicherte Projektzuordnung geladen werden
+- Terminaltext bleibt beim Rein- und Rauszoomen gleich groß
+
+## [1.22.1] - 2026-09-26
+
+### Erstellt
+- Landingpage-Abschnitte für Themes, Nutzung und Limits, Notizen und Orbit
+- Animierte Sprungnavigation auf der Landingpage
+- Dezentes Karo-Muster an den Seitenrändern der Landingpage
+- Wiederholbare Demo-Instanz mit Beispieldaten für Produktaufnahmen
+- Zehn Produktaufnahmen mit Beispiel-Konten, -Projekten und -Notizen
+
+### Verändert
+- Landingpage zeigt Text und Aufnahme nebeneinander statt untereinander
+- Mobile Ansicht: kompakte Dashboard-Zeile und zwei Handyaufnahmen nebeneinander
+- Aufnahmen richten sich beim Hover auf (Tilt-Effekt wie auf t3.codes)
+- Hero und Randnotiz ohne fehlstehende Zierlinien
+- Aufnahmen durchgehend im OLED-Dark-Theme mit Beispieldaten
+
+### Gelöscht
+- Blauer Punkt neben dem Wrapt-Namen im Kopfbereich
+- Server-Knoten-Element samt Verbindungslinie im Hero
+- Blaue Linie an der Harness-Randnotiz
+- Fehlstehende Zierlinien im Hero der Landingpage
+- Schwärzungen in den Produktaufnahmen, ersetzt durch Beispieldaten
+
+### Behoben
+- Dashboard-Kopfbox auf schmalen Displays zu groß und umgebrochen
+- Sprunglinks sprangen ohne Animation und verdeckten die Abschnittsüberschrift
+- Aufnahmen zeigten teils echte Hostnamen und Systempfade
+- Aufnahmen zeigten leere Zustände statt gefüllter Beispiele
+- Screenshot-Aufnahmen wurden durch fehlende Bildbreite unlesbar
+
+## [1.22.0] - 2026-09-26
+
+### Erstellt
+- Kanonische Orbit-Seite unter `/orbit` mit rückwärtskompatiblem Workbench-Einstieg
+- Gestalteter Arbeitsflächen-Schalter und Infofenster mit Sync-, Nutzungs- und Leistungsdaten
+- Gemeinsame Notes-Oberfläche und globale Orbit-Quicknotes
+- Preview-Laufzeitverwaltung mit Simulatorsteuerung in Orbit und Standalone
+- Terminal-Handoff über stabile Runtime-IDs zwischen Orbit und Werkzeugseite
+
+### Verändert
+- Orbit-Werkzeuge und Vorschauen öffnen vorhandene Ressourcen über gemeinsame Identitäten
+- Sidebar-Zustände für Orbit-Projekte und Werkzeuge werden unabhängig gespeichert
+- Codex-, Claude-Code- und OpenCode-Limits bleiben kompakt in der unteren Leiste
+- Code-Snippets, Fokussteuerung und Preview-Ziele folgen der gemeinsamen Orbit-Oberfläche
+- Projektversion auf 1.22.0 und API-Verträge auf 0.15.0 angehoben
+
+### Gelöscht
+- Sichtbare Workbench-Bezeichnungen für den Orbit-Arbeitsbereich
+- Neue Orbit-To-do-Listen aus Palette, Kontextmenü und Befehlssuche
+- Orbit-Zahlen und Synchronisierungsdetails aus der unteren Statusleiste
+- Orbit-Zuordnung bei neu erstellten Quicknotes
+- Verschachtelte Preview-Bedienelemente in der Geräteansicht
+
+### Behoben
+- Doppelte Werkzeugknoten für dieselbe Session auf verschiedenen Orbit-Flächen
+- Fokuswechsel zwischen Werkzeugseite und Orbit ohne Runtime-Wechsel
+- Titel-Doppelklick löst Canvas-Zoom oder Preview-Gruppenaktion nicht mehr aus
+- Preview-Sessions werden beim Entfernen eines gemeinsam genutzten Knotens nicht voreilig freigegeben
+- Legacy-To-dos werden transaktional und idempotent in globale Notes überführt
+
+## [1.21.0] - 2026-09-24
+
+### Erstellt
+- Workspace-Wechsler im mobilen Navigationsmenü
+- Touch-gerechte Workspace-Auswahl als Bildschirmblatt
+- Lokale Anmeldung über Loopback ohne doppelten allowedUsers-Eintrag
+- Übertragung von Hinzufügungs- und Nutzungszeiten beim Instanzwechsel
+- Lesbare Standardbezeichnung für Instanzen ohne eigenen Namen
+
+### Verändert
+- Workspace-Konflikte nach URL und ID werden getrennt aufgelöst
+- Zielinstanzen übernehmen ihre Self-ID aus dem Wechsel-Link
+- Einträge aus localhost und 127.0.0.1 bleiben wechselseitig erreichbar
+- Lokale Freigabe gilt nur für direkte Loopback-Verbindungen ohne Proxy-Header
+- Projektversion auf 1.21.0 angehoben
+
+### Gelöscht
+- Origin-Adresse als sichtbarer Gerätename ohne Health-Namen
+- Zusätzliche Benutzerfreigabe für normale lokale Loopback-Nutzung
+- Verwerfen gültiger Einträge bei kollidierenden IDs
+- Außerhalb des mobilen Bildschirms platzierte Workspace-Auswahl
+- Verlorener Rückweg zwischen localhost und 127.0.0.1
+
+### Behoben
+- Workspace-Auswahl auf Handy und Tablet-Hochformat unzugänglich
+- Eintragsverlust bei gleicher ID und abweichender URL
+- Zeitstempelverlust beim Übertragen der Registry
+- Doppelte Workspace-Zeilen mit gleicher URL
+- Lokaler Zugriff verweigert trotz aktivem Loopback-Vertrauen
+
+## [1.20.0] - 2026-09-24
+
+### Erstellt
+- Einklappbare Wrapt-Seitenleiste für iPads im Querformat
+- Einmaliger Installationshinweis für iPhone, iPad und Android
+- Direkter Android-Installationsaufruf über den Browser
+- Terminal-Seitenleiste, die sich an einen Orientierungswechsel anpasst
+- Beschriftungen für Terminal-Sondertasten, die Screenreader vorlesen können
+
+### Verändert
+- iPad-Querformat teilt den Bildschirm zwischen Navigation und Arbeitsbereich
+- Touch-Terminals zeigen Schrift mit 13 statt 8 Pixeln
+- Terminal-Tabs und Datei-Vorschau-Aktionen bieten größere Trefferflächen
+- Dialoge und Datei-Vorschauen folgen der sichtbaren Bildschirmhöhe
+- Nutzungsansichten halten ihre Diagramme innerhalb der verfügbaren Breite
+
+### Gelöscht
+- Zwischengespeicherte App-Ansicht für den Offline-Aufruf
+- Offline-Kopie der gebündelten Frontend-Dateien
+- Offline-Fallback für Seitenwechsel
+- Winzige Terminalschrift auf Touch-Geräten
+- Mobile Navigationsauslösung im iPad-Querformat
+
+### Behoben
+- Nicht reagierende Serverprozesse werden vor einem Launcher-Neustart nach acht Sekunden beendet
+- systemd-Dienstabfragen und -Aktionen laufen nur unter Linux
+- Fehlerhafte Codexbar-Antworten lösen wieder den lokalen CLI-Fallback aus
+- pnpm 10 liest Sicherheits-Overrides aus der Workspace-Konfiguration
+- Einstellungssuche ordnet Layout und verbundene Workspaces den passenden Bereichen zu
+
+## [1.19.0] - 2026-09-24
+
+### Erstellt
+- Workspace-Wechsler in der Seitenleiste für mehrere Wrapt-Instanzen
+- Verbindungstest mit Live-, Offline- und Zugriffsstatus
+- Verwaltung verbundener Instanzen in den Einstellungen
+- Loopback-Schnellzugriff mit Hinweis auf dieses Gerät
+- Versionshinweis für Instanzen mit abweichender Health-Version
+
+### Verändert
+- Instanzname wird aus der Serverkonfiguration und dem Hostnamen übernommen
+- Workspace-Liste bleibt browserlokal und reist beim Wechsel mit
+- Umbenannte Verbindungen werden über die Instanzen hinweg zusammengeführt
+- Health lässt sich ohne Zugangsdaten aus anderen Browser-Origin lesen
+- Projekt- und API-Vertragsversion auf den neuen Meilenstein angehoben
+
+### Gelöscht
+- Platzhaltertext für eine spätere Workspace-Verwaltung
+- Leere Workspace-Einstellungsansicht ohne Verbindungen
+- Manuelles Wechseln durch erneute Eingabe einer Instanz-URL
+- Ungeprüftes Öffnen neu eingetragener Verbindungen
+- Versteckte Versionsabweichungen zwischen verbundenen Instanzen
+
+## [1.18.0] - 2026-09-24
+
+### Erstellt
+- Einstellungsnavigation mit den Ebenen Client-weit, Layout und Workspaces
+- Platzhalter für später verbundene lokale und entfernte Wrapt-Instanzen
+- Automatische Übernahme gespeicherter Panels, Arbeitsflächen und Auswahlen
+- Suche nach Layout und verbundenen Wrapt-Instanzen
+- Alte Links auf Workspace-Einstellungen öffnen weiter das Layout
+
+### Verändert
+- Lokaler Zustand mit Panels und bis zu acht Arbeitsflächen heißt jetzt Layout
+- Gespeicherte Arbeitsflächen und geöffnete Panels bleiben nach dem Update erhalten
+- Orbit-Flächen werden in der Oberfläche als Boards bezeichnet
+- Bestätigungen zum Zurücksetzen benennen Panels, Arbeitsflächen und Auswahlen
+- Projektversion auf 1.18.0 angehoben
+
+### Gelöscht
+- Workspace als Bezeichnung für die lokalen Layout-Einstellungen
+- Arbeitsfläche als Bezeichnung für Orbit-Boards
+- Schreiben des lokalen Zustands unter dem bisherigen Speicher-Key
+- Mehrdeutige Beschreibung der Layout-Einstellungen als Workspace
+- Workspace-Bezeichnungen in Bestätigungen zum Layout-Reset
+
+## [1.17.0] - 2026-09-24
+
+### Erstellt
+- Lokaler Tray-Launcher für macOS und Windows
+- Serversteuerung mit Schutz vor doppeltem Start
+- Statusanzeige mit Version und Prozesskennung
+- Autostart beim Login und direkter Zugriff auf Serverlogs
+- Automatischer Serverneustart nach einem Neustart aus der Wrapt-Oberfläche
+
+### Verändert
+- Lokale Identitätsprüfung erkennt Forwarded-Header unabhängig von Schreibweise und Anzahl
+- Portübersicht liefert Listener wieder nach Port sortiert
+- Lokaler Betrieb beschreibt die Schnittstelle zwischen Launcher und Server
+- Installation dokumentiert Start, Build und Windows-Voraussetzungen des Launchers
+- Server-, Web- und Projektversion auf 1.17.0 angehoben
+
+### Gelöscht
+- Manuelle Prozesssuche vor dem Start des lokalen Servers
+- Doppelte Serverstarts beim Öffnen des Launchers
+- Manuelle Browsernavigation zur lokalen Oberfläche
+- Manuelle Suche nach der Serverausgabe
+- Unbeabsichtigter Auto-Neustart nach einem bewussten Stop
+
+## [1.16.0] - 2026-09-24
+
+### Erstellt
+- Optionaler lokaler Zugriff über eine direkte Loopback-Verbindung
+- Persönlicher lokaler Benutzername für dieselbe Rechteverwaltung wie bei Tailscale
+- Lokale Portübersicht für macOS mit Listener- und Arbeitsverzeichnis-Erkennung
+- macOS-PTys und tmux-Supervisor starten mit passenden lokalen Binärdateien
+- Übergabe des Backend-Neustarts an einen übergeordneten Launcher
+
+### Verändert
+- Neustart-Skripte schreiben portable Zeitstempel
+- Frontend-Builds laufen auf macOS ohne Dienstmanager
+- Backend-Neustarts melden fehlende Dienstverwaltung verständlich
+- Preview- und Terminal-Laufzeiten starten auf macOS ohne systemd
+- Server- und Web-Version auf 1.16.0 angehoben
+
+### Gelöscht
+- macOS-untaugliche Zeitstempelaufrufe
+- systemd-Aufrufe auf Nicht-Linux-Systemen
+- Linux-only Prozesspfad für die macOS-Portübersicht
+- Fest verdrahteter Runtime-Socketpfad ohne `XDG_RUNTIME_DIR`
+- Automatische Anmeldung ohne ausdrückliche Loopback-Freigabe
+
+## [1.15.0] - 2026-09-23
+
+### Erstellt
+- Seitenleiste im Notion-Aufbau mit Suche, Zuletzt verwendet, Favoriten, Baum und Papierkorb
+- Schnellsuche per Befehlstaste mit Filtern nach Titel, Bereich, Erstell- und Änderungsdatum
+- Symbolauswahl mit Google-Material-Symbolen statt Emojis
+- Kontextmenü je Seite: Unterseite, Umbenennen, Favorit, Duplizieren, Link kopieren, Papierkorb
+- Verschieben und Verschachteln von Seiten per Ziehen im Baum
+
+### Verändert
+- Seitenleiste ist in der Breite ziehbar und lässt sich einklappen; der Zustand bleibt erhalten
+- Neue Seiten starten leer mit dem Titel „Notiz – Datum“ statt mit Vorlagen
+- Popups und Menüs schließen bei Klick daneben und mit Escape
+- Unterseiten entstehen direkt unter der aktuellen Seite, werden verlinkt und gleich geöffnet
+- Kopfzeile zeigt nur noch Seitenleiste, Pfad, Favorit, Unterseite und ein Menü für den Rest
+
+### Gelöscht
+- Vorlagen-Auswahl für neue Notizen
+- Emojis in Seitenleiste, Symbolauswahl und Editor-Vorschlägen
+- Vollbild-Schaltfläche in der Notizkopfzeile
+- Klebriges Block-Menü, das beim Überfahren der Absätze mitwanderte
+- Ungenutzte Doppelungen in der Notizen-Seitenleiste
+
+## [1.14.0] - 2026-09-23
+
+### Erstellt
+- Notizen-Seite mit Notion-artigem Block-Editor und eigenem Vollbild-Fenster
+- Slash-Befehle für Überschriften, Code, Tabellen, Formeln und viele weitere Blöcke
+- Automatische Formatierung: Markdown-Kürzel beim Tippen und eingefügtes Markdown wird zu Blöcken
+- Callouts, Toggles, Spalten, Inhaltsverzeichnis, Bilder, Unterseiten und Notiz-Verweise
+- Suche, Favoriten, Papierkorb, Vorlagen, Emoji-Symbole und Autosave mit Konfliktbehandlung
+
+### Verändert
+- Orbit-Notizen verwenden den zentralen Editor; bestehende Inhalte wurden automatisch übernommen
+- Notizknoten im Orbit verweisen auf eine Notiz und öffnen sie im Editor oder in einem Fenster
+- Seitenleiste gliedert Notizen nach Favoriten, Unterseiten und Papierkorb
+- Formatierungsleiste, Block-Menü und Tastenkürzel folgen dem Notion-Verhalten
+- Markdown bleibt das Speicherformat und wird durch Rundlauf-Tests abgesichert
+
+### Gelöscht
+- Schlichtes Textfeld der bisherigen Orbit-Notizen
+- Getrennte Ablage von Orbit-Notizen und Notizen-Seite
+- Beschränkung auf unformatierten Text ohne Überschriften, Listen oder Code
+- Fehlende Wiederherstellung: Notizen landen jetzt im Papierkorb statt endgültig zu verschwinden
+- Doppelte Pflege von Notiztiteln an Knoten und Notiz
+
 ## [1.13.0] - 2026-09-17
 
 ### Erstellt

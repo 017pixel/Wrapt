@@ -5,7 +5,7 @@ Die öffentliche README verwendet PNG-Aufnahmen mit 1280 × 720 Pixeln.
 | Datei | Motiv |
 | --- | --- |
 | `01-dashboard.png` | Dashboard mit anonymisiertem `demo-server` |
-| `02-workbench.png` | Orbit-Workbench mit neutralen Beispielprojekten |
+| `02-workbench.png` | Orbit mit neutralen Beispielprojekten |
 | `04-t3-code.png` | T3 Code im Dark Mode, nicht angemeldet |
 | `05-code-server.png` | code-server ohne persönliche Dateien |
 | `06-gallery.png` | Dateimanager |

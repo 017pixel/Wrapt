@@ -7,8 +7,9 @@ Alle **persönlichen** Werte leben gebündelt in einer einzigen, gitignorierten 
 Konfigurationsquelle für alles Umgebungsspezifische:
 
 - `branding` — Anzeigename der App (`appName`, `shortName`); fließt in Titel, Web-Manifest und Footer.
-- `system` — Dienstbenutzer und Home-Verzeichnis.
+- `system` — Instanzname (`instanceName`, standardmäßig der Hostname), Dienstbenutzer und Home-Verzeichnis. Der Name erscheint öffentlich in Health und sollte keine persönlichen Angaben enthalten.
 - `tailscale` — Hostname, IP, erlaubte Login-E-Mails (`allowedUsers`) und optionale Administratoren (`adminUsers`). Fehlt `adminUsers`, wird aus Kompatibilitätsgründen der erste Eintrag aus `allowedUsers` als Administrator verwendet.
+- `security` — optionaler lokaler Zugriff über Loopback und dessen Benutzername.
 - `paths` — Projekt-Root, Orbit-Browser-Root, Terminal-Roots, Datenverzeichnis, Datenbank,
   Backups, Assets und Profile.
 - `cli` — Pfade zu `codexbar`, `codex`, `opencode`, `claude`, `tmux`.
@@ -32,6 +33,30 @@ Ohne Angabe verwendet Wrapt den mitgelieferten Skill unter `.agents/plugins/plug
 Eine absolute lokale Überschreibung bleibt möglich; `plugins.creatorSkillPath` wird als
 Kompatibilitätsname gelesen, wenn der neue Schlüssel fehlt. Die API liefert ausschließlich
 die aufgelöste Skill-Datei und erlaubt kein freies Lesen anderer lokaler Pfade.
+
+## Lokaler Zugriff ohne Tailscale
+
+`security.localLoopbackTrust` ist standardmäßig `false`. Bei `true` akzeptiert Wrapt direkte
+Verbindungen von `127.0.0.1` oder `::1` nur ohne `tailscale-user-login`- oder `x-forwarded-*`-
+Header. Der Browser muss auf demselben Rechner laufen; entfernte Geräte erhalten dadurch keinen
+Zugriff. Tailnet-Anfragen bleiben an Tailscale-Identität und Same-Origin-/WebSocket-Origin-
+Prüfungen gebunden. Tailscale Serve muss die Identität weitergeben.
+
+`security.localUsername` benennt den lokalen Benutzer und fällt auf `os.userInfo().username`
+zurück. Loopback lässt diesen Benutzer ohne Eintrag in `tailscale.allowedUsers` zu. Adminrechte
+regelt `tailscale.adminUsers`; ist die Liste leer, gilt der erste Eintrag aus `allowedUsers`.
+Sind beide Listen leer, hat der lokale Benutzer keine Adminrechte. Trage ihn dafür in
+`tailscale.adminUsers` ein.
+
+Lokales Vertrauen unterscheidet Prozesse nicht nach Betriebssystemkonto; aktiviere es nur, wenn sie vertrauenswürdig sind.
+
+```json
+{"security":{"localLoopbackTrust":true,"localUsername":"dein-benutzername"}}
+```
+
+Alternativ setze `WRAPT_LOCAL_LOOPBACK_TRUST=true` und `WRAPT_LOCAL_USERNAME=dein-benutzername`
+in der Serverumgebung. Das gilt nur für direkte Loopback-Verbindungen ohne Tailscale- oder
+Forwarded-Header.
 
 ## Hermes Agent
 
@@ -112,14 +137,17 @@ Neustart stellt `scripts/sync-opencode-web.sh` die Unit sicher, beendet veraltet
 wartet auf den HTTP-Healthcheck. Die Unit wird mit `scripts/install-opencode-web-unit.sh` installiert.
 Nach Änderungen an Port oder Binary ist ein Backend-Neustart erforderlich.
 
-## Inbox und Benachrichtigungen
+## Benachrichtigungen
 
-Die Inbox liest T3 Code defensiv aus dessen eigener SQLite-Projektion und ergänzt die Ergebnisse
-um Hermes- sowie Terminal-/CLI-Ereignisse. `notifications.pollSeconds` steuert das serverseitige
-Intervall. Die Mindestlaufzeiten liegen zentral in `terminalMinimumSeconds`,
-`agentMinimumSeconds`, `t3CompletionMinimumSeconds`, `t3MiniTaskSeconds`, `agentRunIdleSeconds` (Bündelung),
-`finalSettleSeconds` und `hermesCompletionMinimumSeconds`; aktive ungelesene Einträge
-bleiben erhalten, erledigte, verworfene und gelesene Einträge werden nach `pruneAfterHours` entfernt.
+Die Server-Synchronisierer lesen T3 Code defensiv aus dessen SQLite-Projektion und ergänzen Hermes-,
+Agenten- und Terminal-/CLI-Ereignisse. `notifications.pollSeconds` steuert das Intervall;
+Mindestlaufzeiten stehen in `terminalMinimumSeconds`, `agentMinimumSeconds`,
+`t3CompletionMinimumSeconds`, `t3MiniTaskSeconds`, `agentRunIdleSeconds`, `finalSettleSeconds`
+und `hermesCompletionMinimumSeconds`. Aktive ungelesene bleiben erhalten; gelesene, erledigte
+und verworfene Einträge entfernt die Datenbank nach `pruneAfterHours`.
+
+Die Oberfläche zeigt passende neue Einträge als Benachrichtigungen; eine Inbox-Seite gibt es
+nicht, `/inbox` leitet zum Startbereich weiter.
 
 Unter `notifications.preferences` lassen sich Toasts und Web-Push global sowie pro Quelle
 schalten. `pushEnabled` ist ausschließlich der globale Server-Master-Schalter. Ob das gerade
@@ -435,9 +463,9 @@ akzeptiert. Snapshots werden mit AES-256-GCM verschlüsselt; der Schlüssel lieg
 `<paths.dataDir>/preview-storage.key`, das Log-Pseudonym nutzt
 `<paths.dataDir>/preview-log-hmac.key`. Beide Dateien werden nie über eine API ausgegeben.
 
-## Orbit Workspace
+## Orbit-Dokument
 
-Der Orbit Workspace verwendet dieselbe `DATABASE_PATH`-Datei und legt darin ein aktuelles Dokument sowie eine unveränderliche Revisionshistorie an. Die Datenbank liegt in Produktion außerhalb des Repositorys, damit Builds, Codewechsel und Deployments sie nicht berühren. Zusätzlich wird jede erfolgreiche Revision als prüfsummengesicherte JSON-Datei im lokalen Backup-Verzeichnis abgelegt. Fehlt der Datenbankstand, stellt der Server automatisch die letzte intakte Sicherung wieder her.
+Das Orbit-Dokument verwendet dieselbe `DATABASE_PATH`-Datei und legt darin den aktuellen Stand sowie eine unveränderliche Revisionshistorie an. Die Datenbank liegt in Produktion außerhalb des Repositorys, damit Builds, Codewechsel und Deployments sie nicht berühren. Zusätzlich wird jede erfolgreiche Revision als prüfsummengesicherte JSON-Datei im lokalen Backup-Verzeichnis abgelegt. Fehlt der Datenbankstand, stellt der Server automatisch die letzte intakte Sicherung wieder her.
 
 ```dotenv
 ORBIT_SYNC_INTERVAL_MS=5000

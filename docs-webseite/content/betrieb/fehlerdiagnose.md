@@ -12,10 +12,12 @@ journalctl --user -u wrapt.service -n 100 --no-pager
 curl -v --max-time 5 http://127.0.0.1:3010/api/v1/health
 ~~~
 
-- **Dienst inaktiv:** Prüfe den letzten Fehler im Journal. Häufige Ursachen sind ungültige Konfiguration, fehlende Pfade oder ein nicht verfügbares Node-/pnpm-Setup.
-- **Health-Check schlägt lokal fehl:** Der Fehler liegt zunächst beim Prozess oder beim lokalen Listener, nicht beim Tailscale-Zugang.
-- **Health-Check funktioniert lokal, nicht über HTTPS:** Prüfe Tailscale Serve, den konfigurierten HTTPS-Port und die Benutzeridentität.
-- **Health antwortet, Oberfläche fehlt:** Öffne **/wrapt/** und prüfe, ob der Produktionsbuild vorhanden ist. Bei Änderungen am Frontend muss der Web-Build aktuell sein.
+| Beobachtung | Nächster Schritt |
+| --- | --- |
+| Dienst inaktiv | Prüfe den letzten Fehler im Journal. Häufige Ursachen sind ungültige Konfiguration, fehlende Pfade oder ein nicht verfügbares Node-/pnpm-Setup. |
+| Health-Check schlägt lokal fehl | Der Fehler liegt zunächst beim Prozess oder beim lokalen Listener, nicht beim Tailscale-Zugang. |
+| Health-Check funktioniert lokal, nicht über HTTPS | Prüfe Tailscale Serve, den konfigurierten HTTPS-Port und die Benutzeridentität. |
+| Health antwortet, Oberfläche fehlt | Öffne **/wrapt/** und prüfe, ob der Produktionsbuild vorhanden ist. Bei Änderungen am Frontend muss der Web-Build aktuell sein. |
 
 Prüfe bei einem Konfigurationsfehler zunächst die JSON-Syntax, ohne den Inhalt auszugeben:
 
@@ -73,7 +75,7 @@ journalctl --user -u hermes-dashboard.service -n 100 --no-pager
 curl -f -H 'Host: 127.0.0.1:9119' http://127.0.0.1:9119/api/status
 ~~~
 
-Der festgelegte **Host**-Header ist für den lokalen Hermes-Health-Check nötig. Der Zugriff im Browser erfolgt über **/hermes**; der Dashboard-Port bleibt lokal. Bei getrenntem Chat prüfe zusätzlich die Hermes-Diagnose in Wrapt und lade die Verwaltungsseite neu.
+Der festgelegte **Host**-Header ist für den lokalen Hermes-Health-Check nötig. Der Browserzugriff läuft über **/hermes**; der Dashboard-Port bleibt lokal. Bei getrenntem Chat prüfe zusätzlich die Hermes-Diagnose in Wrapt und lade die Verwaltungsseite neu.
 
 ### OpenCode Web
 
@@ -83,7 +85,7 @@ journalctl --user -u opencode-web.service -n 100 --no-pager
 curl -f http://127.0.0.1:3774/
 ~~~
 
-Die eingebettete Web-Oberfläche muss über **/opencode** geöffnet werden, damit API-, Asset- und WebSocket-Pfade korrekt durch die Wrapt-Bridge laufen.
+Die eingebettete Weboberfläche muss über **/opencode** geöffnet werden, damit API-, Asset- und WebSocket-Pfade korrekt durch die Wrapt-Bridge laufen.
 
 ## Datenbank oder Orbit-Sicherung auffällig
 
@@ -94,7 +96,7 @@ Bei einer fehlenden oder beschädigten Datenbank:
 3. Lass vorhandene Orbit-Revisionen unangetastet. Eine beschädigte Sicherung führt absichtlich zu einem Startfehler statt zu leeren Daten.
 4. Stelle nur eine bekannte, prüfbare Sicherung wieder her.
 
-Fehler wie **ORBIT_REVISION_CONFLICT** oder **ORBIT_DESTRUCTIVE_SAVE_BLOCKED** bedeuten, dass Wrapt den abweichenden Stand nicht still überschrieben hat. Bewahre den Browserentwurf und die Serverdaten auf und löse den Konflikt über die Oberfläche.
+Fehler wie **ORBIT_REVISION_CONFLICT** oder **ORBIT_DESTRUCTIVE_SAVE_BLOCKED** bedeuten, dass Wrapt den abweichenden Stand nicht still überschrieben hat. Bewahre Browserentwurf und Serverdaten auf und löse den Konflikt über die Oberfläche.
 
 Die Schritte zur Wiederherstellung stehen unter [Sichern, wiederherstellen und aktualisieren](../betrieb/sichern-wiederherstellen-update.md).
 
