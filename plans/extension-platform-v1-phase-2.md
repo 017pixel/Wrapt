@@ -14,7 +14,7 @@ Phase 2 führt typisierte Frontend Registries und Legacy Built-in Contributions 
 Oberfläche, URLs, Persistenz, Lazy-Loading-Grenzen und Runtime-Sitzungen bleiben gleich. Phase 3
 ersetzt erst danach die statische Router- und Shell-Verdrahtung durch diese dogfoodete Quelle.
 
-Bindende Architektur: [`extension-frontend-registries.md`](../adr/extension-frontend-registries.md).
+Bindende Architektur: [`extension-frontend-registries.md`](../docs/adr/extension-frontend-registries.md).
 Vollständige Ausgangsbasis:
 [`extension-platform-v1-inventory.md`](extension-platform-v1-inventory.md#2-frontend-inventar).
 

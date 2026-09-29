@@ -39,7 +39,6 @@ Shell-Routen anhand des Pfads gemountet.
 | --- | --- | --- | --- |
 | `/` | Dashboard | standard | eager import, statischer Index |
 | `/workbench` | Orbit Workbench | full-bleed | eigener Lazy Loader, Shell-Sonderfall |
-| `/inbox` | Inbox | standard | eigener Lazy Loader |
 | `/tech-tldrs` | Tech TLDRs | full-bleed | eigener Lazy Loader, Shell-Sonderfall |
 | `/projects` | Projekte | standard | eigener Lazy Loader |
 | `/projects/:projectId` | Projektdetail | standard | eigener Loader, dynamischer Breadcrumb |
@@ -74,7 +73,7 @@ liegen aber nicht auf den Einträgen. Mobile übersetzt alle Pfade erneut in die
 
 | Gruppe | Einträge |
 | --- | --- |
-| Workspace | Dashboard, Inbox, Workbench, Tech TLDRs, Projekte |
+| Workspace | Dashboard, Workbench, Tech TLDRs, Projekte |
 | Werkzeuge | T3 Code, Hermes Agent, Code-Server, Terminal, OpenCode, Codex, Claude Code, Previews, Dateien, Browser, KI-Skills |
 | Account und System | Nutzung, Einstellungen |
 
