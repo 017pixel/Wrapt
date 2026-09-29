@@ -83,16 +83,6 @@ function publishedVersions() {
   }
 }
 
-async function listMarkdown(directory, prefix = "") {
-  const output = [];
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    const relative = join(prefix, entry.name);
-    if (entry.isDirectory()) output.push(...await listMarkdown(join(directory, entry.name), relative));
-    else if (entry.isFile() && entry.name.endsWith(".md")) output.push(relative.replaceAll("\\", "/"));
-  }
-  return output;
-}
-
 async function buildReleases(pageIds, assetNames) {
   const releaseDir = join(contentDir, "changelog/releases");
   if (!existsSync(releaseDir)) return { html: "", search: "" };
@@ -132,13 +122,15 @@ async function build() {
     const file = join(contentDir, item.source);
     if (!existsSync(file)) fail(`Navigationsseite fehlt: content/${item.source}`);
     const markdown = await readFile(file, "utf8");
+    if (item.heroImage && !assetNames.has(item.heroImage)) fail("Titelbild fehlt: assets/" + item.heroImage);
     const title = firstTitle(markdown, item.id.split("/").at(-1));
-    const content = renderMarkdown(markdown, item.source, pageIds, contentDir, assetNames, { leadFirstParagraph: item.id === "start" });
+    const content = renderMarkdown(markdown, item.source, pageIds, contentDir, assetNames, { leadFirstParagraph: item.id === "start" || Boolean(item.heroImage) });
     const releaseData = item.id === "changelog" ? await buildReleases(pageIds, assetNames) : { html: "", search: "" };
     pages.push({
       id: item.id,
       title,
       group: item.group,
+      heroImage: item.heroImage ?? "",
       content: `${content}${releaseData.html}`,
       search: `${plainText(markdown)} ${releaseData.search}`,
     });

@@ -1,6 +1,7 @@
 node_modules/
 dist/
 coverage/
+tools/launcher/src-tauri/target/
 playwright-report/
 test-results/
 .env
@@ -25,7 +26,6 @@ HTML visualisierte Pläne/
 .proxy/
 .playwright-mcp/
 Gesamtpruefung/
-plans/
 diag.mjs
 scroll-check.mjs
 tp.mjs

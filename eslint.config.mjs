@@ -4,12 +4,24 @@ import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["**/dist/**", "**/coverage/**", "playwright-report/**", "test-results/**"] },
+  {
+    ignores: [
+      "**/dist/**",
+      "**/coverage/**",
+      "**/tools/launcher/src-tauri/target/**",
+      "playwright-report/**",
+      "test-results/**",
+    ],
+  },
   eslint.configs.recommended,
   ...tseslint.configs.recommended,
   {
     files: ["**/*.{js,mjs}"],
     languageOptions: { globals: { ...globals.node } },
+  },
+  {
+    files: ["tools/launcher/ui/**/*.js", "docs-webseite/src/**/*.js"],
+    languageOptions: { globals: { ...globals.browser } },
   },
   {
     files: ["**/*.{ts,tsx,mts}"],
