@@ -48,6 +48,7 @@ export function usePreviewRuntimeSession(input: UsePreviewRuntimeSessionInput) {
   const generatedSessionKey = useRef(input.sessionKey ?? `preview:${generateId()}`);
   const effectiveSessionKey = input.sessionKey ?? generatedSessionKey.current;
   const idempotencyRequestRef = useRef<{ fingerprint: string; key: string } | null>(null);
+  const inflightRequestRef = useRef<{ fingerprint: string; promise: Promise<PreviewSessionResponse | undefined> } | null>(null);
   const assignmentRef = useRef<PreviewRuntimeAssignment | null>(null);
   const onSlotAssignedRef = useRef(input.onSlotAssigned);
   onSlotAssignedRef.current = input.onSlotAssigned;
@@ -123,8 +124,8 @@ export function usePreviewRuntimeSession(input: UsePreviewRuntimeSessionInput) {
         return withPreviewSlotRecovery(() => open(null));
       }
     };
-    void openWithRecovery().then((response) => {
-      if (!active || !response) return;
+    const applyResponse = (response: PreviewSessionResponse | undefined) => {
+      if (!response) return;
       const primary = response.bindings.find((candidate) => candidate.role === "primary");
       if (!primary) throw new Error("Der zugewiesene Hauptdienst fehlt in der Serverantwort.");
       const nextUrl = previewSlotUrl(primary.publicUrl, input.path);
@@ -139,8 +140,27 @@ export function usePreviewRuntimeSession(input: UsePreviewRuntimeSessionInput) {
       setLoaded(false);
       setUrl(nextUrl);
       onSlotAssignedRef.current?.(primary.slotId, nextUrl);
-    }).catch((reason: unknown) => {
+    };
+    const reportError = (reason: unknown) => {
       if (active) setError(reason instanceof Error ? reason.message : "Der Preview-Slot konnte nicht geöffnet werden.");
+    };
+    // Läuft dieselbe Anfrage bereits (StrictMode-Doppelstart in Entwicklung
+    // oder schneller Refire vor der Antwort), hängt sich der Lauf an statt
+    // eine zweite Session zu öffnen.
+    const inflight = inflightRequestRef.current;
+    if (inflight && inflight.fingerprint === requestFingerprint) {
+      void inflight.promise.then((response) => { if (active) applyResponse(response); }).catch(reportError);
+      return () => { active = false; };
+    }
+    const promise = openWithRecovery();
+    inflightRequestRef.current = { fingerprint: requestFingerprint, promise };
+    void promise.then((response) => {
+      if (inflightRequestRef.current?.promise === promise) inflightRequestRef.current = null;
+      if (!active) return;
+      applyResponse(response);
+    }).catch((reason: unknown) => {
+      if (inflightRequestRef.current?.promise === promise) inflightRequestRef.current = null;
+      reportError(reason);
     });
     return () => { active = false; };
   }, [

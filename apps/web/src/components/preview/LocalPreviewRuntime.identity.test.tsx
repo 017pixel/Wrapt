@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, cleanup, render, waitFor } from "@testing-library/react";
+import { StrictMode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LocalPreviewRuntime } from "./LocalPreviewRuntime";
@@ -112,6 +113,45 @@ describe("Preview-Laufzeitidentität", () => {
       capacity: { requiredSlots: 1, reusableSlots: 0, freeSlots: 8, totalSlots: 8, fits: true, limitations: [] },
     });
     await act(async () => { await graphPending; });
+    await act(async () => {});
+    expect(apiMocks.openPreviewSession).toHaveBeenCalledTimes(1);
+  });
+
+  it("öffnet unter StrictMode-Doppeleffekten nur eine Session", async () => {
+    // Entwicklungs-Builds (und der E2E-Server mit NODE_ENV=development)
+    // starten Mount-Effekte doppelt: Der zweite Start läuft, während die
+    // erste Antwort noch unterwegs ist, und darf keine zweite Session öffnen.
+    apiMocks.previewDevicePreference.mockResolvedValue(null);
+    apiMocks.previewServiceCandidates.mockResolvedValue({ candidates: [] });
+    apiMocks.previewServiceGraph.mockResolvedValue({
+      graph: { projectId: "projekt-strict", primaryServiceId: "5173", edges: [], updatedAt: "2026-09-29T12:00:00.000Z" },
+      capacity: { requiredSlots: 1, reusableSlots: 0, freeSlots: 8, totalSlots: 8, fits: true, limitations: [] },
+    });
+    apiMocks.openPreviewSession.mockResolvedValue({
+      id: "00000000-0000-4000-8000-000000000003",
+      sessionKey: "preview-runtime:strict-test",
+      projectId: "projekt-strict",
+      primaryPort: 5173,
+      bindings: [{ role: "primary", label: "Web", targetPort: 5173, targetProtocol: "http", slotId: 3, publicUrl: "https://preview.wrapt.test" }],
+      leaseExpiresAt: "2026-09-26T12:00:00.000Z",
+      routingRevision: 1,
+      bridgeVersion: "v1",
+      capabilities: [],
+      limitations: [],
+      storageProfileId: null,
+      slotGeneration: 0,
+    });
+
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <StrictMode>
+        <QueryClientProvider client={queryClient}>
+          <LocalPreviewRuntime targetPort={5173} projectId="projekt-strict" sessionKey="preview-runtime:strict-test" />
+        </QueryClientProvider>
+      </StrictMode>,
+    );
+    await waitFor(() => expect(apiMocks.openPreviewSession).toHaveBeenCalled());
+    await act(async () => {});
     await act(async () => {});
     expect(apiMocks.openPreviewSession).toHaveBeenCalledTimes(1);
   });

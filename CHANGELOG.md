@@ -11,7 +11,7 @@ Alle Änderungen werden in fünf kurzen Stichpunkten pro Kategorie dokumentiert.
 - Produktversion auf 1.24.1 angehoben (Root, Server und Web)
 
 ### Behoben
-- Doppelte Preview-Session-Anfrage beim Nachladen des Dienstgraphen beseitigt
+- Doppelte Preview-Session-Anfragen bei identischer Identität verhindert
 - Harness-Specs laufen nur noch in ihrer isolierten Konfiguration statt im Standard-E2E
 - tmux-Pfad-Test prüft einen garantiert fehlenden Pfad statt der Host-Umgebung
 - Editor-Seiten-Test folgt der Ausfallseite bei gestopptem Code-Server
