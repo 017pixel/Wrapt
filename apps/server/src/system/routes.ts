@@ -31,9 +31,31 @@ import { getUpdateStatus, triggerUpdate, UpdateError } from "./update.js";
 import { AppError } from "../utils/errors.js";
 
 export async function registerSystemRoutes(app: FastifyInstance, services: RouteServices) {
-  app.get("/health", async () =>
-    healthResponseSchema.parse({ status: "ok", version: settings.appVersion, appName: settings.appName, timestamp: new Date().toISOString(), bootId, webBuildId: webBuildId() }),
-  );
+  app.get("/health", async (_request, reply) => {
+    reply.header("Access-Control-Allow-Origin", "*");
+    return healthResponseSchema.parse({
+      status: "ok",
+      version: settings.appVersion,
+      appName: settings.appName,
+      instanceName: settings.instanceName,
+      timestamp: new Date().toISOString(),
+      bootId,
+      webBuildId: webBuildId(),
+    });
+  });
+  app.options("/health", async (request, reply) => {
+    const requestedMethod = request.headers["access-control-request-method"]?.toUpperCase();
+    reply.header("Vary", "Access-Control-Request-Method, Access-Control-Request-Headers");
+    if (requestedMethod && requestedMethod !== "GET") {
+      return reply.header("Allow", "GET, OPTIONS").status(405).send();
+    }
+    return reply
+      .header("Access-Control-Allow-Origin", "*")
+      .header("Access-Control-Allow-Methods", "GET")
+      .header("Access-Control-Max-Age", "600")
+      .status(204)
+      .send();
+  });
   app.get("/system/dashboard-config", async () => dashboardConfigSchema.parse(settings.dashboard));
   app.get("/system/appearance", async () => appearanceResponseSchema.parse({ theme: readAppearanceTheme(settings.configDirectory), source: "project" }));
   app.put("/system/appearance", async (request) => {

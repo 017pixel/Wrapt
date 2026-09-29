@@ -18,7 +18,7 @@ db.close();
     if (!row.endpoint.includes("web.push.apple.com")) continue;
     const sub = JSON.parse(row.json);
     try {
-      const res = await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, JSON.stringify({ version: 1, id: "00000000-0000-4000-8000-000000000001", title: "Debug", body: "APNs-Test", link: "/wrapt/inbox", source: "wrapt", severity: "info", createdAt: new Date().toISOString() }), { TTL: 300, urgency: "normal" });
+      const res = await webpush.sendNotification({ endpoint: sub.endpoint, keys: sub.keys }, JSON.stringify({ version: 1, id: "00000000-0000-4000-8000-000000000001", title: "Debug", body: "APNs-Test", link: "/wrapt/", source: "wrapt", severity: "info", createdAt: new Date().toISOString() }), { TTL: 300, urgency: "normal" });
       console.log("ERFOLG:", res.statusCode);
     } catch (error) {
       console.log("FEHLER statusCode:", error.statusCode);

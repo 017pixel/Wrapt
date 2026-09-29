@@ -2,6 +2,7 @@ import { hostname, loadavg } from "node:os";
 import {
   serverMetricsSchema,
   serverSummarySchema,
+  type ServerMetricHistorySample,
   type ServerMetrics,
   type ServerSummary,
 } from "@wrapt/contracts";
@@ -65,8 +66,47 @@ async function loadMetrics(): Promise<ServerMetrics> {
 
 const summaryCache = createAsyncCache(settings.summaryCacheMilliseconds, loadSummary);
 const metricsCache = createAsyncCache(settings.metricsCacheMilliseconds, loadMetrics);
+const MAX_METRICS_HISTORY = 25;
+let metricsHistory: ServerMetricHistorySample[] = [];
+let metricsHistoryTimer: NodeJS.Timeout | null = null;
+
+function rememberMetrics(metrics: ServerMetrics): void {
+  const sample: ServerMetricHistorySample = {
+    timestamp: metrics.lastUpdated,
+    cpuPercent: metrics.cpuPercent,
+    memoryPercent: metrics.memory.totalBytes > 0
+      ? Math.min(100, Math.max(0, (metrics.memory.usedBytes / metrics.memory.totalBytes) * 100))
+      : 0,
+  };
+  if (metricsHistory.at(-1)?.timestamp === sample.timestamp) return;
+  metricsHistory = [...metricsHistory, sample].slice(-MAX_METRICS_HISTORY);
+}
+
+async function collectMetricsHistory(): Promise<void> {
+  try {
+    rememberMetrics(await metricsCache.get());
+  } catch {
+    // Ein temporärer Lesefehler lässt den letzten Verlauf stehen. Der nächste
+    // Takt versucht die Messung erneut.
+  }
+}
 
 export const systemService = {
   getSummary: () => summaryCache.get(),
-  getMetrics: () => metricsCache.get(),
+  async getMetrics() {
+    const metrics = await metricsCache.get();
+    rememberMetrics(metrics);
+    return serverMetricsSchema.parse({ ...metrics, history: metricsHistory });
+  },
+  startMetricsHistory() {
+    if (metricsHistoryTimer) return;
+    void collectMetricsHistory();
+    metricsHistoryTimer = setInterval(() => void collectMetricsHistory(), settings.metricsCacheMilliseconds);
+    metricsHistoryTimer.unref();
+  },
+  stopMetricsHistory() {
+    if (!metricsHistoryTimer) return;
+    clearInterval(metricsHistoryTimer);
+    metricsHistoryTimer = null;
+  },
 };

@@ -29,6 +29,11 @@ const IGNORED_DIRECTORIES = new Set([
   "playwright-report", "test-results", "data", "plans", "memory", "handoffs",
   ".playwright-mcp", ".proxy", ".opencode", "backups", "generated",
 ]);
+const GENERATED_PROJECT_DIRECTORIES = new Set([
+  // Tauri kompiliert hier Cargo-Artefakte und seine Konfigurationsschemas.
+  "tools/launcher/src-tauri/target",
+  "tools/launcher/src-tauri/gen",
+]);
 
 // Explizite Allowlist: Datei -> Grund. Nur generierte oder historisch unveränderliche
 // Dateien sind hier erlaubt. Kein normaler Source-Code.
@@ -98,7 +103,11 @@ function countLines(text) {
 }
 
 function isIgnoredPath(path) {
-  return path.split("/").some((segment) => IGNORED_DIRECTORIES.has(segment));
+  const normalized = path.replaceAll("\\", "/");
+  const rootPrefix = `${root.replaceAll("\\", "/")}/`;
+  const relativePath = normalized.startsWith(rootPrefix) ? normalized.slice(rootPrefix.length) : normalized;
+  return relativePath.split("/").some((segment) => IGNORED_DIRECTORIES.has(segment))
+    || [...GENERATED_PROJECT_DIRECTORIES].some((directory) => relativePath === directory || relativePath.startsWith(`${directory}/`));
 }
 
 function isAllowedDirectory(relPath) {

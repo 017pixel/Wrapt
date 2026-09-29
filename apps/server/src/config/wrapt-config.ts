@@ -1,12 +1,19 @@
 import { readFileSync } from "node:fs";
+import { userInfo } from "node:os";
 import { ensureWraptLocalConfig, migrateLegacyConfigValue, migrateLegacyPersistentData, WRAPT_EXAMPLE_CONFIG, WRAPT_LOCAL_CONFIG } from "./legacy-migration.js";
 import { join } from "node:path";
 import { appearanceThemeSchema, codexResetHistorySettingsSchema, contextMenuConfigSchema, dashboardConfigSchema, defaultAppearanceTheme, mascotConfigSchema, notificationPreferencesSchema, t3ChannelSchema, usageMonitoringSchema, type AppearanceTheme, type CodexResetHistorySettings, type ContextMenuConfig, type MascotConfig, type NotificationPreferences, type T3Channel, type UsageMonitoring } from "@wrapt/contracts";
 import { z } from "zod";
 import { persistLocalConfig } from "./config-persistence.js";
+import { resolveInstanceName } from "./instance-name.js";
 import { isLoopbackHost } from "./loopback.js";
 
 const absolutePath = z.string().startsWith("/");
+
+function defaultLocalUsername(): string {
+  try { return userInfo().username.trim() || "local-user"; }
+  catch { return "local-user"; }
+}
 
 export const wraptConfigSchema = z.object({
   branding: z.object({
@@ -14,6 +21,8 @@ export const wraptConfigSchema = z.object({
     shortName: z.string().min(1),
   }),
   system: z.object({
+    // Leer oder fehlender Name bleibt pro Rechner automatisch eindeutig.
+    instanceName: z.string().trim().max(80).optional().transform(resolveInstanceName),
     user: z.string().min(1),
     homeDirectory: absolutePath,
   }),
@@ -26,6 +35,10 @@ export const wraptConfigSchema = z.object({
     // explizit erlaubten Benutzer als lokalen Administrator ab.
     adminUsers: z.array(z.string().min(1)).default([]),
   }),
+  security: z.object({
+    localLoopbackTrust: z.boolean().default(false),
+    localUsername: z.string().trim().min(1).default(defaultLocalUsername()),
+  }).prefault({}),
   paths: z.object({
     projectsRoot: absolutePath,
     orbitProjectBrowserRoot: absolutePath,

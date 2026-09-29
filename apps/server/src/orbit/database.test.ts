@@ -103,6 +103,7 @@ describe("OrbitDatabase", () => {
       contributionId: null,
       stateVersion: null,
       state: {},
+      noteId: null,
       locked: false,
       zIndex: index,
     }));

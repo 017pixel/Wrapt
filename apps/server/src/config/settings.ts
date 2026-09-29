@@ -7,6 +7,7 @@ import { loadWraptConfig } from "./wrapt-config.js";
 import { canonicalizeWraptEnvironment } from "./environment.js";
 import { resolveAgentHomeSettings } from "./agent-home-settings.js";
 import { isLoopbackHost } from "./loopback.js";
+import { resolveTmuxExecutable } from "../system/platform.js";
 import {
   booleanFromEnvironment,
   boundedIntegerFromEnvironment,
@@ -86,6 +87,8 @@ const settingsSchema = z.object({
   PUSH_TIMEOUT_MS: boundedIntegerFromEnvironment(10_000, 1_000, 60_000),
   TERMINAL_ALLOWED_USERS: commaSeparatedValues.default(wb.tailscale.allowedUsers),
   ADMIN_USERS: commaSeparatedValues.default(wb.tailscale.adminUsers),
+  WRAPT_LOCAL_LOOPBACK_TRUST: booleanFromEnvironment(wb.security.localLoopbackTrust),
+  WRAPT_LOCAL_USERNAME: z.string().trim().min(1).default(wb.security.localUsername),
   TERMINAL_ALLOWED_ROOTS: profileHomesFromEnvironment.default(wb.paths.terminalAllowedRoots),
   TERMINAL_DEFAULT_CWD: z.string().startsWith("/").default(wb.paths.terminalDefaultCwd),
   TERMINAL_MAX_SESSIONS: integerFromEnvironment(24),
@@ -213,6 +216,7 @@ export const settings = Object.freeze({
   configDirectory,
   appName: wb.branding.appName,
   appShortName: wb.branding.shortName,
+  instanceName: wb.system.instanceName,
   dashboard: wb.dashboard,
   notifications: wb.notifications,
   systemUser: wb.system.user,
@@ -285,11 +289,13 @@ export const settings = Object.freeze({
   pushTimeoutMilliseconds: environment.PUSH_TIMEOUT_MS,
   terminalAllowedUsers: environment.TERMINAL_ALLOWED_USERS.map((user) => user.toLowerCase()),
   terminalAdminUsers: environment.ADMIN_USERS.map((user) => user.toLowerCase()),
+  localLoopbackTrust: environment.WRAPT_LOCAL_LOOPBACK_TRUST,
+  localUsername: environment.WRAPT_LOCAL_USERNAME.toLowerCase(),
   terminalAllowedRoots: environment.TERMINAL_ALLOWED_ROOTS.map((path) => resolve(path)),
   terminalDefaultCwd: resolve(environment.TERMINAL_DEFAULT_CWD),
   terminalMaxSessions: environment.TERMINAL_MAX_SESSIONS,
   terminalSupervisor: environment.TERMINAL_SUPERVISOR,
-  tmuxPath: environment.TMUX_PATH,
+  tmuxPath: resolveTmuxExecutable(environment.TMUX_PATH),
   previewTmuxSocket: environment.PREVIEW_TMUX_SOCKET,
   tmuxSocketPath: environment.TMUX_SOCKET_PATH,
   codexCliPath: environment.CODEX_CLI_PATH,

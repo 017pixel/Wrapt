@@ -32,6 +32,7 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
       accounts: deps.accounts,
       usageTimeline: deps.usageTimeline,
       orbit: deps.orbitDatabase,
+      notes: deps.notesDatabase,
       orbitAssets: deps.orbitAssets,
       fileGallery: deps.fileGallery,
       projectBrowser: deps.projectBrowser,
@@ -98,6 +99,7 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
   });
   await app.register(registerHermesRoutes, {
     prefix: "/api/v1",
+    identity: deps.identityOptions,
     client: deps.hermesClient,
     manager: deps.hermesManager,
     sessions: deps.hermesSessions,
@@ -117,8 +119,7 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
     prefix: "/api/v1",
     manager: deps.terminals,
     database: deps.terminalDatabase,
-    allowedUsers: settings.terminalAllowedUsers,
-    ...(settings.developmentTailscaleUser ? { developmentUser: settings.developmentTailscaleUser } : {}),
+    identity: deps.identityOptions,
     resolveProjectPath: async (projectId) => {
       try {
         const { project } = await deps.projects.get(projectId);

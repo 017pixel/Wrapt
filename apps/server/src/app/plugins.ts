@@ -5,7 +5,7 @@ import rateLimit from "@fastify/rate-limit";
 import websocket from "@fastify/websocket";
 import type { FastifyInstance } from "fastify";
 import { settings } from "../config/settings.js";
-import { requestIdentity } from "../security/workbench-identity.js";
+import { requestIdentity, requestLocalLoopbackIdentity } from "../security/workbench-identity.js";
 import type { AppDependencies } from "./dependencies.js";
 
 export async function registerCorePlugins(app: FastifyInstance, deps: AppDependencies) {
@@ -23,7 +23,10 @@ export async function registerCorePlugins(app: FastifyInstance, deps: AppDepende
     contentSecurityPolicy: {
       directives: {
         defaultSrc: ["'self'"],
-        connectSrc: ["'self'"],
+        // Die browserlokale Workspace-Liste kann neue HTTPS-Hosts enthalten.
+        // Der Verbindungstest liest dort Health; geschützte APIs verlangen
+        // unabhängig von CSP eine erlaubte Identität, Mutationen Same-Origin.
+        connectSrc: ["'self'", "https:", "http://127.0.0.1:*", "http://localhost:*"],
         frameSrc: [...deps.frameSources, "https://www.youtube-nocookie.com"],
         imgSrc: ["'self'", "data:", "https:"],
         scriptSrc: ["'self'"],
@@ -51,13 +54,13 @@ export async function registerCorePlugins(app: FastifyInstance, deps: AppDepende
     // gemeinsames Budget für sämtliche Tabs.
     allowList: (request) => !request.url.startsWith("/api/") || request.url.startsWith("/api/v1/health"),
     keyGenerator: (request) => {
+      if (settings.localLoopbackTrust) {
+        const localIdentity = requestLocalLoopbackIdentity(request, deps.identityOptions);
+        if (localIdentity) return localIdentity;
+      }
       const identity = requestIdentity(request);
-      // Ein beliebiger Headerwert darf keine neue Rate-Limit-Bucket eröffnen.
-      // Nicht zugelassene Identitäten bleiben deshalb im IP-Bucket, während
-      // bekannte Benutzer getrennt voneinander bewertet werden.
       const allowedUsers = settings.terminalAllowedUsers;
-      if (identity && (allowedUsers.length === 0 || allowedUsers.includes(identity))) return identity;
-      return request.ip;
+      return identity && (allowedUsers.length === 0 || allowedUsers.includes(identity)) ? identity : request.ip;
     },
   });
   await app.register(websocket, {

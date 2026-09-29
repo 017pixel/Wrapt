@@ -4,6 +4,8 @@ export * from "./appearance.js";
 export * from "./codex-resets.js";
 export * from "./context-menu.js";
 export * from "./mascot.js";
+export * from "./notes.js";
+export * from "./orbit-assets.js";
 export * from "./operational-metrics.js";
 export * from "./plugins.js";
 export * from "./update.js";
@@ -32,6 +34,9 @@ export const healthResponseSchema = z.object({
   status: z.literal("ok"),
   version: z.string().min(1),
   appName: z.string().min(1),
+  // Bei gestaffelten Updates können ältere Server dieses Feld noch nicht liefern.
+  // Neue Server setzen es immer; Clients erkennen die fehlende Instanzkennung als Versionshinweis.
+  instanceName: z.string().min(1).optional(),
   timestamp: isoDateSchema,
   // Zufalls-ID pro Serverprozess. Wechselt der Wert, wurde das Backend neu gestartet.
   bootId: z.string().min(1),
@@ -170,6 +175,12 @@ export const serverSummarySchema = z.object({
   lastUpdated: isoDateSchema,
 });
 
+export const serverMetricHistorySampleSchema = z.object({
+  timestamp: isoDateSchema,
+  cpuPercent: z.number().min(0).max(100),
+  memoryPercent: z.number().min(0).max(100),
+});
+
 export const serverMetricsSchema = z.object({
   cpuPercent: z.number().min(0).max(100),
   memory: z.object({
@@ -188,6 +199,7 @@ export const serverMetricsSchema = z.object({
   ),
   loadAverage: z.tuple([z.number(), z.number(), z.number()]),
   temperatureCelsius: z.number().nullable(),
+  history: z.array(serverMetricHistorySampleSchema).max(25).default([]),
   lastUpdated: isoDateSchema,
 });
 
@@ -1142,7 +1154,7 @@ export const usageSyncStatusSchema = z.object({
 export const WRAPT_LIMITS = {
   maxResidentTools: 10,
   maxVisibleGroups: 4,
-  maxWorkspaces: 8,
+  maxLayoutPages: 8,
   // Geparkte Routen im Browser (PersistentOutlet). Zehn decken jeden üblichen
   // Wechsel ab, ohne dass beliebig viele iframes und WebSockets offen bleiben.
   maxCachedRoutes: 10,
@@ -1362,7 +1374,7 @@ export const saveTerminalWorkspaceRequestSchema = z.object({
 // `notion` und `browser` bleiben als lesbare Legacy-Typen erhalten. Neue Knoten
 // werden dafür nicht mehr angeboten, bestehende Arbeitsflächen dürfen sie aber
 // nie verlieren.
-export const panelTypeSchema = z.enum(["t3-code", "code-server", "preview", "browser", "terminal", "codex", "opencode", "files", "hermes", "notion"]);
+export const panelTypeSchema = z.enum(["t3-code", "code-server", "preview", "browser", "terminal", "codex", "claude", "opencode", "files", "hermes", "notion"]);
 export const panelSchema = z.object({
   id: z.string().min(1),
   type: panelTypeSchema,
@@ -1595,8 +1607,8 @@ export const notificationPresenceItemSchema = z.object({
   sessionId: z.string().max(200).nullish(),
 });
 // Mehrere gleichzeitig sichtbare Chat-Ansichten (aktive Route plus offene
-// Panels). Nur Einträge mit Referenz (threadId/sessionId) wirken auf Inbox
-// und Push; eine Quelle ohne Referenz passt zu keiner Benachrichtigung.
+// Panels). Nur Einträge mit Referenz (threadId/sessionId) gelten als gelesen
+// und unterdrücken Push während der passenden Ansicht.
 export const notificationPresenceSchema = z.array(notificationPresenceItemSchema).max(32);
 // Der Server akzeptiert weiterhin die frühere Einzel-Form, damit alte Browser
 // die Presence ohne Neuladen melden können.
@@ -1610,6 +1622,7 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
 export const notificationSourcePreferencesSchema = z.object({ toast: z.boolean().default(true), push: z.boolean().default(false) });
 export const notificationPreferencesSchema = z.object({
   toastsEnabled: z.boolean().default(true),
+  toastDurationSeconds: z.number().finite().min(1).default(3),
   pushEnabled: z.boolean().default(false),
   sources: z.object({
     hermes: notificationSourcePreferencesSchema.prefault({ toast: false, push: false }),
@@ -1666,7 +1679,7 @@ export const workbenchGroupSchema = z.object({
 
 export const workbenchLayoutSchema = z.enum(["single", "columns", "rows", "main-left", "grid"]);
 
-export const workbenchPageSchema = z.object({
+export const layoutPageSchema = z.object({
   id: z.string().min(1),
   name: z.string().trim().min(1).max(48),
   groups: z.array(workbenchGroupSchema).min(1).max(WRAPT_LIMITS.maxVisibleGroups),
@@ -1678,13 +1691,13 @@ export const workbenchPageSchema = z.object({
   ),
 });
 
-export const workspaceSchema = z
+export const layoutStateSchema = z
   .object({
-    version: z.literal(3),
+    version: z.literal(4),
     selectedProjectId: z.string().nullable(),
     panels: z.array(panelSchema).max(WRAPT_LIMITS.maxResidentTools),
-    workspaces: z.array(workbenchPageSchema).min(1).max(WRAPT_LIMITS.maxWorkspaces),
-    activeWorkspaceId: z.string().min(1),
+    pages: z.array(layoutPageSchema).min(1).max(WRAPT_LIMITS.maxLayoutPages),
+    activePageId: z.string().min(1),
     maximizedPanelId: z.string().nullable(),
     focusedPanelId: z.string().nullable(),
   })
@@ -1700,19 +1713,19 @@ export const workspaceSchema = z
       context.addIssue({ code: "custom", message: "Fokussiertes Panel ist nicht geöffnet." });
     }
 
-    const workspaceIds = new Set(value.workspaces.map((workspace) => workspace.id));
-    if (workspaceIds.size !== value.workspaces.length || !workspaceIds.has(value.activeWorkspaceId)) {
+    const pageIds = new Set(value.pages.map((page) => page.id));
+    if (pageIds.size !== value.pages.length || !pageIds.has(value.activePageId)) {
       context.addIssue({ code: "custom", message: "Arbeitsflächen müssen eindeutig sein und eine aktive Fläche besitzen." });
     }
 
     const assignedPanelIds = new Set<string>();
     const groupIds = new Set<string>();
-    for (const workspace of value.workspaces) {
-      const ownGroupIds = new Set(workspace.groups.map((group) => group.id));
-      if (!ownGroupIds.has(workspace.focusedGroupId)) {
+    for (const page of value.pages) {
+      const ownGroupIds = new Set(page.groups.map((group) => group.id));
+      if (!ownGroupIds.has(page.focusedGroupId)) {
         context.addIssue({ code: "custom", message: "Die fokussierte Gruppe gehört nicht zur Arbeitsfläche." });
       }
-      for (const group of workspace.groups) {
+      for (const group of page.groups) {
         if (groupIds.has(group.id)) {
           context.addIssue({ code: "custom", message: "Gruppen-IDs müssen eindeutig sein." });
         }
@@ -1727,7 +1740,7 @@ export const workspaceSchema = z
           assignedPanelIds.add(panelId);
         }
       }
-      for (const sizes of Object.values(workspace.layoutSizes)) {
+      for (const sizes of Object.values(page.layoutSizes)) {
         if (Math.abs(sizes[0] + sizes[1] - 100) > 0.5) {
           context.addIssue({ code: "custom", message: "Gespeicherte Panelgrößen müssen zusammen 100 ergeben." });
         }
@@ -1842,9 +1855,15 @@ export const orbitNodeSchema = z.object({
   contributionId: z.string().max(192).nullable().default(null),
   stateVersion: z.number().int().positive().nullable().default(null),
   state: z.record(z.string(), z.unknown()).default({}),
+  // Verweis auf eine zentrale Notiz (Notizen-Feature). Nur Notiz-Knoten dürfen
+  // ihn tragen; der Knoten zeigt dann Titel und Inhalt der Notiz.
+  noteId: z.string().uuid().nullable().default(null),
   locked: z.boolean(),
   zIndex: z.number().int().min(0).max(10_000),
 }).superRefine((node, context) => {
+  if (node.type !== "note" && node.noteId !== null) {
+    context.addIssue({ code: "custom", path: ["noteId"], message: "Nur Notiz-Knoten dürfen auf eine Notiz verweisen." });
+  }
   if (node.type === "tool" && node.toolType === null) {
     context.addIssue({ code: "custom", message: "Werkzeugknoten benötigen einen Werkzeugtyp." });
   }
@@ -1925,7 +1944,7 @@ export const orbitWorkspaceSchema = z.object({
 }).superRefine((workspace, context) => {
   const boardIds = new Set(workspace.boards.map((board) => board.id));
   if (boardIds.size !== workspace.boards.length || !boardIds.has(workspace.activeBoardId)) {
-    context.addIssue({ code: "custom", message: "Orbit-Arbeitsflächen müssen eindeutig sein und eine aktive Fläche besitzen." });
+      context.addIssue({ code: "custom", message: "Orbit-Boards müssen eindeutig sein und ein aktives Board besitzen." });
   }
   if (workspace.focusedNodeId !== null) {
     const activeBoard = workspace.boards.find((board) => board.id === workspace.activeBoardId);
@@ -1947,49 +1966,6 @@ export const saveOrbitDocumentRequestSchema = z.object({
   expectedRevision: z.number().int().nonnegative().nullable(),
 });
 
-export const orbitAssetSchema = z.object({
-  id: z.string().uuid(),
-  filename: z.string().min(1).max(255),
-  mimeType: z.string().min(1).max(160),
-  bytes: z.number().int().nonnegative(),
-  createdAt: isoDateSchema,
-  folderId: z.string().uuid().nullable().default(null),
-});
-export const orbitAssetResponseSchema = z.object({ asset: orbitAssetSchema });
-export const orbitAssetListResponseSchema = z.object({
-  assets: z.array(orbitAssetSchema),
-  nextCursor: z.string().min(1).nullable(),
-});
-
-export const galleryFolderSchema = z.object({
-  id: z.string().uuid(),
-  name: z.string().trim().min(1).max(120),
-  createdAt: isoDateSchema,
-  fileCount: z.number().int().nonnegative().default(0),
-});
-export const galleryFolderResponseSchema = z.object({ folder: galleryFolderSchema });
-export const galleryFolderListResponseSchema = z.object({
-  folders: z.array(galleryFolderSchema),
-});
-export const createGalleryFolderRequestSchema = z.object({
-  name: z.string().trim().min(1).max(120),
-});
-export const updateGalleryFolderRequestSchema = z.object({
-  name: z.string().trim().min(1).max(120),
-});
-export const updateGalleryFileRequestSchema = z.object({
-  filename: z.string().trim().min(1).max(255).optional(),
-  folderId: z.string().uuid().nullable().optional(),
-});
-
-// Die Dateigalerie teilt sich das Metadaten-Format mit den Orbit-Assets
-// (Mediengalerie). Eigene Alias-Namen halten die API-Semantik lesbar.
-export const galleryFileSchema = orbitAssetSchema;
-export const galleryFileResponseSchema = z.object({ file: galleryFileSchema });
-export const galleryFileListResponseSchema = z.object({
-  files: z.array(galleryFileSchema),
-  nextCursor: z.string().min(1).nullable(),
-});
 
 export const createProjectFileRequestSchema = z.object({
   path: z.string().trim().min(1).max(512),
@@ -2019,6 +1995,7 @@ export type T3Channel = z.infer<typeof t3ChannelSchema>;
 export type T3ChannelRequest = z.infer<typeof t3ChannelRequestSchema>;
 export type T3ChannelStatusResponse = z.infer<typeof t3ChannelStatusResponseSchema>;
 export type ServerSummary = z.infer<typeof serverSummarySchema>;
+export type ServerMetricHistorySample = z.infer<typeof serverMetricHistorySampleSchema>;
 export type ServerMetrics = z.infer<typeof serverMetricsSchema>;
 export type ServiceMode = z.infer<typeof serviceModeSchema>;
 export type Service = z.infer<typeof serviceSchema>;
@@ -2203,8 +2180,8 @@ export type PushTestResponse = z.infer<typeof pushTestResponseSchema>;
 export type NotificationPushPayload = z.infer<typeof notificationPushPayloadSchema>;
 export type WorkbenchGroup = z.infer<typeof workbenchGroupSchema>;
 export type WorkbenchLayout = z.infer<typeof workbenchLayoutSchema>;
-export type WorkbenchPage = z.infer<typeof workbenchPageSchema>;
-export type Workspace = z.infer<typeof workspaceSchema>;
+export type LayoutPage = z.infer<typeof layoutPageSchema>;
+export type LayoutState = z.infer<typeof layoutStateSchema>;
 export type OrbitNodeType = z.infer<typeof orbitNodeTypeSchema>;
 export type OrbitEdgeKind = z.infer<typeof orbitEdgeKindSchema>;
 export type OrbitPoint = z.infer<typeof orbitPointSchema>;
@@ -2216,17 +2193,5 @@ export type OrbitBoard = z.infer<typeof orbitBoardSchema>;
 export type OrbitWorkspace = z.infer<typeof orbitWorkspaceSchema>;
 export type OrbitDocumentResponse = z.infer<typeof orbitDocumentResponseSchema>;
 export type SaveOrbitDocumentRequest = z.infer<typeof saveOrbitDocumentRequestSchema>;
-export type OrbitAsset = z.infer<typeof orbitAssetSchema>;
-export type OrbitAssetResponse = z.infer<typeof orbitAssetResponseSchema>;
-export type OrbitAssetListResponse = z.infer<typeof orbitAssetListResponseSchema>;
-export type GalleryFolder = z.infer<typeof galleryFolderSchema>;
-export type GalleryFolderResponse = z.infer<typeof galleryFolderResponseSchema>;
-export type GalleryFolderListResponse = z.infer<typeof galleryFolderListResponseSchema>;
-export type CreateGalleryFolderRequest = z.infer<typeof createGalleryFolderRequestSchema>;
-export type UpdateGalleryFolderRequest = z.infer<typeof updateGalleryFolderRequestSchema>;
-export type UpdateGalleryFileRequest = z.infer<typeof updateGalleryFileRequestSchema>;
-export type GalleryFile = z.infer<typeof galleryFileSchema>;
-export type GalleryFileResponse = z.infer<typeof galleryFileResponseSchema>;
-export type GalleryFileListResponse = z.infer<typeof galleryFileListResponseSchema>;
 export type CreateProjectFileRequest = z.infer<typeof createProjectFileRequestSchema>;
 export type ProjectFileResponse = z.infer<typeof projectFileResponseSchema>;

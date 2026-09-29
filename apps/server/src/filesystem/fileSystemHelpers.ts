@@ -1,13 +1,9 @@
 import { constants } from "node:fs";
 import { access, lstat } from "node:fs/promises";
-import { isAbsolute, relative, sep } from "node:path";
 import type { FilesystemEntry } from "@wrapt/contracts";
 import { AppError } from "../utils/errors.js";
 
-export function contained(root: string, target: string): boolean {
-  const pathFromRoot = relative(root, target);
-  return pathFromRoot === "" || (!pathFromRoot.startsWith(`..${sep}`) && pathFromRoot !== ".." && !isAbsolute(pathFromRoot));
-}
+export { contained } from "../utils/pathRoots.js";
 
 export function filesystemFailure(error: unknown): never {
   const code = (error as NodeJS.ErrnoException).code;

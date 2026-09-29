@@ -63,15 +63,18 @@ if (e2eT3Channel) config.t3.channel = e2eT3Channel;
 // explizit erlaubte Identität; sie wird für den Lauf aus WRAPT_E2E_USER
 // übernommen und bleibt auf den isolierten Server begrenzt.
 // Die weiteren Test-Identitäten decken die Specs ab, die mit eigener Identität
-// laufen (Dateimanager, Projektbrowser, UI-Check).
+// laufen (Dateimanager, Projektbrowser, UI-Check und Preview-Fokus).
 const e2eAllowedUsers = [
   "user@example.com",
+  "orbit-notes@example.com",
+  "orbit-preview-focus@example.com",
+  "terminal-orbit-handoff@example.com",
   e2eIdentity,
   "file-manager@example.com",
   "project-browser@example.com",
   "ui-check@example.com",
   ...["chromium", "firefox", "webkit"].flatMap((browser) =>
-    ["mobile", "resize", "ui", "release"].flatMap((suite) =>
+    ["mobile", "resize", "ui", "release", "tools"].flatMap((suite) =>
       [0, 1].map((retry) => `orbit-${suite}-${browser}-${retry}@example.com`))),
   ...["chromium", "firefox", "webkit"].flatMap((browser) => [0, 1].flatMap((retry) => [
     `plugins-authoring-${browser}-${retry}@example.com`,

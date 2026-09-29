@@ -32,11 +32,42 @@ describe("Wrapt API", () => {
     expect(response.headers["cache-control"]).toBe("no-store");
     // Gegen die konfigurierte Version prüfen statt gegen eine feste Zahl — sonst
     // bricht der Test bei jedem Versionssprung, ohne dass etwas kaputt ist.
-    expect(response.json()).toMatchObject({ status: "ok", version: settings.appVersion });
+    expect(response.json()).toMatchObject({ status: "ok", version: settings.appVersion, instanceName: settings.instanceName });
     // Die Neustart-Marker müssen mitkommen: ohne sie erkennt das UI kein Fertigsein.
     const health = response.json() as { bootId: string; webBuildId: number | null };
     expect(health.bootId).toMatch(/^[0-9a-f-]{36}$/);
     expect(health.webBuildId === null || Number.isInteger(health.webBuildId)).toBe(true);
+  });
+
+  it("erlaubt Cross-Origin-Lesen nur für Health und beantwortet GET-Preflights", async () => {
+    const app = await buildApp({ startBackgroundServices: false });
+    apps.push(app);
+    const origin = "https://macbook.example.ts.net";
+    const health = await app.inject({ method: "GET", url: "/api/v1/health", headers: { origin } });
+    expect(health.headers["access-control-allow-origin"]).toBe("*");
+    expect(health.headers["access-control-allow-credentials"]).toBeUndefined();
+
+    const preflight = await app.inject({
+      method: "OPTIONS",
+      url: "/api/v1/health",
+      headers: { origin, "access-control-request-method": "GET" },
+    });
+    expect(preflight.statusCode).toBe(204);
+    expect(preflight.headers["access-control-allow-origin"]).toBe("*");
+    expect(preflight.headers["access-control-allow-methods"]).toBe("GET");
+    expect(preflight.headers["access-control-allow-credentials"]).toBeUndefined();
+
+    const rejectedMethod = await app.inject({
+      method: "OPTIONS",
+      url: "/api/v1/health",
+      headers: { origin, "access-control-request-method": "POST" },
+    });
+    expect(rejectedMethod.statusCode).toBe(405);
+    expect(rejectedMethod.headers["access-control-allow-origin"]).toBeUndefined();
+
+    const protectedApi = await app.inject({ method: "GET", url: "/api/v1/system/dashboard-config", headers: { origin } });
+    expect(protectedApi.statusCode).toBe(401);
+    expect(protectedApi.headers["access-control-allow-origin"]).toBeUndefined();
   });
 
   it("meldet einen leeren JSON-Body als typisierten Clientfehler", async () => {

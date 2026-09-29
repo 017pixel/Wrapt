@@ -35,7 +35,7 @@ class PushTimeoutError extends Error {
   }
 }
 
-const fallbackLink = "/wrapt/inbox";
+const fallbackLink = "/wrapt/";
 const deliveryConcurrency = 4;
 const noopLogger: PushLogger = { info: () => undefined, warn: () => undefined, error: () => undefined };
 const publicPushAgent = new HttpsAgent({ keepAlive: false, lookup: createPublicLookup() });
@@ -305,7 +305,7 @@ export class NotificationPushService {
 
   private shouldPush(notification: Notification): boolean {
     // Die Workbench ist aktiv genutzt (frischer Heartbeat eines sichtbaren
-    // Fensters): Toast und Inbox decken den Desktop ab, Push an Handy und
+    // Fensters): Toasts decken den Desktop ab, Push an Handy und
     // Hintergrund-Fenster wäre doppelt. Erst wenn kein Fenster mehr aktiv
     // meldet, gehen Push-Benachrichtigungen an alle Geräte.
     return this.preferences.pushEnabled

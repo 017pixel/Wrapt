@@ -12,6 +12,13 @@ interface ListeningSocket {
   pid: number | null;
 }
 
+export interface LocalPortCommandResult {
+  exitCode: number | null;
+  stdout: string;
+}
+
+export type LocalPortCommandRunner = (file: string, args: string[]) => Promise<LocalPortCommandResult>;
+
 function parseEndpoint(value: string): { address: string; port: number } | null {
   const bracketed = /^\[(?<address>.*)]:(?<port>\d+)$/.exec(value);
   const plain = /^(?<address>.*):(?<port>\d+)$/.exec(value);
@@ -22,21 +29,59 @@ function parseEndpoint(value: string): { address: string; port: number } | null 
 }
 
 export function parseListeningSockets(output: string): ListeningSocket[] {
-  const sockets = new Map<number, ListeningSocket>();
+  const sockets: ListeningSocket[] = [];
   for (const line of output.split("\n")) {
     const columns = line.trim().split(/\s+/);
     const endpoint = parseEndpoint(columns[3] ?? "");
     if (!endpoint) continue;
     const processMatch = /users:\(\("(?<name>[^"]+)",pid=(?<pid>\d+)/.exec(line);
-    const process = processMatch?.groups?.name ?? null;
-    const pid = processMatch?.groups?.pid ? Number(processMatch.groups.pid) : null;
-    const current = sockets.get(endpoint.port);
-    const candidate = { ...endpoint, process, pid };
-    if (!current || (current.address !== "127.0.0.1" && endpoint.address === "127.0.0.1")) {
-      sockets.set(endpoint.port, candidate);
-    }
+    sockets.push({ ...endpoint, process: processMatch?.groups?.name ?? null, pid: processMatch?.groups?.pid ? Number(processMatch.groups.pid) : null });
   }
-  return [...sockets.values()].sort((left, right) => left.port - right.port);
+  return deduplicateSockets(sockets, ["127.0.0.1"]).sort((a, b) => a.port - b.port);
+}
+
+export function parseLsofListeningSockets(output: string): ListeningSocket[] {
+  const sockets: ListeningSocket[] = [];
+  for (const line of output.split("\n")) {
+    const listening = /\bTCP\s+(?<endpoint>\S+)\s+\(LISTEN\)\s*$/.exec(line.trim());
+    const endpoint = listening?.groups?.endpoint ? parseEndpoint(listening.groups.endpoint) : null;
+    if (!endpoint) continue;
+    const columns = line.trim().split(/\s+/);
+    const pid = Number(columns[1]);
+    sockets.push({
+      ...endpoint,
+      process: columns[0] || null,
+      pid: Number.isInteger(pid) && pid > 0 ? pid : null,
+    });
+  }
+  return deduplicateSockets(sockets, ["127.0.0.1", "::1"]).sort((a, b) => a.port - b.port);
+}
+
+export function parseLsofCurrentDirectory(output: string): string | null {
+  const entry = output.split("\n").find((line) => line.startsWith("n"));
+  return entry && entry.length > 1 ? entry.slice(1) : null;
+}
+
+export function listeningSocketCommand(platform: NodeJS.Platform): { file: string; args: string[] } | null {
+  if (platform === "darwin") return { file: "lsof", args: ["-nP", "-iTCP", "-sTCP:LISTEN"] };
+  if (platform === "linux") return { file: "ss", args: ["-H", "-ltnp"] };
+  return null;
+}
+
+export function processCwdCommand(platform: NodeJS.Platform, pid: number): { file: string; args: string[] } | null {
+  if (platform === "darwin") return { file: "lsof", args: ["-p", String(pid), "-a", "-d", "cwd", "-Fn"] };
+  return null;
+}
+
+function deduplicateSockets(entries: ListeningSocket[], preferredAddresses: readonly string[]): ListeningSocket[] {
+  const sockets = new Map<number, ListeningSocket>();
+  for (const candidate of entries) {
+    const current = sockets.get(candidate.port);
+    const candidateIsPreferred = preferredAddresses.includes(candidate.address);
+    const currentIsPreferred = current ? preferredAddresses.includes(current.address) : false;
+    if (!current || (!currentIsPreferred && candidateIsPreferred)) sockets.set(candidate.port, candidate);
+  }
+  return [...sockets.values()];
 }
 
 // Hintergrunddienste des Betriebssystems und der Workbench selbst. Sie sind nie
@@ -91,6 +136,8 @@ async function resolvePort(
   socket: ListeningSocket,
   timeoutMilliseconds: number,
   projects: ReadonlyArray<{ id: string; name: string; path: string }>,
+  platform: NodeJS.Platform,
+  commandRunner: LocalPortCommandRunner,
 ): Promise<LocalPort> {
   const isHttp = await probe(socket.port, "http", timeoutMilliseconds);
   const isHttps = isHttp ? false : await probe(socket.port, "https", timeoutMilliseconds);
@@ -98,7 +145,16 @@ async function resolvePort(
   let project: { id: string; name: string; path: string } | undefined;
   if (socket.pid !== null) {
     try {
-      const cwd = await readlink(`/proc/${socket.pid}/cwd`);
+      let cwd: string | null;
+      if (platform === "darwin") {
+        const command = processCwdCommand(platform, socket.pid);
+        if (!command) return toLocalPort(socket, protocol, null);
+        const result = await commandRunner(command.file, command.args).catch(() => ({ exitCode: null, stdout: "" }));
+        cwd = result.exitCode === 0 ? parseLsofCurrentDirectory(result.stdout) : null;
+      } else {
+        cwd = await readlink(`/proc/${socket.pid}/cwd`);
+      }
+      if (!cwd) return toLocalPort(socket, protocol, null);
       project = [...projects]
         .filter((candidate) => contained(candidate.path, cwd))
         .sort((left, right) => right.path.length - left.path.length)[0];
@@ -106,6 +162,14 @@ async function resolvePort(
       // Prozesse anderer Benutzer oder bereits beendete Prozesse bleiben ohne Projektzuordnung sichtbar.
     }
   }
+  return toLocalPort(socket, protocol, project ?? null);
+}
+
+function toLocalPort(
+  socket: ListeningSocket,
+  protocol: LocalPort["protocol"],
+  project: { id: string; name: string; path: string } | null,
+): LocalPort {
   return {
     ...socket,
     projectId: project?.id ?? null,
@@ -116,7 +180,16 @@ async function resolvePort(
   };
 }
 
-export function createLocalPortService(options: { cacheMilliseconds: number; probeTimeoutMilliseconds: number; allowedPorts?: readonly number[]; excludedPorts?: readonly number[]; excludedProcessNames?: readonly string[]; projects?: () => Promise<ReadonlyArray<{ id: string; name: string; path: string }>> }) {
+export function createLocalPortService(options: {
+  cacheMilliseconds: number;
+  probeTimeoutMilliseconds: number;
+  allowedPorts?: readonly number[];
+  excludedPorts?: readonly number[];
+  excludedProcessNames?: readonly string[];
+  projects?: () => Promise<ReadonlyArray<{ id: string; name: string; path: string }>>;
+  platform?: NodeJS.Platform;
+  commandRunner?: LocalPortCommandRunner;
+}) {
   let cached: LocalPortsResponse | null = null;
   let cachedAt = 0;
   let inFlight: Promise<LocalPortsResponse> | null = null;
@@ -124,14 +197,25 @@ export function createLocalPortService(options: { cacheMilliseconds: number; pro
   const allowedPorts = options.allowedPorts === undefined ? undefined : new Set(options.allowedPorts);
   const excluded = new Set(options.excludedPorts ?? []);
   const excludedProcessNames = options.excludedProcessNames ? new Set(options.excludedProcessNames) : systemProcessNames;
+  const platform = options.platform ?? process.platform;
+  const commandRunner: LocalPortCommandRunner = options.commandRunner ?? (async (file, args) => {
+    const result = await execa(file, args, { reject: false, shell: false, timeout: 2_000 });
+    return { exitCode: result.exitCode ?? null, stdout: result.stdout };
+  });
 
   const scan = async (): Promise<LocalPortsResponse> => {
-    const result = await execa("ss", ["-H", "-ltnp"], { reject: false, shell: false, timeout: 2_000 });
-    const sockets = result.exitCode === 0
-      ? parseListeningSockets(result.stdout).filter((socket) => isAllowedProjectPort(socket.port, allowedPorts) && !excluded.has(socket.port) && isProjectSocket(socket, excludedProcessNames))
+    const command = listeningSocketCommand(platform);
+    const result = !command
+      ? { exitCode: null, stdout: "" }
+      : platform === "darwin"
+        ? await commandRunner(command.file, command.args).catch(() => ({ exitCode: null, stdout: "" }))
+        : await commandRunner(command.file, command.args);
+    const parsed = result.exitCode === 0
+      ? platform === "darwin" ? parseLsofListeningSockets(result.stdout) : parseListeningSockets(result.stdout)
       : [];
+    const sockets = parsed.filter((socket) => isAllowedProjectPort(socket.port, allowedPorts) && !excluded.has(socket.port) && isProjectSocket(socket, excludedProcessNames));
     const projects = await options.projects?.().catch(() => []) ?? [];
-    const resolved = await Promise.all(sockets.map((socket) => resolvePort(socket, options.probeTimeoutMilliseconds, projects)));
+    const resolved = await Promise.all(sockets.map((socket) => resolvePort(socket, options.probeTimeoutMilliseconds, projects, platform, commandRunner)));
     // Ohne HTTP-Antwort lässt sich nichts als Preview öffnen – solche Ports
     // gehören zu Hilfsdiensten und bleiben ausgeblendet.
     const ports = resolved.filter((port) => port.protocol !== "unknown");

@@ -5,6 +5,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { RestartPhase, RestartTarget } from "@wrapt/contracts";
 import { settings } from "../config/settings.js";
+import { supportsSystemd } from "./platform.js";
 
 // Eindeutig pro Serverprozess. Ändert sich der Wert im /health, lief ein Backend-Neustart durch.
 export const bootId = randomUUID();
@@ -158,9 +159,9 @@ function releaseRestartLock() {
   rmSync(lockDirectory, { recursive: true, force: true });
 }
 
-// Startet das passende Skript losgelöst vom Serverprozess. Das Skript baut zuerst (sichtbar im Log)
-// und plant den eigentlichen Dienst-Neustart in einer eigenen systemd-Einheit ein, damit er den
-// laufenden Prozess überlebt. Die Ausgabe landet in data/restart-logs/.
+// Startet das passende Skript losgelöst vom Serverprozess. Linux übergibt den Dienst-Neustart an
+// eine eigene systemd-Einheit; ein verwalteter macOS-Launcher kann den Prozess übernehmen.
+// Die sichtbare Build-Ausgabe landet in data/restart-logs/.
 export function triggerRestart(target: RestartTarget): { jobId: string; logFile: string } {
   const script = join(projectRoot, "scripts", scriptByTarget[target]);
   try {
@@ -188,7 +189,10 @@ export function triggerRestart(target: RestartTarget): { jobId: string; logFile:
   writeStatusFile({ jobId, phase: "running", target, exitCode: null, step: "Skript wird gestartet", message: "Läuft …", startedAt, logFile });
 
   try {
-    const child = spawn("/bin/bash", [script], {
+    const restartShell = process.platform === "win32"
+      ? process.env.WRAPT_BASH_PATH || "bash"
+      : "/bin/bash";
+    const child = spawn(restartShell, [script], {
       cwd: projectRoot,
       detached: true,
       stdio: ["ignore", logHandle, logHandle],
@@ -201,9 +205,12 @@ export function triggerRestart(target: RestartTarget): { jobId: string; logFile:
         RESTART_BASELINE_WEB_BUILD_ID: String(webBuildId() ?? ""),
         RESTART_LOG_FILE: logFile,
         RESTART_TARGET: target,
+        WRAPT_SERVER_PID: String(process.pid),
         // Die Skripte prüfen den Health-Check gegen den tatsächlichen Port (F01-07/F03-4).
         WRAPT_HEALTH_URL: `http://127.0.0.1:${settings.port}`,
-        XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR ?? `/run/user/${process.getuid?.() ?? 1000}`,
+        ...(supportsSystemd()
+          ? { XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR ?? `/run/user/${process.getuid?.() ?? 1000}` }
+          : {}),
       },
     });
     child.on("error", (error) => {

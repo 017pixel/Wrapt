@@ -3,6 +3,11 @@
 # Erfolg wird erst nach einem neuen, gesunden Serverprozess veröffentlicht.
 set -euo pipefail
 
+if [[ "$(uname -s 2>/dev/null || true)" != "Linux" ]]; then
+  echo "[fehler] Dieser Neustart-Helfer ist ausschließlich für Linux mit systemd vorgesehen." >&2
+  exit 1
+fi
+
 repo_root="$1"
 service_unit="$2"
 restart_target="$3"
@@ -34,7 +39,7 @@ write_status() {
   "step": "$(json_escape "$restart_last_step")",
   "message": "$(json_escape "$message")",
   "startedAt": "$(json_escape "$restart_started_at")",
-  "updatedAt": "$(date -Is)",
+  "updatedAt": "$(date '+%Y-%m-%dT%H:%M:%S%z')",
   "logFile": "$(json_escape "$restart_log_file")"
 }
 JSON

@@ -1,18 +1,14 @@
 import { constants } from "node:fs";
 import type { Dirent, Stats } from "node:fs";
 import { access, lstat, readdir, realpath } from "node:fs/promises";
-import { isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
+import { join, resolve } from "node:path";
 import { filesystemTreeResponseSchema, type FilesystemEntry, type FilesystemTreeResponse } from "@wrapt/contracts";
 import { AppError } from "../utils/errors.js";
+import { canonicalRootCandidates, contained, preserveRootAlias, resolvePathWithinRootAliases, sameFilesystemPath } from "../utils/pathRoots.js";
 
 interface CursorPayload {
   path: string;
   offset: number;
-}
-
-function contained(root: string, target: string): boolean {
-  const pathFromRoot = relative(root, target);
-  return pathFromRoot === "" || (!pathFromRoot.startsWith(`..${sep}`) && pathFromRoot !== ".." && !isAbsolute(pathFromRoot));
 }
 
 function cursorFor(path: string, offset: number): string {
@@ -52,6 +48,7 @@ export class ProjectBrowserService {
   private constructor(
     readonly root: string,
     readonly pageSize: number,
+    private readonly rootAliases: string[],
   ) {}
 
   static async create(root: string, pageSize: number): Promise<ProjectBrowserService> {
@@ -64,14 +61,11 @@ export class ProjectBrowserService {
     } catch (error) {
       filesystemFailure(error);
     }
-    return new ProjectBrowserService(canonicalRoot, pageSize);
+    return new ProjectBrowserService(resolve(root), pageSize, canonicalRootCandidates([root, canonicalRoot]));
   }
 
   private requestedPath(input?: string): string {
-    const value = input?.trim();
-    if (!value || value === "~") return this.root;
-    if (value.startsWith("~/")) return resolve(this.root, value.slice(2));
-    return isAbsolute(value) ? normalize(value) : resolve(this.root, value);
+    return resolvePathWithinRootAliases(input, this.root, this.rootAliases);
   }
 
   async resolveDirectory(input?: string, rootSelectable = true): Promise<string> {
@@ -91,13 +85,13 @@ export class ProjectBrowserService {
       if (error instanceof AppError) throw error;
       filesystemFailure(error);
     }
-    if (!contained(this.root, canonical) || canonical !== requested) {
+    if (!contained(this.root, canonical) || !sameFilesystemPath(canonical, requested)) {
       throw new AppError(403, "FILESYSTEM_PATH_OUTSIDE_ROOT", "Der Pfad führt über einen nicht erlaubten Verweis.");
     }
-    if (!rootSelectable && canonical === this.root) {
+    if (!rootSelectable && sameFilesystemPath(canonical, this.root)) {
       throw new AppError(400, "PROJECT_BROWSER_ROOT_NOT_SELECTABLE", "Der Home-Ordner selbst kann nicht als Projekt geöffnet werden.");
     }
-    return canonical;
+    return preserveRootAlias(canonical, this.root);
   }
 
   async tree(input?: { path?: string; cursor?: string; limit?: number }): Promise<FilesystemTreeResponse> {

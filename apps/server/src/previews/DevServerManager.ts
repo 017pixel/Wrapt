@@ -496,7 +496,7 @@ export class PreviewDevServerManager {
 
   /** Startet die Preview außerhalb der Backend-Cgroup, damit sie Neustarts überlebt. */
   private createSessionOutsideWorkbench(args: string[], timeoutMilliseconds: number): CommandResult {
-    if (this.options.runner || this.options.useSystemdSupervisor === false) return this.run(args, timeoutMilliseconds);
+    if (this.options.runner || this.options.useSystemdSupervisor === false || process.platform !== "linux") return this.run(args, timeoutMilliseconds);
     const unit = `wrapt-preview-start-${process.pid}-${Date.now()}`;
     const result = spawnSync("/usr/bin/systemd-run", [
       "--user",

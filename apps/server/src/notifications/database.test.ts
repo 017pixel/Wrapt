@@ -23,33 +23,19 @@ describe("Benachrichtigungsdatenbank", () => {
     database.close();
   });
 
-  it("blendet erledigte und verworfene Einträge sofort aus", () => {
+  it("blendet erledigte Einträge sofort aus und lässt aktive Ereignisse bestehen", () => {
     const directory = mkdtempSync(join(tmpdir(), "wrapt-notifications-"));
     temporaryDirectories.push(directory);
     const database = new NotificationDatabase(join(directory, "wrapt.sqlite"));
     const resolved = database.create({ source: "t3", category: "coding-agent", sourceIcon: "t3", kind: "agent.input-required", severity: "warning", title: "Input", body: "wartet", remoteId: "thread:1:input" });
-    const dismissed = database.create({ source: "terminal", category: "terminal", sourceIcon: "terminal", kind: "terminal.completed", severity: "success", title: "Fertig", body: "fertig" });
+    const active = database.create({ source: "terminal", category: "terminal", sourceIcon: "terminal", kind: "terminal.completed", severity: "success", title: "Fertig", body: "fertig" });
     database.resolveByRemoteId("t3", "agent.input-required", "thread:1:input");
-    database.dismiss(dismissed.id);
-    expect(database.list().notifications).toEqual([]);
+    expect(database.list().notifications.map((item) => item.id)).toEqual([active.id]);
     expect(database.get(resolved.id)?.state).toBe("resolved");
-    expect(database.get(dismissed.id)?.state).toBe("dismissed");
+    expect(database.get(active.id)?.state).toBe("active");
     const repeated = database.create({ source: "t3", category: "coding-agent", sourceIcon: "t3", kind: "agent.input-required", severity: "warning", title: "Input erneut", body: "wartet wieder", remoteId: "thread:1:input" });
     expect(repeated.id).toBe(resolved.id);
     expect(repeated.state).toBe("active");
-    database.close();
-  });
-
-  it("pusht verworfene Remote-Zustände beim Dienstneustart nicht erneut", () => {
-    const directory = mkdtempSync(join(tmpdir(), "wrapt-notifications-"));
-    temporaryDirectories.push(directory);
-    const database = new NotificationDatabase(join(directory, "wrapt.sqlite"));
-    const first = database.create({ source: "t3", category: "coding-agent", sourceIcon: "t3", kind: "agent.plan-ready", severity: "warning", title: "Plan", body: "bereit", remoteId: "thread:1:plan:version-1" });
-    database.dismiss(first.id);
-    const repeated = database.create({ source: "t3", category: "coding-agent", sourceIcon: "t3", kind: "agent.plan-ready", severity: "warning", title: "Plan", body: "bereit", remoteId: "thread:1:plan:version-1" });
-    expect(repeated.id).toBe(first.id);
-    expect(repeated.state).toBe("dismissed");
-    expect(database.list().notifications).toEqual([]);
     database.close();
   });
 
@@ -98,20 +84,6 @@ describe("Benachrichtigungsdatenbank", () => {
     expect(completed.id).toBe(failed.id);
     expect(completed.state).toBe("resolved");
     expect(database.list({ limit: 100 }).notifications).toEqual([]);
-    database.close();
-  });
-
-  it("löscht alle aktiven Einträge gemeinsam und behält sie als verworfen", () => {
-    const directory = mkdtempSync(join(tmpdir(), "wrapt-notifications-"));
-    temporaryDirectories.push(directory);
-    const database = new NotificationDatabase(join(directory, "wrapt.sqlite"));
-    const first = database.create({ source: "t3", category: "coding-agent", sourceIcon: "t3", kind: "agent.completed", severity: "success", title: "Fertig", body: "fertig" });
-    database.create({ source: "terminal", category: "terminal", sourceIcon: "terminal", kind: "terminal.failed", severity: "error", title: "Fehler", body: "fehlgeschlagen" });
-
-    expect(database.dismissAll()).toBe(2);
-    expect(database.list().notifications).toEqual([]);
-    expect(database.get(first.id)?.state).toBe("dismissed");
-    expect(database.dismissAll()).toBe(0);
     database.close();
   });
 

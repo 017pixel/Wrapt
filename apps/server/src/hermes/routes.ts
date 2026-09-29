@@ -8,7 +8,7 @@ import { z, ZodError } from "zod";
 import { settings } from "../config/settings.js";
 import { AppError } from "../utils/errors.js";
 import { isSameOriginRequest } from "../security/same-origin.js";
-import { requestIdentity } from "../security/workbench-identity.js";
+import { resolveWorkbenchUser, type WorkbenchIdentityOptions } from "../security/workbench-identity.js";
 import { createWebSocketSendQueue } from "../utils/websocketSendQueue.js";
 import { HermesClientError } from "./client.js";
 import type { HermesDashboardClient } from "./client.js";
@@ -56,16 +56,16 @@ function isSafeCwd(cwd: string): boolean {
   });
 }
 
-function websocketIdentity(request: FastifyRequest): string {
+function websocketIdentity(request: FastifyRequest, identityOptions: WorkbenchIdentityOptions): string {
   // The development fallback is the same identity path used by the global
   // Workbench hook. Production keeps it empty and therefore still requires
   // the Tailscale header on every WebSocket handshake.
-  const identity = requestIdentity(request) ?? settings.developmentTailscaleUser;
-  if (!identity || (settings.terminalAllowedUsers.length > 0 && !settings.terminalAllowedUsers.includes(identity))) throw new AppError(403, "WRAPT_FORBIDDEN", "Dieser Benutzer darf den Hermes-Chat nicht verwenden.");
-  return identity;
+  try { return resolveWorkbenchUser(request, identityOptions); }
+  catch { throw new AppError(403, "WRAPT_FORBIDDEN", "Dieser Benutzer darf den Hermes-Chat nicht verwenden."); }
 }
 
 export async function registerHermesRoutes(app: FastifyInstance, options: {
+  identity: WorkbenchIdentityOptions;
   client: HermesDashboardClient;
   manager: HermesAcpManager;
   sessions: HermesSessionService;
@@ -99,7 +99,7 @@ export async function registerHermesRoutes(app: FastifyInstance, options: {
     try {
       if (!settings.hermes.enabled) throw new AppError(503, "HERMES_DISABLED", "Hermes ist deaktiviert.");
       if (!isSameOriginRequest(request)) throw new AppError(403, "WRAPT_CROSS_ORIGIN", "Der Hermes-Chat ist nur vom Wrapt-Origin erreichbar.");
-      websocketIdentity(request);
+      websocketIdentity(request, options.identity);
     } catch (error) {
       socket.send(JSON.stringify({ v: 1, type: "error", code: errorCode(error), message: errorText(error), sessionId: null } satisfies HermesServerMessage));
       socket.close(1008, errorCode(error));

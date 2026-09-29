@@ -4,6 +4,7 @@ import { ZodError } from "zod";
 import { isAuditedMutation } from "../observability/audit.js";
 import {
   isProtectedWorkbenchRequest,
+  requestLocalLoopbackIdentity,
   requestIdentity,
   requireMutationOrigin,
   resolveWorkbenchUser,
@@ -76,7 +77,7 @@ export function registerCoreHooks(app: FastifyInstance, deps: AppDependencies) {
     try {
       const outcome = deps.operationalAudit.recordDurable({
         requestId: request.id,
-        actor: requestIdentity(request) ?? "unbekannt",
+        actor: auditActor(request, deps.identityOptions),
         action: `${request.method} ${request.routeOptions.url}`,
         target: request.url.split("?", 1)[0] ?? request.url,
         statusCode: reply.statusCode,
@@ -97,4 +98,11 @@ export function registerCoreHooks(app: FastifyInstance, deps: AppDependencies) {
     resolveWorkbenchUser(request, deps.identityOptions);
     requireMutationOrigin(request);
   });
+}
+
+function auditActor(request: Parameters<typeof requestIdentity>[0], identityOptions: AppDependencies["identityOptions"]): string {
+  const tailscaleIdentity = requestIdentity(request);
+  if (tailscaleIdentity) return tailscaleIdentity;
+  if (!identityOptions.localLoopbackTrust) return "unbekannt";
+  return requestLocalLoopbackIdentity(request, identityOptions) ?? "unbekannt";
 }

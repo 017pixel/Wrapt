@@ -4,6 +4,7 @@
     "shortName": "Wrapt"
   },
   "system": {
+    "instanceName": "",
     "user": "your-user",
     "homeDirectory": "/home/your-user"
   },
@@ -15,6 +16,9 @@
       "user@example.com"
     ],
     "adminUsers": []
+  },
+  "security": {
+    "localLoopbackTrust": false
   },
   "paths": {
     "projectsRoot": "/home/your-user/projects",

@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { settings } from "../config/settings.js";
+import { systemService } from "../services/systemService.js";
 import type { AppDependencies } from "./dependencies.js";
 
 export interface LifecycleState {
@@ -12,6 +13,7 @@ export async function startBackgroundServices(app: FastifyInstance, deps: AppDep
     throw new Error("NODE_ENV=test benötigt WRAPT_E2E=true für einen isolierten Serverstart.");
   }
   if (!isolatedTest) {
+    systemService.startMetricsHistory();
     deps.liveUsage.start();
     deps.analytics.start();
     deps.usageTimeline.start();
@@ -34,6 +36,7 @@ export async function startBackgroundServices(app: FastifyInstance, deps: AppDep
 
 export function registerShutdown(app: FastifyInstance, deps: AppDependencies, state: LifecycleState) {
   app.addHook("onClose", async () => {
+    systemService.stopMetricsHistory();
     deps.previewDevServers.stopWatchdog();
     deps.liveUsage.stop();
     await deps.analytics.stop();

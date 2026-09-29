@@ -1,6 +1,6 @@
 import Fastify from "fastify";
 import websocket from "@fastify/websocket";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, realpath, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -79,6 +79,7 @@ describe("terminal websocket route", () => {
   });
 
   it("resolves a project ID on the server before creating a session", async () => {
+    const projectRoot = await realpath("/tmp");
     const app = Fastify();
     apps.push(app);
     const manager = new TerminalManager({ allowedRoots: ["/tmp"], defaultCwd: "/tmp", maxSessions: 1 });
@@ -101,24 +102,26 @@ describe("terminal websocket route", () => {
     });
     socket.send(JSON.stringify({ type: "terminal.create", requestId: "project-terminal", projectId: "wrapt", cols: 80, rows: 24 }));
 
-    await expect(created).resolves.toMatchObject({ type: "terminal.created", requestId: "project-terminal", kind: "shell", cwd: "/tmp" });
+    await expect(created).resolves.toMatchObject({ type: "terminal.created", requestId: "project-terminal", kind: "shell", cwd: projectRoot });
     expect(resolveProjectPath).toHaveBeenCalledWith("wrapt");
     socket.terminate();
     manager.shutdown();
   });
 
   it("uses an explicitly validated split directory before the project root", async () => {
-    const splitDirectory = await mkdtemp(join(tmpdir(), "wrapt-terminal-split-"));
+    const temporaryRoot = tmpdir();
+    const splitDirectory = await mkdtemp(join(temporaryRoot, "wrapt-terminal-split-"));
+    const canonicalSplitDirectory = await realpath(splitDirectory);
     directories.push(splitDirectory);
     const app = Fastify();
     apps.push(app);
-    const manager = new TerminalManager({ allowedRoots: ["/tmp"], defaultCwd: "/tmp", maxSessions: 1 });
+    const manager = new TerminalManager({ allowedRoots: [temporaryRoot], defaultCwd: temporaryRoot, maxSessions: 1 });
     await app.register(websocket, { options: { maxPayload: 65_536 } });
     await app.register(registerTerminalRoutes, {
       prefix: "/api/v1",
       manager,
       allowedUsers: ["terminal-test@example.com"],
-      resolveProjectPath: async () => "/tmp",
+      resolveProjectPath: async () => temporaryRoot,
     });
     await app.ready();
 
@@ -131,7 +134,7 @@ describe("terminal websocket route", () => {
     });
     socket.send(JSON.stringify({ type: "terminal.create", requestId: "split-terminal", projectId: "wrapt", cwd: splitDirectory, cols: 80, rows: 24 }));
 
-    await expect(created).resolves.toMatchObject({ type: "terminal.created", requestId: "split-terminal", cwd: splitDirectory });
+    await expect(created).resolves.toMatchObject({ type: "terminal.created", requestId: "split-terminal", cwd: canonicalSplitDirectory });
     socket.terminate();
     manager.shutdown();
   });

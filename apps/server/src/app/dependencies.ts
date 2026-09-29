@@ -28,6 +28,8 @@ import { OperationalAuditDatabase } from "../observability/audit.js";
 import { OperationalMetrics } from "../observability/metrics.js";
 import { OrbitAssetRepository } from "../orbit/assets.js";
 import { OrbitDatabase } from "../orbit/database.js";
+import { NotesDatabase } from "../notes/database.js";
+import { migrateOrbitNotesToNotes } from "../notes/migrateOrbitNotes.js";
 import { PreviewDevServerDatabase } from "../previews/devServerDatabase.js";
 import { PreviewDevServerManager } from "../previews/DevServerManager.js";
 import { PreviewDiagnosticsService } from "../previews/diagnostics.js";
@@ -78,6 +80,8 @@ export async function createAppDependencies(app: FastifyInstance) {
     ...(settings.developmentTailscaleUser
       ? { developmentUser: settings.developmentTailscaleUser }
       : {}),
+    localLoopbackTrust: settings.localLoopbackTrust,
+    localUsername: settings.localUsername,
   };
 
   const frameSources = new Set<string>(["'self'"]);
@@ -246,6 +250,9 @@ export async function createAppDependencies(app: FastifyInstance) {
   const hermesStatus = new HermesStatusService(hermesClient, hermesManager);
   const hermesResultSync = new HermesResultSync(hermesSessions, hermesManager, notificationDatabase);
   const orbitDatabase = new OrbitDatabase(settings.databasePath, settings.orbitBackupDirectory);
+  const notesDatabase = new NotesDatabase(settings.databasePath);
+  // Einmalig und idempotent: Altbestand an Orbit-Notizen in zentrale Notizen überführen.
+  migrateOrbitNotesToNotes(orbitDatabase, notesDatabase);
   const orbitAssets = new OrbitAssetRepository(settings.databasePath, settings.orbitAssetDirectory, settings.orbitAssetMaxFileBytes, settings.orbitAssetMaxTotalBytes);
   const fileGallery = new OrbitAssetRepository(settings.databasePath, settings.fileGalleryDirectory, settings.fileGalleryMaxFileBytes, settings.fileGalleryMaxTotalBytes, "file_gallery_files");
   const codexbarClient = new CodexbarClient({ baseUrl: settings.codexbarBaseUrl, timeoutMilliseconds: settings.codexbarTimeoutMilliseconds, cliPath: settings.codexbarCliPath, claudeCliPath: settings.claudeCliPath, configPath: settings.codexbarConfigPath });
@@ -372,6 +379,7 @@ export async function createAppDependencies(app: FastifyInstance) {
     hermesStatus,
     hermesResultSync,
     orbitDatabase,
+    notesDatabase,
     orbitAssets,
     fileGallery,
     codexbarClient,

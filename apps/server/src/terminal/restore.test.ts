@@ -41,6 +41,16 @@ describe("kanonische Terminal-Arbeitsverzeichnisse", () => {
     expect(await validateCwd(join(root, "nested-link"), [root])).toBe(await realpath(join(root, "inside")));
   });
 
+  it("akzeptiert bereits kanonisierte CWDs, wenn die erlaubte Wurzel ein Pfadalias ist", async () => {
+    const root = await temporaryDirectory("wrapt-cwd-root-alias-");
+    const rootAlias = join(root, "workspace-root");
+    await symlink(root, rootAlias, "dir");
+    const canonicalRoot = await realpath(root);
+
+    expect(await validateCwd(canonicalRoot, [rootAlias])).toBe(canonicalRoot);
+    expect(canonicalCwdWithinRootsSync(canonicalRoot, [rootAlias])).toBe(canonicalRoot);
+  });
+
   it("lehnt einen Symlink ab, der die erlaubte Wurzel verlässt", async () => {
     const root = await temporaryDirectory("wrapt-cwd-root-");
     const outside = await temporaryDirectory("wrapt-cwd-outside-");

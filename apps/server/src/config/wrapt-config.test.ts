@@ -1,4 +1,5 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { userInfo } from "node:os";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,6 +13,37 @@ function exampleConfig(): WraptConfig {
 }
 
 describe("Workbench-Preview-Konfiguration", () => {
+  it("verwendet plattformgerechte Instanznamen statt des Hostnamens und erlaubt eigene Beschriftungen", () => {
+    const defaultName = process.platform === "darwin"
+      ? "MacBook"
+      : process.platform === "linux"
+        ? "Linux Server"
+        : process.platform === "win32"
+          ? "Windows Server"
+          : "Wrapt";
+    const config = exampleConfig();
+    expect(config.system.instanceName).toBe(defaultName);
+
+    const legacy = config as unknown as Record<string, unknown>;
+    const system = legacy.system as Record<string, unknown>;
+    delete system.instanceName;
+    expect(wraptConfigSchema.parse(legacy).system.instanceName).toBe(defaultName);
+    expect(wraptConfigSchema.parse({ ...legacy, system: { ...system, instanceName: "  Server A  " } }).system.instanceName).toBe("Server A");
+  });
+
+  it("deaktiviert lokalen Loopback-Zugriff standardmäßig und bezieht den OS-Namen", () => {
+    const config = exampleConfig();
+    expect(config.security.localLoopbackTrust).toBe(false);
+    expect(config.security.localUsername).toBe(userInfo().username.trim() || "local-user");
+
+    const legacy = config as unknown as Record<string, unknown>;
+    delete legacy.security;
+    expect(wraptConfigSchema.parse(legacy).security).toMatchObject({
+      localLoopbackTrust: false,
+      localUsername: userInfo().username.trim() || "local-user",
+    });
+  });
+
   it("hält den Wrapt-Plugins-Pfad zentral und optional", () => {
     expect(exampleConfig().plugins.wraptPluginsSkillPath).toBeUndefined();
     expect(exampleConfig().plugins.creatorSkillPath).toBeUndefined();

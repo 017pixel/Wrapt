@@ -1,5 +1,7 @@
-import { spawnSync } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { spawn, spawnSync } from "node:child_process";
+import { chmodSync, mkdirSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { supportsSystemd } from "../system/platform.js";
 import type { TerminalKind } from "./protocol.js";
 
 export interface SupervisedCommand {
@@ -21,26 +23,44 @@ export interface SupervisorSession {
 
 function shellQuote(value: string) { return `'${value.replaceAll("'", `'\\''`)}'`; }
 
-/** Standard-Socket unter $XDG_RUNTIME_DIR — bewusst nicht /tmp: Der Socket
- *  gehört dem Workbench-Benutzer und überlebt Backend-Neustarts, weil ihn die
- *  eigene Supervisor-Unit hält (siehe wrapt-terminal-supervisor.service). */
-export function defaultTerminalSocketPath(): string {
-  const runtime = process.env.XDG_RUNTIME_DIR ?? `/run/user/${process.getuid?.() ?? process.env.UID ?? "1000"}`;
-  return `${runtime}/wrapt/tmux.sock`;
+/** Socket im privaten Runtime-Verzeichnis oder ersatzweise im Datenverzeichnis. */
+export function defaultTerminalSocketPath(
+  dataDirectory: string,
+  runtimeDirectory = process.env.XDG_RUNTIME_DIR,
+  platform: NodeJS.Platform = process.platform,
+): string {
+  if (runtimeDirectory?.trim()) return join(runtimeDirectory, "wrapt", "tmux.sock");
+  if (runtimeDirectory !== undefined && supportsSystemd(platform)) return `${runtimeDirectory}/wrapt/tmux.sock`;
+  if (supportsSystemd(platform)) {
+    return `/run/user/${process.getuid?.() ?? process.env.UID ?? "1000"}/wrapt/tmux.sock`;
+  }
+  return join(dataDirectory, "run", "tmux.sock");
 }
 
 export const TERMINAL_SUPERVISOR_UNIT = "wrapt-terminal-supervisor.service";
+export const TERMINAL_SUPERVISOR_SESSION = "wrapt-supervisor";
+
+export function terminalSupervisorStartArgs(socketPath: string): string[] {
+  return ["-S", socketPath, "new-session", "-d", "-s", TERMINAL_SUPERVISOR_SESSION];
+}
+
+function ensurePrivateSocketDirectory(socketPath: string): void {
+  const directory = dirname(socketPath);
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  chmodSync(directory, 0o700);
+}
 
 export class TmuxSupervisor {
   readonly kind = "tmux" as const;
+  private spawnFailed = false;
 
   constructor(readonly executable: string, readonly socketPath: string | null = null) {
     const result = spawnSync(executable, ["-V"], { encoding: "utf8", timeout: 3_000 });
     if (result.status !== 0) throw new Error("tmux ist nicht verfügbar.");
     if (socketPath) {
       try {
-        const directory = socketPath.slice(0, socketPath.lastIndexOf("/"));
-        mkdirSync(directory, { recursive: true, mode: 0o700 });
+        if (supportsSystemd()) mkdirSync(dirname(socketPath), { recursive: true, mode: 0o700 });
+        else ensurePrivateSocketDirectory(socketPath);
       } catch { /* Der Server versucht es später erneut. */ }
     }
   }
@@ -50,19 +70,36 @@ export class TmuxSupervisor {
     return this.socketPath ? ["-S", this.socketPath, ...args] : args;
   }
 
-  /**
-   * Stellt sicher, dass der tmux-Server durch die eigene systemd-Unit läuft —
-   * so überlebt er Backend-Neustarts. Ist systemd nicht verfügbar (Entwicklung,
-   * Container), startet tmux den Server beim ersten Aufruf selbst im aktuellen
-   * Prozesskontext; das ist der dokumentierte Fallback.
-   */
+  /** Linux nutzt die User-Unit, macOS startet denselben tmux-Server detached. */
   ensureSupervisorUnit(): boolean {
     if (!this.socketPath) return false;
     if (this.isRunning()) return true;
+    if (!supportsSystemd()) return this.startDetachedSupervisor();
     try {
       const start = spawnSync("systemctl", ["--user", "start", TERMINAL_SUPERVISOR_UNIT], { encoding: "utf8", timeout: 15_000 });
       if (start.status !== 0) return false;
     } catch { return false; }
+    return this.waitForSupervisor();
+  }
+
+  private startDetachedSupervisor(): boolean {
+    this.spawnFailed = false;
+    try {
+      ensurePrivateSocketDirectory(this.socketPath!);
+      const environment = { ...process.env };
+      delete environment.TMUX;
+      const child = spawn(this.executable, terminalSupervisorStartArgs(this.socketPath!), {
+        detached: true,
+        stdio: "ignore",
+        env: environment,
+      });
+      child.once("error", () => { this.spawnFailed = true; });
+      child.unref();
+    } catch { return false; }
+    return this.waitForSupervisor() && !this.spawnFailed;
+  }
+
+  private waitForSupervisor(): boolean {
     // Kurz warten, bis der Server den Socket annimmt.
     for (let attempt = 0; attempt < 20; attempt += 1) {
       if (this.isRunning()) return true;
@@ -122,16 +159,16 @@ export class TmuxSupervisor {
   respawn(name: string, cwd: string, command: SupervisedCommand) {
     const environment = Object.entries(command.environment).map(([key, value]) => `${key}=${value}`);
     const cmd = ["/usr/bin/env", ...environment, command.file, ...command.args].map(shellQuote).join(" ");
-    this.run(["respawn-pane", "-k", "-t", `${name}:0.0`, "-c", cwd, cmd]);
+    this.run(["respawn-pane", "-k", "-t", name, "-c", cwd, cmd]);
   }
 
   sendLastCommandHint(name: string) {
-    this.run(["send-keys", "-t", `${name}:0.0`, "Up"]);
+    this.run(["send-keys", "-t", name, "Up"]);
   }
 
   /** True, wenn die Pane gerade den Alternate Screen (Fullscreen-TUI) nutzt. */
   isAlternate(name: string): boolean {
-    const result = spawnSync(this.executable, this.socketArgs(["display-message", "-p", "-t", `${name}:0.0`, "#{alternate_on}"]), { encoding: "utf8", timeout: 3_000 });
+    const result = spawnSync(this.executable, this.socketArgs(["display-message", "-p", "-t", name, "#{alternate_on}"]), { encoding: "utf8", timeout: 3_000 });
     return result.status === 0 && result.stdout.trim() === "1";
   }
 
@@ -145,14 +182,14 @@ export class TmuxSupervisor {
    */
   capture(name: string) {
     const args = this.isAlternate(name)
-      ? ["capture-pane", "-p", "-e", "-t", `${name}:0.0`]
-      : ["capture-pane", "-p", "-e", "-J", "-S", "-10000", "-t", `${name}:0.0`];
+      ? ["capture-pane", "-p", "-e", "-t", name]
+      : ["capture-pane", "-p", "-e", "-J", "-S", "-10000", "-t", name];
     const result = spawnSync(this.executable, this.socketArgs(args), { encoding: "utf8", timeout: 4_000 });
     return result.status === 0 ? result.stdout : "";
   }
 
   currentPath(name: string) {
-    const result = spawnSync(this.executable, this.socketArgs(["display-message", "-p", "-t", `${name}:0.0`, "#{pane_current_path}"]), { encoding: "utf8", timeout: 3_000 });
+    const result = spawnSync(this.executable, this.socketArgs(["display-message", "-p", "-t", name, "#{pane_current_path}"]), { encoding: "utf8", timeout: 3_000 });
     return result.status === 0 ? result.stdout.trim() : null;
   }
 

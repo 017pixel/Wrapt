@@ -180,9 +180,9 @@ describe("NotificationPushService", () => {
   it("übernimmt sichere Deep Links und ersetzt fremde Ziele", () => {
     expect(safeNotificationLink("/wrapt/codex?session=1")).toBe("/wrapt/codex?session=1");
     expect(safeNotificationLink("/t3/environment/thread")).toBe("/t3/environment/thread");
-    expect(safeNotificationLink("https://attacker.example/path")).toBe("/wrapt/inbox");
-    expect(safeNotificationLink("//attacker.example/path")).toBe("/wrapt/inbox");
-    expect(createPushPayload(notification({ link: "/admin" }))).toMatchObject({ version: 1, link: "/wrapt/inbox" });
+    expect(safeNotificationLink("https://attacker.example/path")).toBe("/wrapt/");
+    expect(safeNotificationLink("//attacker.example/path")).toBe("/wrapt/");
+    expect(createPushPayload(notification({ link: "/admin" }))).toMatchObject({ version: 1, link: "/wrapt/" });
   });
 
   it("verwendet denselben VAPID-Schlüssel nach einem Neustart", async () => {

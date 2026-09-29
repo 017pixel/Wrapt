@@ -7,9 +7,14 @@ SERVICE_UNIT="wrapt.service"
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root" || { echo "[fehler] Projektverzeichnis nicht erreichbar: $repo_root" >&2; exit 1; }
 
+is_linux_platform() { [[ "$(uname -s 2>/dev/null || true)" == "Linux" ]]; }
+restart_timestamp() { date '+%Y-%m-%dT%H:%M:%S%z'; }
+
 # systemctl --user braucht den Runtime-Dir. Unter dem laufenden Dienst ist er gesetzt,
-# beim manuellen Aufruf aus einem fremden Kontext nicht immer.
-export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+# beim manuellen Aufruf aus einem fremden Linux-Kontext nicht immer.
+if is_linux_platform; then
+  export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}"
+fi
 
 log()  { printf '\033[1;34m[restart]\033[0m %s\n' "$*"; }
 warn() { printf '\033[1;33m[warn]\033[0m %s\n' "$*"; }
@@ -19,8 +24,9 @@ status_dir="$repo_root/data/restart-logs"
 status_file="$status_dir/last-status.json"
 lock_dir="${RESTART_LOCK_DIRECTORY:-$status_dir/restart.lock}"
 restart_target="${RESTART_TARGET:-unbekannt}"
-restart_started_at="$(date -Is)"
+restart_started_at="$(restart_timestamp)"
 restart_last_step="Start"
+restart_failure_message=""
 restart_job_id="${RESTART_JOB_ID:-}"
 restart_handed_off=0
 
@@ -43,7 +49,7 @@ write_status() {
   "step": "$(json_escape "$restart_last_step")",
   "message": "$(json_escape "$message")",
   "startedAt": "$(json_escape "$restart_started_at")",
-  "updatedAt": "$(date -Is)",
+  "updatedAt": "$(restart_timestamp)",
   "logFile": "$(json_escape "${RESTART_LOG_FILE:-}")"
 }
 JSON
@@ -71,7 +77,8 @@ on_exit() {
   if [[ "$code" -eq 0 ]]; then
     write_status "succeeded" 0 "Neustart abgeschlossen."
   else
-    write_status "failed" "$code" "Abbruch bei: ${restart_last_step} (Exit-Code ${code}). Details stehen im Log."
+    local message="${restart_failure_message:-Abbruch bei: ${restart_last_step} (Exit-Code ${code}). Details stehen im Log.}"
+    write_status "failed" "$code" "$message"
     err "Abbruch bei: ${restart_last_step} (Exit-Code ${code})"
   fi
   release_restart_lock
@@ -178,6 +185,10 @@ build_backend() {
 # Muss VOR schedule_service_restart laufen: Danach wird dieser Prozess mit dem Dienst
 # beendet. Stimmt der Kanal bereits und antwortet T3, ist der Aufruf ein No-op.
 sync_t3_channel() {
+  if ! is_linux_platform; then
+    warn "T3-Code-Kanal wird außerhalb von Linux mit systemd nicht synchronisiert."
+    return 0
+  fi
   step "Prüfe T3-Code-Kanal …"
   if [[ ! -r "$repo_root/scripts/sync-t3-channel.sh" ]]; then
     warn "scripts/sync-t3-channel.sh fehlt — T3-Kanal wird nicht geprüft."
@@ -187,6 +198,10 @@ sync_t3_channel() {
 }
 
 sync_opencode_web() {
+  if ! is_linux_platform; then
+    warn "OpenCode Web wird außerhalb von Linux mit systemd nicht synchronisiert."
+    return 0
+  fi
   step "Prüfe OpenCode Web …"
   if [[ ! -r "$repo_root/scripts/sync-opencode-web.sh" ]]; then
     warn "scripts/sync-opencode-web.sh fehlt — OpenCode Web wird nicht geprüft."
@@ -204,6 +219,33 @@ sync_opencode_web() {
 # Ablauf killen. Die transiente Einheit läuft außerhalb dieser Cgroup und überlebt.
 schedule_service_restart() {
   step "Plane Neustart von $SERVICE_UNIT ein …"
+  if ! is_linux_platform && [[ "${WRAPT_DEV_WATCH:-0}" == "1" ]]; then
+    step "Warte auf den automatischen Development-Neustart …"
+    verify_backend_marker 60
+    return
+  fi
+  if ! is_linux_platform; then
+    if [[ "${WRAPT_MANAGED_BY:-}" == "launcher" ]]; then
+      local server_pid="${WRAPT_SERVER_PID:-}"
+      if [[ ! "$server_pid" =~ ^[1-9][0-9]*$ ]]; then
+        restart_failure_message="Launcher-Verwaltung ist markiert, aber WRAPT_SERVER_PID fehlt."
+        err "$restart_failure_message"
+        return 1
+      fi
+      step "Beende den verwalteten Serverprozess; der Launcher übernimmt den Neustart …"
+      if ! kill -TERM "$server_pid" 2>/dev/null; then
+        restart_failure_message="Der verwaltete Serverprozess konnte nicht sauber beendet werden."
+        err "$restart_failure_message"
+        return 1
+      fi
+      step "Warte auf den neuen Serverprozess des Launchers …"
+      verify_backend_marker 90
+      return
+    fi
+    restart_failure_message="kein Dienst-Manager auf macOS, Start über Launcher/Terminal erforderlich"
+    err "$restart_failure_message"
+    return 1
+  fi
   if ! command -v systemctl >/dev/null 2>&1; then
     err "systemctl ist nicht verfügbar; der Backend-Neustart kann nicht verifiziert werden."
     return 1

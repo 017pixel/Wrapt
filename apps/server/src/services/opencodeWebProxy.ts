@@ -1,6 +1,6 @@
 import type { IncomingHttpHeaders } from "node:http";
 import type { Readable } from "node:stream";
-import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest, RawServerBase, RouteGenericInterface } from "fastify";
 import WebSocket from "ws";
 import { settings } from "../config/settings.js";
 import { isWebSocketOriginAllowed } from "../security/same-origin.js";
@@ -11,6 +11,18 @@ const opencodeAuthority = `${settings.opencodeWebHost}:${settings.opencodeWebPor
 const opencodeHttpUpstream = `http://${opencodeAuthority}`;
 const opencodeWebSocketUpstream = `ws://${opencodeAuthority}`;
 const maxInjectedHtmlBytes = 4 * 1024 * 1024;
+const opencodeUnavailableMessage = "OpenCode Web ist derzeit nicht erreichbar.";
+
+export function openCodeProxyFailureStatus(upstreamStatus?: number): number {
+  if (upstreamStatus === undefined) return 503;
+  return upstreamStatus >= 500 ? 502 : upstreamStatus;
+}
+
+function sendOpenCodeProxyFailure(reply: FastifyReply<RouteGenericInterface, RawServerBase>, status: number) {
+  reply.removeHeader("content-length");
+  reply.removeHeader("content-encoding");
+  return reply.status(status).type("text/plain; charset=utf-8").send(opencodeUnavailableMessage);
+}
 
 /**
  * OpenCode Web ist eine SPA. Die Anwendung kennt den Workbench-Präfix nicht,
@@ -185,8 +197,14 @@ function proxyHttp(request: FastifyRequest, reply: FastifyReply) {
   return reply.from(`${opencodeHttpUpstream}${upstreamPath(request.raw.url ?? request.url)}`, {
     rewriteRequestHeaders: (_originalRequest, headers) => proxyHeaders(request, headers),
     rewriteHeaders: (headers) => rewriteResponseHeaders(headers),
+    onError: (response) => sendOpenCodeProxyFailure(response, 503),
     onResponse: (_request, response, rawResponse) => {
-      const upstreamResponse = rawResponse as unknown as { headers: IncomingHttpHeaders; stream: Readable };
+      const upstreamResponse = rawResponse as unknown as { statusCode: number; headers: IncomingHttpHeaders; stream: Readable };
+      if (upstreamResponse.statusCode >= 500) {
+        upstreamResponse.stream.resume();
+        sendOpenCodeProxyFailure(response, openCodeProxyFailureStatus(upstreamResponse.statusCode));
+        return;
+      }
       if (!isHtml(upstreamResponse.headers) || request.method === "HEAD") {
         response.send(upstreamResponse.stream);
         return;
@@ -213,10 +231,15 @@ function proxyHttp(request: FastifyRequest, reply: FastifyReply) {
 }
 
 async function proxyIndex(_request: FastifyRequest, reply: FastifyReply) {
-  const response = await fetch(`${opencodeHttpUpstream}/`);
+  let response: Response;
+  try {
+    response = await fetch(`${opencodeHttpUpstream}/`);
+  } catch {
+    return sendOpenCodeProxyFailure(reply, openCodeProxyFailureStatus());
+  }
   if (!response.ok) {
     await response.body?.cancel();
-    return reply.status(response.status).type("text/plain").send("OpenCode Web ist nicht erreichbar.");
+    return sendOpenCodeProxyFailure(reply, openCodeProxyFailureStatus(response.status));
   }
   const reader = response.body?.getReader();
   const chunks: Buffer[] = [];
@@ -228,7 +251,7 @@ async function proxyIndex(_request: FastifyRequest, reply: FastifyReply) {
       bytes += value.byteLength;
       if (bytes > maxInjectedHtmlBytes) {
         await reader.cancel();
-        return reply.status(502).type("text/plain").send("Die OpenCode-Web-Seite ist zu groß.");
+        return reply.status(502).type("text/plain; charset=utf-8").send("Die OpenCode-Web-Seite ist zu groß.");
       }
       chunks.push(Buffer.from(value));
     }

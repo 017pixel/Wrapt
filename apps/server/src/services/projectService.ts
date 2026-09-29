@@ -15,6 +15,7 @@ import type { ProjectsConfig, ServiceConfig } from "../config/schemas.js";
 import { settings } from "../config/settings.js";
 import { AppError } from "../utils/errors.js";
 import { createAsyncCache } from "../utils/cache.js";
+import { normalizePlatformPathAlias, sameFilesystemPath } from "../utils/pathRoots.js";
 import type { ProjectActivityService } from "../projects/activity-service.js";
 import type { ProjectRegistryDatabase, RegisteredProject } from "../projects/registry-database.js";
 
@@ -54,14 +55,14 @@ async function discoverProjects(
     return [];
   }
 
-  const configuredByPath = new Map(configuredProjects.map((project) => [normalize(project.path), project]));
+  const configuredByPath = new Map(configuredProjects.map((project) => [normalizePlatformPathAlias(project.path), project]));
   const usedIds = new Set([...configuredProjects.map((project) => project.id), ...(registry?.list().map((project) => project.id) ?? [])]);
   return entries
     .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
     .sort((left, right) => left.name.localeCompare(right.name, "de", { sensitivity: "base" }))
     .flatMap((entry, index) => {
       const path = normalize(join(rootDirectory, entry.name));
-      const configured = configuredByPath.get(path);
+      const configured = configuredByPath.get(normalizePlatformPathAlias(path));
       if (configured) {
         return [{
           ...configured,
@@ -92,10 +93,11 @@ async function getAvailability(path: string): Promise<Project["availability"]> {
   try {
     const normalizedPath = normalize(path);
     const stats = await lstat(normalizedPath);
+    if (stats.isSymbolicLink()) return "symlink";
     if (!stats.isDirectory()) return "inaccessible";
-    const canonicalPath = await realpath(normalizedPath);
-    if (canonicalPath !== normalizedPath || stats.isSymbolicLink()) return "symlink";
     await access(normalizedPath, constants.R_OK | constants.X_OK);
+    const canonicalPath = await realpath(normalizedPath);
+    if (!sameFilesystemPath(canonicalPath, normalizedPath)) return "symlink";
     return "available";
   } catch (error) {
     return (error as NodeJS.ErrnoException).code === "ENOENT" ? "missing" : "inaccessible";
@@ -149,20 +151,20 @@ export function createProjectService(
     const discovered = discovery.enabled
       ? await discoverProjects(discovery.rootDirectory, projectConfig.projects, registry)
       : [];
-    const discoveredPaths = new Set(discovered.map((project) => normalize(project.path)));
-    const configuredOutsideDiscovery = projectConfig.projects.filter((project) => !discoveredPaths.has(normalize(project.path)) && !isWithinDiscoveryRoot(project.path));
+    const discoveredPaths = new Set(discovered.map((project) => normalizePlatformPathAlias(project.path)));
+    const configuredOutsideDiscovery = projectConfig.projects.filter((project) => !discoveredPaths.has(normalizePlatformPathAlias(project.path)) && !isWithinDiscoveryRoot(project.path));
     const base = discovery.enabled ? [...discovered, ...configuredOutsideDiscovery] : [...projectConfig.projects];
-    const knownPaths = new Set(base.map((project) => normalize(project.path)));
+    const knownPaths = new Set(base.map((project) => normalizePlatformPathAlias(project.path)));
     const registered = (registry?.list() ?? []).flatMap((project): ProjectConfig[] => {
-      if (knownPaths.has(normalize(project.path))) return [];
+      if (knownPaths.has(normalizePlatformPathAlias(project.path))) return [];
       return [registeredProjectConfig(project)];
     });
     return [...base, ...registered];
   }
 
   function isWithinDiscoveryRoot(path: string): boolean {
-    const root = normalize(discovery.rootDirectory);
-    const candidate = normalize(path);
+    const root = normalizePlatformPathAlias(discovery.rootDirectory);
+    const candidate = normalizePlatformPathAlias(path);
     return candidate === root || candidate.startsWith(`${root}/`);
   }
 

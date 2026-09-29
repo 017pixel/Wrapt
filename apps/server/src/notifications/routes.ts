@@ -50,29 +50,9 @@ export async function registerNotificationRoutes(app: FastifyInstance, options: 
     const parsed = notificationPatchSchema.parse(request.body);
     return database.patch(id, { ...(parsed.read === undefined ? {} : { read: parsed.read }), ...(parsed.acknowledged === undefined ? {} : { acknowledged: parsed.acknowledged }) });
   });
-  const markAll = async (request: FastifyRequest) => {
-    const category = z.object({ category: notificationCategorySchema.optional() }).parse(request.body ?? {}).category;
-    database.markAllRead(category); return database.list();
-  };
-  app.post("/notifications/mark-all-read", markAll);
-  app.post("/notifications/read-all", markAll);
   app.put("/notifications/presence", async (request) => {
     const presence = notificationPresenceInputSchema.parse(request.body);
     return { updated: database.setPresence(presence) };
-  });
-  app.delete("/notifications", async (_request, reply) => {
-    database.dismissAll();
-    return reply.status(204).send();
-  });
-  app.delete("/notifications/:id", async (request, reply) => {
-    const id = z.object({ id: z.string().uuid() }).parse(request.params).id;
-    database.dismiss(id); return reply.status(204).send();
-  });
-  app.get("/notifications/:id/report", async (request, reply) => {
-    const id = z.object({ id: z.string().uuid() }).parse(request.params).id;
-    const notification = database.get(id);
-    if (!notification?.report) return reply.status(404).send({ error: { code: "REPORT_NOT_FOUND", message: "Für diese Benachrichtigung liegt kein Fehlerbericht vor." } });
-    return { report: notification.report };
   });
   app.post("/notifications/report", async (request, reply) => {
     const parsed = z.object({

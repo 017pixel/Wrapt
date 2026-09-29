@@ -1,4 +1,5 @@
 import type { FastifyRequest } from "fastify";
+import { isIP } from "node:net";
 import { AppError } from "../utils/errors.js";
 import { isSameOriginRequest } from "./same-origin.js";
 
@@ -6,6 +7,8 @@ export interface WorkbenchIdentityOptions {
   allowedUsers: readonly string[];
   adminUsers?: readonly string[];
   developmentUser?: string;
+  localLoopbackTrust?: boolean;
+  localUsername?: string;
 }
 
 const protectedPrefixes = [
@@ -47,11 +50,45 @@ export function requestIdentity(request: FastifyRequest): string | undefined {
   return identity && identity.length > 0 ? identity : undefined;
 }
 
+function requestHeaderNames(request: FastifyRequest): string[] {
+  const names = Object.keys(request.headers).map((name) => name.toLowerCase());
+  const rawHeaders = request.raw.rawHeaders;
+  for (let index = 0; index < rawHeaders.length; index += 2) {
+    names.push(rawHeaders[index]!.toLowerCase());
+  }
+  return names;
+}
+
+function isLoopbackAddress(address: string | undefined): boolean {
+  if (!address) return false;
+  const normalized = address.toLowerCase().replace(/^::ffff:/, "");
+  if (normalized === "::1") return true;
+  return isIP(normalized) === 4 && normalized.startsWith("127.");
+}
+
+export function requestLocalLoopbackIdentity(request: FastifyRequest, options: WorkbenchIdentityOptions): string | undefined {
+  if (!options.localLoopbackTrust) return undefined;
+  const headers = requestHeaderNames(request);
+  if (headers.includes("tailscale-user-login") || headers.some((name) => name.startsWith("x-forwarded-"))) return undefined;
+  if (!isLoopbackAddress(request.raw.socket?.remoteAddress)) return undefined;
+  const username = options.localUsername?.trim().toLowerCase();
+  return username || undefined;
+}
+
+export function isWorkbenchUserAllowed(
+  request: FastifyRequest,
+  identity: string,
+  options: WorkbenchIdentityOptions,
+): boolean {
+  if (requestLocalLoopbackIdentity(request, options) === identity) return true;
+  return options.allowedUsers.length === 0 || options.allowedUsers.includes(identity);
+}
+
 export function resolveWorkbenchUser(
   request: FastifyRequest,
   options: WorkbenchIdentityOptions,
 ): string {
-  const identity = requestIdentity(request) ?? options.developmentUser?.toLowerCase();
+  const identity = requestIdentity(request) ?? requestLocalLoopbackIdentity(request, options) ?? options.developmentUser?.toLowerCase();
   if (!identity) {
     throw new AppError(
       401,
@@ -59,7 +96,7 @@ export function resolveWorkbenchUser(
       "Für diesen Bereich wird eine Tailscale-Identität benötigt.",
     );
   }
-  if (options.allowedUsers.length > 0 && !options.allowedUsers.includes(identity)) {
+  if (!isWorkbenchUserAllowed(request, identity, options)) {
     throw new AppError(
       403,
       "WRAPT_FORBIDDEN",

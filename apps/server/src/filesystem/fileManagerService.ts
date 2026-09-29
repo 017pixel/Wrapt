@@ -4,7 +4,7 @@ import { createReadStream, createWriteStream } from "node:fs";
 import { access, copyFile, link, lstat, mkdir, open, readdir, realpath, rename, rmdir, rm, unlink } from "node:fs/promises";
 import { Transform, type Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
-import { isAbsolute, join, normalize, resolve, sep } from "node:path";
+import { join, resolve, sep } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import {
   fileManagerOperationResponseSchema,
@@ -18,6 +18,7 @@ import {
   type FileManagerSearchResponse,
 } from "@wrapt/contracts";
 import { AppError } from "../utils/errors.js";
+import { canonicalRootCandidates, preserveRootAlias, resolvePathWithinRootAliases, sameFilesystemPath } from "../utils/pathRoots.js";
 import { contained, entryFor, filesystemFailure, mimeTypeFor, sanitizeName, utf8SafeCut } from "./fileSystemHelpers.js";
 
 export { languageForName } from "./fileSystemHelpers.js";
@@ -35,17 +36,19 @@ interface StateRow {
   updated_at: string;
 }
 
-
-
 export class FileManagerService {
   private readonly db: DatabaseSync;
+  private readonly rootAliases: string[];
+  readonly root: string;
 
   constructor(
-    readonly root: string,
+    root: string,
     private readonly textPreviewBytes: number,
     private readonly maxUploadBytes: number,
     databasePath: string,
   ) {
+    this.rootAliases = canonicalRootCandidates([root]);
+    this.root = resolve(root);
     this.db = new DatabaseSync(databasePath);
     this.db.exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000");
     this.db.exec(`CREATE TABLE IF NOT EXISTS file_manager_state (
@@ -63,10 +66,7 @@ export class FileManagerService {
   }
 
   private requestedPath(input?: string): string {
-    const value = input?.trim();
-    if (!value || value === "~") return this.root;
-    if (value.startsWith("~/")) return resolve(this.root, value.slice(2));
-    return isAbsolute(value) ? normalize(value) : resolve(this.root, value);
+    return resolvePathWithinRootAliases(input, this.root, this.rootAliases);
   }
 
   /** Pfad innerhalb des Roots auflösen und auf echte Verzeichnisse/Dateien prüfen. */
@@ -88,10 +88,10 @@ export class FileManagerService {
       if (error instanceof AppError) throw error;
       filesystemFailure(error);
     }
-    if (!contained(this.root, canonical) || canonical !== requested) {
+    if (!contained(this.root, canonical) || !sameFilesystemPath(canonical, requested)) {
       throw new AppError(403, "FILESYSTEM_PATH_OUTSIDE_ROOT", "Der Pfad führt über einen nicht erlaubten Verweis.");
     }
-    return { canonical, details };
+    return { canonical: preserveRootAlias(canonical, this.root), details };
   }
 
   private async resolveTargetDirectory(input: string): Promise<string> {
@@ -110,10 +110,10 @@ export class FileManagerService {
       if (error instanceof AppError) throw error;
       filesystemFailure(error);
     }
-    if (!contained(this.root, canonical) || canonical !== requested) {
+    if (!contained(this.root, canonical) || !sameFilesystemPath(canonical, requested)) {
       throw new AppError(403, "FILESYSTEM_PATH_OUTSIDE_ROOT", "Der Zielpfad führt über einen nicht erlaubten Verweis.");
     }
-    return canonical;
+    return preserveRootAlias(canonical, this.root);
   }
 
   /** Textinhalt einer Datei lesen (begrenzt, mit Truncation-Marker). */
@@ -233,7 +233,7 @@ export class FileManagerService {
       const parent = join(requested, "..");
       parentCanonical = await realpath(parent);
       const canonical = await realpath(requested);
-      if (!contained(this.root, canonical) || canonical !== requested) {
+      if (!contained(this.root, canonical) || !sameFilesystemPath(canonical, requested)) {
         throw new AppError(403, "FILESYSTEM_PATH_OUTSIDE_ROOT", "Der Pfad führt über einen nicht erlaubten Verweis.");
       }
       if (!contained(this.root, parentCanonical)) {
@@ -258,7 +258,7 @@ export class FileManagerService {
       const details = await lstat(requested);
       if (details.isSymbolicLink()) throw new AppError(400, "FILESYSTEM_SYMLINK_FORBIDDEN", "Symbolische Verweise können nicht verschoben werden.");
       canonical = await realpath(requested);
-      if (!contained(this.root, canonical) || canonical !== requested) {
+      if (!contained(this.root, canonical) || !sameFilesystemPath(canonical, requested)) {
         throw new AppError(403, "FILESYSTEM_PATH_OUTSIDE_ROOT", "Der Pfad führt über einen nicht erlaubten Verweis.");
       }
     } catch (error) {
@@ -284,10 +284,10 @@ export class FileManagerService {
       details = await lstat(requested);
       if (details.isSymbolicLink()) throw new AppError(400, "FILESYSTEM_SYMLINK_FORBIDDEN", "Symbolische Verweise können nicht gelöscht werden.");
       canonical = await realpath(requested);
-      if (!contained(this.root, canonical) || canonical !== requested) {
+      if (!contained(this.root, canonical) || !sameFilesystemPath(canonical, requested)) {
         throw new AppError(403, "FILESYSTEM_PATH_OUTSIDE_ROOT", "Der Pfad führt über einen nicht erlaubten Verweis.");
       }
-      if (canonical === this.root) throw new AppError(400, "FILESYSTEM_ROOT_PROTECTED", "Der Home-Ordner selbst kann nicht gelöscht werden.");
+      if (sameFilesystemPath(canonical, this.root)) throw new AppError(400, "FILESYSTEM_ROOT_PROTECTED", "Der Home-Ordner selbst kann nicht gelöscht werden.");
     } catch (error) {
       if (error instanceof AppError) throw error;
       filesystemFailure(error);
@@ -299,7 +299,7 @@ export class FileManagerService {
     } else {
       try { await unlink(canonical); } catch (error) { filesystemFailure(error); }
     }
-    return canonical;
+    return preserveRootAlias(canonical, this.root);
   }
 
   async mkdir(input: { path: string; name: string }): Promise<string> {

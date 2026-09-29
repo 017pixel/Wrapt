@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { promisify } from "node:util";
 import { hermesServiceActionRequestSchema, type HermesServiceState } from "@wrapt/contracts";
 import { settings } from "../config/settings.js";
+import { supportsSystemd } from "../system/platform.js";
 import { HermesClientError } from "./client.js";
 
 const execFileAsync = promisify(execFile);
@@ -21,10 +22,24 @@ export function normalizeServiceState(activeState: string | undefined, subState 
   return "unknown";
 }
 
-async function systemctl(args: string[], timeout = settings.hermes.requestTimeoutSeconds * 1_000): Promise<string> {
+function requireSystemd(platform: NodeJS.Platform): void {
+  if (!supportsSystemd(platform)) {
+    throw new HermesClientError("INTERNAL_ERROR", "Die Hermes-Dienststeuerung ist nur unter Linux verfügbar.", null, true);
+  }
+}
+
+async function systemctl(
+  args: string[],
+  platform: NodeJS.Platform = process.platform,
+  timeout = settings.hermes.requestTimeoutSeconds * 1_000,
+): Promise<string> {
+  requireSystemd(platform);
   try {
     const result = await execFileAsync("systemctl", ["--user", ...args], {
-      env: { ...process.env, XDG_RUNTIME_DIR: `/run/user/${process.getuid?.() ?? 0}` },
+      env: {
+        ...process.env,
+        XDG_RUNTIME_DIR: process.env.XDG_RUNTIME_DIR ?? `/run/user/${process.getuid?.() ?? 0}`,
+      },
       timeout,
       maxBuffer: 256 * 1024,
       windowsHide: true,
@@ -35,10 +50,14 @@ async function systemctl(args: string[], timeout = settings.hermes.requestTimeou
   }
 }
 
-export async function serviceState(target: keyof typeof unitFor): Promise<HermesServiceState> {
+export async function serviceState(
+  target: keyof typeof unitFor,
+  platform: NodeJS.Platform = process.platform,
+): Promise<HermesServiceState> {
+  if (!supportsSystemd(platform)) return "unknown";
   const unit = unitFor[target];
   try {
-    const output = await systemctl(["show", "-p", "ActiveState", "-p", "SubState", "-p", "Result", unit]);
+    const output = await systemctl(["show", "-p", "ActiveState", "-p", "SubState", "-p", "Result", unit], platform);
     const properties = new Map(
       output.split(/\r?\n/).flatMap((line) => {
         const separator = line.indexOf("=");
@@ -55,14 +74,19 @@ export async function serviceState(target: keyof typeof unitFor): Promise<Hermes
   }
 }
 
-export async function performServiceAction(input: unknown): Promise<{ target: keyof typeof unitFor; action: "start" | "stop" | "restart"; state: HermesServiceState }> {
+export async function performServiceAction(
+  input: unknown,
+  platform: NodeJS.Platform = process.platform,
+): Promise<{ target: keyof typeof unitFor; action: "start" | "stop" | "restart"; state: HermesServiceState }> {
   const parsed = hermesServiceActionRequestSchema.parse(input);
+  requireSystemd(platform);
   const unit = unitFor[parsed.target];
-  await systemctl([parsed.action, unit]);
-  return { target: parsed.target, action: parsed.action, state: await serviceState(parsed.target) };
+  await systemctl([parsed.action, unit], platform);
+  return { target: parsed.target, action: parsed.action, state: await serviceState(parsed.target, platform) };
 }
 
-export async function startUpdateService(force = false): Promise<void> {
+export async function startUpdateService(force = false, platform: NodeJS.Platform = process.platform): Promise<void> {
+  requireSystemd(platform);
   if (force) {
     const marker = join(settings.dataDirectory, "hermes/update-force");
     mkdirSync(dirname(marker), { recursive: true, mode: 0o700 });
@@ -70,7 +94,7 @@ export async function startUpdateService(force = false): Promise<void> {
     writeFileSync(temporary, `${new Date().toISOString()}\n`, { encoding: "utf8", mode: 0o600 });
     renameSync(temporary, marker);
   }
-  await systemctl(["start", settings.hermes.updateServiceUnit]);
+  await systemctl(["start", settings.hermes.updateServiceUnit], platform);
 }
 
 export { unitFor };

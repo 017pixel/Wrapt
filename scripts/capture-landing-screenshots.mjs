@@ -10,16 +10,29 @@ import { chromium } from "@playwright/test";
 import { warmMetricsHistory } from "./lib/screenshot-metrics-warmup.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const assetsDirectory = join(repositoryRoot, "Landing Page", "assets");
+// Standard bleiben die Landingpage-Assets. Für die Dokumentation wird nur das
+// Zielverzeichnis umgelenkt, damit die Landingpage-Dateien unangetastet bleiben.
+const assetsDirectory = process.env.WRAPT_SCREENSHOT_OUT_DIR
+  ? resolve(process.env.WRAPT_SCREENSHOT_OUT_DIR)
+  : join(repositoryRoot, "Landing Page", "assets");
 const basePort = Number(process.env.WRAPT_SCREENSHOT_PORT ?? 3410);
 const baseUrl = `http://127.0.0.1:${basePort}`;
 const identity = "screenshot@example.com";
+
+function parseViewport(value, fallback) {
+  const match = /^\s*(\d{2,5})\s*[x×]\s*(\d{2,5})\s*$/.exec(value ?? "");
+  if (!match) return fallback;
+  return { width: Number(match[1]), height: Number(match[2]) };
+}
+
+const desktopViewport = parseViewport(process.env.WRAPT_SCREENSHOT_VIEWPORT, { width: 1440, height: 900 });
+const mobileViewport = { width: 390, height: 844 };
 
 await mkdir(assetsDirectory, { recursive: true });
 
 const browser = await chromium.launch();
 const context = await browser.newContext({
-  viewport: { width: 1440, height: 900 },
+  viewport: desktopViewport,
   deviceScaleFactor: 2,
   colorScheme: "dark",
   reducedMotion: "no-preference",
@@ -67,8 +80,9 @@ async function typeCommand(command) {
   await page.waitForTimeout(350);
 }
 
-async function captureDashboard() {
-  await page.setViewportSize({ width: 1440, height: 900 });
+async function captureDashboard(options = {}) {
+  const viewport = options.viewport ?? desktopViewport;
+  await page.setViewportSize(viewport);
   // Der Verlauf muss vor dem ersten Abruf stehen: Das Dashboard lädt die
   // Messwerte nur einmal beim Seitenaufbau.
   const cpuHistory = await warmMetricsHistory({ baseUrl });
@@ -84,7 +98,7 @@ async function captureDashboard() {
   await page.mouse.move(900, 500);
   await page.mouse.wheel(0, 60);
   await page.waitForTimeout(400);
-  await shoot("wrapt-dashboard", 1440, 900);
+  await shoot(options.output ?? "wrapt-dashboard", viewport.width, viewport.height);
 }
 
 async function resetTerminalWorkspace() {
@@ -129,8 +143,9 @@ async function openTerminalSession(commands) {
   }
 }
 
-async function captureTerminal() {
-  await page.setViewportSize({ width: 1440, height: 900 });
+async function captureTerminal(options = {}) {
+  const viewport = options.viewport ?? desktopViewport;
+  await page.setViewportSize(viewport);
   const sessions = waitApi("/terminal/sessions");
   await open("/wrapt/terminal");
   await sessions;
@@ -149,29 +164,32 @@ async function captureTerminal() {
   // Der cwd-Zusatz würde den langen Temp-Pfad zeigen; für das Motiv blenden wir ihn aus.
   await page.addStyleTag({ content: ".terminal-tree-cwd { display: none !important; }" });
   await page.waitForTimeout(300);
-  await shoot("wrapt-terminal", 1440, 900);
+  await shoot(options.output ?? "wrapt-terminal", viewport.width, viewport.height);
 }
 
-async function capturePreviews() {
-  await page.setViewportSize({ width: 1440, height: 900 });
+async function capturePreviews(options = {}) {
+  const viewport = options.viewport ?? desktopViewport;
+  await page.setViewportSize(viewport);
   const servers = waitApi("/previews/dev-servers/nordlicht");
   await open("/wrapt/previews");
   await servers;
   await page.waitForTimeout(2500);
-  await shoot("wrapt-previews", 1440, 900);
+  await shoot(options.output ?? "wrapt-previews", viewport.width, viewport.height);
 }
 
-async function capturePlugins() {
-  await page.setViewportSize({ width: 1440, height: 900 });
+async function capturePlugins(options = {}) {
+  const viewport = options.viewport ?? desktopViewport;
+  await page.setViewportSize(viewport);
   await open("/wrapt/plugins");
   await page.waitForTimeout(1500);
   await page.getByText("Installieren", { exact: true }).first().click().catch(() => undefined);
   await page.waitForTimeout(1500);
-  await shoot("wrapt-plugins", 1440, 900);
+  await shoot(options.output ?? "wrapt-plugins", viewport.width, viewport.height);
 }
 
-async function captureThemes() {
-  await page.setViewportSize({ width: 1440, height: 900 });
+async function captureThemes(options = {}) {
+  const viewport = options.viewport ?? desktopViewport;
+  await page.setViewportSize(viewport);
   await open("/wrapt/settings");
   await page.waitForTimeout(1500);
   await page.getByText("Design", { exact: true }).first().click().catch(() => undefined);
@@ -188,40 +206,44 @@ async function captureThemes() {
   await page.mouse.move(720, 500);
   await page.mouse.wheel(0, -80);
   await page.waitForTimeout(400);
-  await shoot("wrapt-themes", 1440, 900);
+  await shoot(options.output ?? "wrapt-themes", viewport.width, viewport.height);
 }
 
-async function captureUsage() {
-  await page.setViewportSize({ width: 1440, height: 900 });
+async function captureUsage(options = {}) {
+  const viewport = options.viewport ?? desktopViewport;
+  await page.setViewportSize(viewport);
   const dashboard = waitApi("/usage/dashboard", 25_000);
   await open("/wrapt/usage");
   await dashboard;
   await page.waitForTimeout(2500);
-  await shoot("wrapt-usage", 1440, 900);
+  await shoot(options.output ?? "wrapt-usage", viewport.width, viewport.height);
 }
 
-async function captureNotes() {
-  await page.setViewportSize({ width: 1440, height: 900 });
+async function captureNotes(options = {}) {
+  const viewport = options.viewport ?? desktopViewport;
+  await page.setViewportSize(viewport);
   const notes = waitApi("/notes");
   await open("/wrapt/notizen");
   await notes;
   await page.waitForTimeout(1500);
   await page.getByText("Release 1.23 vorbereiten", { exact: true }).first().click().catch(() => undefined);
   await page.waitForTimeout(800);
-  await shoot("wrapt-notes", 1440, 900);
+  await shoot(options.output ?? "wrapt-notes", viewport.width, viewport.height);
 }
 
-async function captureOrbit() {
-  await page.setViewportSize({ width: 1440, height: 900 });
+async function captureOrbit(options = {}) {
+  const viewport = options.viewport ?? desktopViewport;
+  await page.setViewportSize(viewport);
   const orbit = waitApi("/orbit");
   await open("/wrapt/orbit");
   await orbit;
   await page.waitForTimeout(2500);
-  await shoot("wrapt-orbit", 1440, 900);
+  await shoot(options.output ?? "wrapt-orbit", viewport.width, viewport.height);
 }
 
-async function captureMobile() {
-  await page.setViewportSize({ width: 390, height: 844 });
+async function captureMobile(options = {}) {
+  const viewport = options.viewport ?? mobileViewport;
+  await page.setViewportSize(viewport);
   // Auch mobil lädt das Dashboard die Messwerte einmalig; Verlauf frisch halten.
   await warmMetricsHistory({ baseUrl });
   const summary = waitApi("/server/summary");
@@ -229,11 +251,12 @@ async function captureMobile() {
   await summary;
   await page.waitForTimeout(3_000);
   await page.evaluate(() => globalThis.window.scrollTo(0, 0));
-  await shoot("wrapt-mobil", 390, 844);
+  await shoot(options.output ?? "wrapt-mobil", viewport.width, viewport.height);
 }
 
-async function captureMobileNotes() {
-  await page.setViewportSize({ width: 390, height: 844 });
+async function captureMobileNotes(options = {}) {
+  const viewport = options.viewport ?? mobileViewport;
+  await page.setViewportSize(viewport);
   const notes = waitApi("/notes");
   await open("/wrapt/notizen");
   await notes;
@@ -243,27 +266,77 @@ async function captureMobileNotes() {
   await page.waitForTimeout(600);
   await page.getByText("Onboarding-Checkliste", { exact: true }).first().click().catch(() => undefined);
   await page.waitForTimeout(900);
-  await shoot("wrapt-mobil-notizen", 390, 844);
+  await shoot(options.output ?? "wrapt-mobil-notizen", viewport.width, viewport.height);
 }
 
-const tasks = [
-  ["dashboard", captureDashboard],
-  ["terminal", captureTerminal],
-  ["previews", capturePreviews],
-  ["plugins", capturePlugins],
-  ["themes", captureThemes],
-  ["usage", captureUsage],
-  ["notes", captureNotes],
-  ["orbit", captureOrbit],
-  ["mobile", captureMobile],
-  ["mobil-notizen", captureMobileNotes],
+// Wartet darauf, dass der eingebettete Proxy-Inhalt im ToolPanel gerendert ist.
+async function waitForToolFrame(pathPart, timeout = 30_000) {
+  await page.locator(".standalone-tool-content iframe, .panel iframe").first().waitFor({ state: "attached", timeout }).catch(() => undefined);
+  await page.waitForResponse((response) => response.url().includes(pathPart), { timeout }).catch(() => undefined);
+  await page.waitForTimeout(6_000);
+}
+
+async function captureT3Code(options = {}) {
+  const viewport = options.viewport ?? desktopViewport;
+  await page.setViewportSize(viewport);
+  const projects = waitApi("/projects");
+  await open("/wrapt/t3-code");
+  await projects;
+  await waitForToolFrame("/t3");
+  await shoot(options.output ?? "wrapt-t3-code", viewport.width, viewport.height);
+}
+
+async function captureCodeServer(options = {}) {
+  const viewport = options.viewport ?? desktopViewport;
+  await page.setViewportSize(viewport);
+  const projects = waitApi("/projects");
+  await open("/wrapt/code-editor");
+  await projects;
+  await waitForToolFrame("/editor");
+  await shoot(options.output ?? "wrapt-code-server", viewport.width, viewport.height);
+}
+
+// Landingpage-Motive: unveränderte Namen, Standard-Viewport 1440×900 und
+// Standard-Zielverzeichnis, sofern die Umgebungsvariablen nicht gesetzt sind.
+const landingTasks = [
+  ["dashboard", () => captureDashboard()],
+  ["terminal", () => captureTerminal()],
+  ["previews", () => capturePreviews()],
+  ["plugins", () => capturePlugins()],
+  ["themes", () => captureThemes()],
+  ["usage", () => captureUsage()],
+  ["notes", () => captureNotes()],
+  ["orbit", () => captureOrbit()],
+  ["mobile", () => captureMobile()],
+  ["mobil-notizen", () => captureMobileNotes()],
 ];
 
+// Dokumentationsmotive (docs-webseite/assets): gleiche Abläufe, andere Dateinamen
+// und ein größerer Desktop-Viewport. Werden nur über die Gruppe "docs" oder per
+// explizitem Namen gestartet, damit die Landing-Defaults unberührt bleiben.
+const docsTasks = [
+  ["docs-dashboard", () => captureDashboard({ output: "01-dashboard" })],
+  ["docs-orbit", () => captureOrbit({ output: "02-workbench" })],
+  ["docs-terminal", () => captureTerminal({ output: "07-terminal" })],
+  ["docs-usage", () => captureUsage({ output: "08-usage" })],
+  ["docs-plugins", () => capturePlugins({ output: "12-plugins" })],
+  ["docs-mobile", () => captureMobile({ output: "wrapt-mobil" })],
+  ["docs-mobil-notizen", () => captureMobileNotes({ output: "wrapt-mobil-notizen" })],
+  ["docs-t3-code", () => captureT3Code({ output: "04-t3-code" })],
+  ["docs-code-server", () => captureCodeServer({ output: "05-code-server" })],
+];
+
+const groups = { landing: landingTasks, docs: docsTasks };
+const allTasks = [...landingTasks, ...docsTasks];
+
 // Optional nur einzelne Motive aufnehmen: node scripts/capture-landing-screenshots.mjs mobil-notizen
+// Gruppen: "landing" (Standard) und "docs". Ohne Argumente laufen die Landing-Motive.
 const requested = process.argv.slice(2).filter((value) => !value.startsWith("-"));
-const selected = requested.length > 0 ? tasks.filter(([name]) => requested.includes(name)) : tasks;
+const selected = requested.length === 0
+  ? landingTasks
+  : [...new Set(requested.flatMap((name) => groups[name] ?? allTasks.filter(([key]) => key === name)))];
 if (selected.length === 0) {
-  console.error(`Unbekanntes Motiv. Verfügbar: ${tasks.map(([name]) => name).join(", ")}`);
+  console.error(`Unbekanntes Motiv. Gruppen: ${Object.keys(groups).join(", ")}. Motive: ${allTasks.map(([name]) => name).join(", ")}`);
   process.exit(1);
 }
 

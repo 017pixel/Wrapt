@@ -1,7 +1,7 @@
 import type { Dirent, Stats } from "node:fs";
 import { chmod, lstat, readFile, readdir, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
-import { basename, dirname, isAbsolute, join, normalize, relative, resolve, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, normalize, resolve } from "node:path";
 import {
   skillEditorReadResponseSchema,
   skillEditorStatusResponseSchema,
@@ -22,6 +22,7 @@ import { SkillEditorJobStore, type SkillEditorJobOperation } from "./skillEditor
 import { SkillMutations } from "./skillEditorMutations.js";
 import { parseSkillFrontmatter } from "./skillEditorText.js";
 import { AppError } from "../utils/errors.js";
+import { canonicalRootCandidates, contained } from "../utils/pathRoots.js";
 
 const SKILL_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const MAXIMUM_TREE_DEPTH = 8;
@@ -42,11 +43,6 @@ export interface SkillEditorOptions {
   maxFileBytes: number;
   /** SQLite-Datei für das Recovery-Journal der Skill-Operationen. */
   jobDatabasePath: string;
-}
-
-function contained(root: string, target: string): boolean {
-  const pathFromRoot = relative(root, target);
-  return pathFromRoot === "" || (!pathFromRoot.startsWith(`..${sep}`) && pathFromRoot !== ".." && !isAbsolute(pathFromRoot));
 }
 
 function filesystemFailure(error: unknown): never {
@@ -100,11 +96,11 @@ export class SkillEditorService {
   private readonly jobLocks = new Map<string, Promise<unknown>>();
 
   constructor(private readonly options: SkillEditorOptions) {
-    this.allowedRoots = [
+    this.allowedRoots = canonicalRootCandidates([
       options.rootDirectory,
       ...options.propagateDirectories,
       ...(options.repositoryDirectory ? [options.repositoryDirectory] : []),
-    ].map((path) => resolve(path));
+    ]);
     this.jobs = new SkillEditorJobStore(options.jobDatabasePath);
     this.mutations = new SkillMutations({
       skillsDirectory: this.skillsDirectory,

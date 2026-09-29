@@ -1,10 +1,42 @@
-import { describe, expect, it } from "vitest";
-import { injectOpenCodeHtmlBridge, opencodeHttpRoutes, opencodeRouteBridgeScript } from "./opencodeWebProxy.js";
+import Fastify from "fastify";
+import replyFrom from "@fastify/reply-from";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { injectOpenCodeHtmlBridge, openCodeProxyFailureStatus, opencodeHttpRoutes, opencodeRouteBridgeScript, registerOpenCodeWebProxy } from "./opencodeWebProxy.js";
+
+const apps: ReturnType<typeof Fastify>[] = [];
+
+afterEach(async () => {
+  await Promise.all(apps.splice(0).map((app) => app.close()));
+  vi.unstubAllGlobals();
+});
 
 describe("OpenCode-Web-Proxy", () => {
   it("registriert Root und prefixed SPA-Routen", () => {
     expect(opencodeHttpRoutes).toContain("/");
     expect(opencodeHttpRoutes).toContain("/opencode/*");
+  });
+
+  it("mappt Upstream-Ausfälle auf sichere 502/503-Antworten", async () => {
+    expect(openCodeProxyFailureStatus()).toBe(503);
+    expect(openCodeProxyFailureStatus(502)).toBe(502);
+    expect(openCodeProxyFailureStatus(500)).toBe(502);
+    expect(openCodeProxyFailureStatus(404)).toBe(404);
+
+    const secretUrl = "http://127.0.0.1:3774/?token=private-test-value";
+    vi.stubGlobal("fetch", vi.fn(async () => {
+      throw new Error(`connect failed: ${secretUrl}`);
+    }));
+    const app = Fastify({ logger: false });
+    apps.push(app);
+    await app.register(replyFrom);
+    await registerOpenCodeWebProxy(app);
+    await app.ready();
+
+    const response = await app.inject({ method: "GET", url: "/opencode" });
+    expect(response.statusCode).toBe(503);
+    expect(response.body).toContain("OpenCode Web ist derzeit nicht erreichbar.");
+    expect(response.body).not.toContain(secretUrl);
+    expect(response.body).not.toContain("private-test-value");
   });
 
   it("injiziert die Route-Bridge vor dem Head-Ende und scoped Assets", () => {

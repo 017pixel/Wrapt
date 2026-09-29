@@ -8,5 +8,9 @@ restart_begin frontend
 
 build_contracts
 build_frontend
-verify_frontend_marker
-log "Frontend neu gebaut. Lade die Seite neu, um die Änderungen zu sehen."
+if is_linux_platform; then
+  verify_frontend_marker
+  log "Frontend neu gebaut. Lade die Seite neu, um die Änderungen zu sehen."
+else
+  log "Frontend neu gebaut. Der laufende Server liefert das neue dist/ sofort aus; lade die Seite neu."
+fi

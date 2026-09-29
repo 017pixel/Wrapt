@@ -10,14 +10,24 @@ import { clientTerminalMessageSchema, type ServerTerminalMessage, type TerminalE
 import { TerminalWorkspaceService } from "./workspace/TerminalWorkspaceService.js";
 import { migrateTerminalWorkspaceV1 } from "./workspace/terminalWorkspaceMigrations.js";
 import { isSameOriginRequest } from "../security/same-origin.js";
+import { isWorkbenchUserAllowed, resolveWorkbenchUser, type WorkbenchIdentityOptions } from "../security/workbench-identity.js";
 import { createWebSocketSendQueue } from "../utils/websocketSendQueue.js";
 
-function terminalIdentity(request: FastifyRequest, allowedUsers: readonly string[], developmentUser?: string): string {
-  const rawIdentity = request.headers["tailscale-user-login"];
-  const identity = ((Array.isArray(rawIdentity) ? rawIdentity[0] : rawIdentity)?.trim().toLowerCase() || developmentUser?.trim().toLowerCase());
-  if (!identity) throw new TerminalFailure("UNAUTHORIZED", "Für den Terminalzugriff ist eine Tailscale-Anmeldung erforderlich.");
-  if (!allowedUsers.includes(identity)) throw new TerminalFailure("FORBIDDEN", "Dieser Benutzer darf kein Terminal öffnen.");
-  return identity;
+function terminalIdentity(request: FastifyRequest, identityOptions: WorkbenchIdentityOptions): string {
+  try {
+    const identity = resolveWorkbenchUser(request, identityOptions);
+    if (!isWorkbenchUserAllowed(request, identity, identityOptions)) {
+      throw new TerminalFailure("FORBIDDEN", "Dieser Benutzer darf kein Terminal öffnen.");
+    }
+    return identity;
+  } catch (error) {
+    if (error instanceof TerminalFailure) throw error;
+    if (error instanceof AppError) {
+      const code = error.statusCode === 401 ? "UNAUTHORIZED" : "FORBIDDEN";
+      throw new TerminalFailure(code, error.message);
+    }
+    throw error;
+  }
 }
 
 function errorMessage(error: unknown): { code: TerminalErrorCode; message: string } {
@@ -26,8 +36,8 @@ function errorMessage(error: unknown): { code: TerminalErrorCode; message: strin
   return { code: "INTERNAL_ERROR", message: "Die Terminalanfrage konnte nicht verarbeitet werden." };
 }
 
-function httpIdentity(request: FastifyRequest, allowedUsers: readonly string[], developmentUser?: string) {
-  try { return terminalIdentity(request, allowedUsers, developmentUser); }
+function httpIdentity(request: FastifyRequest, identityOptions: WorkbenchIdentityOptions) {
+  try { return terminalIdentity(request, identityOptions); }
   catch (error) {
     const failure = errorMessage(error);
     const status = failure.code === "UNAUTHORIZED" ? 401 : failure.code === "FORBIDDEN" ? 403 : 400;
@@ -62,21 +72,30 @@ function sessionResponse(session: ReturnType<TerminalManager["listSessions"]>[nu
 export async function registerTerminalRoutes(app: FastifyInstance, options: {
   manager: TerminalManager;
   database?: TerminalDatabase;
-  allowedUsers: readonly string[];
+  identity?: WorkbenchIdentityOptions;
+  allowedUsers?: readonly string[];
   developmentUser?: string;
+  localLoopbackTrust?: boolean;
+  localUsername?: string;
   resolveProjectPath?: (projectId: string) => Promise<string>;
 }) {
+  const identityOptions = options.identity ?? {
+    allowedUsers: options.allowedUsers ?? [],
+    ...(options.developmentUser ? { developmentUser: options.developmentUser } : {}),
+    ...(options.localLoopbackTrust !== undefined ? { localLoopbackTrust: options.localLoopbackTrust } : {}),
+    ...(options.localUsername ? { localUsername: options.localUsername } : {}),
+  };
   app.get("/terminal/sessions", async (request) => {
-    const userId = httpIdentity(request, options.allowedUsers, options.developmentUser);
+    const userId = httpIdentity(request, identityOptions);
     return { sessions: options.manager.listSessions(userId).map(sessionResponse), updatedAt: new Date().toISOString() };
   });
   app.get("/terminal/workspace", async (request) => {
-    const userId = httpIdentity(request, options.allowedUsers, options.developmentUser);
+    const userId = httpIdentity(request, identityOptions);
     if (!options.database) throw new AppError(500, "INTERNAL_ERROR", "Die Terminal-Registry ist nicht verfügbar.");
     return options.database.getWorkspace(userId);
   });
   app.put("/terminal/workspace", async (request) => {
-    const userId = httpIdentity(request, options.allowedUsers, options.developmentUser);
+    const userId = httpIdentity(request, identityOptions);
     if (!options.database) throw new AppError(500, "INTERNAL_ERROR", "Die Terminal-Registry ist nicht verfügbar.");
     const parsed = saveTerminalWorkspaceRequestSchema.parse(request.body);
     const document = parsed.document.version === 1
@@ -87,7 +106,7 @@ export async function registerTerminalRoutes(app: FastifyInstance, options: {
   // Serverseitige Workspace-Operationen: verlustfreie, transaktionale
   // Mutationen statt blindem Überschreiben des ganzen Dokuments.
   app.post("/terminal/workspace/ops", async (request) => {
-    const userId = httpIdentity(request, options.allowedUsers, options.developmentUser);
+    const userId = httpIdentity(request, identityOptions);
     if (!options.database) throw new AppError(500, "INTERNAL_ERROR", "Die Terminal-Registry ist nicht verfügbar.");
     const parsed = terminalWorkspaceOpsRequestSchema.parse(request.body);
     const current = options.database.getWorkspace(userId);
@@ -99,13 +118,13 @@ export async function registerTerminalRoutes(app: FastifyInstance, options: {
     return options.database.saveWorkspace(userId, updated, parsed.expectedRevision);
   });
   app.post("/terminal/sessions/:sessionId/restart", async (request) => {
-    const userId = httpIdentity(request, options.allowedUsers, options.developmentUser);
+    const userId = httpIdentity(request, identityOptions);
     const { sessionId } = sessionParamsSchema.parse(request.params);
     const session = await options.manager.restartSession(userId, sessionId);
     return { session: options.manager.getSessionMetadata(userId, session.id) };
   });
   app.delete("/terminal/sessions/:sessionId", async (request, reply) => {
-    const userId = httpIdentity(request, options.allowedUsers, options.developmentUser);
+    const userId = httpIdentity(request, identityOptions);
     const { sessionId } = sessionParamsSchema.parse(request.params);
     options.manager.closeSession(userId, sessionId);
     return reply.status(204).send();
@@ -115,7 +134,7 @@ export async function registerTerminalRoutes(app: FastifyInstance, options: {
     let userId: string;
     try {
       if (!isSameOriginRequest(request)) throw new TerminalFailure("FORBIDDEN", "Terminal-WebSockets sind nur vom Workbench-Origin erlaubt.");
-      userId = terminalIdentity(request, options.allowedUsers, options.developmentUser);
+      userId = terminalIdentity(request, identityOptions);
     }
     catch (error) {
       const failure = errorMessage(error);

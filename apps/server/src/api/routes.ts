@@ -1,5 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { registerFilesystemRoutes } from "../filesystem/routes.js";
+import { registerNotesRoutes } from "../notes/routes.js";
 import { registerOrbitRoutes } from "../orbit/routes.js";
 import { registerProjectRoutes } from "../projects/routes.js";
 import { registerSkillsRoutes } from "../skills/routes.js";
@@ -14,6 +15,7 @@ export async function registerApiRoutes(app: FastifyInstance, services: RouteSer
   await registerSkillsRoutes(app, services);
   await registerProjectRoutes(app, services);
   await registerOrbitRoutes(app, services);
+  await registerNotesRoutes(app, services);
   await registerUsageRoutes(app, services);
 
   app.get(

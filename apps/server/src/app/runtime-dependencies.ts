@@ -13,9 +13,11 @@ interface RuntimeDependencyOptions {
 
 export function createRuntimeDependencies(options: RuntimeDependencyOptions) {
   const terminalSupervisor = settings.terminalSupervisor === "tmux"
-    ? new TmuxSupervisor(settings.tmuxPath, settings.tmuxSocketPath ?? defaultTerminalSocketPath())
+    ? new TmuxSupervisor(settings.tmuxPath, settings.tmuxSocketPath ?? defaultTerminalSocketPath(settings.dataDirectory))
     : null;
-  if (settings.runtimeMode === "production") terminalSupervisor?.ensureSupervisorUnit();
+  if (settings.runtimeMode !== "test" && (settings.runtimeMode === "production" || process.platform === "darwin")) {
+    terminalSupervisor?.ensureSupervisorUnit();
+  }
 
   const terminals = new TerminalManager({
     allowedRoots: settings.terminalAllowedRoots,

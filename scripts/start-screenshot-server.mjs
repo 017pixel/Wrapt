@@ -142,12 +142,20 @@ await writeFile(join(configDirectory, "wrapt.local.json"), `${JSON.stringify(con
 
 // Nur Dienste, die tatsächlich in der isolierten Instanz prüfbar sind — der
 // Beispielkatalog würde sonst echte Host-Dienste auf 3773/8080 abfragen.
-const services = {
-  services: [
-    { id: "wrapt-backend", name: "Wrapt Backend", mode: "external", publicUrl: null, check: { type: "self" } },
-    { id: "demo-dienst", name: "Demo-Dienst", mode: "external", publicUrl: null, check: { type: "http", url: `http://127.0.0.1:${codexbarPort}/health` } },
-  ],
-};
+// T3 Code und code-server laufen für die Dokumentationsmotive nur, wenn der
+// Aufrufer sie isoliert gestartet hat (WRAPT_SCREENSHOT_TOOLS=1); die
+// öffentlichen URLs sind reine Dummy-Adressen und werden nie veröffentlicht.
+const serviceCatalog = [
+  { id: "wrapt-backend", name: "Wrapt Backend", mode: "external", publicUrl: null, check: { type: "self" } },
+  { id: "demo-dienst", name: "Demo-Dienst", mode: "external", publicUrl: null, check: { type: "http", url: `http://127.0.0.1:${codexbarPort}/health` } },
+];
+if (process.env.WRAPT_SCREENSHOT_TOOLS === "1") {
+  serviceCatalog.unshift(
+    { id: "t3-code", name: "T3 Code", mode: "hybrid", publicUrl: "https://demo.example/t3/", check: { type: "http", url: `http://127.0.0.1:${basePort + 1}/` } },
+    { id: "code-server", name: "code-server", mode: "hybrid", publicUrl: "https://demo.example:8443/editor/", check: { type: "http", url: "http://127.0.0.1:8080/" } },
+  );
+}
+const services = { services: serviceCatalog };
 await writeFile(join(configDirectory, "services.local.json"), `${JSON.stringify(services, null, 2)}\n`, { mode: 0o600 });
 await writeFile(join(configDirectory, "commands.local.json"), await readFile(join(repositoryRoot, "config/commands.example.json")), { mode: 0o600 });
 await writeFile(join(dataDirectory, "wrapt-plugins-SKILL.md"), "# Wrapt-Plugins\n\nIsolierte Anleitung für die Screenshot-Instanz.\n", { mode: 0o600 });

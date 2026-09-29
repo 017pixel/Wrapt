@@ -1,20 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { realpathSync, statSync } from "node:fs";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { isAbsolute, resolve } from "node:path";
+import { canonicalRootCandidates, contained } from "../utils/pathRoots.js";
 import type { TerminalDatabase, StoredTerminalSession } from "./database.js";
 import type { TmuxSupervisor } from "./TmuxSupervisor.js";
 import { GeometryLease } from "./runtime/GeometryLease.js";
 import { OutputJournal } from "./runtime/OutputJournal.js";
 import { TerminalFailure, type TerminalSession } from "./session.js";
-
-function contained(root: string, target: string): boolean {
-  const pathFromRoot = relative(root, target);
-  return pathFromRoot === "" || (!pathFromRoot.startsWith(`..${sep}`) && pathFromRoot !== ".." && !isAbsolute(pathFromRoot));
-}
-
-function canonicalRootSync(root: string): string {
-  try { return realpathSync(root); } catch { return resolve(root); }
-}
 
 /**
  * Kanonisiert einen Pfad und verlangt, dass das realpath-Ziel in einer der
@@ -24,11 +16,12 @@ function canonicalRootSync(root: string): string {
 export function canonicalCwdWithinRootsSync(value: string, allowedRoots: string[]): string | null {
   let candidate: string;
   try { candidate = resolve(value); } catch { return null; }
-  if (!allowedRoots.some((root) => contained(root, candidate))) return null;
+  const roots = canonicalRootCandidates(allowedRoots);
+  if (!roots.some((root) => contained(root, candidate))) return null;
   let canonical: string;
   try { canonical = realpathSync(candidate); } catch { return null; }
   try { if (!statSync(canonical).isDirectory()) return null; } catch { return null; }
-  if (!allowedRoots.some((root) => contained(canonicalRootSync(root), canonical))) return null;
+  if (!roots.some((root) => contained(root, canonical))) return null;
   return canonical;
 }
 
@@ -172,7 +165,8 @@ export function validateCwdSync(value: string, allowedRoots: string[]): string {
   let cwd: string;
   try { cwd = resolve(value); }
   catch { throw new TerminalFailure("INVALID_CWD", "Das Arbeitsverzeichnis ist ungültig."); }
-  if (!allowedRoots.some((root) => contained(root, cwd))) {
+  const roots = canonicalRootCandidates(allowedRoots);
+  if (!roots.some((root) => contained(root, cwd))) {
     throw new TerminalFailure("INVALID_CWD", "Das Arbeitsverzeichnis liegt außerhalb der erlaubten Bereiche.");
   }
   let details;
@@ -185,7 +179,7 @@ export function validateCwdSync(value: string, allowedRoots: string[]): string {
   // Nicht nur der lexikalische Pfad, sondern auch sein realpath-Ziel muss in
   // einer erlaubten Wurzel liegen. Ein Symlink innerhalb des Root, der aus ihm
   // herausführt, kann die Workspace-Grenze sonst umgehen.
-  if (!allowedRoots.some((root) => contained(canonicalRootSync(root), canonical))) {
+  if (!roots.some((root) => contained(root, canonical))) {
     throw new TerminalFailure("INVALID_CWD", "Das Arbeitsverzeichnis liegt außerhalb der erlaubten Bereiche.");
   }
   return canonical;

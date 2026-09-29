@@ -259,6 +259,7 @@ export class CodexbarClient {
 }
 
 function hasUsableUsage(payload: CodexbarPayload): boolean {
+  if (payload.error) return false;
   return [payload.usage?.primary, payload.usage?.secondary, payload.usage?.tertiary]
     .some((window) => window?.usedPercent !== undefined);
 }

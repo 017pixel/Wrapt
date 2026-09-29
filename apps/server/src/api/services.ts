@@ -3,6 +3,7 @@ import type { ProjectBrowserService } from "../filesystem/projectBrowserService.
 import type { FileManagerService } from "../filesystem/fileManagerService.js";
 import type { OrbitAssetRepository } from "../orbit/assets.js";
 import type { OrbitDatabase } from "../orbit/database.js";
+import type { NotesDatabase } from "../notes/database.js";
 import type { PreviewSlotService } from "../previews/slots.js";
 import type { createCommandService } from "../services/commandService.js";
 import type { createLocalPortService } from "../services/localPortService.js";
@@ -23,6 +24,7 @@ export interface RouteServices {
   accounts: AccountService;
   usageTimeline: UsageTimelineService;
   orbit: OrbitDatabase;
+  notes: NotesDatabase;
   projectFiles: ReturnType<typeof createProjectFileService>;
   localPorts: ReturnType<typeof createLocalPortService>;
   previewSlots: PreviewSlotService;

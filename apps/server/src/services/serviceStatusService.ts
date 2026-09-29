@@ -2,10 +2,11 @@ import { servicesResponseSchema, type Service, type ServicesResponse } from "@wr
 import { execa } from "execa";
 import type { ServiceConfig } from "../config/schemas.js";
 import { settings } from "../config/settings.js";
+import { supportsSystemd } from "../system/platform.js";
 import { readTailscaleStatus } from "../system/tailscale.js";
 import { createAsyncCache } from "../utils/cache.js";
 
-async function checkService(service: ServiceConfig): Promise<Service> {
+async function checkService(service: ServiceConfig, platform: NodeJS.Platform): Promise<Service> {
   const checkedAt = new Date().toISOString();
   const base = {
     id: service.id,
@@ -30,6 +31,9 @@ async function checkService(service: ServiceConfig): Promise<Service> {
         };
       }
       case "systemd": {
+        if (!supportsSystemd(platform)) {
+          return { ...base, state: "unknown", message: "systemd ist nur unter Linux verfügbar." };
+        }
         const result = await execa("systemctl", ["is-active", service.check.unit], {
           reject: false,
           shell: false,
@@ -69,10 +73,9 @@ async function checkService(service: ServiceConfig): Promise<Service> {
   }
 }
 
-export function createServiceStatusService(services: ServiceConfig[]) {
+export function createServiceStatusService(services: ServiceConfig[], platform: NodeJS.Platform = process.platform) {
   const cache = createAsyncCache<ServicesResponse>(settings.serviceCacheMilliseconds, async () =>
-    servicesResponseSchema.parse({ services: await Promise.all(services.map(checkService)) }),
+    servicesResponseSchema.parse({ services: await Promise.all(services.map((service) => checkService(service, platform))) }),
   );
   return { list: () => cache.get() };
 }
-

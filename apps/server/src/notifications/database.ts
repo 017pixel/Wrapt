@@ -198,13 +198,6 @@ export class NotificationDatabase {
     return notification;
   }
 
-  markAllRead(category?: NotificationCategory): void {
-    const at = new Date().toISOString();
-    if (category) this.db.prepare("UPDATE notifications SET read_at = COALESCE(read_at, ?) WHERE state = 'active' AND category = ?").run(at, category);
-    else this.db.prepare("UPDATE notifications SET read_at = COALESCE(read_at, ?) WHERE state = 'active'").run(at);
-    this.emit({ type: "notification.sync" });
-  }
-
   /**
    * Der Browser meldet hier, welche Quelle und welcher Chat gerade sichtbar
    * sind (z. B. T3-Thread oder Codex-Sitzung). Es zählt die aktive Route plus
@@ -238,21 +231,6 @@ export class NotificationDatabase {
   /** Ist die Workbench in einem sichtbaren Browserfenster aktiv genutzt worden? */
   hasActiveWorkbench(): boolean {
     return Date.now() - this.lastActiveAt < this.presenceTtlMilliseconds;
-  }
-
-  dismiss(id: string): void {
-    const at = new Date().toISOString();
-    this.db.prepare("UPDATE notifications SET state = 'dismissed', deleted_at = ?, read_at = COALESCE(read_at, ?) WHERE id = ? AND state = 'active'").run(at, at, id);
-    this.emit({ type: "notification.removed", id });
-  }
-
-  dismissAll(): number {
-    const ids = this.db.prepare("SELECT id FROM notifications WHERE state = 'active'").all() as unknown as Array<{ id: string }>;
-    if (ids.length === 0) return 0;
-    const at = new Date().toISOString();
-    this.db.prepare("UPDATE notifications SET state = 'dismissed', deleted_at = ?, read_at = COALESCE(read_at, ?) WHERE state = 'active'").run(at, at);
-    for (const { id } of ids) this.emit({ type: "notification.removed", id });
-    return ids.length;
   }
 
   resolveByRemoteId(source: NotificationSource, kind: string, remoteId: string): boolean {
