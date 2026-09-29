@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
 
+// Der Verbindungs-Test läuft gegen eine gemockte Fremd-URL. Sobald ein
+// Service Worker die Seite kontrolliert, umgeht WebKit das
+// Routen-Mocking für Cross-Origin-Fetch und fragt echtes DNS (NXDOMAIN).
+// Ohne Worker bleibt der Probe-Request auf allen Browsern mockbar.
+test.use({ serviceWorkers: "block" });
+
 test("zeigt die Serverauswahl erst nach dem Hinzufügen eines zweiten Hosts", async ({ page }) => {
   await page.route("https://zweit.example.ts.net/api/v1/health", async (route) => {
     await route.fulfill({

@@ -158,7 +158,9 @@ test("Hub-Preview übernimmt Session und Slot in Orbit und behält sein iframe b
     (window as Window & { __previewIframe?: HTMLIFrameElement | null }).__previewIframe = document.querySelector(".orbit-preview-slot-body iframe");
   });
   await page.getByRole("button", { name: "Preview-Verwaltung öffnen" }).click();
-  await expect(page).toHaveURL(/\/wrapt\/orbit\/previews$/);
+  // Die Hub-Verwaltung schreibt die Projekt-Kontext als ?project= in die URL
+  // (PreviewHub gleicht den aktiven Tab beim Öffnen ab) — der Pfad zählt.
+  await expect(page).toHaveURL(/\/wrapt\/orbit\/previews(\?|$)/);
   const sameIframe = () => page.evaluate(() => {
     const state = window as Window & { __previewIframe?: HTMLIFrameElement | null };
     return state.__previewIframe !== null && state.__previewIframe === document.querySelector(".orbit-preview-slot-body iframe");
