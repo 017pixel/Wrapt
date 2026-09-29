@@ -1,20 +1,11 @@
 {
   "name": "wrapt",
-  "version": "1.13.0",
+  "version": "1.24.0",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@10.29.2",
   "engines": {
     "node": ">=22"
-  },
-  "pnpm": {
-    "overrides": {
-      "brace-expansion@<=5.0.8": "5.0.9",
-      "colord@<2.9.4": "2.9.4",
-      "fast-uri@>=3.0.0 <=3.1.4": "3.1.7",
-      "fast-uri@>=4.0.0 <=4.1.1": "4.1.4",
-      "find-my-way@<=9.6.0": "9.7.0"
-    }
   },
   "scripts": {
     "dev": "pnpm --filter @wrapt/extension-contracts build && pnpm --filter @wrapt/contracts build && pnpm --parallel --filter @wrapt/server --filter @wrapt/web dev",
