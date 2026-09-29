@@ -21,9 +21,9 @@ elif [[ ! -f "$config_file" ]]; then
 fi
 cli="${HERMES_CLI_PATH:-$(command -v hermes || true)}"
 if [[ -z "$cli" || ! -x "$cli" ]]; then echo "Hermes-CLI nicht gefunden. Dieses Skript installiert Hermes nicht neu." >&2; exit 1; fi
-version_output="$($cli version 2>&1)"
+version_output="$($cli --version 2>&1)"
 checkout="$(printf '%s\n' "$version_output" | sed -n -E 's/^(Project|Install directory):[[:space:]]*//p' | head -1)"
-if [[ -z "$checkout" || ! -d "$checkout" ]]; then echo "Der Hermes-Checkout konnte aus hermes version nicht erkannt werden." >&2; exit 1; fi
+if [[ -z "$checkout" || ! -d "$checkout" ]]; then echo "Der Hermes-Checkout konnte aus der Hermes-Version nicht erkannt werden." >&2; exit 1; fi
 if [[ -n "${HERMES_HOME:-}" ]]; then
   home_directory="$HERMES_HOME"
 elif [[ -f "$local_config_file" ]]; then
@@ -32,8 +32,26 @@ else
   home_directory="$HOME/.hermes"
 fi
 python_path="${checkout}/venv/bin/python"
+if [[ ! -x "$python_path" && -x "$checkout/.hermes/bin/hermes" ]]; then
+  # Neuere Hermes-Versionen nutzen ein pm-Layout ohne venv. Wrapt installiert
+  # dafür einen stabilen Kompatibilitätsstarter und eine kleine Helfer-Umgebung
+  # für die Config-Skripte (ruamel.yaml).
+  python_path="$HOME/.local/bin/hermes-python"
+  mkdir -p "$(dirname "$python_path")"
+  install -m 0755 "$repo_root/scripts/hermes-python-shim.sh" "$python_path"
+  helper_environment="$HOME/.local/share/wrapt/python"
+  if [[ ! -x "$helper_environment/bin/python" ]]; then
+    python3 -m venv "$helper_environment" || { echo "Helfer-Umgebung für Config-Skripte konnte nicht erstellt werden." >&2; exit 1; }
+    "$helper_environment/bin/pip" install --quiet ruamel.yaml || { echo "ruamel.yaml konnte nicht installiert werden." >&2; exit 1; }
+  fi
+fi
 [[ -x "$python_path" ]] || { echo "Hermes-Python-Umgebung fehlt: $python_path" >&2; exit 1; }
 
+# Neuere Hermes-Versionen (pm-Layout) bringen Node und npm selbst mit. Dann
+# baut die SPA mit genau den Versionen, die Hermes auch verwendet; ältere
+# Installationen nutzen weiter den npm-Fallback.
+pm_path="$("$cli" pm env 2>/dev/null | node -pe 'try { JSON.parse(require("node:fs").readFileSync(0, "utf8")).PATH ?? "" } catch { "" }' 2>/dev/null || true)"
+if [[ -n "$pm_path" ]]; then export PATH="$pm_path:$PATH"; fi
 npm_cmd=(npm)
 npm_major="$(npm --version | cut -d. -f1)"
 if [[ "$npm_major" -lt 12 ]]; then npm_cmd=(npx --yes npm@12); fi

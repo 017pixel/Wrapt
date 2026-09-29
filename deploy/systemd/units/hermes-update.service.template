@@ -9,7 +9,7 @@ Wants=network-online.target
 Type=oneshot
 Environment=HOME=__HOME__
 Environment=HERMES_HOME=__HERMES_HOME__
-Environment=PATH=__HERMES_CHECKOUT__/venv/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PATH=__NODE_BIN_DIR__:__HERMES_CHECKOUT__/venv/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=__REPO_ROOT__/scripts/hermes-update.sh
 TimeoutStartSec=3600
 UMask=0077

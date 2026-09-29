@@ -20,6 +20,10 @@ cli_config="$(config_value hermes.cliPath 2>/dev/null || true)"
 cli="${HERMES_CLI_PATH:-${cli_config:-$(command -v hermes || true)}}"
 python_path="$(config_value hermes.pythonPath 2>/dev/null || true)"
 python_path="${python_path:-$checkout/venv/bin/python}"
+# Neuere Hermes-Versionen (pm-Layout) bringen Node und npm selbst mit. Dann
+# baut der Web-Build mit genau den Versionen, die Hermes auch verwendet.
+pm_path="$("$cli" pm env 2>/dev/null | node -pe 'try { JSON.parse(require("node:fs").readFileSync(0, "utf8")).PATH ?? "" } catch { "" }' 2>/dev/null || true)"
+if [[ -n "$pm_path" ]]; then export PATH="$pm_path:$PATH"; fi
 npm_cmd=(npm)
 npm_major="$(npm --version | cut -d. -f1)"
 if [[ "$npm_major" -lt 12 ]]; then npm_cmd=(npx --yes npm@12); fi
@@ -68,7 +72,7 @@ restart_services() {
   systemctl --user restart hermes-dashboard.service >/dev/null 2>&1 || true
   systemctl --user restart hermes-gateway.service >/dev/null 2>&1 || true
 }
-version() { "$cli" version 2>/dev/null | head -1 | sed -E 's/.*Hermes Agent v([^ ]+).*/\1/' || true; }
+version() { "$cli" --version 2>/dev/null | head -1 | sed -E 's/.*Hermes Agent v([^ ]+).*/\1/' || true; }
 commit() { git -C "$checkout" rev-parse HEAD 2>/dev/null || true; }
 
 if [[ -z "$cli" || ! -x "$cli" ]]; then
@@ -142,7 +146,11 @@ for _ in {1..120}; do
   if curl -fsS --max-time 2 -H "Host: 127.0.0.1:9119" http://127.0.0.1:9119/api/status >/dev/null 2>&1; then healthy=true; break; fi
   sleep 1
 done
-if [[ "$healthy" != true ]] || ! systemctl --user is-active --quiet hermes-gateway.service; then
+gateway_ok=true
+if systemctl --user is-enabled hermes-gateway.service >/dev/null 2>&1 && ! systemctl --user is-active --quiet hermes-gateway.service; then
+  gateway_ok=false
+fi
+if [[ "$healthy" != true ]] || [[ "$gateway_ok" != true ]]; then
   safe_tail "$log_file"
   state "phase=failed" "lastFinishedAt=$(now)" "lastResult=failed" "pending=false" "HERMES_UPDATE_LOG_TAIL_FILE=$log_file"
   exit 1
