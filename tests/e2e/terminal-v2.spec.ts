@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { resetTerminalTestWorkspace } from "./helpers/terminal";
 
 // `WRAPT_E2E_URL` zeigt auf den Origin des Testservers; die Wrapt
-// selbst wird unter dem `/workbench`-Basispfad ausgeliefert.
+// selbst wird unter dem `/wrapt`-Basispfad ausgeliefert.
 const workbench = process.env.WRAPT_E2E_URL
   ? `${process.env.WRAPT_E2E_URL.replace(/\/$/, "")}/wrapt`
   : undefined;
@@ -96,11 +96,13 @@ test("recreates the browser and resumes the same runtime with intact rendering",
   await runFixture(page, "alternate");
   await expect(page.locator(".xterm-screen")).toContainText("TUI FIXTURE", { timeout: 15_000 });
 
+  const runtimePaneId = await page.locator(".terminal-session-pane.is-visible").getAttribute("data-pane-id");
   await context.close();
   const recreated = await browser.newContext({ viewport: { width: 1_280, height: 800 }, extraHTTPHeaders: { "tailscale-user-login": e2eUser } });
   const secondPage = await recreated.newPage();
   await secondPage.goto(`${workbench}/terminal`, { waitUntil: "domcontentloaded", timeout: 60_000 });
   await openFirstTerminal(secondPage);
+  await expect(secondPage.locator(".terminal-session-pane.is-visible")).toHaveAttribute("data-pane-id", runtimePaneId!);
   await expect(secondPage.locator(".xterm-screen")).toContainText("TUI FIXTURE", { timeout: 20_000 });
   const after = await rows(secondPage);
   expect(after.some((row) => row.trimStart().startsWith("┌"))).toBe(true);
@@ -193,12 +195,14 @@ test("restores scrollback after closing and recreating the browser context", asy
   await firstPage.goto(`${workbench}/terminal`);
   await openFirstTerminal(firstPage);
   const marker = await seedScrollback(firstPage.locator(".terminal-session-pane.is-visible"), "REOPEN");
+  const runtimePaneId = await firstPage.locator(".terminal-session-pane.is-visible").getAttribute("data-pane-id");
   await firstContext.close();
 
   const secondContext = await browser.newContext({ viewport: { width: 1_280, height: 800 }, extraHTTPHeaders: headers });
   const secondPage = await secondContext.newPage();
   await secondPage.goto(`${workbench}/terminal`);
   await openFirstTerminal(secondPage);
+  await expect(secondPage.locator(".terminal-session-pane.is-visible")).toHaveAttribute("data-pane-id", runtimePaneId!);
   await scrollToMarker(secondPage, secondPage.locator(".terminal-session-pane.is-visible"), marker);
   await secondContext.close();
 });

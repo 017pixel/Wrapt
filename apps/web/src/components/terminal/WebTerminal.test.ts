@@ -34,6 +34,9 @@ describe("Terminal-Raster bei Orbit-Zoom", () => {
 
   it("hält die sichtbare Schrift im gesamten Orbit-Zoombereich konstant", () => {
     expect(terminalFontSizeForRenderScale(0.1) * 0.1).toBeCloseTo(14);
+    expect(terminalFontSizeForRenderScale(0.25) * 0.25).toBeCloseTo(14);
+    expect(terminalFontSizeForRenderScale(0.5) * 0.5).toBeCloseTo(14);
+    expect(terminalFontSizeForRenderScale(1) * 1).toBeCloseTo(14);
     expect(terminalFontSizeForRenderScale(2.2) * 2.2).toBeCloseTo(14, 1);
     expect(terminalFontSizeForRenderScale(2)).toBe(7);
   });
@@ -45,8 +48,8 @@ describe("Terminal-Raster bei Orbit-Zoom", () => {
   });
 
   it("nutzt auf Touch-Shells die kompakte Schriftgröße", () => {
-    expect(terminalFontSizeForRenderScale(1, true)).toBe(8);
-    expect(terminalFontSizeForRenderScale(0.5, true)).toBe(16);
+    expect(terminalFontSizeForRenderScale(1, true)).toBe(13);
+    expect(terminalFontSizeForRenderScale(0.5, true)).toBe(26);
   });
 
 });

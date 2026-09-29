@@ -2,6 +2,32 @@ import type { MutableRefObject } from "react";
 import type { Terminal } from "@xterm/xterm";
 import { isCompactTerminal, terminalFontSizeForRenderScale, themeFromDashboard } from "./terminal-utils";
 
+export const terminalScaleResizeDelayMs = 120;
+
+export interface TerminalScaleResizeScheduler {
+  schedule(): void;
+  cancel(): void;
+}
+
+/** Bündelt PTY-Größenmeldungen während Orbit-Zoombewegungen bis zum Stillstand. */
+export function createTerminalScaleResizeScheduler(resize: () => void): TerminalScaleResizeScheduler {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  return {
+    schedule() {
+      if (timer !== null) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        resize();
+      }, terminalScaleResizeDelayMs);
+    },
+    cancel() {
+      if (timer === null) return;
+      clearTimeout(timer);
+      timer = null;
+    },
+  };
+}
+
 /** Gemeinsame Zustände für die Anpassung von Schrift, Theme und Raster. */
 export interface TerminalAppearanceContext {
   disposedRef: MutableRefObject<boolean>;
@@ -11,6 +37,14 @@ export interface TerminalAppearanceContext {
   resizeRef: MutableRefObject<number | null>;
   themeRefreshRef: MutableRefObject<number | null>;
   resize(): void;
+}
+
+export function applyTerminalRenderScale(terminal: Terminal, renderScale: number, compact: boolean): boolean {
+  const fontSize = terminalFontSizeForRenderScale(renderScale, compact);
+  if (terminal.options.fontSize === fontSize) return false;
+  terminal.options.fontSize = fontSize;
+  if (terminal.rows > 0) terminal.refresh(0, terminal.rows - 1);
+  return true;
 }
 
 /**
@@ -39,9 +73,7 @@ export function attachTerminalAppearance(terminal: Terminal, mount: HTMLElement,
     const compact = isCompactTerminal(mount);
     if (compact === compactRef.current) return;
     compactRef.current = compact;
-    terminal.options.fontSize = terminalFontSizeForRenderScale(renderScaleRef.current, compact);
-    terminal.refresh(0, terminal.rows - 1);
-    resize();
+    if (applyTerminalRenderScale(terminal, renderScaleRef.current, compact)) resize();
   });
   if (shellRoot) shellObserver.observe(shellRoot, { attributes: true, attributeFilter: ["data-shell-mode", "data-input-mode", "data-orientation"] });
 

@@ -30,7 +30,7 @@ export interface LegacyDashboardSectionOwner {
  */
 const legacyDashboardSectionDefinitions: readonly LegacyDashboardSectionDefinition[] =
   Object.freeze([
-    { id: "wrapt.dashboard.section.quick-actions", title: "Schnellaktionen", description: "T3 Code, Workbench und Terminal", order: 10, legacySectionId: "quickActions" },
+    { id: "wrapt.dashboard.section.quick-actions", title: "Projektaktivität", description: "Zuletzt verwendete Arbeitsbereiche", order: 10, legacySectionId: "quickActions" },
     { id: "wrapt.dashboard.section.server", title: "Serverstatus", description: "Status, Version, Uptime, Betriebssystem und Tailscale", order: 20, legacySectionId: "server" },
     { id: "wrapt.dashboard.section.metrics", title: "Systemmetriken", description: "CPU, RAM, Speicher, Last und Temperatur", order: 30, legacySectionId: "metrics" },
     { id: "wrapt.dashboard.section.services", title: "Dienste", description: "Konfigurierte Dienste und ihre Erreichbarkeit", order: 40, legacySectionId: "services" },

@@ -1,27 +1,20 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ActivityIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon, CopyIcon, DeviceRotateIcon, ExternalLinkIcon, MinusIcon, NetworkIcon, PlusIcon, RefreshIcon, WarningIcon } from "../icons";
-import type {
-  PreviewDiagnosticEvent,
-  PreviewLocalStorageEntry,
-  PreviewLocalStorageState,
-  PreviewServiceEdge,
-  PreviewSessionResponse,
-} from "@wrapt/contracts";
-import { ApiClientError, apiClient } from "../../lib/apiClient";
+import { NetworkIcon, WarningIcon } from "../icons";
+import type { PreviewServiceEdge } from "@wrapt/contracts";
+import { apiClient } from "../../lib/apiClient";
 import { previewLiveWindowUrl } from "../../lib/previewExternalOpen";
-import { previewSlotUrl } from "../../lib/previewTargets";
-import { PreviewBridgeClient, type BridgeStatus } from "../../lib/previewBridgeClient";
 import { resolvePreviewDevice } from "../../lib/previewDevice";
-import { snapshotBytes, snapshotHash } from "../../lib/previewStorageSnapshot";
 import { wraptQueries } from "../../lib/queryOptions";
-import { generateId } from "../../lib/id";
 import type { DeviceOrientation } from "../../config/devicePresets";
-import { changeDevicePreviewScaleFactor, DevicePreviewFrame, devicePreviewScaleFactorMax, devicePreviewScaleFactorMin } from "../DevicePreviewFrame";
+import { changeDevicePreviewScaleFactor, DevicePreviewFrame } from "../DevicePreviewFrame";
 import { PreviewDiagnosticsSheet } from "./PreviewDiagnosticsSheet";
 import { useRouteActivity } from "../../lib/routeActivity";
-import { writeClipboardText } from "../../lib/clipboard";
-import { runPreviewSlotReset, withPreviewSlotRecovery } from "../../lib/previewSlotRecovery";
+import { runPreviewSlotReset } from "../../lib/previewSlotRecovery";
+import type { PreviewViewportSize } from "../../lib/previewViewport";
+import { PreviewRuntimeControls } from "./PreviewRuntimeControls";
+import { usePreviewRuntimeSession } from "./usePreviewRuntimeSession";
+import { usePreviewRuntimeStorage } from "./usePreviewRuntimeStorage";
 
 export interface LocalPreviewRuntimeProps {
   targetPort: number;
@@ -41,6 +34,17 @@ export interface LocalPreviewRuntimeProps {
   lazy?: boolean;
   /** Sichtbare Steuerung für Reload, Verlauf, Ausrichtung und Diagnose. */
   showControls?: boolean;
+  /** Vollständige Steuerleiste in der eigenständigen Simulatorfläche. */
+  controlsVariant?: "overlay" | "simulator";
+  viewportSize?: PreviewViewportSize | null;
+  scaleFactor?: number;
+  onScaleFactorChange?: (direction: -1 | 1) => void;
+  toolbarPosition?: { x: number; y: number } | null;
+  toolbarWidth?: number | null;
+  onToolbarPositionChange?: (position: { x: number; y: number }) => void;
+  onToolbarWidthChange?: (width: number) => void;
+  onViewportSizeChange?: (size: PreviewViewportSize | null) => void;
+  onDeviceChange?: (deviceId: string | null) => void;
   interactionLocked?: boolean;
   onSlotAssigned?: (slotId: number, url: string) => void;
   onOrientationChange?: (orientation: DeviceOrientation) => void;
@@ -98,50 +102,27 @@ export function LocalPreviewRuntime({
   title = "Development Preview",
   lazy = false,
   showControls = false,
+  controlsVariant = "overlay",
+  viewportSize = null,
+  scaleFactor,
+  onScaleFactorChange,
+  toolbarPosition,
+  toolbarWidth,
+  onToolbarPositionChange,
+  onToolbarWidthChange,
+  onViewportSizeChange,
+  onDeviceChange,
   interactionLocked = false,
   onSlotAssigned,
   onOrientationChange,
   onFocus,
 }: LocalPreviewRuntimeProps) {
-  const routeActive = useRouteActivity();
   const containerRef = useRef<HTMLDivElement>(null);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [visible, setVisible] = useState(!lazy);
-  const [url, setUrl] = useState<string | null>(null);
-  const [session, setSession] = useState<PreviewSessionResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [retryKey, setRetryKey] = useState(0);
-  const [runtimeReloadKey, setRuntimeReloadKey] = useState(0);
   const [diagnosticsOpen, setDiagnosticsOpen] = useState(false);
-  const [events, setEvents] = useState<PreviewDiagnosticEvent[]>([]);
-  const [dropped, setDropped] = useState(0);
-  const [bridgeStatus, setBridgeStatus] = useState<BridgeStatus>({ connected: false, version: null, href: null, unavailable: false });
-  const [storageState, setStorageState] = useState<PreviewLocalStorageState | null>(null);
-  const [storageConflict, setStorageConflict] = useState<string | null>(null);
   const [graphSaving, setGraphSaving] = useState(false);
   const [previewScaleFactor, setPreviewScaleFactor] = useState(1);
-  const [urlCopied, setUrlCopied] = useState(false);
-  const eventBufferRef = useRef<PreviewDiagnosticEvent[]>([]);
-  const eventDroppedRef = useRef(0);
-  const eventFlushRef = useRef<number | null>(null);
-  const routeActiveRef = useRef(routeActive);
-
-  const generatedSessionKey = useRef(sessionKey ?? `preview:${generateId()}`);
-  const idempotencyRequestRef = useRef<{ fingerprint: string; key: string } | null>(null);
-  const assignmentRef = useRef<{
-    slotId: number;
-    targetPort: number;
-    isolate: boolean;
-    publicUrl: string;
-    requestFingerprint: string;
-  } | null>(null);
-  const storageStateRef = useRef<PreviewLocalStorageState | null>(null);  const storageWriteQueueRef = useRef<Promise<void>>(Promise.resolve());
-  const storageConflictBlockedRef = useRef(false);
-  const conflictedEntriesRef = useRef<PreviewLocalStorageEntry[] | null>(null);
-  const onSlotAssignedRef = useRef(onSlotAssigned);
-  onSlotAssignedRef.current = onSlotAssigned;
-
+  const routeActive = useRouteActivity();
   const preference = useQuery({ ...wraptQueries.previewDevicePreference(), enabled: routeActive });
   const resolvedDevice = resolvePreviewDevice({ deviceId, orientation }, preference.data);
   const candidatesQuery = useQuery({ ...wraptQueries.previewServiceCandidates(projectId), enabled: routeActive && visible && projectId !== null });
@@ -149,35 +130,36 @@ export function LocalPreviewRuntime({
     ...wraptQueries.previewServiceGraph(projectId ?? "-", String(targetPort)),
     enabled: routeActive && visible && projectId !== null,
   });
-
-  const flushEventState = useCallback(() => {
-    if (eventFlushRef.current !== null) {
-      window.clearTimeout(eventFlushRef.current);
-      eventFlushRef.current = null;
-    }
-    setEvents(eventBufferRef.current);
-    setDropped(eventDroppedRef.current);
-  }, []);
-  const queueEventState = useCallback((incoming: PreviewDiagnosticEvent[], droppedCount: number) => {
-    if (!routeActiveRef.current) return;
-    if (incoming.length > 0) eventBufferRef.current = [...eventBufferRef.current, ...incoming].slice(-500);
-    eventDroppedRef.current = droppedCount;
-    if (eventFlushRef.current === null) eventFlushRef.current = window.setTimeout(flushEventState, 75);
-  }, [flushEventState]);
-
-  useEffect(() => {
-    routeActiveRef.current = routeActive;
-    if (routeActive) flushEventState();
-  }, [flushEventState, routeActive]);
-
-  const bridge = useMemo(() => new PreviewBridgeClient({
-    onStatus: setBridgeStatus,
-    onDiagnostics: queueEventState,
-  }), [queueEventState]);
-  useEffect(() => () => bridge.dispose(), [bridge]);
-  useEffect(() => () => {
-    if (eventFlushRef.current !== null) window.clearTimeout(eventFlushRef.current);
-  }, []);
+  const runtime = usePreviewRuntimeSession({
+    routeActive,
+    targetPort,
+    path,
+    requestedSlotId,
+    isolate,
+    storageProfileId,
+    previewNodeId,
+    projectId,
+    ...(sessionKey === undefined ? {} : { sessionKey }),
+    graphRevision: graphQuery.data?.graph.updatedAt ?? null,
+    visible,
+    reloadKey,
+    ...(onSlotAssigned === undefined ? {} : { onSlotAssigned }),
+  });
+  const {
+    iframeRef, bridge, bridgeStatus, url, session, error, setError, loaded, setLoaded,
+    setRetryKey, runtimeReloadKey, setRuntimeReloadKey, events, dropped,
+    assignmentRef, effectiveSessionKey, queueEventState,
+  } = runtime;
+  const storage = usePreviewRuntimeStorage({
+    bridge,
+    routeActive,
+    storageProfileId,
+    session,
+    previewNodeId,
+    assignmentRef,
+    queueEventState,
+  });
+  const { storageState, storageConflict } = storage;
 
   // ── Sichtbarkeit ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -194,185 +176,6 @@ export function LocalPreviewRuntime({
     observer.observe(element);
     return () => observer.disconnect();
   }, [lazy, visible]);
-
-  // ── Session öffnen ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!routeActive || !visible) return;
-    const requestFingerprint = JSON.stringify({
-      projectId,
-      targetPort,
-      isolate,
-      storageProfileId,
-      requestedSlotId,
-      graphRevision: graphQuery.data?.graph.updatedAt ?? null,
-    });
-    const current = assignmentRef.current;
-    if (current && current.requestFingerprint === requestFingerprint) {
-      setUrl(previewSlotUrl(current.publicUrl, path));
-      return;
-    }
-    if (idempotencyRequestRef.current?.fingerprint !== requestFingerprint) {
-      idempotencyRequestRef.current = { fingerprint: requestFingerprint, key: generateId() };
-    }
-    const idempotencyKey = idempotencyRequestRef.current.key;
-    let active = true;
-    setError(null);
-    const open = (slotId: number | null) => apiClient.openPreviewSession({
-      sessionKey: generatedSessionKey.current,
-      projectId,
-      primaryPort: targetPort,
-      primaryProtocol: "http",
-      isolate,
-      storageProfileId,
-      idempotencyKey,
-      ...(slotId === null ? {} : { requestedSlotId: slotId }),
-    });
-    const openWithRecovery = async () => {
-      try {
-        return await open(requestedSlotId);
-      } catch (reason) {
-        if (requestedSlotId !== null && reason instanceof ApiClientError && reason.code === "PREVIEW_SLOT_CHANGED") {
-          return withPreviewSlotRecovery(() => open(null));
-        }
-        if (!(reason instanceof ApiClientError) || reason.code !== "PREVIEW_SLOTS_EXHAUSTED") throw reason;
-        return withPreviewSlotRecovery(() => open(null));
-      }
-    };
-    void openWithRecovery().then((response) => {
-      if (!active || !response) return;
-      const primary = response.bindings.find((candidate) => candidate.role === "primary");
-      if (!primary) throw new Error("Der zugewiesene Hauptdienst fehlt in der Serverantwort.");
-      const nextUrl = previewSlotUrl(primary.publicUrl, path);
-      // Der alte Zustand wird erst nach erfolgreicher neuer Bindung ersetzt.
-      assignmentRef.current = { slotId: primary.slotId, targetPort, isolate, publicUrl: primary.publicUrl, requestFingerprint };
-      setSession(response);
-      setLoaded(false);
-      setUrl(nextUrl);
-      onSlotAssignedRef.current?.(primary.slotId, nextUrl);
-    }).catch((reason: unknown) => {
-      if (active) setError(reason instanceof Error ? reason.message : "Der Preview-Slot konnte nicht geöffnet werden.");
-    });
-    return () => { active = false; };
-  }, [graphQuery.data?.graph.updatedAt, isolate, path, projectId, requestedSlotId, retryKey, routeActive, storageProfileId, targetPort, visible]);
-
-  // ── Lease erneuern ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!session) return;
-    const renew = window.setInterval(() => {
-      void apiClient.renewPreviewSession(session.id).catch(() => {
-        // Die sichtbare Preview bleibt bestehen; der nächste Nutzerimpuls meldet den Fehler.
-      });
-    }, 10 * 60_000);
-    return () => window.clearInterval(renew);
-  }, [session]);
-
-  // Die Session wird beim Unmount bewusst nicht geschlossen: Command-R im
-  // Preview-Fenster würde sonst erst die alte Session abreißen und eine neue
-  // öffnen, wobei ein anderer Tab oder ein Reclaim den Slot übernehmen kann.
-  // Die Zuordnung bleibt bestehen, bis der Nutzer das Ziel entfernt, die Lease
-  // abläuft oder echte Slot-Knappheit herrscht. Die Lease verlängert sich im
-  // Hintergrund weiter, auch für geparkte Routen.
-
-  // ── Bridge und Diagnose ────────────────────────────────────────────────────
-  useEffect(() => {
-    bridge.attach(routeActive ? iframeRef.current : null, routeActive ? url : null);
-  }, [bridge, routeActive, url, reloadKey, runtimeReloadKey]);
-
-  useEffect(() => {
-    if (!session?.capabilities.includes("diagnostics")) return;
-    if (!routeActive) return;
-    let flushing = false;
-    const flush = window.setInterval(() => {
-      if (flushing) return;
-      const batch = bridge.takeBatch();
-      if (batch.events.length === 0 && batch.dropped === 0) return;
-      flushing = true;
-      void apiClient.sendPreviewDiagnostics({
-          previewNodeId,
-          sessionId: session.id,
-          bridgeSessionId: bridge.sessionId,
-          droppedSinceLastBatch: batch.dropped,
-          events: batch.events.map((event) => ({ ...event, previewNodeId, sessionId: session.id })),
-        }).catch(() => {
-          bridge.restoreBatch(batch);
-        }).finally(() => {
-          flushing = false;
-        });
-    }, 2_000);
-    return () => window.clearInterval(flush);
-  }, [bridge, previewNodeId, routeActive, session]);
-
-  // ── localStorage-Snapshot ──────────────────────────────────────────────────
-  const loadStorageState = useCallback(async () => {
-    if (!storageProfileId) return;
-    try {
-      const next = await apiClient.previewStorageState(storageProfileId) ?? null;
-      storageStateRef.current = next;
-      setStorageState(next);
-      return next;
-    } catch {
-      storageStateRef.current = null;
-      setStorageState(null);
-      return null;
-    }
-  }, [storageProfileId]);
-
-  useEffect(() => {
-    if (!routeActive || !storageProfileId || !session?.capabilities.includes("storage-snapshot")) return;
-    void loadStorageState();
-  }, [loadStorageState, routeActive, session, storageProfileId]);
-
-  const persistSnapshot = useCallback((entries: PreviewLocalStorageEntry[]) => {
-    storageWriteQueueRef.current = storageWriteQueueRef.current.then(async () => {
-      const currentState = storageStateRef.current;
-      if (!storageProfileId || !currentState?.enabled || storageConflictBlockedRef.current) return;
-      const hash = snapshotHash(entries);
-      if (hash === currentState.current?.hash) return;
-      try {
-        const next = await apiClient.savePreviewStorageSnapshot(storageProfileId, {
-          expectedRevision: currentState.current?.revision ?? null,
-          hash,
-          bridgeVersion: session?.bridgeVersion ?? "v1",
-          entries,
-        }) ?? null;
-        storageStateRef.current = next;
-        setStorageState(next);
-        setStorageConflict(null);
-      } catch (reason) {
-        if (reason instanceof ApiClientError && reason.status === 409) {
-          storageConflictBlockedRef.current = true;
-          conflictedEntriesRef.current = entries;
-          setStorageConflict("Der Snapshot wurde auf einem anderen Gerät geändert. Bitte wähle, welcher Stand gelten soll.");
-          await loadStorageState();
-          return;
-        }
-        // Größenüberschreitungen erzeugen eine Diagnose, keinen Preview-Ausfall.
-        const failure: PreviewDiagnosticEvent = {
-          id: generateId(),
-          at: new Date().toISOString(),
-          source: "system",
-          category: "storage",
-          severity: "warn",
-          completeness: "complete",
-          previewNodeId,
-          sessionId: session?.id ?? null,
-          slotId: assignmentRef.current?.slotId ?? null,
-          routingRevision: session?.routingRevision ?? null,
-          bridgeSessionId: bridge.sessionId,
-          epoch: 0,
-          sequence: 0,
-          route: null,
-          message: reason instanceof Error ? reason.message : "Der Storage-Snapshot konnte nicht gespeichert werden.",
-          metadata: { keys: entries.length, bytes: snapshotBytes(entries) },
-        };
-        queueEventState([failure], eventDroppedRef.current);
-      }
-    }).catch(() => undefined);
-  }, [bridge, loadStorageState, previewNodeId, queueEventState, session, storageProfileId]);
-
-  useEffect(() => {
-    bridge.setStorageHandler(routeActive && storageState?.enabled ? persistSnapshot : null);
-  }, [bridge, persistSnapshot, routeActive, storageState]);
 
   // ── Service-Kandidaten ─────────────────────────────────────────────────────
   const confirmedPorts = new Set((graphQuery.data?.graph.edges ?? []).map((edge) => edge.port));
@@ -440,8 +243,9 @@ export function LocalPreviewRuntime({
         <DevicePreviewFrame
           deviceId={resolvedDevice.deviceId}
           orientation={resolvedDevice.orientation}
-          scaleFactor={previewScaleFactor}
+          scaleFactor={scaleFactor ?? previewScaleFactor}
           interactionLocked={interactionLocked}
+          viewportSize={viewportSize}
         >
           <iframe
             ref={iframeRef}
@@ -469,70 +273,48 @@ export function LocalPreviewRuntime({
       ) : null}
 
       {showControls && visible ? (
-        <div className="preview-runtime-controls" role="group" aria-label="Preview steuern">
-          {resolvedDevice.deviceId !== "responsive" ? (
-            <div className="preview-runtime-scale" role="group" aria-label="Größe der Gerätevorschau">
-              <button
-                type="button"
-                aria-label="Gerätevorschau verkleinern"
-                title="Gerätevorschau verkleinern"
-                disabled={previewScaleFactor <= devicePreviewScaleFactorMin}
-                onClick={() => setPreviewScaleFactor((value) => changeDevicePreviewScaleFactor(value, -1))}
-              ><MinusIcon className="h-4 w-4" /></button>
-              <output aria-live="polite">{Math.round(previewScaleFactor * 100)}%</output>
-              <button
-                type="button"
-                aria-label="Gerätevorschau vergrößern"
-                title="Gerätevorschau vergrößern"
-                disabled={previewScaleFactor >= devicePreviewScaleFactorMax}
-                onClick={() => setPreviewScaleFactor((value) => changeDevicePreviewScaleFactor(value, 1))}
-              ><PlusIcon className="h-4 w-4" /></button>
-            </div>
-          ) : null}
-          <button type="button" aria-label="Zurück" title="Zurück" onClick={() => bridge.navigate("back")} disabled={!bridgeStatus.connected}><ChevronLeftIcon className="h-4 w-4" /></button>
-          <button type="button" aria-label="Vorwärts" title="Vorwärts" onClick={() => bridge.navigate("forward")} disabled={!bridgeStatus.connected}><ChevronRightIcon className="h-4 w-4" /></button>
-          <button type="button" aria-label="Neu laden" title="Neu laden" onClick={() => {
-            reloadLocalPreview(
-              bridgeStatus.connected,
-              (action) => bridge.navigate(action),
-              () => {
-                setLoaded(false);
-                setRuntimeReloadKey((value) => value + 1);
-              },
-            );
-          }}><RefreshIcon className="h-4 w-4" /></button>
-          {onOrientationChange && resolvedDevice.deviceId !== "responsive" ? (
-            <button type="button" aria-label="Ausrichtung drehen" title="Ausrichtung drehen"
-              onClick={() => onOrientationChange(resolvedDevice.orientation === "portrait" ? "landscape" : "portrait")}>
-              <DeviceRotateIcon className="h-4 w-4" />
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className={urlCopied ? "is-copied" : undefined}
-            aria-label={urlCopied ? "Preview-URL kopiert" : "Preview-URL kopieren"}
-            title={urlCopied ? "Kopiert" : "Tailscale-URL kopieren"}
-            disabled={!url}
-            onClick={() => {
-              if (!url) return;
-              void writeClipboardText(url).then(() => {
-                setUrlCopied(true);
-                window.setTimeout(() => setUrlCopied(false), 1_800);
-              }).catch(() => setUrlCopied(false));
-            }}
-          >{urlCopied ? <CheckIcon className="preview-runtime-copy-icon h-4 w-4" /> : <CopyIcon className="preview-runtime-copy-icon h-4 w-4" />}</button>
-          {url ? (
-            // Der externe Tab bekommt seine eigene Session über die Live-Route;
-            // die nackte Slot-URL hinge hätte keinen Lease-Mechanismus.
-            <a href={projectId ? previewLiveWindowUrl({ projectId, port: targetPort, path, title }) : url} target="_blank" rel="noopener noreferrer" aria-label="Preview extern öffnen" title="Preview extern öffnen">
-              <ExternalLinkIcon className="h-4 w-4" />
-            </a>
-          ) : null}
-          <button type="button" aria-label="Diagnose öffnen" title="Diagnose" aria-expanded={diagnosticsOpen} onClick={() => setDiagnosticsOpen((open) => !open)}>
-            <ActivityIcon className="h-4 w-4" />
-            {events.some((event) => event.severity === "error") ? <i className="preview-runtime-alert" aria-hidden /> : null}
-          </button>
-        </div>
+        <PreviewRuntimeControls
+          variant={controlsVariant}
+          deviceId={deviceId}
+          resolvedDeviceId={resolvedDevice.deviceId}
+          orientation={resolvedDevice.orientation}
+          viewportSize={viewportSize}
+          onDeviceChange={onDeviceChange}
+          onViewportSizeChange={onViewportSizeChange}
+          onOrientationChange={onOrientationChange}
+          scaleFactor={previewScaleFactor}
+          onScaleChange={onScaleFactorChange ?? ((direction) => setPreviewScaleFactor((value) => changeDevicePreviewScaleFactor(value, direction)))}
+          bridgeConnected={bridgeStatus.connected}
+          onBack={() => bridge.navigate("back")}
+          onForward={() => bridge.navigate("forward")}
+          onReload={() => reloadLocalPreview(
+            bridgeStatus.connected,
+            (action) => bridge.navigate(action),
+            () => {
+              setLoaded(false);
+              setRuntimeReloadKey((value) => value + 1);
+            },
+          )}
+          url={url}
+          externalUrl={url ? projectId ? previewLiveWindowUrl({
+            projectId,
+            port: targetPort,
+            path,
+            title,
+            sessionKey: effectiveSessionKey,
+            previewNodeId,
+            requestedSlotId: assignmentRef.current?.slotId ?? requestedSlotId,
+            isolate,
+            storageProfileId,
+          }) : url : null}
+          diagnosticsOpen={diagnosticsOpen}
+          hasErrors={events.some((event) => event.severity === "error")}
+          onToggleDiagnostics={() => setDiagnosticsOpen((open) => !open)}
+          toolbarPosition={toolbarPosition}
+          toolbarWidth={toolbarWidth}
+          onToolbarPositionChange={onToolbarPositionChange}
+          onToolbarWidthChange={onToolbarWidthChange}
+        />
       ) : null}
 
       {diagnosticsOpen ? (
@@ -547,29 +329,9 @@ export function LocalPreviewRuntime({
           targetPort={targetPort}
           device={resolvedDevice}
           onClose={() => setDiagnosticsOpen(false)}
-          onToggleStorage={async (enabled) => {
-            if (!storageProfileId) return;
-            const next = await apiClient.setPreviewStorageEnabled(storageProfileId, enabled) ?? null;
-            storageStateRef.current = next;
-            setStorageState(next);
-          }}
-          onRestoreStorage={async (revision) => {
-            if (!storageProfileId) return;
-            const restored = await apiClient.restorePreviewStorage(storageProfileId, revision);
-            if (!restored) return;
-            const written = await bridge.restoreStorage(restored.entries);
-            storageConflictBlockedRef.current = false;
-            conflictedEntriesRef.current = null;
-            setStorageConflict(written === null ? "Der Zustand konnte im iframe nicht geschrieben werden." : null);
-            await loadStorageState();
-          }}
-          onKeepLocal={() => {
-            const entries = conflictedEntriesRef.current;
-            storageConflictBlockedRef.current = false;
-            conflictedEntriesRef.current = null;
-            setStorageConflict(null);
-            if (entries) persistSnapshot(entries);
-          }}
+          onToggleStorage={storage.toggleStorage}
+          onRestoreStorage={storage.restoreStorage}
+          onKeepLocal={storage.keepLocal}
           onResetSlot={async () => {
             const slotId = assignmentRef.current?.slotId;
             if (!slotId || !session) return;

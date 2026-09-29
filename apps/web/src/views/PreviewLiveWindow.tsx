@@ -1,47 +1,52 @@
 import { useEffect, useMemo, useState } from "react";
-import { CopyIcon, DeviceRotateIcon, SmartphoneIcon } from "../components/icons";
 import { LocalPreviewRuntime } from "../components/preview/LocalPreviewRuntime";
-import { getGroupedDevicePresets, type DeviceOrientation } from "../config/devicePresets";
-import { normalizePreviewTarget } from "../lib/previewTargets";
-import { writeClipboardText } from "../lib/clipboard";
+import { parsePreviewLiveWindowSearch } from "../lib/previewWindow";
+import { readPreviewSimulatorSettings, writePreviewSimulatorSettings } from "../lib/previewSimulatorSettings";
 
 export function PreviewLiveWindowRoute() {
-  const input = useMemo(() => {
-    const query = new URLSearchParams(window.location.search);
-    const port = Number(query.get("port"));
-    const projectId = query.get("project") ?? "";
-    const path = query.get("path") ?? "/";
-    const title = query.get("title")?.slice(0, 120) || "Development Preview";
-    const normalized = normalizePreviewTarget(`http://127.0.0.1:${port}${path}`);
-    return normalized?.kind === "local" && projectId ? { projectId, port: normalized.port, path: normalized.path, title } : null;
-  }, []);
-  const [deviceId, setDeviceId] = useState<string | null>(null);
-  const [orientation, setOrientation] = useState<DeviceOrientation>("portrait");
+  const input = useMemo(() => parsePreviewLiveWindowSearch(window.location.search), []);
+  const [settings, setSettings] = useState(() => readPreviewSimulatorSettings(input?.sessionKey ?? "invalid-preview"));
   const [publicUrl, setPublicUrl] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
-  useEffect(() => { if (input) document.title = `${input.title} · Preview`; }, [input]);
+  useEffect(() => { if (input) document.title = `${input.title} · Preview-Simulator`; }, [input]);
+  useEffect(() => { if (input) writePreviewSimulatorSettings(input.sessionKey, settings); }, [input, settings]);
   if (!input) return <main className="preview-live-window is-invalid"><strong>Preview-Ziel ungültig</strong></main>;
 
   return (
     <main className="preview-live-window">
       <header className="preview-live-window-bar">
-        <div className="preview-live-window-title"><span>Preview</span><strong>{input.title}</strong></div>
-        <label className="preview-live-device-select">
-          <SmartphoneIcon className="h-4 w-4" />
-          <select value={deviceId ?? "__default"} onChange={(event) => setDeviceId(event.target.value === "__default" ? null : event.target.value)} aria-label="Geräteansicht">
-            <option value="__default">Standardgerät</option>
-            {getGroupedDevicePresets().map((group) => <optgroup key={group.group} label={group.label}>{group.devices.map((device) => <option key={device.id} value={device.id}>{device.label}</option>)}</optgroup>)}
-          </select>
-        </label>
-        <button type="button" onClick={() => setOrientation((value) => value === "portrait" ? "landscape" : "portrait")} aria-label="Ausrichtung drehen" title="Ausrichtung drehen"><DeviceRotateIcon className="h-4 w-4" /></button>
-        <div className="preview-live-url"><span>{publicUrl ?? `localhost:${input.port}`}</span><button type="button" disabled={!publicUrl} aria-label="Tailscale-URL kopieren" onClick={() => {
-          if (!publicUrl) return;
-          void writeClipboardText(publicUrl).then(() => { setCopied(true); window.setTimeout(() => setCopied(false), 1_500); });
-        }}><CopyIcon className="h-4 w-4" /><span>{copied ? "Kopiert" : "Kopieren"}</span></button></div>
+        <div className="preview-live-window-title"><span>Web-Viewport-Simulation</span><strong>{input.title}</strong></div>
+        <div className="preview-live-url" role="status" aria-label="Preview-Adresse">
+          <span>{publicUrl ?? `localhost:${input.port}`}</span>
+        </div>
       </header>
-      <section className="preview-live-stage">
-        <LocalPreviewRuntime targetPort={input.port} path={input.path} projectId={input.projectId} sessionKey={`preview-live:${input.projectId}:${input.port}`} isolate={false} deviceId={deviceId} orientation={orientation} title={input.title} showControls onSlotAssigned={(_slotId, url) => setPublicUrl(url)} onOrientationChange={setOrientation} />
+      <section className="preview-live-stage" aria-label="Preview-Simulator">
+        <LocalPreviewRuntime
+          targetPort={input.port}
+          path={input.path}
+          requestedSlotId={input.requestedSlotId}
+          isolate={input.isolate}
+          storageProfileId={input.storageProfileId}
+          previewNodeId={input.previewNodeId}
+          projectId={input.projectId}
+          sessionKey={input.sessionKey}
+          deviceId={settings.deviceId}
+          orientation={settings.orientation}
+          viewportSize={settings.viewportSize}
+          scaleFactor={settings.scaleFactor}
+          onScaleFactorChange={(direction) => setSettings((current) => ({ ...current, scaleFactor: Math.min(2, Math.max(0.5, Math.round((current.scaleFactor + direction * 0.1) * 100) / 100)) }))}
+          onDeviceChange={(next) => setSettings((current) => ({ ...current, deviceId: next, viewportSize: null }))}
+          onViewportSizeChange={(viewportSize) => setSettings((current) => ({ ...current, viewportSize }))}
+          toolbarPosition={settings.toolbarPosition}
+          toolbarWidth={settings.toolbarWidth}
+          onToolbarPositionChange={(toolbarPosition) => setSettings((current) => ({ ...current, toolbarPosition }))}
+          onToolbarWidthChange={(toolbarWidth) => setSettings((current) => ({ ...current, toolbarWidth }))}
+          title={input.title}
+          showControls
+          controlsVariant="simulator"
+          onSlotAssigned={(_slotId, url) => setPublicUrl(url)}
+          onOrientationChange={(orientation) => setSettings((current) => ({ ...current, orientation }))}
+        />
       </section>
     </main>
   );

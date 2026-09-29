@@ -1,5 +1,7 @@
+// @vitest-environment jsdom
 import { Children, isValidElement, type ReactElement, type ReactNode } from "react";
-import { Navigate } from "react-router";
+import { render, waitFor } from "@testing-library/react";
+import { MemoryRouter, Route, Routes, useLocation } from "react-router";
 import { describe, expect, it } from "vitest";
 import {
   pageContributionSchema,
@@ -7,7 +9,7 @@ import {
 } from "@wrapt/extension-contracts";
 import { registerLegacyPageRoutes } from "./legacyPageRoutes";
 import { PageRouteRegistry } from "./pageRouteRegistry";
-import { routeHostElements } from "./routeHost";
+import { CanonicalAliasRedirect, routeHostElements } from "./routeHost";
 
 type RouteElementLike = ReactElement<{
   path?: string;
@@ -64,9 +66,31 @@ describe("routeHostElements", () => {
 
     const gallery = routes.find((route) => route.props.path === "gallery");
     expect(gallery).toBeDefined();
-    const element = gallery?.props.element as ReactElement<{ to?: string }>;
-    expect(element.type).toBe(Navigate);
-    expect(element.props.to).toBe("/files");
+    const element = gallery?.props.element as ReactElement<{ target?: string }>;
+    expect(element.type).toBe(CanonicalAliasRedirect);
+    expect(element.props.target).toBe("/files");
+  });
+
+  it("erhält Query und Hash beim kompatiblen Orbit-Alias", async () => {
+    function LocationOutput() {
+      const location = useLocation();
+      return <output>{`${location.pathname}${location.search}${location.hash}`}</output>;
+    }
+
+    const { container } = render(
+      <MemoryRouter initialEntries={["/workbench?board=team&focus=node-4#canvas"]}>
+        <Routes>
+          <Route path="/workbench" element={<CanonicalAliasRedirect target="/orbit" />} />
+          <Route path="/orbit" element={<LocationOutput />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => {
+      expect(container.querySelector("output")?.textContent).toBe(
+        "/orbit?board=team&focus=node-4#canvas",
+      );
+    });
   });
 
   it("hostet eine neu registrierte Extension-Route ohne Core-Änderung", () => {

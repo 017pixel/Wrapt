@@ -152,7 +152,7 @@ test("creates project-bound terminals and splits them without replacing sessions
   }
 });
 
-test("öffnet die OpenCode-Web-UI über den Workbench-Proxy", async ({ page }) => {
+test("öffnet die OpenCode-Web-UI über Wrapt", async ({ page }) => {
   await page.goto(`${privateWrapt}/opencode`);
   const frame = page.locator('.tool-surface-standalone iframe[title="OpenCode"]');
   await expect(frame).toHaveAttribute("src", "/opencode");

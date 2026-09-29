@@ -28,7 +28,7 @@ async function fillIdentity(page: Page, name: string, slug: string) {
 
 async function activateAndOpen(page: Page, name: string, slug: string) {
   await page.getByRole("button", { name: "Aktivieren", exact: true }).press("Enter");
-  await expect(page.getByRole("status")).toContainText("Plugin lokal aktiviert.");
+  await expect(page.getByText("Plugin lokal aktiviert.", { exact: true })).toBeVisible();
   await page.reload();
   const sidebar = page.locator("aside").getByRole("link", { name });
   await expect(sidebar).toBeVisible({ timeout: 15_000 });

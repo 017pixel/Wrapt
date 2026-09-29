@@ -63,10 +63,12 @@ test("shows real recent projects, collapsed separators and preserves legacy Noti
   });
   expect(saveResponse).toBeOK();
 
-  await page.goto(`${workbench}/wrapt/workbench`);
+  await page.goto(`${workbench}/wrapt/orbit`);
   await expect(page.locator(".orbit-page")).toBeVisible();
   await expect(page.getByRole("button", { name: /neue-datei\.ts/ })).toHaveCount(0);
-  const projectSectionButtons = page.locator(".sidebar-section").nth(1).locator("button.orbit-palette-item");
+  const projectSectionButtons = page.locator(".sidebar-section")
+    .filter({ has: page.locator(".sidebar-section-header", { hasText: "Orbit-Projekte" }) })
+    .locator("button.orbit-palette-item");
   expect((await projectSectionButtons.count()) - 1).toBeLessThanOrEqual(projects.recentLimit);
 
   await page.getByRole("button", { name: "Alle Projekte auswählen" }).click();

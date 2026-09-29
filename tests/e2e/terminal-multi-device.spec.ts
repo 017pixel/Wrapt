@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { resetTerminalTestWorkspace } from "./helpers/terminal";
 
 // `WRAPT_E2E_URL` zeigt auf den Origin des Testservers; die Wrapt
-// selbst wird unter dem `/workbench`-Basispfad ausgeliefert.
+// selbst wird unter dem `/wrapt`-Basispfad ausgeliefert.
 const workbench = process.env.WRAPT_E2E_URL
   ? `${process.env.WRAPT_E2E_URL.replace(/\/$/, "")}/wrapt`
   : undefined;

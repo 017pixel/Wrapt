@@ -184,7 +184,7 @@ export function QuotaTimeline({ data, now: nowProp, initialMode = "weekly", init
       </header>
 
       <div className="qt-scroll">
-        <div className={`qt-chart ${compactColumn ? "is-compact" : ""}`} style={{ "--qt-detail-width": mode === "session" ? "840px" : "1100px", "--qt-track-width": mode === "session" ? "840px" : "1100px" } as CSSProperties}>
+        <div className={`qt-chart ${compactColumn ? "is-compact" : ""}`} style={{ "--qt-detail-width": mode === "session" ? "840px" : "1100px", "--qt-track-width": mode === "session" ? "840px" : "1100px", "--qt-cell-count": mode === "session" ? 12 : 14 } as CSSProperties}>
           <div className="qt-axis qt-axis-head">
             <span className="qt-axis-label">Account</span>
           </div>

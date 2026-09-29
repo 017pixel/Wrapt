@@ -16,6 +16,7 @@ import { useRouteActivity } from "../lib/routeActivity";
 import { useHashTab } from "../lib/hashTabs";
 import { useUsagePreferences } from "../stores/usagePreferences";
 import { UsageOverview } from "../components/usage/UsageOverview";
+import { useResponsiveShell, usesTabletSidebar } from "../lib/useResponsiveShell";
 
 type Tab = "overview"|"history"|"breakdown"|"accounts";
 const tabs: Array<{id:Tab;label:string}> = [{id:"overview",label:"Übersicht"},{id:"history",label:"Verlauf"},{id:"breakdown",label:"Projekte & Modelle"},{id:"accounts",label:"Accounts"}];
@@ -55,13 +56,17 @@ function ForecastCard({ forecast }: { forecast: UsageForecast }) {
 }
 
 function TokenChart({data}:{data:UsageDailyPoint[]}) {
-  // Bei sehr langen Verläufen („Gesamt") werden Tage zu Wochenblöcken gebündelt,
-  // damit das Diagramm lesbar bleibt. Die Kennzahlen rechnen mit den Originalwerten.
-  const points=useMemo(()=>{if(data.length<=400)return data;const groupSize=Math.ceil(data.length/400);const groups:UsageDailyPoint[]=[];for(let i=0;i<data.length;i+=groupSize){const slice=data.slice(i,i+groupSize);groups.push({date:slice[0]!.date,inputTokens:0,outputTokens:slice.reduce((s,p)=>s+p.outputTokens,0),cacheReadTokens:0,cacheCreationTokens:0,totalTokens:slice.reduce((s,p)=>s+p.totalTokens,0),totalCost:slice.reduce((s,p)=>s+p.totalCost,0)});}return groups;},[data]);
-  const width=900,height=260,pad=34,max=Math.max(1,...points.map((d)=>d.totalTokens));
+  const responsive=useResponsiveShell();
+  const sidebarWidth=usesTabletSidebar(responsive.mode,responsive.orientation)?280:32;
+  const width=Math.max(280,Math.min(900,responsive.width-sidebarWidth));
+  const height=260,pad=34;
+  // Die Anzahl der Balken passt sich der verfügbaren Breite an. Bei langen
+  // Zeiträumen werden Tageswerte gebündelt, Summen und Kosten bleiben erhalten.
+  const points=useMemo(()=>{const count=Math.max(8,Math.floor((width-pad*2)/9));if(data.length<=count)return data;const groupSize=Math.ceil(data.length/count);const groups:UsageDailyPoint[]=[];for(let i=0;i<data.length;i+=groupSize){const slice=data.slice(i,i+groupSize);groups.push({date:slice[0]!.date,inputTokens:slice.reduce((sum,point)=>sum+point.inputTokens,0),outputTokens:slice.reduce((sum,point)=>sum+point.outputTokens,0),cacheReadTokens:slice.reduce((sum,point)=>sum+point.cacheReadTokens,0),cacheCreationTokens:slice.reduce((sum,point)=>sum+point.cacheCreationTokens,0),totalTokens:slice.reduce((sum,point)=>sum+point.totalTokens,0),totalCost:slice.reduce((sum,point)=>sum+point.totalCost,0)});}return groups;},[data,width]);
+  const max=Math.max(1,...points.map((d)=>d.totalTokens));
   if (!data.length) return <p className="usage-empty">Für diesen Zeitraum liegen noch keine Tokenwerte vor.</p>;
   const total=data.reduce((sum,point)=>sum+point.totalTokens,0);const cost=data.reduce((sum,point)=>sum+point.totalCost,0);const peak=data.reduce((best,point)=>point.totalTokens>best.totalTokens?point:best,data[0]!);
-  return <><div className="usage-chart-summary" aria-label="Zusammenfassung des Tokenverlaufs"><div><span>Gesamt</span><strong>{number.format(total)} Tokens</strong></div><div><span>Kosten</span><strong>{money.format(cost)}</strong></div><div><span>Stärkster Tag</span><strong>{new Date(`${peak.date}T12:00:00`).toLocaleDateString("de-DE",{day:"2-digit",month:"short"})}</strong></div></div><div className="usage-chart-scroll"><svg className="usage-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Tokenverbrauch nach Tag"><line x1={pad} y1={height-pad} x2={width-pad} y2={height-pad}/>{points.map((d,i)=>{const slot=(width-pad*2)/points.length;const bar=Math.max(3,slot*.62);const x=pad+i*slot+(slot-bar)/2;const totalHeight=d.totalTokens/max*(height-pad*2);const outputHeight=d.outputTokens/max*(height-pad*2);return <g key={d.date}><rect className="usage-chart-bar" x={x} y={height-pad-totalHeight} width={bar} height={totalHeight}><title>{`${d.date}: ${number.format(d.totalTokens)} Tokens, ${money.format(d.totalCost)}`}</title></rect><rect className="usage-chart-output" x={x} y={height-pad-outputHeight} width={bar} height={outputHeight}/>{(i===0||i===points.length-1||i%Math.ceil(points.length/6)===0)&&<text x={x+bar/2} y={height-10} textAnchor="middle">{d.date.slice(5)}</text>}</g>})}</svg></div></>;
+  return <><div className="usage-chart-summary" aria-label="Zusammenfassung des Tokenverlaufs"><div><span>Gesamt</span><strong>{number.format(total)} Tokens</strong></div><div><span>Kosten</span><strong>{money.format(cost)}</strong></div><div><span>Stärkster Tag</span><strong>{new Date(`${peak.date}T12:00:00`).toLocaleDateString("de-DE",{day:"2-digit",month:"short"})}</strong></div></div><div className="usage-chart-scroll"><svg className="usage-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Tokenverbrauch nach Tag"><line x1={pad} y1={height-pad} x2={width-pad} y2={height-pad}/>{points.map((d,i)=>{const slot=(width-pad*2)/points.length;const bar=Math.max(3,slot*.62);const x=pad+i*slot+(slot-bar)/2;const totalHeight=d.totalTokens/max*(height-pad*2);const outputHeight=d.outputTokens/max*(height-pad*2);return <g key={d.date}><rect className="usage-chart-bar" x={x} y={height-pad-totalHeight} width={bar} height={totalHeight}><title>{`${d.date}: ${number.format(d.totalTokens)} Tokens, ${money.format(d.totalCost)}`}</title></rect><rect className="usage-chart-output" x={x} y={height-pad-outputHeight} width={bar} height={outputHeight}/>{(i===0||i===points.length-1||i%Math.ceil(points.length/6)===0)&&<text x={x+bar/2} y={height-10} textAnchor="middle">{new Date(`${d.date}T12:00:00`).toLocaleDateString("de-DE",{day:"2-digit",month:"2-digit"})}</text>}</g>})}</svg></div></>;
 }
 
 function Breakdown({title,items}:{title:string;items:UsageBreakdown[]}) {

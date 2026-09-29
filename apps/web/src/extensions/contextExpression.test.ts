@@ -93,14 +93,14 @@ describe("evaluateContextExpression", () => {
         {
           key: "host.route.id",
           operator: "in",
-          values: ["workbench.orbit.route.main", "workbench.inbox.route.main"],
+          values: ["workbench.orbit.route.main", "workbench.terminal.route.main"],
         },
       ],
     } as unknown as ContextExpression;
     expect(
       evaluateContextExpression(
         expression,
-        values([["host.route.id", "workbench.inbox.route.main"]]),
+        values([["host.route.id", "workbench.terminal.route.main"]]),
       ),
     ).toBe(true);
     expect(

@@ -1,0 +1,233 @@
+.preview-runtime-controls.is-simulator {
+  width: max-content;
+  max-width: calc(100% - 24px);
+  top: var(--space-3);
+  right: auto;
+  bottom: auto;
+  left: 50%;
+  min-height: 56px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-1);
+  border-color: var(--color-line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--color-ink-850);
+  padding: 5px;
+  box-shadow: var(--shadow-overlay);
+  transform: translateX(-50%);
+}
+
+.preview-runtime-controls.is-simulator.is-positioned { transform: none; }
+
+.preview-runtime-controls.is-simulator .preview-simulator-move,
+.preview-runtime-controls.is-simulator .preview-simulator-resize {
+  flex: none;
+  touch-action: none;
+  color: var(--color-muted);
+  font: 15px var(--font-mono);
+  user-select: none;
+}
+
+.preview-runtime-controls.is-simulator .preview-simulator-move { cursor: move; }
+.preview-runtime-controls.is-simulator .preview-simulator-resize { margin-left: auto; cursor: ew-resize; }
+.preview-runtime-controls.is-simulator .preview-simulator-move:focus-visible,
+.preview-runtime-controls.is-simulator .preview-simulator-resize:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+
+.preview-runtime-controls.is-simulator > button,
+.preview-runtime-controls.is-simulator > a {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--color-muted);
+}
+
+.preview-runtime-controls.is-simulator > button:hover:not(:disabled),
+.preview-runtime-controls.is-simulator > a:hover {
+  background: var(--color-ink-700);
+  color: var(--color-text);
+}
+
+.preview-simulator-preset {
+  display: grid;
+  min-height: 44px;
+  grid-template-columns: auto minmax(124px, 1fr);
+  align-items: center;
+  gap: var(--space-1);
+  border: 1px solid var(--color-line-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-ink-900);
+  padding: 0 var(--space-2);
+  color: var(--color-faint);
+  font-size: 10px;
+}
+
+.preview-simulator-preset select {
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 12px;
+}
+
+.preview-simulator-dimensions {
+  position: relative;
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  margin: 0;
+  padding: 0 4px;
+}
+
+.preview-simulator-dimensions legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.preview-simulator-dimensions label {
+  display: grid;
+  grid-template-columns: auto 68px;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-faint);
+  font-size: 10px;
+}
+
+.preview-simulator-dimensions input {
+  width: 68px;
+  height: 44px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--color-ink-850);
+  padding: 0 4px;
+  color: var(--color-text);
+  font: 11px var(--font-mono);
+  text-align: center;
+}
+
+.preview-simulator-dimensions input:focus-visible {
+  border-color: var(--color-accent);
+  outline: 1px solid var(--color-accent);
+}
+
+.preview-runtime-controls.is-simulator .preview-simulator-reset-size {
+  min-width: 44px;
+  width: auto;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 8px;
+  font-size: 10px;
+}
+
+.preview-runtime-controls.is-simulator .preview-simulator-resize {
+  order: 2;
+}
+
+.preview-runtime-controls.is-simulator .preview-runtime-scale {
+  min-height: 44px;
+  border-right: 0;
+  margin-right: 0;
+  padding-right: 0;
+}
+
+.preview-runtime-controls.is-simulator .preview-runtime-scale button {
+  width: 44px;
+  height: 44px;
+  border: 1px solid transparent;
+  background: transparent;
+}
+
+.preview-runtime-controls.is-simulator .preview-runtime-scale output {
+  min-width: 44px;
+  font-size: 11px;
+}
+
+.preview-simulator-disclaimer {
+  order: 3;
+  flex: 1 0 100%;
+  border-top: 1px solid var(--color-line);
+  padding-top: 3px;
+  color: var(--color-faint);
+  font-size: 10px;
+  text-align: center;
+}
+
+.preview-live-window .preview-live-stage {
+  padding-top: calc(var(--space-3) + 76px);
+}
+
+.preview-live-window .preview-live-stage .preview-slot-frame {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.device-preview-shell.is-responsive {
+  border-radius: var(--radius-sm);
+  background: var(--color-ink-900);
+  box-shadow: 0 0 0 1px var(--color-line-strong);
+}
+
+.device-preview-shell.is-responsive .device-preview-screen {
+  border-radius: 0;
+}
+
+/* Unterschiedliche Gehäuse für Telefon, Tablet und Desktop. */
+.device-preview-stage { background: var(--color-ink-950); }
+.device-preview-shell.is-phone {
+  border-radius: 48px;
+  background: var(--color-ink-950);
+  box-shadow: 0 0 0 1px var(--color-ink-600), 0 0 0 3px var(--color-ink-800), var(--shadow-overlay);
+}
+.device-preview-shell.is-phone .device-preview-screen {
+  border-radius: 40px;
+  box-shadow: inset 0 0 0 1px var(--color-line-strong);
+}
+.device-preview-shell.is-phone:has(.device-preview-cutout.is-punch-hole) { border-radius: 36px; }
+.device-preview-shell.is-phone:has(.device-preview-cutout.is-punch-hole) .device-preview-screen { border-radius: 28px; }
+.device-preview-shell.is-tablet {
+  border-radius: 32px;
+  box-shadow: 0 0 0 1px var(--color-ink-600), 0 0 0 3px var(--color-ink-800), var(--shadow-overlay);
+}
+.device-preview-shell.is-tablet .device-preview-screen { border-radius: 23px; }
+.device-preview-shell.is-desktop {
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 1px var(--color-ink-600), var(--shadow-overlay);
+}
+.device-preview-shell.is-desktop .device-preview-screen { border-radius: var(--radius-sm); }
+.device-preview-shell.is-phone .device-preview-cutout.is-dynamic-island {
+  box-shadow: 0 0 0 1px var(--color-line);
+}
+.device-preview-caption {
+  top: auto;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  left: auto;
+  border-color: var(--color-line-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-ink-850);
+  box-shadow: var(--shadow-raised);
+}
+
+@media (max-width: 767px) {
+  .preview-runtime-controls.is-simulator {
+    justify-content: flex-start;
+    width: calc(100% - 24px);
+  }
+
+  .preview-live-window .preview-live-stage {
+    padding-top: calc(var(--space-3) + 174px);
+    padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom));
+  }
+}

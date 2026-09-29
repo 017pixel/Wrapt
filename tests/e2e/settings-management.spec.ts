@@ -52,7 +52,8 @@ test("erreicht jeden Einstellungs-Tab und rendert seinen Fachbereich", async ({ 
     ["System", "settings-system"],
     ["Erweiterungen", "settings-extensions"],
     ["Werkzeuge", "settings-usage"],
-    ["Workspace", "settings-workspace"],
+    ["Layout", "settings-layout"],
+    ["Workspaces", "settings-workspaces"],
     ["Easter Eggs", "settings-easter-eggs"],
     ["Start-App", "settings-start-app"],
   ] as const;
@@ -90,6 +91,40 @@ test("testet die neuen Capybara-Aktionen", async ({ page }) => {
   await expect(preview).toHaveAttribute("data-action", "wake");
   await preview.click();
   await expect(preview).toHaveAttribute("data-action", "celebrate");
+});
+
+test("zeigt fünf zusätzliche Capybara-Aktionen und eine längere Party", async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on("pageerror", (error) => pageErrors.push(error.message));
+  await page.goto("/wrapt/settings");
+  await page.getByRole("button", { name: "Easter Eggs", exact: true }).click();
+  const preview = page.getByRole("button", { name: "Capybara testen" });
+
+  for (const [label, action] of [
+    ["Strecken", "stretch"], ["Schnuppern", "sniff"], ["Winken", "wave"],
+    ["Verbeugen", "bow"], ["Wackeln", "wiggle"],
+  ] as const) {
+    await page.getByRole("button", { name: label, exact: true }).click();
+    await expect(preview).toHaveAttribute("data-action", action);
+  }
+
+  await page.getByRole("button", { name: "Party", exact: true }).click();
+  await expect(preview).toHaveAttribute("data-action", "celebrate");
+  await page.waitForTimeout(3_000);
+  await expect(preview).toHaveAttribute("data-action", /celebrate|hop/);
+  await expect(preview).toHaveAttribute("data-action", "idle", { timeout: 3_000 });
+  expect(pageErrors).toEqual([]);
+});
+
+test("reduziert neue Capybara-Aktionen auf eine ruhige Pose", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/wrapt/settings");
+  await page.getByRole("button", { name: "Easter Eggs", exact: true }).click();
+  const preview = page.getByRole("button", { name: "Capybara testen" });
+  await expect.poll(() => page.evaluate(() => matchMedia("(prefers-reduced-motion: reduce)").matches)).toBe(true);
+  await page.getByRole("button", { name: "Strecken", exact: true }).click();
+  await expect(preview).toHaveAttribute("data-frame", "hopA");
+  await expect(preview).toHaveAttribute("data-action", "idle", { timeout: 1_000 });
 });
 
 test("schläft nach kurzer Ruhe von selbst ein", async ({ page }) => {

@@ -52,7 +52,6 @@ export function loadRouteWithRecovery<T>(load: RouteLoader<T>): Promise<T> {
 
 const routeLoaders = {
   workbench: () => import("../views/OrbitWorkbench"),
-  inbox: () => import("../views/Inbox"),
   projects: () => import("../views/Projects"),
   projectDetail: () => import("../views/ProjectDetail"),
   settings: () => import("../views/Settings"),
@@ -66,10 +65,10 @@ const routeLoaders = {
   previewGroup: () => import("../views/PreviewGroupRoute"),
   previewLive: () => import("../views/PreviewLiveWindow"),
   skillEditor: () => import("../views/SkillEditor"),
+  notes: () => import("../views/Notes"),
 } as const;
 
 export const loadWorkbench = routeLoaders.workbench;
-export const loadInbox = routeLoaders.inbox;
 export const loadProjects = routeLoaders.projects;
 export const loadProjectDetail = routeLoaders.projectDetail;
 export const loadSettings = routeLoaders.settings;
@@ -83,14 +82,18 @@ export const loadFileManager = routeLoaders.fileManager;
 export const loadPreviewGroup = routeLoaders.previewGroup;
 export const loadPreviewLive = routeLoaders.previewLive;
 export const loadSkillEditor = routeLoaders.skillEditor;
+export const loadNotes = routeLoaders.notes;
 
 const pathLoaders: Array<[prefix: string, load: () => Promise<unknown>]> = [
+  ["/orbit", loadWorkbench],
   ["/workbench", loadWorkbench],
-  ["/inbox", loadInbox],
+  ["/orbit/notizen", loadNotes],
+  ["/orbit/previews", loadToolRoute],
   ["/projects/", loadProjectDetail],
   ["/projects", loadProjects],
   ["/files", loadFileManager],
   ["/ki-skills", loadSkillEditor],
+  ["/notizen", loadNotes],
   ["/settings", loadSettings],
   ["/usage", loadUsage],
   ["/plugins", loadPlugins],

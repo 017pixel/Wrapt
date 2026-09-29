@@ -13,6 +13,7 @@ const orbitItemLabels: Record<OrbitPaletteItem, string> = {
   "tool:preview": "Preview",
   "tool:code-server": "Code-Server",
   "tool:codex": "Codex",
+  "tool:claude": "Claude Code",
   "tool:opencode": "OpenCode",
   "tool:files": "Dateien",
   "preview:layout-1": "Einzel-Preview",
@@ -26,6 +27,11 @@ const orbitItemLabels: Record<OrbitPaletteItem, string> = {
   "block:usage-codex": "Codex Nutzung",
   "block:usage-opencode": "OpenCode Nutzung",
   "block:usage-claude": "Claude Code Nutzung",
+  "block:file": "Projektdatei",
+  "block:gallery": "Mediengalerie",
+  "block:file-gallery": "Dateigalerie",
+  "block:hermes-tasks": "Hermes Aufgaben",
+  "block:hermes-cron": "Hermes Automatisierungen",
 };
 
 const orbitSections: readonly { label: string; items: readonly OrbitPaletteItem[] }[] = [
@@ -38,6 +44,7 @@ const orbitSections: readonly { label: string; items: readonly OrbitPaletteItem[
       "tool:preview",
       "tool:code-server",
       "tool:codex",
+      "tool:claude",
       "tool:opencode",
       "tool:files",
     ],
@@ -56,6 +63,11 @@ const orbitSections: readonly { label: string; items: readonly OrbitPaletteItem[
       "block:usage-codex",
       "block:usage-opencode",
       "block:usage-claude",
+      "block:file",
+      "block:gallery",
+      "block:file-gallery",
+      "block:hermes-tasks",
+      "block:hermes-cron",
     ],
   },
 ];

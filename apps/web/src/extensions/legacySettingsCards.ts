@@ -16,7 +16,7 @@ export const legacySettingsCards: readonly SettingsCardMetadata[] =
     Object.freeze({ id: contributionIdSchema.parse("wrapt.settings.card.restart"), title: "Dienst neu starten", description: "Nach Code-Änderungen neu bauen und laden – ohne Datenverlust", order: 20, hostOnly: true }),
     Object.freeze({ id: contributionIdSchema.parse("wrapt.settings.card.t3-channel"), title: "T3 Code Kanal", description: "Stable oder Nightly – gilt für alle T3-Flächen", order: 30, hostOnly: false }),
     Object.freeze({ id: contributionIdSchema.parse("wrapt.settings.card.usage-monitoring"), title: "Limitüberwachung", description: "Limits je Werkzeug erfassen oder pauschal deaktivieren", order: 40, hostOnly: false }),
-    Object.freeze({ id: contributionIdSchema.parse("wrapt.settings.card.workspace"), title: "Workspace", description: "Lokaler, persistenter Zustand", order: 50, hostOnly: false }),
+    Object.freeze({ id: contributionIdSchema.parse("wrapt.settings.card.workspace"), title: "Layout", description: "Lokaler, persistenter Layout-Zustand", order: 50, hostOnly: false }),
     Object.freeze({ id: contributionIdSchema.parse("wrapt.settings.card.dashboard"), title: "Dashboard", description: "Bereiche lokal ein- und ausblenden", order: 60, hostOnly: false }),
     Object.freeze({ id: contributionIdSchema.parse("wrapt.settings.card.notifications"), title: "Benachrichtigungen", description: "Toasts und System-Benachrichtigungen pro Quelle", order: 70, hostOnly: false }),
     Object.freeze({ id: contributionIdSchema.parse("wrapt.settings.card.install"), title: "App installieren", description: "Für einen schnellen Zugriff vom Homescreen oder Desktop", order: 80, hostOnly: true }),

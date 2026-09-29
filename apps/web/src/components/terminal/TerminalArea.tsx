@@ -5,13 +5,16 @@ import type { TerminalKind, TerminalPaneLayout, TerminalSession } from "@wrapt/c
 import { MonitorOffIcon, PlusIcon, TerminalIcon } from "../icons";
 import { apiClient } from "../../lib/apiClient";
 import { wraptQueries } from "../../lib/queryOptions";
-import { useResponsiveShell } from "../../lib/useResponsiveShell";
+import { useTerminalResponsiveLayout } from "./useTerminalResponsiveLayout";
+import { useTerminalOrbitHandoff } from "./terminal-handoff";
 import { usePaneWidth } from "../../lib/usePaneWidth";
 import { useRouteActivity } from "../../lib/routeActivity";
 import { useTerminalWorkspaceStore } from "../../stores/terminalWorkspace";
+import { useSidebarPreferences } from "../../stores/sidebarPreferences";
 import { kindLabels, statusLabel } from "./terminal-labels";
 import { TerminalKeybar } from "./terminal-keybar";
 import { TerminalSessionPicker } from "./terminal-session-picker";
+import { useTerminalSessionRequest } from "./useTerminalSessionRequest";
 import { TerminalSidebar } from "./sidebar/TerminalSidebar";
 import { TerminalCanvas } from "./TerminalCanvas";
 import { WebTerminal, type WebTerminalHandle } from "./WebTerminal";
@@ -23,10 +26,10 @@ import {
   layoutContainsRuntime,
   layoutRuntimeIds,
   MAX_TERMINAL_PANES,
-  openEntryOps,
   paneForRuntime,
   removeRuntimeFromLayout,
 } from "./workspace/terminalWorkspaceModel";
+import { openSessionOps } from "./workspace/terminal-session-operations";
 import type { DndDragState } from "./sidebar/useTerminalDnd";
 
 interface TerminalAreaProps {
@@ -58,21 +61,22 @@ export function TerminalArea({
   minimal = false,
   requestedSessionId = null,
 }: TerminalAreaProps) {
-  const responsive = useResponsiveShell();
+  const { isMobile, hasTouchControls, sidebarVisible, setSidebarVisible, showSingleMobilePane } = useTerminalResponsiveLayout();
   const routeActive = useRouteActivity();
-  const isMobile = responsive.isTouchShell;
+  const openSessionInOrbit = useTerminalOrbitHandoff();
+  const orbitEnabled = useSidebarPreferences((state) => !state.hiddenPages.has("workbench"));
   const bento = layout === "bento";
   const terminalSidebar = usePaneWidth({ storageKey: "wrapt.terminal-sidebar.v1", initial: 256, min: 220, max: 420 });
   const document = useTerminalWorkspaceStore((state) => state.document);
+  const pendingOps = useTerminalWorkspaceStore((state) => state.pendingOps);
   const queueOps = useTerminalWorkspaceStore((state) => state.queueOps);
   const setRuntimeCwd = useTerminalWorkspaceStore((state) => state.setRuntimeCwd);
   const runtimeCwds = useTerminalWorkspaceStore((state) => state.runtimeCwds);
   const sessions = useQuery({ ...wraptQueries.terminalSessions(), refetchInterval: false, enabled: routeActive });
+  useTerminalSessionRequest({ areaId, active: routeActive, requestedSessionId, document, sessions: sessions.data?.sessions });
   const handles = useRef(new Map<string, WebTerminalHandle>());
   const splitSaveFrame = useRef<number | null>(null);
-  const requestedHandledRef = useRef(false);
   const [meta, setMeta] = useState<Record<string, TerminalMeta>>({});
-  const [sidebarVisible, setSidebarVisible] = useState(!isMobile);
   const [keyboardRow, setKeyboardRow] = useState<"keys" | "actions">("keys");
   const [stickyCtrl, setStickyCtrl] = useState(false);
   const [stickyAlt, setStickyAlt] = useState(false);
@@ -104,7 +108,6 @@ export function TerminalArea({
   const activeMeta = focusedRuntimeId ? meta[focusedRuntimeId] : undefined;
   const hasActivePane = panes.length > 0;
   const hasSplit = paneLayout?.type === "split";
-  const showSingleMobilePane = isMobile && responsive.orientation === "portrait";
 
   const rememberWarmRuntimes = useCallback((runtimeIds: readonly string[]) => {
     setWarmRuntimeIds((current) => {
@@ -136,8 +139,8 @@ export function TerminalArea({
     }
     if (current?.type === "split" && !layoutContainsRuntime(current, runtimeId)) setSuspendedSplitLayout(current);
     rememberWarmRuntimes([runtimeId, ...layoutRuntimeIds(current)]);
-    queueOps(openEntryOps(state.document, areaId, runtimeId));
-  }, [areaId, queueOps, rememberWarmRuntimes, suspendedSplitLayout]);
+    queueOps(openSessionOps(state.document, areaId, runtimeId, sessions.data?.sessions ?? []));
+  }, [areaId, queueOps, rememberWarmRuntimes, sessions.data?.sessions, suspendedSplitLayout]);
 
   const openInSplit = useCallback((runtimeId: string) => {
     const state = useTerminalWorkspaceStore.getState();
@@ -172,7 +175,7 @@ export function TerminalArea({
     return runtimeId;
   }, [areaId, initialProjectId, kind, queueOps]);
 
-  useAutoCreateTerminalPane(minimal, Boolean(document), hasActivePane, initialProjectId, create);
+  useAutoCreateTerminalPane(minimal && requestedSessionId === null, Boolean(document), hasActivePane, initialProjectId, create);
   const createSplit = useCallback(() => {
     const state = useTerminalWorkspaceStore.getState();
     const doc = state.document;
@@ -232,30 +235,14 @@ export function TerminalArea({
     if (splitSaveFrame.current !== null) window.cancelAnimationFrame(splitSaveFrame.current);
   }, []);
 
-  // Tiefenlink: eine laufende Session in dieser Fläche öffnen.
-  useEffect(() => {
-    if (!routeActive || !requestedSessionId || requestedHandledRef.current || !document || !sessions.data) return;
-    const session = sessions.data.sessions.find((candidate) => candidate.id === requestedSessionId || candidate.runtimeId === requestedSessionId);
-    if (!session) return;
-    requestedHandledRef.current = true;
-    const existing = document.entries.find((entry) => entry.runtimeId === session.runtimeId);
-    const state = useTerminalWorkspaceStore.getState();
-    if (existing) state.queueOps(openEntryOps(document, areaId, session.runtimeId));
-    else {
-      const count = document.entries.filter((entry) => entry.kind === session.kind).length + 1;
-      state.queueOps([
-        { type: "createEntry", entry: { id: `entry-${session.runtimeId}`, runtimeId: session.runtimeId, name: `${kindLabels[session.kind]} ${count}`, parentFolderId: null, sortOrder: document.entries.length, pinned: false, persistent: false, kind: session.kind, projectId: session.projectId, initialCwd: session.cwd } },
-        ...openEntryOps(document, areaId, session.runtimeId),
-      ]);
-    }
-  }, [areaId, document, requestedSessionId, routeActive, sessions.data]);
-
   const sessionPicker = minimal ? null : (
     <TerminalSessionPicker
       kind={kind}
       sessions={sessions.data?.sessions ?? []}
       openTabIds={panes.map((pane) => pane.runtimeId)}
+      orbitEnabled={orbitEnabled}
       onOpen={(session) => openEntry(session.runtimeId)}
+      onOpenInOrbit={openSessionInOrbit}
       onRestart={async (session: TerminalSession) => { await apiClient.restartTerminalSession(session.id); void sessions.refetch(); }}
       onClose={async (session: TerminalSession) => { await apiClient.closeTerminalSession(session.id); void sessions.refetch(); }}
     />
@@ -285,34 +272,40 @@ export function TerminalArea({
     );
   };
 
-  const renderPane = (pane: VisiblePane, visible: boolean, position?: "left" | "right", index?: number) => (
-    <div
-      key={pane.id}
-      data-pane-id={pane.id}
-      data-pane-position={position}
-      data-terminal-index={index}
-      className={`terminal-session-pane ${focusedRuntimeId === pane.runtimeId ? "is-focused" : ""} ${visible ? "is-visible" : "is-parked"}`}
-      inert={!visible}
-      onPointerDown={() => visible && pane.runtimeId !== focusedRuntimeId && queueOps([{ type: "setFocusedPane", areaId, paneId: pane.id }])}
-    >
-      <WebTerminal
-        ref={(handle) => { if (handle) handles.current.set(pane.runtimeId, handle); else handles.current.delete(pane.runtimeId); }}
-        instanceId={pane.runtimeId}
-        kind={kind}
-        active={routeActive && visible}
-        focused={focusedRuntimeId === pane.runtimeId}
-        renderScale={renderScale}
-        onMetaChange={(next) => {
-          setRuntimeCwd(pane.runtimeId, next.cwd);
-          setMeta((current) => {
-            const previous = current[pane.runtimeId];
-            if (previous?.status === next.status && previous.cwd === next.cwd && previous.error === next.error && previous.cols === next.cols && previous.rows === next.rows) return current;
-            return { ...current, [pane.runtimeId]: next };
-          });
-        }}
-      />
-    </div>
-  );
+  const renderPane = (pane: VisiblePane, visible: boolean, position?: "left" | "right", index?: number) => {
+    const entry = document.entries.find((candidate) => candidate.runtimeId === pane.runtimeId);
+    const awaitingCreation = pendingOps.some((operation) => operation.type === "createEntry" && operation.entry.runtimeId === pane.runtimeId);
+    return (
+      <div
+        key={pane.id}
+        data-pane-id={pane.id}
+        data-pane-position={position}
+        data-terminal-index={index}
+        className={`terminal-session-pane ${focusedRuntimeId === pane.runtimeId ? "is-focused" : ""} ${visible ? "is-visible" : "is-parked"}`}
+        inert={!visible}
+        onPointerDown={() => visible && pane.runtimeId !== focusedRuntimeId && queueOps([{ type: "setFocusedPane", areaId, paneId: pane.id }])}
+      >
+        {awaitingCreation ? <div className="terminal-area-loading" role="status">Terminal wird vorbereitet…</div> : <WebTerminal
+          ref={(handle) => { if (handle) handles.current.set(pane.runtimeId, handle); else handles.current.delete(pane.runtimeId); }}
+          instanceId={pane.runtimeId}
+          kind={entry?.kind ?? kind}
+          projectId={entry?.projectId ?? null}
+          initialCwd={entry?.initialCwd ?? null}
+          active={routeActive && visible}
+          focused={focusedRuntimeId === pane.runtimeId}
+          renderScale={renderScale}
+          onMetaChange={(next) => {
+            setRuntimeCwd(pane.runtimeId, next.cwd);
+            setMeta((current) => {
+              const previous = current[pane.runtimeId];
+              if (previous?.status === next.status && previous.cwd === next.cwd && previous.error === next.error && previous.cols === next.cols && previous.rows === next.rows) return current;
+              return { ...current, [pane.runtimeId]: next };
+            });
+          }}
+        />}
+      </div>
+    );
+  };
 
   const emptyState = <><MonitorOffIcon className="h-6 w-6" /><strong>Kein Terminal geöffnet</strong><button type="button" className="quiet-button-primary" onClick={() => create(null, initialProjectId)}><PlusIcon className="h-4 w-4" /> {kindLabels[kind]} öffnen</button></>;
 
@@ -373,7 +366,7 @@ export function TerminalArea({
             renderPane={renderPane}
             onLayoutChanged={saveSplitLayout}
           />
-          {!minimal && isMobile ? (
+          {!minimal && hasTouchControls ? (
             <TerminalKeybar
               keyboardRow={keyboardRow}
               stickyCtrl={stickyCtrl}

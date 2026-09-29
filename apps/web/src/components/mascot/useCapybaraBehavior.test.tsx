@@ -48,10 +48,10 @@ describe("useCapybaraBehavior", () => {
       vi.advanceTimersByTime(10);
     });
     expect(result.current.sleeping).toBe(false);
-    expect(result.current.frame).toBe("yawnA");
+    expect(result.current.frame).toBe("blink");
 
     act(() => {
-      vi.advanceTimersByTime(1_150);
+      vi.advanceTimersByTime(1_985);
     });
     expect(result.current.frame).toBe("calm");
   });
@@ -68,7 +68,7 @@ describe("useCapybaraBehavior", () => {
     expect(result.current.action).toBe("celebrate");
 
     act(() => {
-      vi.advanceTimersByTime(2_400);
+      vi.advanceTimersByTime(4_250);
     });
     expect(result.current.frame).toBe("calm");
   });
@@ -81,11 +81,31 @@ describe("useCapybaraBehavior", () => {
     act(() => {
       vi.advanceTimersByTime(1);
     });
+    expect(result.current.frame).toBe("blink");
+    act(() => {
+      vi.advanceTimersByTime(190);
+    });
     expect(result.current.frame).toBe("yawnA");
     act(() => {
-      vi.advanceTimersByTime(300);
+      vi.advanceTimersByTime(310);
     });
     expect(result.current.frame).toBe("yawnB");
+  });
+
+  it("zeigt neue Aktionen bei reduzierter Bewegung als ruhige Einzelpose", () => {
+    const { result } = renderHook(() => useCapybaraBehavior("calm", true, stage, { hour: 12 }));
+    act(() => {
+      result.current.play("stretch");
+    });
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(result.current.action).toBe("stretch");
+    expect(result.current.frame).toBe("hopA");
+    act(() => {
+      vi.advanceTimersByTime(350);
+    });
+    expect(result.current.action).toBe("idle");
   });
 
   it("bleibt im Nickerchen, bis es geweckt wird", () => {
@@ -107,12 +127,28 @@ describe("useCapybaraBehavior", () => {
       vi.advanceTimersByTime(10);
     });
     expect(result.current.sleeping).toBe(false);
-    expect(result.current.frame).toBe("yawnA");
+    expect(result.current.frame).toBe("blink");
 
     act(() => {
-      vi.advanceTimersByTime(1_150);
+      vi.advanceTimersByTime(2_050);
     });
     expect(result.current.frame).toBe("calm");
+  });
+
+  it.each([
+    "stretch", "sniff", "wave", "bow", "wiggle",
+  ] as const)("spielt %s vollständig ab", (action) => {
+    const { result } = renderBehavior();
+    act(() => {
+      result.current.play(action);
+      vi.advanceTimersByTime(1);
+    });
+    expect(result.current.action).toBe(action);
+    act(() => {
+      vi.advanceTimersByTime(1_500);
+    });
+    expect(result.current.frame).toBe("calm");
+    expect(result.current.action).toBe("idle");
   });
 
   it("gähnt nicht, wenn die Verbindung fehlt", () => {

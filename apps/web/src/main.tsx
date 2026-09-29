@@ -9,9 +9,11 @@ import { addBreadcrumb, installGlobalErrorHandlers, subscribeToCrash } from "./l
 import { apiClient } from "./lib/apiClient";
 import { synchronizeExistingPushDevice } from "./lib/webPushDevice";
 import "./index.css";
+import "./views/dashboard-layout.css";
 import "./visual-system.css";
 import "./components/usage/usage-mobile.css";
 import "./components/usage/usage-filters.css";
+import "./components/mobile/mobile-experience.css";
 
 // Muss vor dem ersten Render stehen, sonst gehen frühe Fehler verloren.
 installGlobalErrorHandlers();
@@ -40,7 +42,7 @@ const queryClient = new QueryClient({
 subscribeToCrash((report) => {
   if (!report) return;
   void apiClient.createCrashNotification({
-    title: "Frontend-Absturz", body: report.message.slice(0, 1_000), link: report.route.startsWith("/wrapt/") ? report.route : "/wrapt/inbox",
+    title: "Frontend-Absturz", body: report.message.slice(0, 1_000), link: report.route.startsWith("/wrapt/") ? report.route : "/wrapt/",
     remoteId: `crash:${report.id}`,
     report: {
       message: report.message, stack: [report.stack, report.componentStack].filter(Boolean).join("\n\n") || null,

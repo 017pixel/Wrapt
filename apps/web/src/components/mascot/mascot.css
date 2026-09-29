@@ -111,7 +111,8 @@
 /* Kopf und oberer Rücken ragen sichtbar über die Leiste, die Füße bleiben
    knapp über der Unterkante stehen. */
 .status-mascot-button .capy-sprite {
-  transform: translateY(calc(var(--capy-sprite-size, 88px) * -.1625)) scaleX(var(--capy-facing, 1));
+  --capy-rest-y: calc(var(--capy-sprite-size, 88px) * -.1625);
+  transform: translateY(var(--capy-rest-y)) scaleX(var(--capy-facing, 1));
   transform-origin: center;
   transition: transform var(--duration-fast) var(--ease-standard);
 }
@@ -171,14 +172,85 @@
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* Beim Jubeln wippt das Capybara sanft auf und ab. */
-.status-mascot[data-action="celebrate"] .capy-sprite {
-  animation: capy-bounce .7s cubic-bezier(.4, 0, .6, 1) infinite;
+/* Kleine Körperbewegungen verbinden die Pixelbilder ohne weichgezeichnete Zwischenbilder. */
+:is(.status-mascot, .mascot-preview)[data-action="celebrate"] .capy-sprite {
+  animation: capy-bounce 1.2s cubic-bezier(.45, 0, .25, 1) infinite;
 }
 
 @keyframes capy-bounce {
-  0%, 100% { transform: translateY(calc(var(--capy-sprite-size, 88px) * -.1625)) translateY(0) scaleX(var(--capy-facing, 1)); }
-  50% { transform: translateY(calc(var(--capy-sprite-size, 88px) * -.1625)) translateY(-3px) scaleX(var(--capy-facing, 1)); }
+  0%, 100% { transform: translateY(var(--capy-rest-y, 0px)) scaleX(var(--capy-facing, 1)); }
+  48% { transform: translateY(calc(var(--capy-rest-y, 0px) - 4px)) scaleX(var(--capy-facing, 1)); }
+}
+
+:is(.status-mascot, .mascot-preview)[data-action="hop"] .capy-sprite {
+  animation: capy-hop .89s cubic-bezier(.34, 0, .2, 1) both;
+}
+
+@keyframes capy-hop {
+  0%, 100% { transform: translateY(var(--capy-rest-y, 0px)) scaleX(var(--capy-facing, 1)); }
+  18% { transform: translateY(calc(var(--capy-rest-y, 0px) + 2px)) scaleX(var(--capy-facing, 1)); }
+  52% { transform: translateY(calc(var(--capy-rest-y, 0px) - 9px)) scaleX(var(--capy-facing, 1)); }
+  78% { transform: translateY(calc(var(--capy-rest-y, 0px) - 3px)) scaleX(var(--capy-facing, 1)); }
+}
+
+:is(.status-mascot, .mascot-preview)[data-action="wake"] .capy-sprite,
+:is(.status-mascot, .mascot-preview)[data-action="yawn"] .capy-sprite {
+  animation: capy-yawn 1.98s ease-in-out both;
+}
+
+@keyframes capy-yawn {
+  0%, 100% { transform: translateY(var(--capy-rest-y, 0px)) scaleX(var(--capy-facing, 1)); }
+  18% { transform: translateY(calc(var(--capy-rest-y, 0px) + 2px)) scaleX(var(--capy-facing, 1)); }
+  47%, 65% { transform: translateY(calc(var(--capy-rest-y, 0px) - 2px)) scale(1.035, 1.035) scaleX(var(--capy-facing, 1)); }
+  86% { transform: translateY(calc(var(--capy-rest-y, 0px) + 1px)) scaleX(var(--capy-facing, 1)); }
+}
+
+:is(.status-mascot, .mascot-preview)[data-action="stretch"] .capy-sprite {
+  animation: capy-stretch 1.14s ease-in-out both;
+}
+
+@keyframes capy-stretch {
+  0%, 100% { transform: translateY(var(--capy-rest-y, 0px)) scaleX(var(--capy-facing, 1)); }
+  48% { transform: translateY(calc(var(--capy-rest-y, 0px) - 3px)) scale(1.07, .96) scaleX(var(--capy-facing, 1)); }
+}
+
+:is(.status-mascot, .mascot-preview)[data-action="sniff"] .capy-sprite {
+  animation: capy-sniff 1.12s ease-in-out both;
+}
+
+@keyframes capy-sniff {
+  0%, 100% { transform: translateY(var(--capy-rest-y, 0px)) scaleX(var(--capy-facing, 1)); }
+  27%, 68% { transform: translateY(calc(var(--capy-rest-y, 0px) + 2px)) scaleX(var(--capy-facing, 1)); }
+  45%, 83% { transform: translateY(var(--capy-rest-y, 0px)) scaleX(var(--capy-facing, 1)); }
+}
+
+:is(.status-mascot, .mascot-preview)[data-action="wave"] .capy-sprite {
+  animation: capy-wave 1.15s ease-in-out both;
+}
+
+@keyframes capy-wave {
+  0%, 100% { transform: translateY(var(--capy-rest-y, 0px)) rotate(0) scaleX(var(--capy-facing, 1)); }
+  35%, 72% { transform: translateY(calc(var(--capy-rest-y, 0px) - 2px)) rotate(3deg) scaleX(var(--capy-facing, 1)); }
+  52% { transform: translateY(calc(var(--capy-rest-y, 0px) - 1px)) rotate(-2deg) scaleX(var(--capy-facing, 1)); }
+}
+
+:is(.status-mascot, .mascot-preview)[data-action="bow"] .capy-sprite {
+  animation: capy-bow 1.16s ease-in-out both;
+}
+
+@keyframes capy-bow {
+  0%, 100% { transform: translateY(var(--capy-rest-y, 0px)) rotate(0) scaleX(var(--capy-facing, 1)); }
+  42%, 65% { transform: translateY(calc(var(--capy-rest-y, 0px) + 3px)) rotate(5deg) scaleX(var(--capy-facing, 1)); }
+}
+
+:is(.status-mascot, .mascot-preview)[data-action="wiggle"] .capy-sprite {
+  animation: capy-wiggle .88s ease-in-out both;
+}
+
+@keyframes capy-wiggle {
+  0%, 100% { transform: translateY(var(--capy-rest-y, 0px)) rotate(0) scaleX(var(--capy-facing, 1)); }
+  25%, 75% { transform: translateY(var(--capy-rest-y, 0px)) rotate(3deg) scaleX(var(--capy-facing, 1)); }
+  50% { transform: translateY(var(--capy-rest-y, 0px)) rotate(-3deg) scaleX(var(--capy-facing, 1)); }
 }
 
 /* Konfetti fällt während der Party über dem Capybara. */
@@ -227,7 +299,7 @@
     animation: none;
   }
 
-  .status-mascot[data-action="celebrate"] .capy-sprite {
+  :is(.status-mascot, .mascot-preview)[data-action] .capy-sprite {
     animation: none;
   }
 

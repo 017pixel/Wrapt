@@ -4,7 +4,7 @@ import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { writeClipboardText } from "../../../lib/clipboard";
 import { showUiToast } from "../../../lib/uiToasts";
-import { attachTerminalAppearance } from "../terminal-appearance";
+import { applyTerminalRenderScale, attachTerminalAppearance, createTerminalScaleResizeScheduler } from "../terminal-appearance";
 import { attachTerminalInput } from "../terminal-input";
 import { useTerminalOutput } from "../useTerminalOutput";
 import { isCompactTerminal, mouseWheelSequence, terminalFontSizeForRenderScale, terminalKeySequence, themeFromDashboard } from "../terminal-utils";
@@ -44,8 +44,11 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
   const subscriptionRef = useRef<TerminalSubscription | null>(null);
   const resizeFrameRef = useRef<number | null>(null);
   const revealFrameRef = useRef<number | null>(null);
+  const scaleResizeSchedulerRef = useRef<ReturnType<typeof createTerminalScaleResizeScheduler> | null>(null);
+  const renderScaleRef = useRef(renderScale);
   const cwdRef = useRef("–");
   activeRef.current = active;
+  renderScaleRef.current = renderScale;
 
   // Beim Antippen wird der Ref im PointerDown-Handler sofort gesetzt. Ein
   // Render darf diesen Fokus nicht mit dem alten Parent-Prop überschreiben.
@@ -97,9 +100,11 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
     const terminal = terminalRef.current;
     if (!terminal || !fitRef.current || !activeRef.current) return;
     try {
-      if (ownsGeometryRef.current) {
+      // Orbit-Spiegel brauchen ein eigenes sichtbares Raster. Die PTY-Größe
+      // auf dem Server darf weiterhin nur der Geometrie-Eigentümer ändern.
+      if (ownsGeometryRef.current || mountRef.current?.closest(".orbit-flow")) {
         fitRef.current.fit();
-        reportSize(terminal.cols, terminal.rows);
+        if (ownsGeometryRef.current) reportSize(terminal.cols, terminal.rows);
       } else {
         const dims = fitRef.current.proposeDimensions();
         if (dims) reportSize(dims.cols, dims.rows);
@@ -228,11 +233,13 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
     const disposeAppearance = attachTerminalAppearance(terminal, mount, {
       disposedRef, terminalRef,
       compactRef: { current: compact },
-      renderScaleRef: { current: renderScale },
+      renderScaleRef,
       resizeRef: { current: null },
       themeRefreshRef: { current: null },
       resize: fitAndReport,
     });
+    const scaleResizeScheduler = createTerminalScaleResizeScheduler(fitAndReport);
+    scaleResizeSchedulerRef.current = scaleResizeScheduler;
 
     const observer = new ResizeObserver(() => {
       if (resizeFrameRef.current !== null) return;
@@ -253,6 +260,8 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
       window.removeEventListener("resize", fitAndReport);
       if (resizeFrameRef.current !== null) window.cancelAnimationFrame(resizeFrameRef.current);
       if (revealFrameRef.current !== null) window.cancelAnimationFrame(revealFrameRef.current);
+      scaleResizeScheduler.cancel();
+      if (scaleResizeSchedulerRef.current === scaleResizeScheduler) scaleResizeSchedulerRef.current = null;
       disposeInput();
       disposeAppearance();
       cwdHandler.dispose();
@@ -263,6 +272,14 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    const terminal = terminalRef.current;
+    if (!terminal || !applyTerminalRenderScale(terminal, renderScale, isCompactTerminal(mountRef.current))) return;
+    const scheduler = scaleResizeSchedulerRef.current;
+    if (scheduler) scheduler.schedule();
+    else fitAndReport();
+  }, [fitAndReport, renderScale]);
 
   const pasteIntoTerminal = useCallback((text: string) => {
     const terminal = terminalRef.current;

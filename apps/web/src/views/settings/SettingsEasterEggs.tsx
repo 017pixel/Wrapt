@@ -116,7 +116,7 @@ export function SettingsEasterEggs() {
               />
             </div>
             <p className="mascot-setting-hint">
-              Klick die Vorschau für Freude. Gähnen, Party und Nickerchen löst du direkt aus;
+              Klick die Vorschau für Freude. Die Aktionen unten kannst du einzeln ausprobieren;
               nach einer Weile Ruhe schläft es von selbst ein.
             </p>
           </div>
@@ -156,6 +156,11 @@ function CapybaraPreview({ scale }: { readonly scale: number }) {
       <div className="mascot-preview-actions">
         <button type="button" onClick={() => behavior.play("yawn")}>Gähnen</button>
         <button type="button" onClick={() => behavior.play("party")}>Party</button>
+        <button type="button" onClick={() => behavior.play("stretch")}>Strecken</button>
+        <button type="button" onClick={() => behavior.play("sniff")}>Schnuppern</button>
+        <button type="button" onClick={() => behavior.play("wave")}>Winken</button>
+        <button type="button" onClick={() => behavior.play("bow")}>Verbeugen</button>
+        <button type="button" onClick={() => behavior.play("wiggle")}>Wackeln</button>
         <button type="button" onClick={behavior.nap}>Nickerchen</button>
       </div>
     </div>

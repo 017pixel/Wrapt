@@ -1,7 +1,6 @@
 import {
   notificationListResponseSchema,
   notificationPreferencesSchema,
-  notificationReportSchema,
   notificationSchema,
   notificationSettingsResponseSchema,
   pushSubscriptionRegistrationSchema,
@@ -25,10 +24,6 @@ export const notificationsApi = {
   },
   patchNotification: (id: string, body: { read?: boolean; acknowledged?: boolean }) => mutate(`/notifications/${encodeURIComponent(id)}`, "PATCH", notificationSchema.nullable(), body),
   updatePresence: (presence: NotificationPresenceItem | NotificationPresenceItem[] | null) => mutate("/notifications/presence", "PUT", z.object({ updated: z.number().int().nonnegative() }), presence),
-  markAllNotificationsRead: (category?: string) => mutate("/notifications/mark-all-read", "POST", notificationListResponseSchema, category ? { category } : {}),
-  deleteAllNotifications: () => mutate("/notifications", "DELETE", null),
-  deleteNotification: (id: string) => mutate(`/notifications/${encodeURIComponent(id)}`, "DELETE", null),
-  notificationReport: (id: string, signal?: AbortSignal) => request(`/notifications/${encodeURIComponent(id)}/report`, z.object({ report: notificationReportSchema }), signal),
   notificationSettings: (signal?: AbortSignal) => request("/notifications/settings", notificationSettingsResponseSchema, signal),
   saveNotificationSettings: (preferences: unknown) => mutate("/notifications/settings", "PUT", notificationSettingsResponseSchema, notificationPreferencesSchema.parse(preferences)),
   subscribePush: (subscription: unknown) => mutate("/notifications/push-subscription", "POST", pushSubscriptionResponseSchema, pushSubscriptionRegistrationSchema.parse(subscription)),

@@ -1,11 +1,10 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useLocation } from "react-router";
+import { Link } from "react-router";
 import { defaultContextMenuConfig, type ContextMenuConfigResponse, type ProviderUsage, type UsageMonitoring, type UsageProviderId } from "@wrapt/contracts";
 import type { CSSProperties } from "react";
 import { wraptQueries } from "../lib/queryOptions";
 import { apiClient } from "../lib/apiClient";
 import { Spinner, StateDot } from "./primitives";
-import { useOrbitStore } from "../stores/orbit";
 import { statusBarRegistry } from "../extensions/statusBarRegistry";
 import { openGlobalContextMenu } from "./context-menu/contextMenuEvents";
 import { hostContextMenuId } from "../extensions/hostContextMenus";
@@ -63,17 +62,11 @@ function providerLimit(provider: ProviderUsage | undefined, compactAccounts = fa
 
 export function StatusBar() {
   const queryClient = useQueryClient();
-  const location = useLocation();
-  const orbitDocument = useOrbitStore((state) => state.document);
-  const orbitDirty = useOrbitStore((state) => state.dirty);
-  const orbitSaving = useOrbitStore((state) => state.saving);
   const health = useQuery(wraptQueries.health());
   const usage = useQuery(wraptQueries.usage());
   const contextMenu = useQuery(wraptQueries.contextMenu());
   const usageMonitoring = useQuery(wraptQueries.usageMonitoring());
   const mascot = useQuery(wraptQueries.mascot());
-  const activeOrbitBoard = orbitDocument.boards.find((board) => board.id === orbitDocument.activeBoardId);
-  const isOrbit = location.pathname === "/workbench";
   const codex = usage.data?.providers.find((provider) => provider.providerId === "codex");
   const opencode = usage.data?.providers.find((provider) => provider.providerId === "opencode");
   const claude = usage.data?.providers.find((provider) => provider.providerId === "claude");
@@ -110,16 +103,6 @@ export function StatusBar() {
         {health.isLoading ? <Spinner /> : <StateDot state={health.isError ? "error" : "active"} />}
         <span className="status-bar-value font-mono">v{health.data?.version ?? "—"}</span>
       </span>
-      {isOrbit ? (
-        <>
-          <span className="status-bar-divider" />
-          <span className="status-bar-context">
-            <span className="status-bar-item min-w-0"><span>Orbit</span><span className="status-bar-value truncate">{activeOrbitBoard?.name ?? "Arbeitsfläche"}</span></span>
-            <span className="status-bar-divider" />
-            <span className="status-bar-item"><span>{activeOrbitBoard?.nodes.length ?? 0} Knoten</span><span>{activeOrbitBoard?.edges.length ?? 0} Verbindungen</span><span className="status-bar-value">{orbitSaving ? "speichert…" : orbitDirty ? "ungespeichert" : "synchron"}</span></span>
-          </span>
-        </>
-      ) : null}
       <StatusMascot />
       {visibleProviders.length > 0 ? (
         <Link

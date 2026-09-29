@@ -10,7 +10,7 @@ test("keeps the information-dense desktop shell", async ({ page }) => {
   await expect(page.locator(".status-bar")).toBeVisible();
   await expect(page.getByRole("button", { name: "Navigation öffnen" })).toHaveCount(0);
 
-  for (const route of ["", "workbench", "projects", "usage", "settings"]) {
+  for (const route of ["", "orbit", "projects", "usage", "settings"]) {
     await page.goto(`/wrapt/${route}`);
     const bounds = await page.locator(".app-shell").evaluate((element) => ({ client: element.clientWidth, scroll: element.scrollWidth }));
     expect(bounds.scroll, route).toBeLessThanOrEqual(bounds.client + 1);
@@ -59,7 +59,7 @@ test("öffnet Schnellaktionen auf freien Bereichen der Shell", async ({ page }) 
 
 test("öffnet Schnellaktionen im freien Bereich der linken Sidebar", async ({ page }) => {
   await page.goto("/wrapt/files");
-  await page.getByRole("button", { name: "Workspace einklappen" }).click();
+  await page.getByRole("button", { name: "Orbit einklappen" }).click();
   await page.getByRole("button", { name: "Werkzeuge einklappen" }).click();
 
   const menu = page.locator('.global-context-menu[data-surface="host.context-menu.empty"]');

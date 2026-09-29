@@ -93,6 +93,16 @@ function routeElement(
   return <DeferredRoute><Page /></DeferredRoute>;
 }
 
+export function CanonicalAliasRedirect({ target }: { target: string }) {
+  const location = useLocation();
+  return (
+    <Navigate
+      to={{ pathname: target, search: location.search, hash: location.hash }}
+      replace
+    />
+  );
+}
+
 function aliasElements(
   route: OwnedRouteRegistration,
   page: OwnedPageRegistration,
@@ -103,7 +113,7 @@ function aliasElements(
       <Route
         key={`alias:${alias}`}
         path={alias.replace(/^\//, "")}
-        element={<Navigate to={route.value.contribution.path} replace />}
+        element={<CanonicalAliasRedirect target={route.value.contribution.path} />}
       />
     ));
   }

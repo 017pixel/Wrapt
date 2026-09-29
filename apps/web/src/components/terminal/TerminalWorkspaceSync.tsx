@@ -88,6 +88,9 @@ export function TerminalWorkspaceSync() {
     if (!hydrated || !dirty || saving || pendingOps.length === 0) return;
     writePending({ revision, operations: pendingOps });
     const snapshot = { revision, operations: pendingOps };
+    // Neue Runtime erst nach dem Server-Ack starten: Beim Schließen eines
+    // frischen Browserkontexts muss ihr Pane bereits serverseitig existieren.
+    const delay = pendingOps.some((operation) => operation.type === "createEntry") ? 0 : SAVE_DELAY_MS;
     const handle = window.setTimeout(() => {
       useTerminalWorkspaceStore.getState().markSaving(true);
       void (async () => {
@@ -137,7 +140,7 @@ export function TerminalWorkspaceSync() {
         // Fallback auf den leeren Serverstand darf keine Terminals entfernen.
         useTerminalWorkspaceStore.getState().markSaving(false);
       })();
-    }, SAVE_DELAY_MS);
+    }, delay);
     return () => window.clearTimeout(handle);
   }, [dirty, hydrated, pendingOps, revision, saving]);
 

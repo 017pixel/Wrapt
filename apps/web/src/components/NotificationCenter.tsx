@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Notification, NotificationEvent } from "@wrapt/contracts";
+import type { Notification, NotificationEvent, NotificationSource } from "@wrapt/contracts";
 import { notificationEventSchema } from "@wrapt/contracts";
 import { CloseIcon } from "./icons";
 import { apiClient } from "../lib/apiClient";
@@ -8,31 +8,39 @@ import { wraptQueries } from "../lib/queryOptions";
 import { subscribeUiToasts, type UiToast } from "../lib/uiToasts";
 
 const important = (item: Notification) => item.severity === "error" || item.kind === "agent.input-required" || item.kind === "agent.plan-ready" || item.kind === "agent.completed" || item.kind === "terminal.failed";
-const TOAST_LIFETIME = 2_600;
-const TOAST_EXIT_DURATION = 320;
-/** Dedup-Gedächtnis: nur die letzten IDs zählen, damit das Set nicht unbegrenzt wächst (F04-08). */
+const TOAST_EXIT_DURATION = 260;
+const MAX_TIMER_DELAY = 2_147_000_000;
+/** Dedup-Gedächtnis für neue und bereits bekannte Ereignisse. */
 const SEEN_RETENTION = 50;
 type ToastEntry = { identity: string; notification: Notification; leaving: boolean };
 type UiToastEntry = { toast: UiToast; leaving: boolean };
 
-/**
- * Dieselbe Benachrichtigungszeile kann erneut aktiv werden (z. B. eine neue
- * Input-Anforderung nach dem Erledigen). Der Erstellungszeitpunkt
- * unterscheidet den neuen Vorgang von der alten, bereits gesehenen Meldung.
- */
+const notificationSourceLabels: Record<NotificationSource, string> = {
+  hermes: "Hermes",
+  t3: "T3 Code",
+  opencode: "OpenCode",
+  codex: "Codex",
+  claude: "Claude Code",
+  terminal: "Terminal",
+  wrapt: "Wrapt",
+  workbench: "Wrapt",
+  update: "Updates",
+};
+
 export function toastIdentity(notification: Notification): string {
   return `${notification.id}:${notification.createdAt}`;
+}
+
+export function toastDurationMilliseconds(seconds: number | undefined): number {
+  const duration = typeof seconds === "number" && Number.isFinite(seconds) ? seconds : 3;
+  return Math.max(1_000, duration * 1_000);
 }
 
 export function shouldToastNotification(notification: Notification, options: { toastsEnabled: boolean; sourceToastEnabled: boolean; alreadySeen: boolean }): boolean {
   return options.toastsEnabled && options.sourceToastEnabled && important(notification) && !options.alreadySeen;
 }
 
-/**
- * Sichtbare Toasts: Standard genau einer, der neueste gewinnt. Nur wenn zwei
- * Quellen gleichzeitig melden (etwa T3 und Terminal), bleiben zwei stehen.
- * Reine Auswahl ohne Seiteneffekte, damit sie testbar bleibt.
- */
+/** Standardmäßig bleibt der neueste Toast sichtbar; bei zwei Quellen bleiben zwei stehen. */
 export function selectVisibleToasts(entries: ToastEntry[]): ToastEntry[] {
   if (entries.length <= 1) return entries;
   const newest = entries[entries.length - 1]!;
@@ -40,20 +48,82 @@ export function selectVisibleToasts(entries: ToastEntry[]): ToastEntry[] {
   return otherSource ? [otherSource, newest] : [newest];
 }
 
-/** Wegwischen nach rechts schließt den Toast; die Geste ist für beide
- *  Toast-Arten dieselbe (F04-09). */
+/** Pointer-Drag nach rechts schließt den Toast, ohne einen Klick auf den Inhalt auszulösen. */
 function useToastSwipe(onDismiss: () => void) {
-  const start = useRef<number | null>(null);
+  const start = useRef<{ x: number; y: number; at: number } | null>(null);
+  const distance = useRef(0);
+  const suppressClick = useRef(false);
   const [offset, setOffset] = useState(0);
-  const pointerDown = (event: ReactPointerEvent<HTMLElement>) => { start.current = event.clientX; };
-  const pointerMove = (event: ReactPointerEvent<HTMLElement>) => {
-    if (start.current === null) return;
-    const nextOffset = Math.max(0, event.clientX - start.current);
-    if (nextOffset > 4 && !event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.setPointerCapture(event.pointerId);
-    setOffset(nextOffset);
+  const [dragging, setDragging] = useState(false);
+
+  const pointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+    if (event.button !== 0) return;
+    start.current = { x: event.clientX, y: event.clientY, at: performance.now() };
+    distance.current = 0;
+    suppressClick.current = false;
+    setOffset(0);
   };
-  const pointerUp = () => { if (start.current === null) return; if (offset > 70) onDismiss(); else setOffset(0); start.current = null; };
-  return { offset, pointerDown, pointerMove, pointerUp };
+
+  const pointerMove = (event: ReactPointerEvent<HTMLElement>) => {
+    const origin = start.current;
+    if (!origin) return;
+    const deltaX = event.clientX - origin.x;
+    const deltaY = event.clientY - origin.y;
+    if (!dragging && Math.max(Math.abs(deltaX), Math.abs(deltaY)) < 6) return;
+    if (!dragging && Math.abs(deltaY) > Math.abs(deltaX)) {
+      start.current = null;
+      return;
+    }
+    suppressClick.current = true;
+    distance.current = Math.max(0, deltaX);
+    if (deltaX > 6 && !event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.setPointerCapture(event.pointerId);
+      setDragging(true);
+    }
+    setOffset(distance.current);
+  };
+
+  const pointerUp = () => {
+    const origin = start.current;
+    if (!origin) return;
+    const velocity = distance.current / Math.max(1, performance.now() - origin.at);
+    if (distance.current > 72 || (distance.current > 28 && velocity > 0.7)) onDismiss();
+    else setOffset(0);
+    start.current = null;
+    setDragging(false);
+  };
+
+  const pointerCancel = () => {
+    start.current = null;
+    distance.current = 0;
+    suppressClick.current = false;
+    setOffset(0);
+    setDragging(false);
+  };
+
+  const consumeClick = () => {
+    if (!suppressClick.current) return false;
+    suppressClick.current = false;
+    return true;
+  };
+
+  return { offset, dragging, pointerDown, pointerMove, pointerUp, pointerCancel, consumeClick };
+}
+
+function scheduleDismiss(timers: Map<string, number>, id: string, delay: number, dismiss: () => void) {
+  const deadline = Date.now() + delay;
+  const schedule = () => {
+    const remaining = deadline - Date.now();
+    const timer = window.setTimeout(() => {
+      if (Date.now() < deadline) schedule();
+      else {
+        timers.delete(id);
+        dismiss();
+      }
+    }, Math.max(0, Math.min(remaining, MAX_TIMER_DELAY)));
+    timers.set(id, timer);
+  };
+  schedule();
 }
 
 export function NotificationCenter() {
@@ -61,6 +131,7 @@ export function NotificationCenter() {
   const [uiToasts, setUiToasts] = useState<UiToastEntry[]>([]);
   const seen = useRef(new Set<string>());
   const initialized = useRef(false);
+  const pendingEvents = useRef(new Map<string, Notification>());
   const leaving = useRef(new Set<string>());
   const lifecycleTimers = useRef(new Map<string, number>());
   const uiLeaving = useRef(new Set<string>());
@@ -87,23 +158,21 @@ export function NotificationCenter() {
     const timer = window.setTimeout(() => removeToast(identity), TOAST_EXIT_DURATION);
     lifecycleTimers.current.set(identity, timer);
   }, [clearLifecycleTimer, removeToast]);
-  // Der Server entfernt Benachrichtigungen über ihre Datenbank-ID; die
-  // Toast-Liste wird über die Ereignis-Identität geführt.
   const dismissToastByNotificationId = useCallback((id: string) => {
     const entry = toastsRef.current.find((item) => item.notification.id === id);
     if (entry) dismissToast(entry.identity);
+    for (const [identity, item] of pendingEvents.current) {
+      if (item.id === id) pendingEvents.current.delete(identity);
+    }
   }, [dismissToast]);
 
   useEffect(() => () => {
     lifecycleTimers.current.forEach((timer) => window.clearTimeout(timer));
-    lifecycleTimers.current.clear();
     uiLifecycleTimers.current.forEach((timer) => window.clearTimeout(timer));
-    uiLifecycleTimers.current.clear();
   }, []);
 
   useEffect(() => {
     toastsRef.current = toasts;
-    // Verdrängte Toasts hinterlassen weder Timer noch Abgangsmarken.
     const visible = new Set(toasts.map((toast) => toast.identity));
     lifecycleTimers.current.forEach((timer, identity) => {
       if (!visible.has(identity)) { window.clearTimeout(timer); lifecycleTimers.current.delete(identity); }
@@ -112,24 +181,28 @@ export function NotificationCenter() {
   }, [toasts]);
 
   const showToast = useCallback((item: Notification) => {
-    // WebSocket-Ereignisse während des ersten Abrufs gehören zum Bestand.
-    // Sie werden nach dem erfolgreichen Abruf nicht erneut als Start-Toast gezeigt.
-    if (!initialized.current) return;
     const identity = toastIdentity(item);
-    const alreadySeen = seen.current.has(identity);
-    // Auch unterdrückte Ereignisse gelten als gesehen: Solange die
-    // Einstellungen noch laden, darf daraus kein späterer Toast-Schwall werden.
-    seen.current.add(identity);
-    if (seen.current.size > SEEN_RETENTION) {
-      seen.current = new Set([...seen.current].slice(-SEEN_RETENTION));
-    }
+    if (seen.current.has(identity)) return;
     const preferences = settings.data?.preferences;
-    const source = preferences ? preferences.sources[item.source] ?? preferences.sources.wrapt : undefined;
-    if (!shouldToastNotification(item, { toastsEnabled: preferences?.toastsEnabled ?? false, sourceToastEnabled: source?.toast ?? false, alreadySeen })) return;
+    if (!initialized.current || !preferences) {
+      pendingEvents.current.set(identity, item);
+      while (pendingEvents.current.size > SEEN_RETENTION) pendingEvents.current.delete(pendingEvents.current.keys().next().value!);
+      return;
+    }
+    seen.current.add(identity);
+    if (seen.current.size > SEEN_RETENTION) seen.current = new Set([...seen.current].slice(-SEEN_RETENTION));
+    const source = preferences.sources[item.source] ?? preferences.sources.wrapt;
+    if (!shouldToastNotification(item, { toastsEnabled: preferences.toastsEnabled, sourceToastEnabled: source.toast, alreadySeen: false })) return;
     setToasts((current) => selectVisibleToasts([...current.filter((toast) => toast.identity !== identity), { identity, notification: item, leaving: false }]));
-    const timer = window.setTimeout(() => { lifecycleTimers.current.delete(identity); dismissToast(identity); }, TOAST_LIFETIME);
-    lifecycleTimers.current.set(identity, timer);
+    scheduleDismiss(lifecycleTimers.current, identity, toastDurationMilliseconds(preferences.toastDurationSeconds), () => dismissToast(identity));
   }, [dismissToast, settings.data?.preferences]);
+
+  const flushPendingEvents = useCallback(() => {
+    if (!initialized.current || !settings.data?.preferences) return;
+    const pending = [...pendingEvents.current.values()];
+    pendingEvents.current.clear();
+    pending.forEach(showToast);
+  }, [settings.data?.preferences, showToast]);
 
   const removeUiToast = useCallback((id: string) => {
     const timer = uiLifecycleTimers.current.get(id);
@@ -137,7 +210,6 @@ export function NotificationCenter() {
     uiLeaving.current.delete(id);
     setUiToasts((current) => current.filter((entry) => entry.toast.id !== id));
   }, []);
-
   const dismissUiToast = useCallback((id: string) => {
     if (uiLeaving.current.has(id)) return;
     const timer = uiLifecycleTimers.current.get(id);
@@ -150,23 +222,25 @@ export function NotificationCenter() {
 
   useEffect(() => subscribeUiToasts((toast) => {
     setUiToasts((current) => [...current.filter((entry) => entry.toast.id !== toast.id), { toast, leaving: false }].slice(-3));
-    const timer = window.setTimeout(() => { uiLifecycleTimers.current.delete(toast.id); dismissUiToast(toast.id); }, TOAST_LIFETIME);
-    uiLifecycleTimers.current.set(toast.id, timer);
-  }), [dismissUiToast]);
+    scheduleDismiss(uiLifecycleTimers.current, toast.id, toastDurationMilliseconds(settings.data?.preferences.toastDurationSeconds), () => dismissUiToast(toast.id));
+  }), [dismissUiToast, settings.data?.preferences.toastDurationSeconds]);
 
   useEffect(() => {
-    // Der erste erfolgreiche Abruf ist nur der Bestand. Erst danach gelten
-    // neue Einträge aus Polling oder WebSocket als Toast-Kandidaten.
     if (!query.isSuccess || !query.data) return;
     const notifications = query.data.notifications ?? [];
-    if (!initialized.current) { notifications.forEach((item) => seen.current.add(toastIdentity(item))); initialized.current = true; return; }
+    if (!initialized.current) {
+      notifications.forEach((item) => seen.current.add(toastIdentity(item)));
+      initialized.current = true;
+      flushPendingEvents();
+      return;
+    }
     notifications.forEach(showToast);
-  }, [query.data, query.isSuccess, showToast]);
+  }, [flushPendingEvents, query.data, query.isSuccess, showToast]);
+
+  useEffect(flushPendingEvents, [flushPendingEvents]);
 
   const showToastRef = useRef(showToast);
-  useEffect(() => {
-    showToastRef.current = showToast;
-  }, [showToast]);
+  useEffect(() => { showToastRef.current = showToast; }, [showToast]);
 
   useEffect(() => {
     let socket: WebSocket | null = null;
@@ -178,7 +252,9 @@ export function NotificationCenter() {
       socket = new WebSocket(`${protocol}//${window.location.host}/api/v1/notifications/ws`);
       socket.onopen = () => { retry = 0; };
       socket.onmessage = (event) => {
-        const parsed = notificationEventSchema.safeParse(JSON.parse(String(event.data)));
+        let raw: unknown;
+        try { raw = JSON.parse(String(event.data)); } catch { return; }
+        const parsed = notificationEventSchema.safeParse(raw);
         if (!parsed.success) return;
         const message: NotificationEvent = parsed.data;
         if (message.type === "notification.created") showToastRef.current(message.notification);
@@ -191,38 +267,59 @@ export function NotificationCenter() {
     return () => { closed = true; window.clearTimeout(timer); socket?.close(); };
   }, [dismissToastByNotificationId, queryClient]);
 
-  const open = async (notification: Notification) => {
+  const open = (notification: Notification) => {
     dismissToast(toastIdentity(notification));
-    await apiClient.patchNotification(notification.id, { read: true });
-    void queryClient.invalidateQueries({ queryKey: ["notifications"] });
+    void apiClient.patchNotification(notification.id, { read: true })
+      .then(() => queryClient.invalidateQueries({ queryKey: ["notifications"] }))
+      .catch(() => undefined);
     if (notification.link) window.location.assign(notification.link);
   };
-  return <>
-    <div className="notification-toasts" aria-live="polite">
-      {toasts.map(({ identity, notification, leaving: isLeaving }) => <Toast key={identity} notification={notification} leaving={isLeaving} onOpen={() => void open(notification)} onDismiss={() => dismissToast(identity)} />)}
-      {uiToasts.map(({ toast, leaving: isLeaving }) => <UiToastItem key={toast.id} toast={toast} leaving={isLeaving} onDismiss={() => dismissUiToast(toast.id)} />)}
-    </div>
-  </>;
+
+  return <div className="notification-toasts" aria-live="polite" aria-relevant="additions">
+    {toasts.map(({ identity, notification, leaving: isLeaving }) => <Toast key={identity} notification={notification} leaving={isLeaving} duration={settings.data?.preferences.toastDurationSeconds ?? 3} onOpen={() => open(notification)} onDismiss={() => dismissToast(identity)} />)}
+    {uiToasts.map(({ toast, leaving: isLeaving }) => <UiToastItem key={toast.id} toast={toast} leaving={isLeaving} duration={settings.data?.preferences.toastDurationSeconds ?? 3} onDismiss={() => dismissUiToast(toast.id)} />)}
+  </div>;
 }
 
-function Toast({ notification, leaving, onOpen, onDismiss }: { notification: Notification; leaving: boolean; onOpen: () => void; onDismiss: () => void }) {
+function severityLabel(severity: Notification["severity"] | UiToast["severity"]): string {
+  if (severity === "error") return "Fehler";
+  if (severity === "warning" || severity === "warn") return "Warnung";
+  if (severity === "success") return "Erledigt";
+  return "Hinweis";
+}
+
+function Toast({ notification, leaving, duration, onOpen, onDismiss }: { notification: Notification; leaving: boolean; duration: number; onOpen: () => void; onDismiss: () => void }) {
   const swipe = useToastSwipe(onDismiss);
-  return <article className={`notification-toast is-${notification.severity}${leaving ? " is-leaving" : ""}`} role={notification.severity === "error" ? "alert" : undefined}
-    onPointerDown={swipe.pointerDown} onPointerMove={swipe.pointerMove} onPointerUp={swipe.pointerUp} onPointerCancel={swipe.pointerUp}>
-    <div className="notification-toast-surface" style={{ transform: `translateX(${swipe.offset}px)`, opacity: Math.max(.25, 1 - swipe.offset / 180) }}>
-      <button type="button" className="notification-toast-main" onClick={onOpen}><strong>{notification.title}</strong><p>{notification.body}</p></button>
-      <button type="button" className="notification-toast-close" onClick={onDismiss} aria-label="Benachrichtigung schließen"><CloseIcon className="h-3.5 w-3.5" /></button>
+  const style = { transform: `translateX(${swipe.offset}px)`, opacity: Math.max(.2, 1 - swipe.offset / 210), transition: swipe.dragging ? "none" : undefined, "--toast-duration": `${duration}s` } as CSSProperties;
+  return <article className={`notification-toast is-${notification.severity}${leaving ? " is-leaving" : ""}`} style={style} role={notification.severity === "error" ? "alert" : undefined}
+    onPointerDown={swipe.pointerDown} onPointerMove={swipe.pointerMove} onPointerUp={swipe.pointerUp} onPointerCancel={swipe.pointerCancel}>
+    <div className="notification-toast-surface">
+      <span className="notification-toast-accent" aria-hidden="true" />
+      <button type="button" className="notification-toast-main" onClick={(event) => { if (swipe.consumeClick()) event.preventDefault(); else onOpen(); }}>
+        <span className="notification-toast-meta"><span>{notificationSourceLabels[notification.source] ?? notification.source}</span><span>{severityLabel(notification.severity)}</span></span>
+        <strong>{notification.title}</strong>
+        <p>{notification.body}</p>
+      </button>
+      <button type="button" className="notification-toast-close" onClick={onDismiss} aria-label="Benachrichtigung schließen"><CloseIcon className="h-4 w-4" /></button>
+      <span className="notification-toast-progress" aria-hidden="true" />
     </div>
   </article>;
 }
 
-function UiToastItem({ toast, leaving, onDismiss }: { toast: UiToast; leaving: boolean; onDismiss: () => void }) {
+function UiToastItem({ toast, leaving, duration, onDismiss }: { toast: UiToast; leaving: boolean; duration: number; onDismiss: () => void }) {
   const swipe = useToastSwipe(onDismiss);
-  return <article className={`notification-toast is-${toast.severity}${leaving ? " is-leaving" : ""}`}
-    onPointerDown={swipe.pointerDown} onPointerMove={swipe.pointerMove} onPointerUp={swipe.pointerUp} onPointerCancel={swipe.pointerUp}>
-    <div className="notification-toast-surface" style={{ transform: `translateX(${swipe.offset}px)`, opacity: Math.max(.25, 1 - swipe.offset / 180) }}>
-      <button type="button" className="notification-toast-main" onClick={onDismiss}><strong>{toast.title}</strong>{toast.body ? <p>{toast.body}</p> : null}</button>
-      <button type="button" className="notification-toast-close" onClick={onDismiss} aria-label="Hinweis schließen"><CloseIcon className="h-3.5 w-3.5" /></button>
+  const style = { transform: `translateX(${swipe.offset}px)`, opacity: Math.max(.2, 1 - swipe.offset / 210), transition: swipe.dragging ? "none" : undefined, "--toast-duration": `${duration}s` } as CSSProperties;
+  return <article className={`notification-toast is-${toast.severity}${leaving ? " is-leaving" : ""}`} style={style}
+    onPointerDown={swipe.pointerDown} onPointerMove={swipe.pointerMove} onPointerUp={swipe.pointerUp} onPointerCancel={swipe.pointerCancel}>
+    <div className="notification-toast-surface">
+      <span className="notification-toast-accent" aria-hidden="true" />
+      <button type="button" className="notification-toast-main" onClick={(event) => { if (swipe.consumeClick()) event.preventDefault(); else onDismiss(); }}>
+        <span className="notification-toast-meta"><span>Wrapt</span><span>{severityLabel(toast.severity)}</span></span>
+        <strong>{toast.title}</strong>
+        {toast.body ? <p>{toast.body}</p> : null}
+      </button>
+      <button type="button" className="notification-toast-close" onClick={onDismiss} aria-label="Hinweis schließen"><CloseIcon className="h-4 w-4" /></button>
+      <span className="notification-toast-progress" aria-hidden="true" />
     </div>
   </article>;
 }

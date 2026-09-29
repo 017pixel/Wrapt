@@ -13,7 +13,6 @@ import {
   ExtensionsIcon,
   FinderIcon,
   HermesIcon,
-  InboxIcon,
   NutzungIcon,
   OpenCodeIcon,
   PreviewsIcon,
@@ -45,9 +44,8 @@ export interface BuiltinNavigationOwner {
 
 const definitions: readonly BuiltinNavigationDefinition[] = Object.freeze([
   { extensionId: "wrapt.dashboard", routeId: "wrapt.dashboard.route.main", label: "Dashboard", description: "Server, Dienste und Projekte", icon: DashboardIcon, group: "workspace", order: 10, visibleByDefault: true, preferenceKey: "dashboard" },
-  { extensionId: "wrapt.inbox", routeId: "wrapt.inbox.route.main", label: "Inbox", description: "Aufgaben, Rückfragen und Fehler", icon: InboxIcon, group: "workspace", order: 20, visibleByDefault: true, preferenceKey: "inbox" },
-  { extensionId: "wrapt.orbit", routeId: "wrapt.orbit.route.main", label: "Workbench", description: "Werkzeuge und Previews öffnen", icon: WorkbenchIcon, group: "workspace", order: 30, visibleByDefault: true, preferenceKey: "workbench" },
-  { extensionId: "wrapt.projects", routeId: "wrapt.projects.route.list", label: "Projekte", description: "Konfigurierte Arbeitsbereiche", icon: ProjekteIcon, group: "workspace", order: 50, visibleByDefault: true, preferenceKey: "projects" },
+  { extensionId: "wrapt.orbit", routeId: "wrapt.orbit.route.main", label: "Orbit", description: "Gemeinsamer Wrapt-Arbeitsbereich", icon: WorkbenchIcon, group: "workspace", order: 30, visibleByDefault: false, preferenceKey: "workbench" },
+  { extensionId: "wrapt.projects", routeId: "wrapt.projects.route.list", label: "Projekte", description: "Konfigurierte Projektordner", icon: ProjekteIcon, group: "workspace", order: 50, visibleByDefault: true, preferenceKey: "projects" },
   { extensionId: "wrapt.t3-code", routeId: "wrapt.t3-code.route.main", label: "T3 Code", description: "Codex-Arbeitsumgebung", icon: T3CodeIcon, group: "tools", order: 10, visibleByDefault: true, preferenceKey: "t3-code" },
   { extensionId: "wrapt.hermes", routeId: "wrapt.hermes.route.main", label: "Hermes Agent", description: "Offizielle Hermes-SPA für Chat, Automatisierungen und Verwaltung", icon: HermesIcon, group: "tools", order: 20, visibleByDefault: true, preferenceKey: "hermes-agent" },
   { extensionId: "wrapt.code-server", routeId: "wrapt.code-server.route.main", label: "Code-Server", description: "VS Code im Browser", icon: CodeServerIcon, group: "tools", order: 30, visibleByDefault: true, preferenceKey: "code-editor" },
@@ -60,7 +58,7 @@ const definitions: readonly BuiltinNavigationDefinition[] = Object.freeze([
   { extensionId: "wrapt.skills", routeId: "wrapt.skills.route.main", label: "KI-Skills", description: "Globale Skills und Agenten-Regeln bearbeiten", icon: SkillsIcon, group: "tools", order: 110, visibleByDefault: true, preferenceKey: "ki-skills" },
   { extensionId: "wrapt.plugins", routeId: "wrapt.plugins.route.main", label: "Plugins", description: "Lokale Plugins erstellen und verwalten", icon: ExtensionsIcon, group: "account", order: 5, visibleByDefault: true, preferenceKey: "plugins" },
   { extensionId: "wrapt.usage", routeId: "wrapt.usage.route.main", label: "Nutzung", description: "Codex und OpenCode Go", icon: NutzungIcon, group: "account", order: 10, visibleByDefault: true, preferenceKey: "usage" },
-  { extensionId: "wrapt.settings", routeId: "wrapt.settings.route.main", label: "Einstellungen", description: "Lokaler Workspace und Sicherheit", icon: EinstellungenIcon, group: "account", order: 20, visibleByDefault: true, preferenceKey: "settings" },
+  { extensionId: "wrapt.settings", routeId: "wrapt.settings.route.main", label: "Einstellungen", description: "Client-weite Einstellungen, Layout und Sicherheit", icon: EinstellungenIcon, group: "account", order: 20, visibleByDefault: true, preferenceKey: "settings" },
 ]);
 
 export const builtinNavigationOwners: readonly BuiltinNavigationOwner[] = Object.freeze(

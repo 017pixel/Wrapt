@@ -1,14 +1,30 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { cleanup, fireEvent, render as renderWithTestingLibrary, screen, waitFor, within } from "@testing-library/react";
 import { createElement } from "react";
 import type { Panel, Project } from "@wrapt/contracts";
 import { projectBoundCodeServerProxyUrl, projectBoundCodeServerUrl } from "./ToolPanel";
 import { ToolPanel } from "./ToolPanel";
 import { RouteActivityProvider } from "../lib/routeActivity";
-import { useWorkspaceStore } from "../stores/workspace";
+import { useLayoutStore } from "../stores/layout";
 
-afterEach(() => cleanup());
+const queryClients = new Set<QueryClient>();
+
+function render(ui: Parameters<typeof renderWithTestingLibrary>[0]) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client.setQueryData(["projects"], { projects: [] });
+  queryClients.add(client);
+  return renderWithTestingLibrary(ui, {
+    wrapper: ({ children }) => createElement(QueryClientProvider, { client, children }),
+  });
+}
+
+afterEach(() => {
+  cleanup();
+  queryClients.forEach((client) => client.clear());
+  queryClients.clear();
+});
 
 describe("project-bound code-server URLs", () => {
   it("always includes the validated project folder", () => {
@@ -19,6 +35,15 @@ describe("project-bound code-server URLs", () => {
 });
 
 describe("standalone T3 Code actions", () => {
+  it("lädt die serverweite T3-Instanz auch ohne Projektzuordnung über den gemeinsamen Proxy", () => {
+    const panel = { id: "orbit-t3-code", type: "t3-code", projectId: null, previewId: null, reloadKey: 0 } satisfies Panel;
+
+    render(createElement(ToolPanel, { panel, project: undefined, isFocused: true }));
+
+    expect(screen.getByTitle("T3 Code").getAttribute("src")).toBe("/t3");
+    expect(screen.queryByText("Projektdaten werden geladen…")).toBeNull();
+  });
+
   it("behält das T3-iframe auch in einer geparkten Route", () => {
     const project = {
       id: "wrapt", name: "Wrapt", description: "Workbench", path: "/tmp/wrapt", enabled: true, sortOrder: 1,
@@ -84,9 +109,10 @@ describe("standalone T3 Code actions", () => {
     } satisfies Project;
     const panel = { id: "standalone-code-server", type: "code-server", projectId: project.id, previewId: null, reloadKey: 0 } satisfies Panel;
 
-    render(createElement(ToolPanel, { panel, project, isFocused: true, standalone: true, actionPlacement: "topbar", codeServerMode: "embedded" }));
+    render(createElement(ToolPanel, { panel, project, isFocused: true, standalone: true, actionPlacement: "topbar", codeServerMode: "embedded", codeServerState: "active" }));
 
     await waitFor(() => expect(target.querySelector(".tool-actions-menu.is-topbar")).not.toBeNull());
+    expect(screen.getByTitle("Editor").getAttribute("src")).toBe("/editor/?folder=%2Ftmp%2Fwrapt");
     fireEvent.click(within(target).getByRole("button", { name: "Werkzeugaktionen" }));
     expect(screen.getByRole("menuitem", { name: "Neu laden" })).not.toBeNull();
     expect(screen.getByRole("menuitem", { name: "In neuem Tab öffnen" })).not.toBeNull();
@@ -106,7 +132,7 @@ describe("standalone T3 Code actions", () => {
     const editorPanel = { id: "standalone-code-server", type: "code-server", projectId: project.id, previewId: null, reloadKey: 0 } satisfies Panel;
     const renderTools = (activeType: Panel["type"]) => createElement("div", null,
       createElement(RouteActivityProvider, { active: activeType === "t3-code", children: createElement(ToolPanel, { panel: t3Panel, project, isFocused: true, standalone: true, actionPlacement: "topbar" }) }),
-      createElement(RouteActivityProvider, { active: activeType === "code-server", children: createElement(ToolPanel, { panel: editorPanel, project, isFocused: true, standalone: true, actionPlacement: "topbar", codeServerMode: "embedded" }) }),
+      createElement(RouteActivityProvider, { active: activeType === "code-server", children: createElement(ToolPanel, { panel: editorPanel, project, isFocused: true, standalone: true, actionPlacement: "topbar", codeServerMode: "embedded", codeServerState: "active" }) }),
     );
 
     const { rerender } = render(renderTools("code-server"));
@@ -117,6 +143,41 @@ describe("standalone T3 Code actions", () => {
     await waitFor(() => expect(target.querySelectorAll(".tool-actions-menu")).toHaveLength(1));
     expect(within(target).getAllByRole("button", { name: "Werkzeugaktionen" })).toHaveLength(1);
     target.remove();
+  });
+});
+
+describe("Code-Server-Verfügbarkeit", () => {
+  const project = {
+    id: "wrapt", name: "Wrapt", description: "Workbench", path: "/tmp/wrapt", enabled: true, sortOrder: 1,
+    availability: "available", activity: { lastWorkbenchUseAt: null, lastFilesystemChangeAt: null, lastGitCommitAt: null, effectiveAt: null },
+    previews: [], links: { t3Code: null, codeServer: "https://editor.example.test" },
+  } satisfies Project;
+
+  it.each(["standalone", "orbit"])("zeigt bei ausgefallenem Dienst in %s keinen iframe", (surface) => {
+    const panel = { id: `${surface}-code-server`, type: "code-server", projectId: project.id, previewId: null, reloadKey: 0 } satisfies Panel;
+    render(createElement(ToolPanel, {
+      panel, project, isFocused: true, codeServerMode: "embedded", codeServerState: "error",
+      standalone: surface === "standalone", minimal: surface === "orbit",
+    }));
+
+    expect(screen.getByText(/Code-Server läuft auf diesem Gerät nicht/)).not.toBeNull();
+    expect(screen.queryByTitle("Editor")).toBeNull();
+  });
+});
+
+describe("fehlende Projektzuordnung", () => {
+  it("zeigt für Code-Server einen bedienbaren Zustand und öffnet die Orbit-Eigenschaften", () => {
+    const panel = { id: "orbit-code-server", type: "code-server", projectId: null, previewId: null, reloadKey: 0 } satisfies Panel;
+    const onOpenSettings = vi.fn();
+    window.addEventListener("orbit:open-tool-project-settings", onOpenSettings);
+
+    render(createElement(ToolPanel, { panel, project: undefined, isFocused: true }));
+
+    expect(screen.getByText("Projektzuordnung fehlt")).not.toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Projekt im Orbit auswählen" }));
+    expect(onOpenSettings).toHaveBeenCalledOnce();
+    expect((onOpenSettings.mock.calls[0]?.[0] as CustomEvent).detail).toEqual({ runtimeId: panel.id });
+    window.removeEventListener("orbit:open-tool-project-settings", onOpenSettings);
   });
 });
 
@@ -183,10 +244,10 @@ describe("eingebettete Werkzeug-Eingaben", () => {  it("lässt Pointer-Gesten im
 
 describe("T3 Open-in-VS-Code-Brücke", () => {
   beforeEach(() => {
-    // openPanel wird pro Test ersetzt, damit der persist-Workspace-Store
+    // openPanel wird pro Test ersetzt, damit der persistierte Layout-Store
     // keinen Storage braucht (im Test-Setup ist window.localStorage nicht
     // zuverlässig vorhanden).
-    vi.spyOn(useWorkspaceStore.getState(), "openPanel").mockImplementation(() => "new-panel-id");
+    vi.spyOn(useLayoutStore.getState(), "openPanel").mockImplementation(() => "new-panel-id");
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -211,7 +272,7 @@ describe("T3 Open-in-VS-Code-Brücke", () => {
   it("öffnet einen neuen Code-Server-Bereich mit dem Zielordner des T3-Buttons", async () => {
     const project = t3Project();
     const panel = { id: "panel-t3", type: "t3-code", projectId: project.id, previewId: null, reloadKey: 0 } satisfies Panel;
-    const openPanel = vi.spyOn(useWorkspaceStore.getState(), "openPanel").mockImplementation(() => "new-panel-id");
+    const openPanel = vi.spyOn(useLayoutStore.getState(), "openPanel").mockImplementation(() => "new-panel-id");
 
     render(createElement(ToolPanel, { panel, project, isFocused: false, codeServerMode: "embedded" }));
 
@@ -243,7 +304,7 @@ describe("T3 Open-in-VS-Code-Brücke", () => {
   it("ignoriert fremde Nachrichten ohne den Open-Editor-Typ", async () => {
     const project = t3Project();
     const panel = { id: "panel-t3", type: "t3-code", projectId: project.id, previewId: null, reloadKey: 0 } satisfies Panel;
-    const openPanel = vi.spyOn(useWorkspaceStore.getState(), "openPanel").mockImplementation(() => "new-panel-id");
+    const openPanel = vi.spyOn(useLayoutStore.getState(), "openPanel").mockImplementation(() => "new-panel-id");
 
     render(createElement(ToolPanel, { panel, project, isFocused: false, codeServerMode: "embedded" }));
 

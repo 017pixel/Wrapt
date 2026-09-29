@@ -100,4 +100,17 @@ describe("SettingsEasterEggs", () => {
     await waitFor(() => expect(preview.getAttribute("data-sleeping")).toBe("true"));
     expect(preview.getAttribute("data-frame")).toBe("sleep");
   });
+
+  it.each([
+    ["Strecken", "stretch"],
+    ["Schnuppern", "sniff"],
+    ["Winken", "wave"],
+    ["Verbeugen", "bow"],
+    ["Wackeln", "wiggle"],
+  ] as const)("löst %s in der Vorschau aus", async (label, action) => {
+    renderSettings();
+    const preview = await screen.findByRole("button", { name: "Capybara testen" });
+    fireEvent.click(screen.getByRole("button", { name: label }));
+    await waitFor(() => expect(preview.getAttribute("data-action")).toBe(action));
+  });
 });

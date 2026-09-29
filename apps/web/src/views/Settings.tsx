@@ -7,8 +7,8 @@ import { useHashTab } from "../lib/hashTabs";
 import { searchSettings, type SettingsSearchResult } from "../lib/settingsSearch";
 import { wraptQueries } from "../lib/queryOptions";
 import { useRouteActivity } from "../lib/routeActivity";
-import { TabBar } from "../components/TabBar";
 import { SettingsSearch } from "./settings/SettingsSearch";
+import { SettingsTabNavigation } from "./settings/SettingsTabNavigation";
 import { SettingsEasterEggs } from "./settings/SettingsEasterEggs";
 import { SettingsGeneral } from "./settings/SettingsGeneral";
 import { SettingsNavigation } from "./settings/SettingsNavigation";
@@ -16,11 +16,11 @@ import { SettingsNotifications } from "./settings/SettingsNotifications";
 import { SettingsStartup } from "./settings/SettingsStartup";
 import { SettingsSystem } from "./settings/SettingsSystem";
 import { SettingsUsage } from "./settings/SettingsUsage";
-import { SettingsWorkspace } from "./settings/SettingsWorkspace";
+import { SettingsLayout } from "./settings/SettingsLayout";
+import { SettingsWorkspaces } from "./settings/SettingsWorkspaces";
 import {
   normalizeSettingsTab,
   settingsTabIds,
-  settingsTabs,
   type SettingsNavigationTarget,
 } from "./settings/settingsTabs";
 import "../components/appearance.css";
@@ -77,9 +77,7 @@ export function Settings() {
           onSelect={selectSearchResult}
         />
 
-        <TabBar
-          label="Einstellungsbereiche"
-          items={settingsTabs}
+        <SettingsTabNavigation
           activeId={activeTab}
           onSelect={setTab}
         />
@@ -98,7 +96,7 @@ export function Settings() {
                   <div>
                     <h2 className="section-title">Design</h2>
                     <p className="section-subtitle">
-                      Themes, Vorlagen und eigene Farben für die gesamte Workbench
+                      Themes, Vorlagen und eigene Farben für die gesamte Wrapt-Oberfläche
                     </p>
                   </div>
                 </header>
@@ -130,7 +128,8 @@ export function Settings() {
             </div>
           ) : null}
           {activeTab === "werkzeuge" ? <SettingsUsage /> : null}
-          {activeTab === "workspace" ? <SettingsWorkspace /> : null}
+          {activeTab === "layout" ? <SettingsLayout /> : null}
+          {activeTab === "workspaces" ? <SettingsWorkspaces /> : null}
           {activeTab === "easter-eggs" ? (
             <div id="settings-easter-eggs">
               <SettingsEasterEggs />

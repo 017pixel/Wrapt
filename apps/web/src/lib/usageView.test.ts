@@ -84,7 +84,7 @@ describe("accountLimitViews", () => {
     ], 20);
     expect(views[0]!.lowestRemaining).toBe(15);
     expect(views[0]!.level).toBe("low");
-    expect(views[0]!.urgentResetsAtMs).toBe(at(2026, 6, 20, 18));
+    expect(views[0]!.urgentResetsAtMs).toBe(Date.parse("2026-07-20T18:00:00Z"));
     expect(views[0]!.hasData).toBe(true);
   });
 

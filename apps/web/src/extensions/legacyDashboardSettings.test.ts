@@ -24,7 +24,7 @@ describe("legacyDashboardSections", () => {
       "usage",
       "commands",
     ]);
-    expect(snapshot.sections[0]?.value.contribution.title).toBe("Schnellaktionen");
+    expect(snapshot.sections[0]?.value.contribution.title).toBe("Projektaktivität");
     expect(snapshot.sections[7]?.value.contribution.title).toBe("Command Reference");
   });
 
@@ -51,7 +51,7 @@ describe("legacySettingsCards", () => {
       "Dienst neu starten",
       "T3 Code Kanal",
       "Limitüberwachung",
-      "Workspace",
+      "Layout",
       "Dashboard",
       "Benachrichtigungen",
       "App installieren",

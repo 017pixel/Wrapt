@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import type { Panel } from "@wrapt/contracts";
 import { HermesAdminFrame, safeHermesPath } from "./HermesAdminFrame";
-import { useWorkspaceStore } from "../../stores/workspace";
+import { useLayoutStore } from "../../stores/layout";
 import { useRouteActivity } from "../../lib/routeActivity";
 
 /** Die offizielle Hermes-Chatroute bleibt der Einstiegspunkt der SPA. */
@@ -25,7 +25,7 @@ export function HermesShell({ variant, minimal = false, panel, active }: HermesS
   const routeActive = useRouteActivity();
   const frameActive = active ?? routeActive;
   const panelId = panel?.id;
-  const updateHermesPanel = useWorkspaceStore((state) => state.updateHermesPanel);
+  const updateHermesPanel = useLayoutStore((state) => state.updateHermesPanel);
 
   const urlSessionId = searchParams.get("session");
   const urlAdminPath = searchParams.get("path");

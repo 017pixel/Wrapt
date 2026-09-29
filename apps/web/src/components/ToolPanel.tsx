@@ -1,12 +1,11 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
-import { CloseIcon, DeviceRotateIcon, ExternalLinkIcon, FullscreenIcon, RefreshIcon, RestoreIcon, WarningIcon } from "./icons";
+import { ExternalLinkIcon, WarningIcon } from "./icons";
 import type { Panel, Project, ServiceMode } from "@wrapt/contracts";
 import { WRAPT_LIMITS } from "@wrapt/contracts";
 import { useWraptNotice } from "../stores/wraptNotice";
-import { useWorkspaceStore } from "../stores/workspace";
-import { StateDot } from "./primitives";
-import { DevicePickerButton } from "./DevicePickerButton";
+import { useLayoutStore } from "../stores/layout";
 import { DevicePreviewFrame } from "./DevicePreviewFrame";
 import type { DeviceOrientation, DevicePresetId } from "../config/devicePresets";
 import { TerminalArea } from "./terminal/TerminalArea";
@@ -14,12 +13,19 @@ import { FileManagerPanel } from "./files/FileManagerPanel";
 import { LocalPorts } from "./preview/LocalPorts";
 import { PreviewSlotFrame, relayCanvasPinch } from "./PreviewSlotFrame";
 import { apiClient } from "../lib/apiClient";
-import { ToolActionMenu } from "./ToolActionMenu";
 import { useRouteActivity } from "../lib/routeActivity";
 import { t3ThreadIdFromPath } from "../lib/t3Thread";
 import { usePanelPresenceStore } from "../stores/panelPresence";
-import { openGlobalContextMenu } from "./context-menu/contextMenuEvents";
-import { hostContextMenuId } from "../extensions/hostContextMenus";
+import { panelTitles } from "../lib/toolLabels";
+import { wraptQueries } from "../lib/queryOptions";
+import { ToolPanelActionControls } from "./ToolPanelActionControls";
+import { ToolPanelHeader } from "./ToolPanelHeader";
+import { ToolPanelProjectBindingState } from "./ToolPanelProjectBindingState";
+import { resolvePanel, type ResolvedPanel } from "./toolPanelResolution";
+import type { CodeServerState } from "../lib/codeServerAvailability";
+import { useToolPanelContextMenu } from "./useToolPanelContextMenu";
+
+export { projectBoundCodeServerProxyUrl, projectBoundCodeServerUrl } from "./toolPanelResolution";
 
 function opencodeSessionIdFromPath(path: string): string | null {
   const query = new URLSearchParams(path.split("?")[1] ?? "");
@@ -32,105 +38,12 @@ function opencodeSessionIdFromPath(path: string): string | null {
 
 const HermesShell = lazy(() => import("./hermes/HermesShell").then((module) => ({ default: module.HermesShell })));
 
-const panelTitles: Record<Panel["type"], string> = {
-  "t3-code": "T3 Code",
-  "code-server": "Editor",
-  preview: "Preview",
-  browser: "Browser (Legacy)",
-  terminal: "Terminal",
-  codex: "Codex",
-  opencode: "OpenCode",
-  files: "Files",
-  notion: "Notion (Legacy)",
-  hermes: "Hermes Agent",
-};
-
-interface ResolvedPanel {
-  url: string | null;
-  mode: ServiceMode;
-  embed: boolean;
-  proxyUrl: string | null;
-  reason: string | null;
-  targetPort: number | null;
-  path: string;
-}
-
-export function projectBoundCodeServerUrl(baseUrl: string, projectPath: string): string {
-  const url = new URL(baseUrl);
-  url.searchParams.set("folder", projectPath);
-  return url.toString();
-}
-
-export function projectBoundCodeServerProxyUrl(projectPath: string): string {
-  return `/editor/?${new URLSearchParams({ folder: projectPath }).toString()}`;
-}
-
-function resolvePanel(panel: Panel, project: Project | undefined, codeServerMode: ServiceMode): ResolvedPanel | null {
-  if (panel.type === "terminal" || panel.type === "codex") {
-    return { url: null, mode: "embedded", embed: true, proxyUrl: null, reason: null, targetPort: null, path: "/" };
-  }
-  if (panel.type === "opencode") {
-    return { url: "/opencode", mode: "embedded", embed: true, proxyUrl: null, reason: null, targetPort: null, path: "/" };
-  }
-  if (panel.type === "browser") return { url: null, mode: "external", embed: false, proxyUrl: null, reason: "Das frühere Browser-Werkzeug wurde entfernt. Der Bereich bleibt erhalten, damit seine Position, Verbindungen und gespeicherten Inhalte nicht verloren gehen.", targetPort: null, path: "/" };
-  if (panel.type === "files") return { url: null, mode: "embedded", embed: true, proxyUrl: null, reason: null, targetPort: null, path: "/" };
-  if (panel.type === "hermes") return { url: null, mode: "embedded", embed: true, proxyUrl: null, reason: null, targetPort: null, path: "/" };
-  if (panel.type === "notion") return { url: null, mode: "external", embed: false, proxyUrl: null, reason: "Diese frühere Notion-Integration wird nicht mehr ausgeführt. Der Knoten bleibt erhalten, damit seine Position, Verbindungen und gespeicherten Inhalte nicht verloren gehen.", targetPort: null, path: "/" };
-  if (panel.type === "preview" && !project) {
-    return { url: null, mode: "embedded", embed: false, proxyUrl: null, reason: "Keine Preview ausgewählt.", targetPort: null, path: "/" };
-  }
-  if (!project) return null;
-  if (panel.type === "t3-code") {
-    const url = project.links.t3Code;
-    return {
-      url,
-      mode: "hybrid",
-      embed: url !== null,
-      // T3 Code läuft same-origin über den /t3-Proxy: Nur so kann die
-      // injizierte Route-Bridge Zurück im iframe abfangen und T3-intern
-      // navigieren. Die gehostete App bleibt über „Extern öffnen" erreichbar.
-      proxyUrl: url === null ? null : "/t3",
-      reason: url === null ? "T3 Code ist für dieses Projekt nicht verfügbar." : null,
-      targetPort: null,
-      path: "/",
-    };
-  }
-  if (panel.type === "code-server") {
-    const configuredUrl = project.links.codeServer;
-    // Ein Zielordner aus dem T3-„Open"-Button übersteuert das Projektverzeichnis.
-    const targetFolder = panel.codeServerFolder ?? project.path;
-    const url = configuredUrl === null ? null : projectBoundCodeServerUrl(configuredUrl, targetFolder);
-    const embed = configuredUrl !== null && (codeServerMode === "hybrid" || codeServerMode === "embedded");
-    return {
-      url,
-      mode: codeServerMode,
-      embed,
-      proxyUrl: embed ? projectBoundCodeServerProxyUrl(targetFolder) : null,
-      reason: configuredUrl === null ? "code-server ist auf dem Server nicht installiert." : null,
-      targetPort: null,
-      path: "/",
-    };
-  }
-  const preview = project.previews.find((p) => p.id === panel.previewId);
-  if (!preview) {
-    return { url: null, mode: "external", embed: false, proxyUrl: null, reason: "Preview wurde nicht gefunden.", targetPort: null, path: "/" };
-  }
-  return {
-    url: preview.url ?? (preview.targetPort ? `http://127.0.0.1:${preview.targetPort}${preview.path}` : null),
-    mode: preview.mode,
-    embed: preview.url !== null || preview.targetPort !== null,
-    proxyUrl: null,
-    reason: preview.url === null && preview.targetPort === null ? "Für diese Preview ist kein Ziel konfiguriert." : null,
-    targetPort: preview.targetPort,
-    path: preview.path,
-  };
-}
-
 interface ToolPanelProps {
   panel: Panel;
   project: Project | undefined;
   isFocused: boolean;
   codeServerMode?: ServiceMode;
+  codeServerState?: CodeServerState;
   onFocus?: () => void;
   standalone?: boolean;
   externalMaximized?: boolean;
@@ -139,17 +52,23 @@ interface ToolPanelProps {
   onClose?: () => void;
   minimal?: boolean;
   terminalRenderScale?: number;
+  terminalSessionId?: string | null;
   actionPlacement?: "overlay" | "topbar" | "hidden";
 }
 
-export function ToolPanel({ panel, project, isFocused, codeServerMode = "external", onFocus, standalone = false, externalMaximized, onMaximizedChange, onReload, onClose, minimal = false, terminalRenderScale = 1, actionPlacement = "overlay" }: ToolPanelProps) {
-  const openPanel = useWorkspaceStore((s) => s.openPanel);
-  const reloadPanel = useWorkspaceStore((s) => s.reloadPanel);
-  const closePanel = useWorkspaceStore((s) => s.closePanel);
-  const maximizePanel = useWorkspaceStore((s) => s.maximizePanel);
-  const restorePanels = useWorkspaceStore((s) => s.restorePanels);
-  const maximizedPanelId = useWorkspaceStore((s) => s.maximizedPanelId);
+export function ToolPanel({ panel, project, isFocused, codeServerMode = "external", codeServerState, onFocus, standalone = false, externalMaximized, onMaximizedChange, onReload, onClose, minimal = false, terminalRenderScale = 1, terminalSessionId = null, actionPlacement = "overlay" }: ToolPanelProps) {
+  const openPanel = useLayoutStore((s) => s.openPanel);
+  const reloadPanel = useLayoutStore((s) => s.reloadPanel);
+  const closePanel = useLayoutStore((s) => s.closePanel);
+  const maximizePanel = useLayoutStore((s) => s.maximizePanel);
+  const restorePanels = useLayoutStore((s) => s.restorePanels);
+  const maximizedPanelId = useLayoutStore((s) => s.maximizedPanelId);
   const routeActive = useRouteActivity();
+  const needsProjectAssociation = panel.type === "code-server";
+  const projectLookup = useQuery({
+    ...wraptQueries.projects(),
+    enabled: routeActive && needsProjectAssociation && !project,
+  });
   const [standaloneMaximized, setStandaloneMaximized] = useState(false);
   const [standaloneReloadKey, setStandaloneReloadKey] = useState(0);
   const [topbarTarget, setTopbarTarget] = useState<HTMLElement | null>(null);
@@ -227,10 +146,15 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
     }
   }, [localPreview, panel.id, panel.type, standalone]);
 
-  const configuredPanel = resolvePanel(panel, project, codeServerMode);
+  const configuredPanel = resolvePanel(panel, project, codeServerMode, codeServerState);
   const resolved = panel.type === "preview" && localPreview ? localPreview : configuredPanel;
+  const projectAssociationMissing = needsProjectAssociation
+    && !project
+    && projectLookup.isSuccess
+    && !projectLookup.isError;
+  const projectLookupFailed = needsProjectAssociation && !project && projectLookup.isError;
   // Extern-Öffnen führt bei T3 auf die gehostete App; eingebettet läuft der /t3-Proxy.
-  const externalToolUrl = panel.type === "t3-code" ? (resolved?.url ?? resolved?.proxyUrl) : (resolved?.proxyUrl ?? resolved?.url);
+  const externalToolUrl = (panel.type === "t3-code" ? (resolved?.url ?? resolved?.proxyUrl) : (resolved?.proxyUrl ?? resolved?.url)) ?? null;
 
   const [loaded, setLoaded] = useState(false);
   const effectiveReloadKey = panel.reloadKey + standaloneReloadKey;
@@ -297,51 +221,41 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
     if (onClose) onClose();
     else closePanel(panel.id);
   };
-  const openPanelMenu = (event: React.MouseEvent) => {
-    const externalUrl = externalToolUrl ?? null;
-    openGlobalContextMenu(event, {
-      surface: "host.context-menu.tool",
-      title: `${panelTitles[panel.type]}${project ? ` · ${project.name}` : ""}`,
-      actions: [
-        { id: hostContextMenuId("tool.reload"), icon: <RefreshIcon className="h-4 w-4" />, onSelect: reload },
-        { id: hostContextMenuId("tool.new-tab"), icon: <ExternalLinkIcon className="h-4 w-4" />, disabled: !externalUrl, onSelect: () => { if (externalUrl) window.open(externalUrl, "_blank", "noopener,noreferrer"); } },
-        { id: hostContextMenuId("tool.fullscreen"), icon: <FullscreenIcon className="h-4 w-4" />, onSelect: () => void surfaceRef.current?.requestFullscreen?.() },
-        { id: hostContextMenuId("tool.maximize"), label: isMaximized ? "Wiederherstellen" : "Maximieren", icon: isMaximized ? <RestoreIcon className="h-4 w-4" /> : <FullscreenIcon className="h-4 w-4" />, checked: isMaximized, onSelect: () => onMaximizedChange ? onMaximizedChange(!isMaximized) : standalone ? setStandaloneMaximized(!isMaximized) : isMaximized ? restorePanels() : maximizePanel(panel.id) },
-        { id: hostContextMenuId("tool.settings"), onSelect: () => window.location.assign("/settings#einstellungen:rechtsklick") },
-        ...(!standalone ? [{ id: hostContextMenuId("tool.close"), icon: <CloseIcon className="h-4 w-4" />, danger: true, onSelect: close }] : []),
-      ],
-    });
+  const toggleFullscreen = () => {
+    if (onMaximizedChange) onMaximizedChange(!isMaximized);
+    else if (standalone) setStandaloneMaximized(!isMaximized);
+    else if (isMaximized) restorePanels();
+    else maximizePanel(panel.id);
   };
-  const panelActions = resolved !== null && !minimal && actionPlacement !== "hidden" && standalone ? (
-    <div className="panel-standalone-actions" onContextMenu={openPanelMenu}>
-      {isMaximized ? (
-        <button
-          type="button"
-          title="Wiederherstellen"
-          aria-label="Wiederherstellen"
-          onClick={() => onMaximizedChange ? onMaximizedChange(false) : setStandaloneMaximized(false)}
-          className="icon-button"
-        ><RestoreIcon className="h-4 w-4" /></button>
-      ) : null}
-      <ToolActionMenu
-        className={actionPlacement === "topbar" ? "is-topbar" : ""}
-        externalHref={externalToolUrl ?? window.location.href}
-        isFullscreen={isMaximized}
-        onFullscreen={() => onMaximizedChange ? onMaximizedChange(!isMaximized) : standalone ? setStandaloneMaximized(!isMaximized) : restorePanels()}
-        onReload={reload}
-      />
-    </div>
-  ) : resolved !== null && !minimal && actionPlacement !== "hidden" ? (
-    <div className={`panel-island ${actionPlacement === "topbar" && !isMaximized ? "is-topbar" : ""} ${actionPlacement === "topbar" && panel.type === "code-server" ? "is-flat-toolbar" : ""} ${isMaximized ? "is-maximized-actions" : ""}`} onContextMenu={openPanelMenu}>
-      {panel.type === "preview" ? <DevicePickerButton deviceId={deviceId} onChange={setDeviceId} /> : null}
-      {panel.type === "preview" && deviceId !== "responsive" ? <button type="button" title="Ausrichtung drehen" aria-label="Ausrichtung drehen" onClick={() => setOrientation((current) => current === "portrait" ? "landscape" : "portrait")} className="icon-button"><DeviceRotateIcon className="h-4 w-4" /></button> : null}
-      {panel.type === "preview" && resolved?.targetPort ? <span className="preview-slot-badge">{previewSlotId ? `SLOT ${previewSlotId}` : "SLOT"}</span> : null}
-      {resolved.url ? <button type="button" title="Neu laden" aria-label="Neu laden" onClick={reload} className="icon-button"><RefreshIcon className="h-4 w-4" /></button> : null}
-      {resolved.url ? <a href={previewPublicUrl ?? externalToolUrl ?? resolved.url} target="_blank" rel="noopener noreferrer" title="In neuem Tab öffnen" aria-label="In neuem Tab öffnen" className="icon-button"><ExternalLinkIcon className="h-4 w-4" /></a> : null}
-      {isMaximized ? <button type="button" title="Wiederherstellen" aria-label="Wiederherstellen" onClick={() => onMaximizedChange ? onMaximizedChange(false) : standalone ? setStandaloneMaximized(false) : restorePanels()} className="icon-button"><RestoreIcon className="h-4 w-4" /></button> : <button type="button" title="Vollbild" aria-label="Vollbild" onClick={() => onMaximizedChange ? onMaximizedChange(true) : standalone ? setStandaloneMaximized(true) : maximizePanel(panel.id)} className="icon-button"><FullscreenIcon className="h-4 w-4" /></button>}
-      {!standalone ? <button type="button" title="Schließen" aria-label="Schließen" onClick={close} className="icon-button danger"><CloseIcon className="h-4 w-4" /></button> : null}
-    </div>
-  ) : null;
+  const openPanelMenu = useToolPanelContextMenu({
+    panel,
+    project,
+    externalToolUrl: externalToolUrl ?? null,
+    isMaximized,
+    standalone,
+    surfaceRef,
+    onReload: reload,
+    onClose: close,
+    onToggleFullscreen: toggleFullscreen,
+  });
+  const panelActions = <ToolPanelActionControls
+    panel={panel}
+    resolved={resolved}
+    minimal={minimal}
+    actionPlacement={actionPlacement}
+    standalone={standalone}
+    isMaximized={isMaximized}
+    externalToolUrl={externalToolUrl}
+    deviceId={deviceId}
+    onDeviceChange={setDeviceId}
+    onRotate={() => setOrientation((current) => current === "portrait" ? "landscape" : "portrait")}
+    previewSlotId={previewSlotId}
+    previewPublicUrl={previewPublicUrl}
+    onReload={reload}
+    onClose={close}
+    onContextMenu={openPanelMenu}
+    onToggleFullscreen={toggleFullscreen}
+  />;
 
   return (
     <section
@@ -358,22 +272,13 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
       }}
       onWheel={(event) => event.stopPropagation()}
     >
-      {!minimal && !standalone ? <header className="flex h-11 shrink-0 items-center gap-2 border-b border-line bg-ink-900 px-3" onContextMenu={openPanelMenu}>
-        <span
-          className={`flex h-6 w-6 items-center justify-center rounded ${
-            isFocused ? "bg-ink-800 text-text" : "text-muted"
-          }`}
-          aria-hidden
-        >
-          <StateDot state={["terminal", "codex", "opencode", "files", "hermes"].includes(panel.type) || resolved?.url ? "active" : "inactive"} />
-        </span>
-        <div className="min-w-0 leading-tight">
-          <div className="truncate text-[13px] font-medium text-text">
-            {panelTitles[panel.type]}
-            {project ? <span className="text-muted"> · {project.name}</span> : null}
-          </div>
-        </div>
-      </header> : null}
+      {!minimal && !standalone ? <ToolPanelHeader
+        panel={panel}
+        project={project}
+        isFocused={isFocused}
+        resolved={resolved}
+        onContextMenu={openPanelMenu}
+      /> : null}
 
       {panelActions ? actionPlacement === "topbar"
         ? routeActive && topbarTarget ? createPortal(panelActions, topbarTarget) : null
@@ -407,7 +312,7 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
             }}
             {...(onFocus ? { onFocus } : {})}
           />
-        ) : panel.type === "terminal" || panel.type === "codex" ? (
+        ) : panel.type === "terminal" || panel.type === "codex" || panel.type === "claude" ? (
           <div className="flex h-full min-h-0">
             <TerminalArea
               areaId={panel.id}
@@ -415,12 +320,22 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
               kind={panel.type === "terminal" ? "shell" : panel.type}
               renderScale={terminalRenderScale}
               minimal={minimal}
+              requestedSessionId={terminalSessionId}
             />
           </div>
         ) : panel.type === "hermes" ? (
           <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-muted">Hermes wird geladen…</div>}>
             <HermesShell variant="panel" minimal={minimal} panel={panel} active={routeActive && isFocused} />
           </Suspense>
+        ) : projectLookupFailed || projectAssociationMissing ? (
+          <ToolPanelProjectBindingState
+            projectLookupFailed={projectLookupFailed}
+            projectAssociationMissing={projectAssociationMissing}
+            projectId={panel.projectId}
+            runtimeId={panel.id}
+            standalone={standalone}
+            onRetry={() => void projectLookup.refetch()}
+          />
         ) : showPreviewStart ? (
           <LocalPorts projectId={project?.id ?? null} projectName={project?.name ?? "dieses Projekt"} allowAllPorts onOpen={(port) => {
             if (!port.localUrl) return;
@@ -435,7 +350,7 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
             <WarningIcon className="h-6 w-6 text-warn" />
             <p className="text-sm text-muted">{resolved.reason}</p>
           </div>
-        ) : resolved.embed && resolved.url ? (
+        ) : resolved.embed && (resolved.url || resolved.proxyUrl) ? (
           <>
             {!loaded ? (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-ink-950 text-sm text-muted">

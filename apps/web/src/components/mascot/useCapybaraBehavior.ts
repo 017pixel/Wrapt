@@ -12,6 +12,7 @@ import {
   type CapybaraAnimationName,
   type CapybaraAnimationStep,
   type CapybaraFacing,
+  type CapybaraPreviewAction,
 } from "./capybaraMotion";
 import { useCapybaraIdle } from "./useCapybaraIdle";
 import {
@@ -54,7 +55,7 @@ export interface CapybaraBehavior {
   readonly facing: CapybaraFacing;
   readonly sleeping: boolean;
   readonly poke: () => void;
-  readonly play: (animation: "yawn" | "party" | "hop") => void;
+  readonly play: (animation: CapybaraPreviewAction) => void;
   readonly nap: () => void;
 }
 
@@ -198,7 +199,7 @@ export function useCapybaraBehavior(
     const previous = wasSleeping.current;
     wasSleeping.current = sleeping;
     if (previous && !sleeping && !busyRef.current) {
-      runSequence(CAPYBARA_ANIMATIONS.yawn.map((step) => ({ ...step, action: "wake" as const })));
+      runSequence(CAPYBARA_ANIMATIONS.yawn.map(yawnStep));
     }
   }, [busyRef, runSequence, sleeping]);
 
@@ -260,7 +261,7 @@ export function useCapybaraBehavior(
           const party = partySequence(positionRef.current, maxOffsetRef.current, Math.random);
           runSequence(party.steps);
           await wait(party.duration);
-        } else if (action === "hop" || action === "sneeze" || action === "yawn") {
+        } else if (action === "hop" || action === "sneeze" || action === "yawn" || action === "stretch" || action === "sniff" || action === "wave" || action === "bow" || action === "wiggle") {
           await playAnimation(action);
         } else if (action === "doubleBlink") {
           show("blink", "blink");
@@ -296,17 +297,21 @@ export function useCapybaraBehavior(
   }, [reducedMotion, runSequence]);
 
   const play = useCallback(
-    (animation: "yawn" | "party" | "hop") => {
+    (animation: CapybaraPreviewAction) => {
       setForcedNap(false);
       let steps: readonly CapybaraSequenceStep[];
       if (animation === "yawn") {
         steps = CAPYBARA_ANIMATIONS.yawn.map(yawnStep);
-      } else if (reducedMotion) {
+      } else if (reducedMotion && (animation === "party" || animation === "hop")) {
         steps = REDUCED_CELEBRATE;
+      } else if (reducedMotion && (animation === "stretch" || animation === "sniff" || animation === "wave" || animation === "bow" || animation === "wiggle")) {
+        steps = [{ frame: CAPYBARA_ANIMATIONS[animation][1]?.frame ?? "calm", action: animation, duration: 300 }];
+      } else if (animation === "party") {
+        steps = partySequence(positionRef.current, maxOffsetRef.current, Math.random).steps;
       } else if (animation === "hop") {
         steps = CAPYBARA_ANIMATIONS.hop.map(hopStep);
       } else {
-        steps = partySequence(positionRef.current, maxOffsetRef.current, Math.random).steps;
+        steps = CAPYBARA_ANIMATIONS[animation].map((step) => ({ ...step, action: animation }));
       }
       runSequence(steps);
     },

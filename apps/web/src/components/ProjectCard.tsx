@@ -1,27 +1,31 @@
 import { Link, useNavigate } from "react-router";
-import { ChevronDownIcon, T3CodeIcon } from "./icons";
+import { ChevronDownIcon, CodeServerIcon, T3CodeIcon, TerminalIcon } from "./icons";
 import type { Project } from "@wrapt/contracts";
 import { Badge } from "./primitives";
-import { openProjectDefault, openProjectToolStandalone, openToolForProject } from "../lib/wraptActions";
+import { openProjectDefault, openProjectStandaloneDefault, openProjectToolStandalone, openToolForProject } from "../lib/wraptActions";
 import { projectToolOptions } from "../lib/projectTools";
+import { codeServerUnavailableReason, type CodeServerState } from "../lib/codeServerAvailability";
+import { useSidebarPreferences } from "../stores/sidebarPreferences";
 
-const availabilityTone: Record<Project["availability"], "ok" | "bad" | "warn"> = {
-  available: "ok",
+type ProjectIssue = Exclude<Project["availability"], "available">;
+
+const availabilityTone: Record<ProjectIssue, "bad" | "warn"> = {
   missing: "bad",
   inaccessible: "bad",
   symlink: "warn",
 };
 
-const availabilityLabel: Record<Project["availability"], string> = {
-  available: "verfügbar",
+const availabilityLabel: Record<ProjectIssue, string> = {
   missing: "fehlend",
   inaccessible: "gesperrt",
   symlink: "Symlink",
 };
 
-export function ProjectCard({ project }: { project: Project }) {
+export function ProjectCard({ project, codeServerState }: { project: Project; codeServerState: CodeServerState }) {
   const navigate = useNavigate();
-  const tools = projectToolOptions(project);
+  const codeServerReason = codeServerUnavailableReason(project.links.codeServer !== null, codeServerState);
+  const orbitEnabled = useSidebarPreferences((state) => !state.hiddenPages.has("workbench"));
+  const tools = projectToolOptions(project, codeServerReason === null);
   const openPrimary = () => {
     if (project.availability !== "available") return;
     if (project.links.t3Code) {
@@ -29,11 +33,16 @@ export function ProjectCard({ project }: { project: Project }) {
       navigate("/t3-code");
       return;
     }
-    openProjectDefault(project); navigate("/workbench");
+    if (orbitEnabled) {
+      openProjectDefault(project, codeServerReason === null);
+      navigate("/orbit");
+    } else {
+      navigate(openProjectStandaloneDefault(project, codeServerReason === null));
+    }
   };
 
   return (
-    <article className="project-card group border-b border-line-soft py-4 last:border-b-0">
+    <article className="project-card group border-b border-line-soft py-6 last:border-b-0">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="truncate text-[15px] font-medium text-text">
@@ -43,17 +52,14 @@ export function ProjectCard({ project }: { project: Project }) {
           </h3>
           <p className="mt-1 line-clamp-2 text-[13px] text-muted">{project.description}</p>
         </div>
-        <Badge tone={availabilityTone[project.availability]}>{availabilityLabel[project.availability]}</Badge>
+        {project.availability !== "available" ? <Badge tone={availabilityTone[project.availability]}>{availabilityLabel[project.availability]}</Badge> : null}
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] text-faint">
-        {project.links.t3Code ? <Badge tone="accent">T3 verfügbar</Badge> : null}
-        {project.links.codeServer ? <Badge>Editor verfügbar</Badge> : null}
-        {project.availability === "available" ? <Badge>Preview-Laufzeit</Badge> : null}
-        {project.previews.map((p) => (
-          <Badge key={p.id}>{p.name}</Badge>
-        ))}
-      </div>
+      {project.previews.length > 0 ? (
+        <div className="mt-3 flex flex-wrap gap-1.5 text-[11px] text-faint">
+          {project.previews.map((p) => <Badge key={p.id}>{p.name}</Badge>)}
+        </div>
+      ) : null}
 
       <div className="project-actions mt-4 flex flex-wrap items-center gap-2">
         <button
@@ -62,7 +68,8 @@ export function ProjectCard({ project }: { project: Project }) {
           disabled={project.availability !== "available"}
           className="quiet-button-primary max-md:basis-full"
         >
-          <T3CodeIcon className="h-3.5 w-3.5" /> {project.links.t3Code ? "T3 öffnen" : "Workbench öffnen"}
+          {project.links.t3Code ? <T3CodeIcon className="h-3.5 w-3.5" /> : orbitEnabled ? <T3CodeIcon className="h-3.5 w-3.5" /> : codeServerReason === null ? <CodeServerIcon className="h-3.5 w-3.5" /> : <TerminalIcon className="h-3.5 w-3.5" />}
+          {project.links.t3Code ? "T3 öffnen" : orbitEnabled ? "Orbit öffnen" : codeServerReason === null ? "Editor öffnen" : "Terminal öffnen"}
         </button>
         <details className="project-tools-menu">
           <summary aria-label="Weitere Werkzeuge öffnen" title="Weitere Werkzeuge"><ChevronDownIcon className="h-4 w-4" /><span>Weitere</span><span className="project-tools-count">{tools.length}</span></summary>
@@ -87,6 +94,7 @@ export function ProjectCard({ project }: { project: Project }) {
         </details>
       </div>
       {project.availability !== "available" ? <p className="project-attention-hint">Projektpfad prüfen, bevor Werkzeuge geöffnet werden können.</p> : null}
+      {project.links.codeServer !== null && codeServerReason ? <p className="project-attention-hint">Editor nicht verfügbar: {codeServerReason}</p> : null}
     </article>
   );
 }

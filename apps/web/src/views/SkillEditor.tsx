@@ -213,7 +213,7 @@ export function SkillEditor() {
 
             {autosave.state.kind === "conflict" ? (
               <div className="skill-editor-alert is-bad" role="alert">
-                <span>Diese Datei wurde außerhalb der Workbench geändert.</span>
+                <span>Diese Datei wurde außerhalb von Wrapt geändert.</span>
                 <span className="skill-editor-alert-actions">
                   <button type="button" className="quiet-button" onClick={() => void autosave.overwrite()}>Überschreiben</button>
                   <button type="button" className="quiet-button" onClick={() => void autosave.reload()}>Neu laden</button>

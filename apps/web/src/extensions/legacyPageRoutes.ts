@@ -8,7 +8,6 @@ import {
   loadCliTerminal,
   loadFileManager,
   loadHermes,
-  loadInbox,
   loadPreviewGroup,
   loadPreviewLive,
   loadProjectDetail,
@@ -202,14 +201,15 @@ export const legacyPageRouteOwners: readonly LegacyPageRouteOwner[] =
       {
         page: {
           id: "wrapt.orbit.page.main",
-          title: "Workbench",
+          title: "Orbit",
           description: "Werkzeuge und Previews öffnen",
         },
         route: standardRoute(
           "wrapt.orbit.route.main",
           "wrapt.orbit.page.main",
-          "/workbench",
+          "/orbit",
           {
+            aliases: ["/workbench"],
             shell: "full-bleed",
             topbar: false,
             breadcrumbs: false,
@@ -221,24 +221,7 @@ export const legacyPageRouteOwners: readonly LegacyPageRouteOwner[] =
           "Workbench",
           loadWorkbench,
         ),
-        routeRuntime: routeRuntime("/workbench"),
-      },
-    ]),
-    owner("wrapt.inbox", [
-      {
-        page: {
-          id: "wrapt.inbox.page.main",
-          title: "Inbox",
-          description: "Aufgaben, Rückfragen und Fehler",
-        },
-        route: standardRoute(
-          "wrapt.inbox.route.main",
-          "wrapt.inbox.page.main",
-          "/inbox",
-          { mobileNavigation: true },
-        ),
-        pageRuntime: lazyPageRuntime("inbox", "Inbox", loadInbox),
-        routeRuntime: routeRuntime("/inbox"),
+        routeRuntime: routeRuntime("/orbit", "redirect-to-canonical"),
       },
     ]),
     owner("wrapt.projects", [
@@ -246,7 +229,7 @@ export const legacyPageRouteOwners: readonly LegacyPageRouteOwner[] =
         page: {
           id: "wrapt.projects.page.list",
           title: "Projekte",
-          description: "Konfigurierte Arbeitsbereiche",
+          description: "Konfigurierte Projektordner",
         },
         route: standardRoute(
           "wrapt.projects.route.list",
@@ -326,7 +309,7 @@ export const legacyPageRouteOwners: readonly LegacyPageRouteOwner[] =
         page: {
           id: "wrapt.settings.page.main",
           title: "Einstellungen",
-          description: "Lokaler Workspace und Sicherheit",
+          description: "Client-weite Einstellungen, Layout und Sicherheit",
         },
         route: standardRoute(
           "wrapt.settings.route.main",
@@ -468,7 +451,7 @@ export const legacyPageRouteOwners: readonly LegacyPageRouteOwner[] =
           "wrapt.previews.route.main",
           "wrapt.previews.page.main",
           "/previews",
-          { projectContext: true, mobileNavigation: true },
+          { aliases: ["/orbit/previews"], projectContext: true, mobileNavigation: true },
         ),
         pageRuntime: lazyPageRuntime("tool-route", "Previews", loadToolRoute),
         routeRuntime: routeRuntime("/previews"),
@@ -647,7 +630,6 @@ export const legacyPageRouteOwners: readonly LegacyPageRouteOwner[] =
 /** Die bisherigen LocalStorage-IDs bleiben bis zur Preferences-Migration lesbar. */
 export const legacyPageAliases = Object.freeze({
   dashboard: "wrapt.dashboard.page.main",
-  inbox: "wrapt.inbox.page.main",
   workbench: "wrapt.orbit.page.main",
   projects: "wrapt.projects.page.list",
   "t3-code": "wrapt.t3-code.page.main",

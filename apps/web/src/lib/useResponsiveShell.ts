@@ -3,6 +3,10 @@ import { useEffect, useMemo, useState } from "react";
 export type ShellMode = "compact" | "tablet" | "desktop";
 export type ShellOrientation = "portrait" | "landscape";
 
+export function usesTabletSidebar(mode: ShellMode, orientation: ShellOrientation): boolean {
+  return mode === "tablet" && orientation === "landscape";
+}
+
 interface ResponsiveShellState {
   width: number;
   height: number;

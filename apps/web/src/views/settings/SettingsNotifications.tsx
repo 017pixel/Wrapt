@@ -1,9 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { NotificationPreferences, NotificationSource } from "@wrapt/contracts";
 import { Badge } from "../../components/primitives";
 import { Card } from "../../components/Card";
-import { InboxIcon } from "../../components/icons";
 import { apiClient } from "../../lib/apiClient";
 import { wraptQueries } from "../../lib/queryOptions";
 import { useWebPushDevice } from "../../lib/useWebPushDevice";
@@ -17,7 +16,7 @@ const notificationSourceLabels: Record<NotificationSource, string> = {
   claude: "Claude Code",
   terminal: "Terminal",
   wrapt: "Wrapt",
-  workbench: "Legacy Workbench",
+  workbench: "Orbit",
   update: "Updates",
 };
 
@@ -39,8 +38,7 @@ export function SettingsNotifications() {
     <div id="settings-notifications">
       <Card
         title="Benachrichtigungen"
-        subtitle="Toasts und System-Benachrichtigungen pro Quelle"
-        action={<InboxIcon className="h-4 w-4 text-faint" />}
+        subtitle="Toast- und Push-Mitteilungen pro Quelle"
       >
         <NotificationControls />
       </Card>
@@ -56,14 +54,16 @@ function NotificationControls() {
   const preferences = settings.data?.preferences;
   const pushDevice = useWebPushDevice(settings.data);
 
-  const save = async (next: NotificationPreferences) => {
+  const save = async (next: NotificationPreferences): Promise<boolean> => {
     setSaving(true);
     setMessage("");
     try {
       const response = await apiClient.saveNotificationSettings(next);
       if (response) queryClient.setQueryData(wraptQueries.notificationSettings().queryKey, response);
+      return true;
     } catch {
       setMessage("Die Benachrichtigungseinstellungen konnten nicht gespeichert werden.");
+      return false;
     } finally {
       setSaving(false);
     }
@@ -76,12 +76,14 @@ function NotificationControls() {
 
   return (
     <div className="notification-settings">
-      <div className="notification-channel-note">
-        <span>
-          <strong>Inbox</strong>
-          <small>Jedes Ereignis landet in der Inbox, auch wenn Toasts und Push ausgeschaltet sind.</small>
-        </span>
-        <Badge tone="accent">Immer an</Badge>
+      <div className="toast-duration-setting">
+        <label htmlFor="notification-toast-duration">Anzeigedauer der Toasts</label>
+        <ToastDurationField
+          value={preferences.toastDurationSeconds}
+          disabled={saving}
+          onSave={(toastDurationSeconds) => save({ ...preferences, toastDurationSeconds })}
+        />
+        <small>Nach dieser Zeit schließen sich Toasts automatisch. Standard: 3 Sekunden.</small>
       </div>
       <button
         type="button"
@@ -91,7 +93,7 @@ function NotificationControls() {
       >
         <span>
           <strong>Toasts</strong>
-          <small>Kurze Einblendung für neue wichtige Ereignisse; die Inbox sammelt trotzdem alles</small>
+          <small>Wichtige Ereignisse erscheinen oben rechts und lassen sich schließen oder nach rechts wischen.</small>
         </span>
         <span
           className={`settings-toggle-switch ${preferences.toastsEnabled ? "is-on" : ""}`}
@@ -105,7 +107,7 @@ function NotificationControls() {
         <header>
           <div>
             <strong id="push-device-title">System-Benachrichtigungen auf diesem Gerät</strong>
-            <small>Lokales Abo, unabhängig von deinen anderen Geräten</small>
+            <small>Funktioniert im Browser und in installierten PWAs; die Aktivierung gilt nur hier.</small>
           </div>
           <Badge tone={deviceMeta.tone}>{deviceMeta.label}</Badge>
         </header>
@@ -154,7 +156,7 @@ function NotificationControls() {
       >
         <span>
           <strong>Server-Push für wichtige Ereignisse</strong>
-          <small>Globaler Schalter für System-Benachrichtigungen; verändert keine Geräte-Abos und nicht die Inbox</small>
+          <small>Globaler Schalter für Geräte-Push; die einzelnen Geräte-Abos bleiben davon unberührt.</small>
         </span>
         <span
           className={`settings-toggle-switch ${preferences.pushEnabled ? "is-on" : ""}`}
@@ -205,4 +207,37 @@ function NotificationControls() {
       {message ? <p className="text-[12px] text-muted" role="status">{message}</p> : null}
     </div>
   );
+}
+
+function ToastDurationField({ value, disabled, onSave }: { value: number; disabled: boolean; onSave: (seconds: number) => Promise<boolean> }) {
+  const [draft, setDraft] = useState(String(value));
+
+  useEffect(() => setDraft(String(value)), [value]);
+
+  const commit = async () => {
+    const seconds = Number(draft.trim());
+    if (!draft.trim() || !Number.isFinite(seconds) || seconds < 1) {
+      setDraft(String(value));
+      return;
+    }
+    if (seconds === value) return;
+    if (!await onSave(seconds)) setDraft(String(value));
+  };
+
+  return <div className="toast-duration-input">
+    <input
+      id="notification-toast-duration"
+      type="number"
+      min="1"
+      step="any"
+      inputMode="decimal"
+      value={draft}
+      disabled={disabled}
+      aria-label="Anzeigedauer in Sekunden"
+      onChange={(event) => setDraft(event.currentTarget.value)}
+      onBlur={() => void commit()}
+      onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
+    />
+    <span>Sekunden</span>
+  </div>;
 }

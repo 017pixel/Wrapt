@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { editorOpenEventSchema, WRAPT_LIMITS } from "@wrapt/contracts";
-import { useWorkspaceStore } from "../stores/workspace";
+import { useLayoutStore } from "../stores/layout";
 import { wraptQueries } from "../lib/queryOptions";
 import { useWraptNotice } from "../stores/wraptNotice";
 
@@ -9,12 +9,12 @@ import { useWraptNotice } from "../stores/wraptNotice";
  * „Open in Editor" aus T3 Code: Das Server-Shim `code` meldet einen Pfad über
  * `POST /api/v1/editor/open`; dieser WebSocket-Kanal leitet ihn an die
  * geöffnete Workbench weiter. Die Bridge öffnet den Zielordner im code-server:
- * im Workspace-Layout als Panel, auf der eigenständigen Werkzeugseite als
+ * im Layout als Panel, auf der eigenständigen Werkzeugseite als
  * Sprung nach `/code-editor/?folder=…`.
  */
 export function EditorOpenBridge() {
   const projects = useQuery(wraptQueries.projects());
-  const openPanel = useWorkspaceStore((state) => state.openPanel);
+  const openPanel = useLayoutStore((state) => state.openPanel);
 
   useEffect(() => {
     let socket: WebSocket | null = null;

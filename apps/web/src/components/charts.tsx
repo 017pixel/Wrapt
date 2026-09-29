@@ -34,14 +34,19 @@ function bounds(values: readonly number[], fixed?: Bounds): Bounds {
 }
 
 function toPath(values: readonly number[], height: number, range: Bounds): string {
-  const span = range.max - range.min || 1;
   return values
     .map((value, index) => {
-      const x = values.length === 1 ? VIEW_WIDTH : (index / (values.length - 1)) * VIEW_WIDTH;
-      const y = height - ((value - range.min) / span) * height;
-      return `${index === 0 ? "M" : "L"}${x.toFixed(2)},${Math.max(0, Math.min(height, y)).toFixed(2)}`;
+      const point = chartPoint(value, index, values.length, height, range);
+      return `${index === 0 ? "M" : "L"}${point.x.toFixed(2)},${point.y.toFixed(2)}`;
     })
     .join(" ");
+}
+
+function chartPoint(value: number, index: number, count: number, height: number, range: Bounds) {
+  const span = range.max - range.min || 1;
+  const x = count === 1 ? VIEW_WIDTH : (index / (count - 1)) * VIEW_WIDTH;
+  const y = height - ((value - range.min) / span) * height;
+  return { x, y: Math.max(0, Math.min(height, y)) };
 }
 
 export function Sparkline({
@@ -84,7 +89,7 @@ export interface ChartSeries {
   values: readonly number[];
   tone: ChartTone;
   /** Formatierter Momentanwert für die Legende. */
-  readout: string;
+  readout?: string;
 }
 
 /**
@@ -108,6 +113,7 @@ export function TrendChart({
   emptyHint?: string;
   gridLines?: number;
 }) {
+  const hasSamples = series.some((item) => item.values.length > 0);
   const hasData = series.some((item) => item.values.length >= 2);
   const allValues = series.flatMap((item) => [...item.values]);
   const range = bounds(allValues.length ? allValues : [0, 1], fixedBounds);
@@ -119,7 +125,7 @@ export function TrendChart({
           <span key={item.id} className="chart-legend-item">
             <i className={`chart-swatch is-${item.tone}`} aria-hidden />
             {item.label}
-            <strong>{item.readout}</strong>
+            {item.readout ? <strong>{item.readout}</strong> : null}
           </span>
         ))}
       </figcaption>
@@ -158,11 +164,32 @@ export function TrendChart({
                       vectorEffect="non-scaling-stroke"
                     />
                   </g>
-                ),
-              )
+              ),
+            )
+            : null}
+          {hasSamples
+            ? series.map((item) => (
+                <g key={`${item.id}-samples`}>
+                  {item.values.map((value, index) => {
+                    const point = chartPoint(value, index, item.values.length, height, range);
+                    return (
+                      <circle
+                        key={`${item.id}-${index}`}
+                        cx={point.x}
+                        cy={point.y}
+                        r="2.5"
+                        fill={toneColors[item.tone]}
+                        stroke="var(--color-ink-900)"
+                        strokeWidth="1.5"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    );
+                  })}
+                </g>
+              ))
             : null}
         </svg>
-        {hasData ? null : <p className="chart-empty">{emptyHint}</p>}
+        {hasSamples ? null : <p className="chart-empty">{emptyHint}</p>}
         {hasData && scaleHint ? <span className="chart-scale">{scaleHint}</span> : null}
       </div>
       {axisLabels?.length ? (

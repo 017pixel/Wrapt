@@ -1,11 +1,11 @@
 /**
  * Basis-Adresse für End-to-End-Tests.
  *
- * Ohne `WRAPT_E2E_URL` läuft alles gegen die lokale Wrapt auf
- * `127.0.0.1:3010` — die startet Playwright bei Bedarf selbst (siehe `webServer`
- * in `playwright.config.ts`). `WRAPT_E2E_URL` zeigt immer auf den reinen
- * Origin des Testservers; diese Adresse ergänzt den Basispfad `/wrapt`,
- * unter dem das Frontend ausgeliefert wird.
+ * Ohne `WRAPT_E2E_URL` nutzt die Suite `WRAPT_E2E_PORT` oder den Standardport
+ * 3010. Playwright startet bei Bedarf dort einen isolierten Testserver (siehe
+ * `webServer` in `playwright.config.ts`). `WRAPT_E2E_URL` zeigt auf den reinen
+ * Origin einer explizit eingerichteten Testinstanz. Diese Adresse ergänzt den
+ * Basispfad `/wrapt`, unter dem das Frontend ausgeliefert wird.
  *
  * Manche Tests brauchen mehr als einen laufenden Server: eine Instanz mit den
  * erwarteten Projekten, eine Tailscale-Identität für PTY-Sitzungen oder
@@ -19,7 +19,10 @@
 export const hasPrivateWrapt = Boolean(process.env.WRAPT_E2E_URL)
   && process.env.WRAPT_E2E_ISOLATED !== "true";
 
-export const workbenchUrl = `${(process.env.WRAPT_E2E_URL ?? "http://127.0.0.1:3010").replace(/\/$/, "")}/wrapt`;
+const e2eOrigin = process.env.WRAPT_E2E_URL
+  ?? `http://127.0.0.1:${process.env.WRAPT_E2E_PORT ?? 3010}`;
+
+export const workbenchUrl = `${e2eOrigin.replace(/\/$/, "")}/wrapt`;
 
 /** Begründung für übersprungene Tests, die eine eingerichtete Instanz voraussetzen. */
 export const privateWraptReason =

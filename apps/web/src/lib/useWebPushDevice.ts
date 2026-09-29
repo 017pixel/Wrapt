@@ -35,6 +35,12 @@ export function useWebPushDevice(settings: NotificationSettingsResponse | undefi
       const next = action === "activate" ? await client.activate(settings) : await client.deactivate(settings);
       setDevice(next);
       setActionMessage(next.message);
+    } catch {
+      const message = action === "activate"
+        ? "Push konnte nicht aktiviert werden. Prüfe die Browserberechtigung und lade die App neu."
+        : "Das Gerät konnte nicht deaktiviert werden. Prüfe die Verbindung und versuche es erneut.";
+      setDevice({ status: action === "activate" ? "inactive" : "active-unsynced", permission: device.permission, endpoint: device.endpoint, message });
+      setActionMessage(message);
     } finally {
       setWorking(false);
     }

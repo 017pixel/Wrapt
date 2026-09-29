@@ -216,37 +216,39 @@ export function RuntimePanel({
       subtitle={pending ? "Ports und Sessions werden gelesen" : `${portCount} offene Ports · ${sessionCount} Terminal-Sessions`}
       icon={<TerminalIcon className="h-4 w-4" />}
       name="runtime"
-      className="is-span-7"
+      className="is-span-7 dash-runtime-panel"
       meta={ports.data ? <span className="dash-meta-time">Portscan {formatClockTime(ports.data.scannedAt)}</span> : null}
     >
-      {error ? (
-        <PanelError message={queryMessage(error, "Laufzeitdaten konnten nicht geladen werden.")} />
-      ) : pending ? (
-        <PanelSkeleton label="Laufzeitdaten laden" rows={3} />
-      ) : groups.length === 0 ? (
-        <p className="dash-muted">Momentan läuft kein Projektprozess. Ports und Sessions erscheinen hier automatisch.</p>
-      ) : (
-        <>
-          {actionError ? <PanelError message={actionError} /> : null}
-          <ul className="dash-runtime-list">
-            {visibleGroups.map((group) => (
-              <RuntimeGroup
-                key={group.key}
-                group={group}
-                onOpenPort={onOpenPort}
-                onCloseSession={(session) => { setActionError(null); setSessionToClose(session); }}
-                onCloseGroup={(groupToDelete) => { setActionError(null); setGroupToClose(groupToDelete); }}
-                onDismissSession={dismissSession}
-              />
-            ))}
-          </ul>
-          {groups.length > 3 ? (
-            <button type="button" className="dash-more" onClick={() => runWithViewTransition(() => setExpanded((value) => !value))}>
-              {expanded ? "Weniger anzeigen" : `${groups.length - 3} weitere Bereiche anzeigen`}
-            </button>
-          ) : null}
-        </>
-      )}
+      <div className="dash-runtime-content">
+        {error ? (
+          <PanelError message={queryMessage(error, "Laufzeitdaten konnten nicht geladen werden.")} />
+        ) : pending ? (
+          <PanelSkeleton label="Laufzeitdaten laden" rows={3} />
+        ) : groups.length === 0 ? (
+          <p className="dash-muted">Momentan läuft kein Projektprozess. Ports und Sessions erscheinen hier automatisch.</p>
+        ) : (
+          <>
+            {actionError ? <PanelError message={actionError} /> : null}
+            <ul className="dash-runtime-list">
+              {visibleGroups.map((group) => (
+                <RuntimeGroup
+                  key={group.key}
+                  group={group}
+                  onOpenPort={onOpenPort}
+                  onCloseSession={(session) => { setActionError(null); setSessionToClose(session); }}
+                  onCloseGroup={(groupToDelete) => { setActionError(null); setGroupToClose(groupToDelete); }}
+                  onDismissSession={dismissSession}
+                />
+              ))}
+            </ul>
+            {groups.length > 3 ? (
+              <button type="button" className="dash-more" onClick={() => runWithViewTransition(() => setExpanded((value) => !value))}>
+                {expanded ? "Weniger anzeigen" : `${groups.length - 3} weitere Bereiche anzeigen`}
+              </button>
+            ) : null}
+          </>
+        )}
+      </div>
       <ConfirmDialog
         open={sessionToClose !== null}
         title="Terminal beenden und löschen?"

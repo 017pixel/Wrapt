@@ -1,20 +1,24 @@
 import { useNavigate, useParams } from "react-router";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeftIcon, EyeIcon, FolderTreeIcon, PreviewsIcon, ServicesIcon } from "../components/icons";
-import { CodeServerIcon, T3CodeIcon } from "../components/icons";
+import { CodeServerIcon, T3CodeIcon, TerminalIcon } from "../components/icons";
 import { wraptQueries } from "../lib/queryOptions";
 import { QueryBoundary } from "../components/QueryBoundary";
 import { Card } from "../components/Card";
 import { Badge, StateDot } from "../components/primitives";
 import { EmptyState } from "../components/EmptyState";
-import { openPreviewForProject, openProjectDefault, openToolForProject } from "../lib/wraptActions";
+import { openPreviewForProject, openProjectDefault, openProjectStandaloneDefault, openToolForProject } from "../lib/wraptActions";
 import { useRouteActivity } from "../lib/routeActivity";
+import { codeServerState, codeServerUnavailableReason } from "../lib/codeServerAvailability";
+import { useSidebarPreferences } from "../stores/sidebarPreferences";
 
 export function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
+  const orbitEnabled = useSidebarPreferences((state) => !state.hiddenPages.has("workbench"));
   const routeActive = useRouteActivity();
   const projects = useQuery({ ...wraptQueries.projects(), enabled: routeActive });
+  const services = useQuery({ ...wraptQueries.services(), enabled: routeActive });
   const runtime = useQuery({ ...wraptQueries.previewDevServer(projectId ?? null, 5_000), enabled: routeActive && Boolean(projectId) });
 
   return (
@@ -33,6 +37,7 @@ export function ProjectDetail() {
             if (!project) {
               return <EmptyState title="Projekt nicht gefunden" description="Dieses lokale Projekt ist nicht verfügbar." />;
             }
+            const editorReason = codeServerUnavailableReason(project.links.codeServer !== null, codeServerState(services.data?.services));
             return (
               <>
                 <div className="page-heading">
@@ -62,18 +67,21 @@ export function ProjectDetail() {
                         if (project.links.t3Code) {
                           openToolForProject(project, "t3-code");
                           navigate("/t3-code");
+                        } else if (orbitEnabled) {
+                          openProjectDefault(project, editorReason === null);
+                          navigate("/orbit");
                         } else {
-                          openProjectDefault(project);
-                          navigate("/workbench");
+                          navigate(openProjectStandaloneDefault(project, editorReason === null));
                         }
                       }}
                       className="quiet-button-primary"
                     >
-                      <T3CodeIcon className="h-3.5 w-3.5" /> {project.links.t3Code ? "T3 öffnen" : "Workbench öffnen"}
+                      {project.links.t3Code || orbitEnabled ? <T3CodeIcon className="h-3.5 w-3.5" /> : editorReason === null ? <CodeServerIcon className="h-3.5 w-3.5" /> : <TerminalIcon className="h-3.5 w-3.5" />}
+                      {project.links.t3Code ? "T3 öffnen" : orbitEnabled ? "Orbit öffnen" : editorReason === null ? "Editor öffnen" : "Terminal öffnen"}
                     </button>
                     <button
                       type="button"
-                      disabled={project.links.codeServer === null}
+                      disabled={editorReason !== null}
                       onClick={() => {
                         openToolForProject(project, "code-server");
                         navigate("/code-editor");
@@ -83,6 +91,7 @@ export function ProjectDetail() {
                       <CodeServerIcon className="h-3.5 w-3.5" /> Editor
                     </button>
                   </div>
+                  {editorReason ? <p className="mt-3 text-[12px] text-faint">{editorReason}</p> : null}
                 </Card>
 
                 <Card title="Projektlaufzeit" subtitle={runtime.data?.profileSource === "configured" ? "preview.config.json" : "automatisch erkannt"}>

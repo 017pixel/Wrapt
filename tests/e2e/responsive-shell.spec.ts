@@ -3,9 +3,14 @@ import { expect, test, type Page } from "@playwright/test";
 test.use({ extraHTTPHeaders: { "tailscale-user-login": "user@example.com" } });
 
 const routes = [
-  "", "projects", "settings", "usage", "workbench",
-  "terminal", "previews", "code-editor", "t3-code", "codex", "opencode", "claude", "notion",
+  "", "projects", "settings", "usage", "orbit",
+  "terminal", "previews", "code-editor", "t3-code", "codex", "opencode", "claude", "notizen",
 ];
+
+function usesTabletLandscapeSidebar(page: Page): boolean {
+  const viewport = page.viewportSize();
+  return Boolean(viewport && viewport.width >= 1_024 && viewport.width > viewport.height);
+}
 
 async function mockPreviewSlots(page: Page) {
   const slots = Array.from({ length: 6 }, (_, index) => ({
@@ -31,10 +36,21 @@ async function mockPreviewSlots(page: Page) {
   });
 }
 
-test("uses the touch shell without desktop chrome", async ({ page }) => {
+test("uses mobile navigation or the iPad landscape sidebar for the viewport", async ({ page }) => {
   await page.goto("/wrapt/");
   const shell = page.locator(".app-shell");
   await expect(shell).toHaveAttribute("data-shell-mode", /compact|tablet/);
+  if (usesTabletLandscapeSidebar(page)) {
+    await expect(shell).toHaveAttribute("data-shell-mode", "tablet");
+    const sidebar = page.locator(".sidebar-shell");
+    await expect(sidebar).toHaveCount(1);
+    await expect(page.locator(".status-bar")).toHaveCount(1);
+    await expect(page.getByRole("button", { name: "Navigation öffnen" })).toHaveCount(0);
+    const sidebarWidth = await sidebar.evaluate((element) => element.getBoundingClientRect().width);
+    expect(sidebarWidth).toBeGreaterThanOrEqual(208);
+    expect(sidebarWidth).toBeLessThanOrEqual(Math.round((page.viewportSize()?.width ?? 0) * 0.22) + 1);
+    return;
+  }
   await expect(page.locator(".workspace-sidebar")).toHaveCount(0);
   await expect(page.locator(".status-bar")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Navigation öffnen" })).toBeVisible();
@@ -46,7 +62,23 @@ test("uses the touch shell without desktop chrome", async ({ page }) => {
   expect(size.height).toBeGreaterThanOrEqual(44);
 });
 
+test.describe("Orbit auf dem iPad im Querformat", () => {
+  test.use({ viewport: { width: 1_024, height: 768 }, hasTouch: true });
+
+  test("behält die Navigation erreichbar, wenn die Orbit-Leiste sichtbar ist", async ({ page }) => {
+    await page.goto("/wrapt/orbit");
+    await expect(page.locator(".app-shell")).toHaveAttribute("data-shell-mode", "tablet");
+    await expect(page.locator(".app-shell")).toHaveAttribute("data-orientation", "landscape");
+    const sidebar = page.locator(".sidebar-shell");
+    await expect(sidebar).toBeVisible();
+    await expect(page.getByRole("button", { name: "Navigation öffnen" })).toHaveCount(0);
+    await sidebar.getByRole("link", { name: /Projekte/ }).click();
+    await expect(page).toHaveURL(/\/wrapt\/projects$/);
+  });
+});
+
 test("navigation page manages focus, history and scroll lock", async ({ page }) => {
+  test.skip(usesTabletLandscapeSidebar(page), "Das iPad im Querformat nutzt die Seitenleiste.");
   await page.goto("/wrapt/");
   const trigger = page.getByRole("button", { name: "Navigation öffnen" });
   await trigger.click();
@@ -64,7 +96,8 @@ test("navigation page manages focus, history and scroll lock", async ({ page }) 
 });
 
 test("keeps route floating controls behind the navigation page", async ({ page }) => {
-  const floatingRoutes = ["", "workbench", "terminal"];
+  test.skip(usesTabletLandscapeSidebar(page), "Das iPad im Querformat nutzt die Seitenleiste.");
+  const floatingRoutes = ["", "orbit", "terminal"];
   const floatingSelector = [
     ".orbit-main-island",
     ".terminal-island",
@@ -112,11 +145,11 @@ test("keeps all main routes inside the viewport", async ({ page }) => {
 
 test("uses a reversible touch dialog for destructive settings", async ({ page }) => {
   await page.goto("/wrapt/settings");
-  // Der Workspace-Reset liegt im gleichnamigen Tab der neuen Gliederung.
-  await page.getByRole("button", { name: "Workspace", exact: true }).click();
-  const trigger = page.getByRole("button", { name: "Workspace zurücksetzen" });
+  // Der lokale Layout-Reset liegt im gleichnamigen Tab.
+  await page.getByRole("button", { name: "Layout", exact: true }).click();
+  const trigger = page.getByRole("button", { name: "Layout zurücksetzen" });
   await trigger.click();
-  const dialog = page.getByRole("dialog", { name: "Workspace zurücksetzen?" });
+  const dialog = page.getByRole("dialog", { name: "Layout zurücksetzen?" });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Abbrechen" })).toBeFocused();
   await page.goBack();
@@ -125,6 +158,7 @@ test("uses a reversible touch dialog for destructive settings", async ({ page })
 });
 
 test("moves focus into content after a navigation choice", async ({ page }) => {
+  test.skip(usesTabletLandscapeSidebar(page), "Das iPad im Querformat nutzt die Seitenleiste.");
   await page.goto("/wrapt/");
   await page.getByRole("button", { name: "Navigation öffnen" }).click();
   await page.getByRole("dialog", { name: "Navigation" }).getByRole("link", { name: "Projekte" }).click();

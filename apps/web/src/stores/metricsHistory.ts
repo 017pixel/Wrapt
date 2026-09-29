@@ -1,45 +1,89 @@
 import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
 
-/** Ein Messpunkt des Dashboards. Wird im Takt der Metrik-Queries erzeugt. */
+/** Ein gemeinsamer CPU-/RAM-Messpunkt für den Verlauf des Dashboards. */
 export interface MetricsSample {
   timestamp: number;
   cpuPercent: number;
   memoryPercent: number;
-  diskPercent: number;
-  rssBytes: number;
-  activeRequests: number;
-  totalRequests: number;
-  serverErrorRatePercent: number;
-  clientErrorRatePercent: number;
-  eventLoopP99: number;
 }
 
-/** 60 Punkte × 5 s Aktualisierung ≈ 5 Minuten Verlauf. */
-const MAX_SAMPLES = 60;
+/** 25 Messpunkte reichen für einen kurzen Verlauf und bleiben kompakt. */
+const MAX_SAMPLES = 25;
+const MAX_RESTORED_AGE_MS = 5 * 60_000;
+const STORAGE_KEY = "wrapt.dashboard.metrics-history.v1";
 
 interface MetricsHistoryState {
   samples: MetricsSample[];
-  push: (sample: MetricsSample) => void;
+  merge: (samples: readonly MetricsSample[]) => void;
   clear: () => void;
 }
 
+const memoryOnlyStorage: Storage = {
+  get length() { return 0; },
+  clear: () => undefined,
+  getItem: () => null,
+  key: () => null,
+  removeItem: () => undefined,
+  setItem: () => undefined,
+};
+
+function restoreRecentSamples(value: unknown): MetricsSample[] {
+  if (!Array.isArray(value)) return [];
+  const now = Date.now();
+  return value.filter((sample): sample is MetricsSample => {
+    if (!sample || typeof sample !== "object") return false;
+    const candidate = sample as Partial<MetricsSample>;
+    const { timestamp, cpuPercent, memoryPercent } = candidate;
+    return typeof timestamp === "number" && Number.isFinite(timestamp)
+      && timestamp >= now - MAX_RESTORED_AGE_MS && timestamp <= now
+      && typeof cpuPercent === "number" && Number.isFinite(cpuPercent)
+      && cpuPercent >= 0 && cpuPercent <= 100
+      && typeof memoryPercent === "number" && Number.isFinite(memoryPercent)
+      && memoryPercent >= 0 && memoryPercent <= 100;
+  }).slice(-MAX_SAMPLES);
+}
+
 /**
- * Der Verlauf liegt bewusst in einem globalen Store statt in einem Ref pro
- * Panel: mehrere Panels teilen sich dieselben Punkte, und beim Wechsel auf eine
- * andere Seite und zurück bleibt der Verlauf erhalten.
+ * Der Server liefert den Hintergrundverlauf. Der Store hält ihn für alle
+ * Dashboard-Kacheln und über kurze Verbindungsunterbrechungen hinweg bereit.
  */
-export const useMetricsHistory = create<MetricsHistoryState>()((set) => ({
-  samples: [],
-  push: (sample) =>
-    set((state) => {
-      const last = state.samples[state.samples.length - 1];
-      // Identische Zeitstempel entstehen, wenn React denselben Datenstand erneut rendert.
-      if (last && sample.timestamp - last.timestamp < 500) return state;
-      const next = [...state.samples, sample];
-      return { samples: next.length > MAX_SAMPLES ? next.slice(next.length - MAX_SAMPLES) : next };
+export const useMetricsHistory = create<MetricsHistoryState>()(
+  persist(
+    (set) => ({
+      samples: [],
+      merge: (samples) =>
+        set((state) => {
+          const now = Date.now();
+          const merged = new Map<number, MetricsSample>();
+          for (const sample of [...state.samples, ...samples]) {
+            if (sample.timestamp > now - MAX_RESTORED_AGE_MS && sample.timestamp <= now) {
+              merged.set(sample.timestamp, sample);
+            }
+          }
+          const next = [...merged.values()].sort((left, right) => left.timestamp - right.timestamp);
+          return { samples: next.length > MAX_SAMPLES ? next.slice(-MAX_SAMPLES) : next };
+        }),
+      clear: () => set({ samples: [] }),
     }),
-  clear: () => set({ samples: [] }),
-}));
+    {
+      name: STORAGE_KEY,
+      version: 1,
+      storage: createJSONStorage(() => {
+        try {
+          return window.localStorage ?? memoryOnlyStorage;
+        } catch {
+          return memoryOnlyStorage;
+        }
+      }),
+      partialize: (state) => ({ samples: state.samples }),
+      merge: (persisted, current) => {
+        const restored = persisted as Partial<MetricsHistoryState> | undefined;
+        return { ...current, samples: restoreRecentSamples(restored?.samples) };
+      },
+    },
+  ),
+);
 
 export type TrendDirection = "up" | "down" | "stable";
 

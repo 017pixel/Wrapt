@@ -16,6 +16,12 @@ describe("settingsSearch", () => {
     expect(searchSettings("Farben ändern")[0]?.entry.id).toBe("design-colors");
   });
 
+  it("ordnet Layout und verbundene Workspaces getrennt zu", () => {
+    expect(searchSettings("Layout")[0]?.entry.id).toBe("layout");
+    expect(searchSettings("Workspace")[0]?.entry.id).toBe("workspaces");
+    expect(searchSettings("Verbindung")[0]?.entry.id).toBe("workspaces");
+  });
+
   it("findet einen Bereich trotz bis zu drei Tippfehlern", () => {
     expect(searchSettings("desgin").some((result) => result.entry.id === "design")).toBe(true);
     expect(searchSettings("neustar").some((result) => result.entry.id === "general-restart")).toBe(true);

@@ -8,14 +8,14 @@ import { MobileNav } from "./MobileNav";
 import { StatusBar } from "./StatusBar";
 import { useSidebarLayout } from "../lib/useSidebarLayout";
 import { PersistentOutlet } from "./PersistentOutlet";
-import { useWorkspaceStore } from "../stores/workspace";
+import { useLayoutStore } from "../stores/layout";
 import { wraptQueries } from "../lib/queryOptions";
 import { ProjectPicker } from "./ProjectPicker";
 import { terminalAreaView, useTerminalWorkspaceStore } from "../stores/terminalWorkspace";
 import { TerminalWorkspaceSync } from "./terminal/TerminalWorkspaceSync";
 import { TerminalSessionsSync } from "./terminal/TerminalSessionsSync";
 import { apiClient } from "../lib/apiClient";
-import { useResponsiveShell, useVisualViewportVariables } from "../lib/useResponsiveShell";
+import { useResponsiveShell, useVisualViewportVariables, usesTabletSidebar } from "../lib/useResponsiveShell";
 import { useNavigationRegistry } from "../extensions/useNavigationRegistry";
 import { pageRouteRegistry } from "../extensions/pageRouteRegistry";
 import { addBreadcrumb } from "../lib/crashReport";
@@ -26,12 +26,15 @@ import { WraptNotice } from "./WraptNotice";
 import { useViewPresence } from "../lib/useViewPresence";
 import { recordToolUsage } from "../stores/toolUsage";
 import { PluginTopbar } from "./plugins/PluginTopbar";
+import { WorkspaceRegistrySync } from "./workspaces/WorkspaceRegistrySync";
+import { WorkspaceSwitchTransition } from "./workspaces/WorkspaceSwitchTransition";
+import { PwaInstallHint } from "./mobile/PwaInstallHint";
 
 function ContextProjectPicker() {
   const location = useLocation();
   const [search] = useSearchParams();
-  const selectProject = useWorkspaceStore((state) => state.selectProject);
-  const selectedProjectId = useWorkspaceStore((state) => state.selectedProjectId);
+  const selectProject = useLayoutStore((state) => state.selectProject);
+  const selectedProjectId = useLayoutStore((state) => state.selectedProjectId);
   const addTerminalTab = useTerminalWorkspaceStore((state) => state.addTab);
   const activateProject = useTerminalWorkspaceStore((state) => state.activateProject);
   const { data } = useQuery(wraptQueries.projects());
@@ -200,9 +203,11 @@ export function AppShell() {
   const navigationSwipeStart = useRef<{ x: number; y: number } | null>(null);
   const sidebar = useSidebarLayout();
   const responsive = useResponsiveShell();
-  const showNavigationTrigger = responsive.isTouchShell && !mobileNavigationOpen;
+  const hasTabletSidebar = usesTabletSidebar(responsive.mode, responsive.orientation);
+  const showsNavigationSidebar = responsive.mode === "desktop" || hasTabletSidebar;
+  const showNavigationTrigger = responsive.isTouchShell && !hasTabletSidebar && !mobileNavigationOpen;
   useVisualViewportVariables();
-  const selectedProjectId = useWorkspaceStore((state) => state.selectedProjectId);
+  const selectedProjectId = useLayoutStore((state) => state.selectedProjectId);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -261,6 +266,10 @@ export function AppShell() {
     return () => document.removeEventListener("keydown", exitOnEscape);
   }, [terminalFocus]);
 
+  useEffect(() => {
+    if (hasTabletSidebar) setMobileNavigationOpen(false);
+  }, [hasTabletSidebar]);
+
   return (
     <div
       className={`app-shell ${isOrbit ? "is-orbit" : ""}`}
@@ -272,7 +281,7 @@ export function AppShell() {
       data-terminal-focus={terminalFocus ? "true" : undefined}
       data-navigation-open={mobileNavigationOpen ? "true" : "false"}
       onPointerDown={(event) => {
-        if (responsive.isTouchShell && event.clientX <= 24 && event.isPrimary) navigationSwipeStart.current = { x: event.clientX, y: event.clientY };
+        if (responsive.isTouchShell && !hasTabletSidebar && event.clientX <= 24 && event.isPrimary) navigationSwipeStart.current = { x: event.clientX, y: event.clientY };
       }}
       onPointerUp={(event) => {
         const start = navigationSwipeStart.current;
@@ -283,20 +292,22 @@ export function AppShell() {
     >
       <a className="skip-link" href="#main-content">Zum Hauptinhalt springen</a>
       <span className="sr-only" aria-live="polite" aria-atomic="true">{title} geöffnet</span>
+      <WorkspaceRegistrySync />
+      <WorkspaceSwitchTransition />
       <TerminalWorkspaceSync />
       <TerminalSessionsSync />
       <NotificationCenter />
       <ViewPresenceReporter />
       <WraptNotice />
-      {responsive.mode === "desktop" ? <Sidebar
+      {showsNavigationSidebar ? <Sidebar
         collapsed={sidebar.collapsed}
-        width={sidebar.width}
+        width={hasTabletSidebar ? Math.max(208, Math.min(sidebar.width, Math.round(responsive.width * 0.22))) : sidebar.width}
         onToggle={sidebar.toggleCollapsed}
         onResize={sidebar.setWidth}
       /> : null}
       <div
         className={`content-column ${isOrbit ? "is-orbit" : ""}`}
-        inert={mobileNavigationOpen ? true : undefined}
+        inert={mobileNavigationOpen && !hasTabletSidebar ? true : undefined}
       >
         {!isOrbit ? <header className="topbar">
           {showNavigationTrigger ? <button
@@ -331,10 +342,11 @@ export function AppShell() {
         <main ref={mainRef} id="main-content" tabIndex={-1} className="relative min-h-0 flex-1 overflow-hidden">
           <PersistentOutlet />
         </main>
-        {responsive.mode === "desktop" ? <StatusBar /> : null}
+        <PwaInstallHint />
+        {showsNavigationSidebar ? <StatusBar /> : null}
       </div>
       {terminalFocus ? <button type="button" className="terminal-focus-exit" onClick={() => setTerminalFocus(false)} aria-label="Vollbild verlassen" title="Vollbild verlassen"><RestoreIcon className="h-4 w-4" /></button> : null}
-      <MobileNav open={mobileNavigationOpen} onClose={closeMobileNavigation} triggerRef={navigationTriggerRef} />
+      <MobileNav open={mobileNavigationOpen && !hasTabletSidebar} onClose={closeMobileNavigation} triggerRef={navigationTriggerRef} />
     </div>
   );
 }

@@ -55,7 +55,7 @@ export const legacyCommandOwners: readonly LegacyCommandOwner[] =
           contribution: commandContributionSchema.parse({
             id: "wrapt.shell.command.fullscreen-toggle",
             title: "Vollbild umschalten",
-            description: "Die Workbench im Browser-Vollbild anzeigen",
+            description: "Orbit im Browser-Vollbild anzeigen",
             category: "Ansicht",
           }),
           runtime: Object.freeze({ execute: fullscreenToggle }),
@@ -63,7 +63,7 @@ export const legacyCommandOwners: readonly LegacyCommandOwner[] =
         Object.freeze({
           contribution: commandContributionSchema.parse({
             id: "wrapt.shell.command.reload",
-            title: "Workbench neu laden",
+            title: "Orbit neu laden",
             description: "Das Frontend im Browser neu laden",
             category: "Ansicht",
           }),

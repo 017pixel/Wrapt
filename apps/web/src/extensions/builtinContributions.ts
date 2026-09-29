@@ -7,6 +7,7 @@ import { bootstrapLegacyPageRoutes } from "./legacyPageRoutes";
 import { bootstrapLegacySettingsCards } from "./legacySettingsCards";
 import { bootstrapLegacyStatusBar } from "./legacyStatusBar";
 import { bootstrapLegacyTopbar } from "./legacyTopbar";
+import { bootstrapNotesBuiltins } from "./notesBuiltins";
 import { bootstrapHostContextMenus } from "./hostContextMenus";
 
 /**
@@ -22,6 +23,7 @@ import { bootstrapHostContextMenus } from "./hostContextMenus";
 export function bootstrapBuiltinContributions(): void {
   bootstrapLegacyPageRoutes();
   bootstrapLegacyNavigation();
+  bootstrapNotesBuiltins();
   bootstrapLegacyCommands();
   bootstrapLegacyStatusBar();
   bootstrapLegacyTopbar();

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { OrbitBoard, OrbitNode } from "@wrapt/contracts";
 import { previewSessionKeysWithNode, previewSlotReleasedOnTargetChange, previewSlotsReleasedWithNode } from "./previewSlotLifecycle";
+import { orbitPreviewSessionKeyForNode } from "./orbitPreviewIdentity";
 
 function slot(id: string, parentId: string | null, previewSlotId: number, target = "5173"): OrbitNode {
   return {
@@ -20,7 +21,7 @@ function slot(id: string, parentId: string | null, previewSlotId: number, target
     previewDeviceId: null,
     previewOrientation: "portrait",
     previewSlotId,
-    previewStorageProfileId: null,
+    previewStorageProfileId: `profile-${id}`,
     previewIsolation: true,
     previewReferenceId: null,
     previewLastUsedAt: null,
@@ -37,6 +38,7 @@ function slot(id: string, parentId: string | null, previewSlotId: number, target
     contributionId: null,
     stateVersion: null,
     state: {},
+    noteId: null,
     locked: false,
     zIndex: 1,
   };
@@ -72,6 +74,20 @@ describe("Preview-Slot-Lebenszyklus", () => {
   it("liefert Session-Schlüssel aller Preview-Slots eines entfernten Knotens", () => {
     const group = { ...slot("group", null, 9), type: "previewGroup" as const, previewSlotId: null, previewLayout: "2" as const };
     const document = board([group, slot("one", "group", 1), slot("two", "group", 2), slot("outside", null, 3)]);
-    expect(previewSessionKeysWithNode(document, "group")).toEqual(["orbit-preview:one", "orbit-preview:two"]);
+    expect(previewSessionKeysWithNode(document, "group")).toEqual([
+      orbitPreviewSessionKeyForNode(document.nodes[1]!),
+      orbitPreviewSessionKeyForNode(document.nodes[2]!),
+    ]);
+    expect(previewSessionKeysWithNode(document, "group")).not.toContain("orbit-preview:one");
+  });
+
+  it("schließt eine gemeinsame Preview-Session erst, wenn kein Orbit-Knoten sie mehr nutzt", () => {
+    const group = { ...slot("group", null, 9), type: "previewGroup" as const, previewSlotId: null, previewLayout: "1" as const };
+    const member = { ...slot("member", "group", 1), previewStorageProfileId: "shared-profile" };
+    const secondView = { ...slot("second-view", null, 1), previewStorageProfileId: "shared-profile" };
+    const document = board([group, member, secondView]);
+
+    expect(orbitPreviewSessionKeyForNode(member)).toBe(orbitPreviewSessionKeyForNode(secondView));
+    expect(previewSessionKeysWithNode(document, "group")).toEqual([]);
   });
 });

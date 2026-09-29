@@ -57,14 +57,14 @@ function storedState(): Record<string, unknown> | null {
 }
 
 describe("app preferences", () => {
-  it("setzt die Standardseite und persistiert sie", () => {
-    appPreferences.useAppPreferences.getState().setDefaultPage("inbox");
-    expect(appPreferences.useAppPreferences.getState().defaultPage).toBe("inbox");
-    expect(storedState()?.defaultPage).toBe("inbox");
+  it("setzt eine verfügbare Standardseite und persistiert sie", () => {
+    appPreferences.useAppPreferences.getState().setDefaultPage("workbench");
+    expect(appPreferences.useAppPreferences.getState().defaultPage).toBe("workbench");
+    expect(storedState()?.defaultPage).toBe("workbench");
   });
 
-  it("fällt bei ungültigem persistiertem Wert auf das Dashboard zurück", () => {
-    storage.setItem(STORAGE_KEY, JSON.stringify({ state: { defaultPage: "nicht-vorhanden" }, version: 1 }));
+  it("setzt eine entfernte Inbox-Standardseite auf das Dashboard zurück", () => {
+    storage.setItem(STORAGE_KEY, JSON.stringify({ state: { defaultPage: "inbox" }, version: 1 }));
     appPreferences.useAppPreferences.persist.rehydrate();
     expect(appPreferences.useAppPreferences.getState().defaultPage).toBe("dashboard");
   });

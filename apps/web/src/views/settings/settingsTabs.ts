@@ -1,19 +1,35 @@
 export const settingsTabs = [
-  { id: "allgemein", label: "Allgemein" },
-  { id: "design", label: "Design" },
-  { id: "navigation", label: "Navigation" },
-  { id: "rechtsklick", label: "Rechtsklick" },
-  { id: "benachrichtigungen", label: "Benachrichtigungen" },
-  { id: "system", label: "System" },
-  { id: "erweiterungen", label: "Erweiterungen" },
-  { id: "werkzeuge", label: "Werkzeuge" },
-  { id: "workspace", label: "Workspace" },
-  { id: "easter-eggs", label: "Easter Eggs" },
-  { id: "start-app", label: "Start-App" },
+  { id: "allgemein", label: "Allgemein", group: "Wrapt" },
+  { id: "benachrichtigungen", label: "Benachrichtigungen", group: "Wrapt" },
+  { id: "system", label: "System", group: "Wrapt" },
+  { id: "erweiterungen", label: "Erweiterungen", group: "Wrapt" },
+  { id: "werkzeuge", label: "Werkzeuge", group: "Wrapt" },
+  { id: "start-app", label: "Start-App", group: "Wrapt" },
+  { id: "easter-eggs", label: "Easter Eggs", group: "Wrapt" },
+  { id: "design", label: "Design", group: "Oberfläche & Bedienung" },
+  { id: "navigation", label: "Navigation", group: "Oberfläche & Bedienung" },
+  { id: "rechtsklick", label: "Rechtsklick", group: "Oberfläche & Bedienung" },
+  { id: "layout", label: "Layout", group: "Oberfläche & Bedienung" },
+  { id: "workspaces", label: "Workspaces", group: "Verbindungen" },
+] as const;
+
+export const settingsTabGroups = [
+  {
+    id: "workbench",
+    label: "Wrapt",
+  },
+  {
+    id: "oberflaeche",
+    label: "Oberfläche & Bedienung",
+  },
+  {
+    id: "verbindungen",
+    label: "Verbindungen",
+  },
 ] as const;
 
 export type VisibleSettingsTabId = (typeof settingsTabs)[number]["id"];
-export type SettingsTabId = VisibleSettingsTabId | "oberflaeche";
+export type SettingsTabId = VisibleSettingsTabId | "oberflaeche" | "workspace";
 
 export interface SettingsNavigationTarget {
   readonly tab: VisibleSettingsTabId;
@@ -23,9 +39,12 @@ export interface SettingsNavigationTarget {
 export const settingsTabIds: readonly SettingsTabId[] = [
   ...settingsTabs.map((tab) => tab.id),
   "oberflaeche",
+  "workspace",
 ];
 
-/** Alte Deep-Links bleiben gültig, obwohl der Bereich jetzt Navigation heißt. */
+/** Alte Deep-Links bleiben trotz umbenannter Einstellungsbereiche gültig. */
 export function normalizeSettingsTab(tab: SettingsTabId): VisibleSettingsTabId {
-  return tab === "oberflaeche" ? "navigation" : tab;
+  if (tab === "oberflaeche") return "navigation";
+  if (tab === "workspace") return "layout";
+  return tab;
 }

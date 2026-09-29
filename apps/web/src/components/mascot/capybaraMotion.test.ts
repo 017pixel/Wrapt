@@ -68,6 +68,21 @@ describe("CAPYBARA_ANIMATIONS", () => {
       expect(sequence.every((step) => step.duration > 0)).toBe(true);
     });
   });
+
+  it("gähnt mit Vorbereitung, offenem Maul und ruhigem Abschluss", () => {
+    expect(CAPYBARA_ANIMATIONS.yawn.map((step) => step.frame)).toEqual([
+      "blink", "yawnA", "yawnB", "yawnB", "yawnA", "blink", "calm",
+    ]);
+    expect(CAPYBARA_ANIMATIONS.yawn.reduce((sum, step) => sum + step.duration, 0)).toBeGreaterThan(1_900);
+  });
+
+  it("bietet fünf neue Bewegungen mit mehreren Posen", () => {
+    for (const action of ["stretch", "sniff", "wave", "bow", "wiggle"] as const) {
+      const frames = CAPYBARA_ANIMATIONS[action].map((step) => step.frame);
+      expect(new Set(frames).size).toBeGreaterThanOrEqual(3);
+      expect(frames.at(-1)).toBe("calm");
+    }
+  });
 });
 
 describe("capybaraActionForMotion", () => {
@@ -80,6 +95,9 @@ describe("capybaraActionForMotion", () => {
     expect(capybaraActionForMotion("party", true)).toBe("blink");
     expect(capybaraActionForMotion("party", false)).toBe("party");
     expect(capybaraActionForMotion("yawn", true)).toBe("yawn");
+    for (const action of ["stretch", "sniff", "wave", "bow", "wiggle"] as const) {
+      expect(capybaraActionForMotion(action, true)).toBe("blink");
+    }
   });
 });
 
@@ -131,8 +149,9 @@ describe("buildCapybaraPartyPlan", () => {
     const maxDelta = Math.max(...plan.map((step) => Math.abs(step.offsetDelta)));
     expect(maxDelta).toBeLessThanOrEqual(12);
     const duration = plan.reduce((sum, step) => sum + step.duration, 0);
-    expect(duration).toBeGreaterThan(1_000);
-    expect(duration).toBeLessThan(3_000);
+    expect(duration).toBeGreaterThan(4_000);
+    expect(duration).toBeLessThan(5_000);
+    expect(plan.filter((step) => step.action === "hop")).toHaveLength(6);
   });
 });
 

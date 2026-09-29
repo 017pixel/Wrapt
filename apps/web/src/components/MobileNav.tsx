@@ -1,19 +1,20 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { CloseIcon } from "./icons";
 import { useNavigationRegistry } from "../extensions/useNavigationRegistry";
 import type { OwnedNavigationItem } from "../extensions/navigationRegistry";
 import { prefetchRouteTarget } from "../lib/routePrefetch";
-import { wraptQueries } from "../lib/queryOptions";
 import { isPageVisibleIn, useSidebarPreferences, type PageRouteId } from "../stores/sidebarPreferences";
 import { openGlobalContextMenu } from "./context-menu/contextMenuEvents";
 import { hostContextMenuId } from "../extensions/hostContextMenus";
 import { useSidebarNavigationReorder } from "./sidebar/useSidebarNavigationReorder";
 import { orderNavigation } from "./sidebar/navigationOrdering";
+import { WorkspaceSwitcher } from "./workspaces/WorkspaceSwitcher";
+import { useWorkspaceRegistry } from "./workspaces/workspaceRegistryStore";
 
 const navigationGroupKickers: ReadonlyArray<{ group: "workspace" | "tools" | "account"; kicker: string }> = [
-  { group: "workspace", kicker: "Workspace" },
+  { group: "workspace", kicker: "Orbit" },
   { group: "tools", kicker: "Werkzeuge" },
   { group: "account", kicker: "Account und System" },
 ];
@@ -53,8 +54,8 @@ export function MobileNav({ open, onClose, triggerRef }: MobileNavProps) {
   // Abonniert statt einmalig gelesen — Änderungen in den Einstellungen greifen sofort.
   const hiddenPages = useSidebarPreferences((state) => state.hiddenPages);
   const navigationOrder = useSidebarPreferences((state) => state.navigationOrder);
+  const connectedWorkspaceCount = useWorkspaceRegistry((state) => state.entries.length);
   const navigation = useNavigationRegistry();
-  const notifications = useQuery(wraptQueries.notifications());
   const filteredSections = useMemo(() => navigationGroupKickers.map(({ group, kicker }) => ({
     kicker,
     items: orderNavigation(navigation.byGroup[group].filter((item) => isNavigationItemVisible(item, hiddenPages)), navigationOrder),
@@ -98,13 +99,17 @@ export function MobileNav({ open, onClose, triggerRef }: MobileNavProps) {
     const closeFromHistory = () => onClose();
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (document.querySelector(".workspace-switcher-popover.is-mobile")) return;
         event.preventDefault();
         if ((window.history.state as Record<string, unknown> | null)?.workbenchNavigation) window.history.back();
         else onClose();
         return;
       }
       if (event.key !== "Tab") return;
-      const focusable = dialogRef.current?.querySelectorAll<HTMLElement>(
+      const mobilePopover = document.querySelector<HTMLElement>(".workspace-switcher-popover.is-mobile");
+      const focusable = mobilePopover?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ) ?? dialogRef.current?.querySelectorAll<HTMLElement>(
         'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])',
       );
       if (!focusable?.length) return;
@@ -165,6 +170,13 @@ export function MobileNav({ open, onClose, triggerRef }: MobileNavProps) {
         </button>
       </header>
 
+      {connectedWorkspaceCount > 1 ? (
+        <section className="mobile-navigation-workspace" aria-label="Workspace wechseln">
+          <p className="mobile-navigation-workspace-kicker">Workspace</p>
+          <WorkspaceSwitcher mobile />
+        </section>
+      ) : null}
+
       <nav className="mobile-navigation-list" aria-label="Hauptnavigation">
         {filteredSections.length === 0 ? (
           <div className="mobile-navigation-empty">
@@ -176,7 +188,7 @@ export function MobileNav({ open, onClose, triggerRef }: MobileNavProps) {
           <div key={section.kicker} className="mobile-navigation-section">
             <p className="mobile-navigation-section-kicker">{section.kicker}</p>
             <div className="mobile-navigation-grid">
-              {section.items.map((item) => <NavigationLink key={item.contributionId} item={item} badge={item.value.route.path === "/inbox" ? notifications.data?.unreadCount ?? 0 : 0} />)}
+              {section.items.map((item) => <NavigationLink key={item.contributionId} item={item} />)}
             </div>
           </div>
         ))}
@@ -185,7 +197,7 @@ export function MobileNav({ open, onClose, triggerRef }: MobileNavProps) {
   );
 }
 
-function NavigationLink({ item, badge = 0 }: { item: OwnedNavigationItem; badge?: number }) {
+function NavigationLink({ item }: { item: OwnedNavigationItem }) {
   const client = useQueryClient();
   const navigate = useNavigate();
   const navigation = useNavigationRegistry();
@@ -235,7 +247,6 @@ function NavigationLink({ item, badge = 0 }: { item: OwnedNavigationItem; badge?
       </span>
       <span className="mobile-navigation-highlight">
         <span className="mobile-navigation-label">{label}</span>
-        {badge > 0 ? <span className="mobile-navigation-badge" aria-label={`${badge} ungelesen`}>{badge > 99 ? "99+" : badge}</span> : null}
       </span>
     </NavLink>
   );

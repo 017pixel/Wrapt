@@ -1,5 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { calculateDevicePreviewScale, changeDevicePreviewScaleFactor, clampDevicePreviewScaleFactor, devicePreviewEdgeInsetRatio } from "./DevicePreviewFrame";
+// @vitest-environment jsdom
+
+import { createElement } from "react";
+import { cleanup, render } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { calculateDevicePreviewScale, changeDevicePreviewScaleFactor, clampDevicePreviewScaleFactor, devicePreviewEdgeInsetRatio, DevicePreviewFrame } from "./DevicePreviewFrame";
+
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 describe("Geräte-Preview-Skalierung", () => {
   it("vergrößert ein Smartphone bis auf zehn Prozent Randabstand", () => {
@@ -47,5 +56,28 @@ describe("Geräte-Preview-Skalierung", () => {
     expect(changeDevicePreviewScaleFactor(1, -1)).toBe(0.9);
     expect(changeDevicePreviewScaleFactor(2, 1)).toBe(2);
     expect(changeDevicePreviewScaleFactor(0.5, -1)).toBe(0.5);
+  });
+
+  it("behält das iframe beim Wechsel auf freie Viewportmaße gemountet", () => {
+    class ResizeObserverMock {
+      observe() {}
+      disconnect() {}
+    }
+    vi.stubGlobal("ResizeObserver", ResizeObserverMock);
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => window.setTimeout(() => callback(0), 0));
+    vi.stubGlobal("cancelAnimationFrame", (handle: number) => window.clearTimeout(handle));
+
+    const frame = (viewportSize: { width: number; height: number } | null) => createElement(
+      DevicePreviewFrame,
+      { deviceId: "iphone-13", orientation: "portrait", viewportSize, children: createElement("iframe", { title: "Preview" }) },
+    );
+    const view = render(frame(null));
+    const originalIframe = view.container.querySelector("iframe");
+    view.rerender(frame({ width: 412, height: 915 }));
+
+    expect(view.container.querySelector("iframe")).toBe(originalIframe);
+    const screen = view.container.querySelector<HTMLElement>(".device-preview-screen");
+    expect(screen?.style.width).toBe("412px");
+    expect(screen?.style.height).toBe("915px");
   });
 });

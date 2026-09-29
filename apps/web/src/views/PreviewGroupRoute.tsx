@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { DeviceRotateIcon, ExternalLinkIcon, FullscreenIcon, RestoreIcon, SmartphoneIcon } from "../components/icons";
-import { useParams } from "react-router";
+import { Link, useParams } from "react-router";
 import { orbitWorkspaceSchema, type OrbitNode } from "@wrapt/contracts";
 import { wraptQueries } from "../lib/queryOptions";
 import { normalizePreviewTarget } from "../lib/previewTargets";
@@ -10,7 +10,9 @@ import { getGroupedDevicePresets, type DeviceOrientation } from "../config/devic
 import { resolvePreviewDevice } from "../lib/previewDevice";
 import { ExternalPreviewChoice } from "../components/preview/ExternalPreviewChoice";
 import { previewGroupSnapshotKey } from "../lib/previewWindow";
+import { orbitPreviewSessionKeyForNode } from "../lib/orbitPreviewIdentity";
 import { useRouteActivity } from "../lib/routeActivity";
+import { useSidebarPreferences } from "../stores/sidebarPreferences";
 
 // Lokale Auswahl, die dem Orbit-Dokument folgt: Ändert jemand das Gerät an
 // einem anderen Gerät, übernimmt dieses Fenster den neuen Wert.
@@ -48,7 +50,7 @@ export function PreviewStandaloneSlot({ node, lazy = false }: { node: OrbitNode;
             lazy={lazy}
             showControls
             projectId={node.projectId}
-            sessionKey={`preview-window:${node.id}`}
+            sessionKey={orbitPreviewSessionKeyForNode(node)}
             onOrientationChange={setOrientation}
           />
         ) : (
@@ -115,19 +117,20 @@ function usePreviewGroup(groupId: string | undefined) {
 
 export function PreviewGroupRoute() {
   const { groupId } = useParams();
+  const orbitEnabled = useSidebarPreferences((state) => !state.hiddenPages.has("workbench"));
   const { found, isLoading } = usePreviewGroup(groupId);
   if (isLoading) return <div className="route-skeleton" aria-label="Preview-Gruppe wird geladen"><span /><span /><span /></div>;
   if (!found) return <div className="preview-group-page-missing"><strong>Preview-Gruppe nicht gefunden</strong><span>Die Gruppe wurde gelöscht oder gehört nicht zum aktuellen Orbit-Dokument.</span></div>;
   return (
     <main className="preview-group-page" data-layout={found.group.previewLayout ?? "1"}>
-      <header><div><span>Preview-Gruppe</span><h1>{found.group.title}</h1></div><a href="/wrapt/workbench"><ExternalLinkIcon className="h-4 w-4" />Im Orbit öffnen</a></header>
+      <header><div><span>Preview-Gruppe</span><h1>{found.group.title}</h1></div>{orbitEnabled ? <Link to="/orbit"><ExternalLinkIcon className="h-4 w-4" />Im Orbit öffnen</Link> : null}</header>
       <PreviewSlotCarousel slots={found.slots} className="preview-group-page-grid" />
       <small className="preview-group-page-note">Geräterahmen sind visuell. DPR und CSS-Safe-Areas lassen sich in iframes nicht vollständig emulieren.</small>
     </main>
   );
 }
 
-// Eigenständiges Browserfenster: alle Slots nebeneinander, ohne Workbench-Navigation.
+// Eigenständiges Browserfenster: alle Slots nebeneinander, ohne Orbit-Navigation.
 export function PreviewGroupWindowRoute() {
   const { groupId } = useParams();
   const { found, isLoading } = usePreviewGroup(groupId);

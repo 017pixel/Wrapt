@@ -34,7 +34,7 @@ describe("projectToolOptions", () => {
         mode: "hybrid",
         dependencies: [],
       }],
-    }));
+    }), true);
 
     expect(options.map((option) => option.type)).toEqual([
       "t3-code",
@@ -43,6 +43,7 @@ describe("projectToolOptions", () => {
       "terminal",
       "opencode",
       "codex",
+      "claude",
       "files",
       "preview",
     ]);
@@ -52,12 +53,19 @@ describe("projectToolOptions", () => {
   });
 
   it("blendet nicht verfügbare Server-Werkzeuge aus, behält aber lokale Werkzeuge", () => {
-    expect(projectToolOptions(project()).map((option) => option.type)).toEqual([
+    expect(projectToolOptions(project(), false).map((option) => option.type)).toEqual([
       "preview",
       "terminal",
       "opencode",
       "codex",
+      "claude",
       "files",
     ]);
+  });
+
+  it("bietet den konfigurierten Editor nur bei aktivem Dienst an", () => {
+    const configured = project({ links: { t3Code: null, codeServer: "https://editor.example.test" } });
+    expect(projectToolOptions(configured, false).some((option) => option.type === "code-server")).toBe(false);
+    expect(projectToolOptions(configured, true).some((option) => option.type === "code-server")).toBe(true);
   });
 });

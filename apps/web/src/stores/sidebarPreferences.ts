@@ -1,32 +1,33 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
-export type OrbitToolType = "terminal" | "t3-code" | "preview" | "code-server" | "codex" | "opencode" | "files" | "hermes";
-export type OrbitBlockType = "note" | "todo" | "snippet" | "frame" | "usage-codex" | "usage-opencode" | "usage-claude";
+export type OrbitToolType = "terminal" | "t3-code" | "preview" | "code-server" | "codex" | "claude" | "opencode" | "files" | "hermes";
+export type OrbitBlockType = "note" | "todo" | "snippet" | "frame" | "usage-codex" | "usage-opencode" | "usage-claude" | "file" | "gallery" | "file-gallery" | "hermes-tasks" | "hermes-cron";
 export type OrbitPreviewType = "layout-1" | "layout-2" | "layout-3" | "layout-6";
 export type OrbitPaletteItem =
   | `tool:${OrbitToolType}`
   | `preview:${OrbitPreviewType}`
   | `block:${OrbitBlockType}`;
 
-export type SidebarSectionKey = "workspace" | "orbit-projects" | "tools" | "previews" | "blocks" | "footer";
+export type SidebarSectionKey = "workspace" | "orbit-projects" | "orbit-tools" | "tools" | "previews" | "blocks" | "footer";
 
 export type PageRouteId =
-  | "dashboard" | "inbox" | "workbench" | "projects"
+  | "dashboard" | "workbench" | "projects"
   | "t3-code" | "hermes-agent" | "codex" | "opencode" | "claude" | "code-editor" | "previews" | "terminal" | "files" | "ki-skills"
-  | "plugins" | "usage" | "settings";
+  | "notizen" | "plugins" | "usage" | "settings";
 
 const allOrbitPaletteItems: OrbitPaletteItem[] = [
-  "tool:terminal", "tool:t3-code", "tool:preview", "tool:code-server", "tool:codex", "tool:opencode", "tool:files", "tool:hermes",
+  "tool:terminal", "tool:t3-code", "tool:preview", "tool:code-server", "tool:codex", "tool:claude", "tool:opencode", "tool:files", "tool:hermes",
   "preview:layout-1", "preview:layout-2", "preview:layout-3", "preview:layout-6",
   "block:note", "block:todo", "block:snippet", "block:frame",
   "block:usage-codex", "block:usage-opencode", "block:usage-claude",
+  "block:file", "block:gallery", "block:file-gallery", "block:hermes-tasks", "block:hermes-cron",
 ];
 
 const allPageRoutes: PageRouteId[] = [
-  "dashboard", "inbox", "workbench", "projects",
+  "dashboard", "workbench", "projects",
   "t3-code", "hermes-agent", "codex", "opencode", "claude", "code-editor", "previews", "terminal", "files", "ki-skills",
-  "plugins", "usage", "settings",
+  "notizen", "plugins", "usage", "settings",
 ];
 
 interface SidebarPreferencesState {
@@ -46,19 +47,40 @@ interface SidebarPreferencesState {
 }
 
 const STORAGE_KEY = "wrapt.sidebar-preferences.v1";
-const PERSIST_VERSION = 3;
+const PERSIST_VERSION = 5;
 const DEFAULT_COLLAPSED_SECTIONS: Record<SidebarSectionKey, boolean> = {
   workspace: false,
   "orbit-projects": false,
+  "orbit-tools": false,
   tools: false,
   previews: false,
   blocks: false,
   footer: false,
 };
 
-// CLI-Flächen, die normalerweise über T3 Code geöffnet werden. Sie bleiben
-// erreichbar und können in den Einstellungen jederzeit wieder eingeblendet werden.
-const DEFAULT_HIDDEN_PAGES: ReadonlySet<PageRouteId> = new Set<PageRouteId>(["codex", "opencode", "claude"]);
+export function migrateSidebarPreferences(persisted: unknown, version = 3) {
+  const raw = persisted as Partial<{ collapsedSections: Partial<Record<SidebarSectionKey, boolean>>; hiddenOrbitItems: string[]; hiddenPages: string[]; explicitlyVisibleDefaultPages: string[]; navigationOrder: string[]; navigationReorderEnabled: boolean }> | undefined;
+  const oldSections = raw?.collapsedSections ?? {};
+  const collapsedSections = { ...DEFAULT_COLLAPSED_SECTIONS, ...oldSections };
+  if (version < 4) {
+    // Bis Version 4 nutzten der allgemeine Werkzeugbereich und die Orbit-Palette
+    // denselben gespeicherten Schlüssel. Die Aufteilung nur einmal ausführen.
+    collapsedSections.tools = oldSections["orbit-projects"] ?? false;
+    collapsedSections["orbit-tools"] = oldSections.tools ?? false;
+  }
+  return {
+    collapsedSections,
+    hiddenOrbitItems: raw?.hiddenOrbitItems ?? [],
+    hiddenPages: raw?.hiddenPages ?? [],
+    explicitlyVisibleDefaultPages: raw?.explicitlyVisibleDefaultPages ?? [],
+    navigationOrder: raw?.navigationOrder ?? [],
+    navigationReorderEnabled: raw?.navigationReorderEnabled ?? false,
+  };
+}
+
+// Orbit ist optional. Die CLI-Flächen werden normalerweise über T3 Code geöffnet.
+// Alle Einträge bleiben über die Einstellungen aktivierbar.
+const DEFAULT_HIDDEN_PAGES: ReadonlySet<PageRouteId> = new Set<PageRouteId>(["workbench", "codex", "opencode", "claude"]);
 
 // Ohne die Einstellungen käme man an die Sichtbarkeits-Schalter nicht mehr heran.
 // Diese Seite bleibt deshalb immer erreichbar, egal was im Speicher steht.
@@ -139,23 +161,9 @@ export const useSidebarPreferences = create<SidebarPreferencesState>()(
         navigationReorderEnabled: state.navigationReorderEnabled,
       }),
       version: PERSIST_VERSION,
-      migrate: (persisted) => {
-        // Vor Version 2 gab es noch keine explizite Kennzeichnung, dass ein
-        // standardmäßig ausgeblendeter Eintrag bewusst eingeblendet wurde.
-        // Die alten Auswahlwerte bleiben erhalten, die neuen Defaults greifen
-        // einmalig für bestehende Browserstände.
-        const raw = persisted as Partial<{ collapsedSections: Record<SidebarSectionKey, boolean>; hiddenOrbitItems: string[]; hiddenPages: string[]; explicitlyVisibleDefaultPages: string[]; navigationOrder: string[]; navigationReorderEnabled: boolean }> | undefined;
-        return {
-          collapsedSections: { ...DEFAULT_COLLAPSED_SECTIONS, ...(raw?.collapsedSections ?? {}) },
-          hiddenOrbitItems: raw?.hiddenOrbitItems ?? [],
-          hiddenPages: raw?.hiddenPages ?? [],
-          explicitlyVisibleDefaultPages: raw?.explicitlyVisibleDefaultPages ?? [],
-          navigationOrder: raw?.navigationOrder ?? [],
-          navigationReorderEnabled: raw?.navigationReorderEnabled ?? false,
-        };
-      },
+      migrate: migrateSidebarPreferences,
       merge: (persisted, current) => {
-        const raw = persisted as Partial<{ collapsedSections: Record<SidebarSectionKey, boolean>; hiddenOrbitItems: string[]; hiddenPages: string[]; explicitlyVisibleDefaultPages: string[]; navigationOrder: string[]; navigationReorderEnabled: boolean }> | undefined;
+        const raw = persisted as Partial<{ collapsedSections: Partial<Record<SidebarSectionKey, boolean>>; hiddenOrbitItems: string[]; hiddenPages: string[]; explicitlyVisibleDefaultPages: string[]; navigationOrder: string[]; navigationReorderEnabled: boolean }> | undefined;
         return {
           ...current,
           collapsedSections: { ...current.collapsedSections, ...(raw?.collapsedSections ?? {}) },

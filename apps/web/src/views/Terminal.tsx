@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { TerminalArea } from "../components/terminal/TerminalArea";
 import { wraptQueries } from "../lib/queryOptions";
-import { useWorkspaceStore } from "../stores/workspace";
+import { useLayoutStore } from "../stores/layout";
 import { useRouteActivity } from "../lib/routeActivity";
 import { useParams, useSearchParams } from "react-router";
 import { WebTerminal } from "../components/terminal/WebTerminal";
@@ -9,7 +9,7 @@ import { WebTerminal } from "../components/terminal/WebTerminal";
 export function TerminalView() {
   const routeActive = useRouteActivity();
   const [search] = useSearchParams();
-  const selectedProjectId = useWorkspaceStore((state) => state.selectedProjectId);
+  const selectedProjectId = useLayoutStore((state) => state.selectedProjectId);
   const projects = useQuery({ ...wraptQueries.projects(), enabled: routeActive });
   const projectId = projects.data?.projects.find((project) => project.id === selectedProjectId)?.id
     ?? projects.data?.projects.find((project) => project.availability === "available")?.id

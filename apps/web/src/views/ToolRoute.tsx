@@ -1,13 +1,14 @@
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
-import { useWorkspaceStore } from "../stores/workspace";
+import { useLayoutStore } from "../stores/layout";
 import { wraptQueries } from "../lib/queryOptions";
 import { ToolPanel } from "../components/ToolPanel";
 import { EmptyState } from "../components/EmptyState";
 import type { Panel, Project } from "@wrapt/contracts";
 import { useRouteActivity } from "../lib/routeActivity";
 import { PreviewHub } from "./PreviewHub";
+import { codeServerState } from "../lib/codeServerAvailability";
 
 type ProjectPanelType = "t3-code" | "code-server" | "preview" | "opencode";
 
@@ -21,7 +22,7 @@ function supportsTool(project: Project, type: ProjectPanelType) {
 function SingleTool({ type }: { type: ProjectPanelType }) {
   const routeActive = useRouteActivity();
   const [searchParams] = useSearchParams();
-  const selectedProjectId = useWorkspaceStore((state) => state.selectedProjectId);
+  const selectedProjectId = useLayoutStore((state) => state.selectedProjectId);
   const { data, isLoading } = useQuery({ ...wraptQueries.projects(), enabled: routeActive });
   const services = useQuery({ ...wraptQueries.services(), enabled: routeActive });
   const projects = data?.projects ?? [];
@@ -52,8 +53,8 @@ function SingleTool({ type }: { type: ProjectPanelType }) {
   useEffect(() => {
     if (!routeActive || type !== "t3-code" || !t3Path) return;
     // Ein in der Workbench bereits offenes T3-Panel wechselt auf den Ziel-Thread.
-    const existing = useWorkspaceStore.getState().panels.find((panel) => panel.type === "t3-code");
-    if (existing) useWorkspaceStore.getState().navigateT3Panel(existing.id, t3Path);
+    const existing = useLayoutStore.getState().panels.find((panel) => panel.type === "t3-code");
+    if (existing) useLayoutStore.getState().navigateT3Panel(existing.id, t3Path);
   }, [routeActive, t3Path, type]);
 
   if (isLoading) return <div className="flex h-full items-center justify-center text-sm text-muted">Lädt…</div>;
@@ -74,7 +75,7 @@ function SingleTool({ type }: { type: ProjectPanelType }) {
   return (
     <div className="standalone-tool-page">
       <div className="standalone-tool-content">
-        <ToolPanel panel={panel} project={project} codeServerMode={codeServerMode} isFocused standalone actionPlacement={type === "t3-code" || type === "code-server" || type === "opencode" ? "topbar" : "overlay"} />
+        <ToolPanel panel={panel} project={project} codeServerMode={codeServerMode} codeServerState={codeServerState(services.data?.services)} isFocused standalone actionPlacement={type === "t3-code" || type === "code-server" || type === "opencode" ? "topbar" : "overlay"} />
       </div>
     </div>
   );

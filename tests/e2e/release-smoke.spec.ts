@@ -52,7 +52,7 @@ test("resizes selected Orbit nodes and keeps properties collapsed", async ({ pag
   await page.setExtraHTTPHeaders({ "tailscale-user-login": login });
   await resetOrbitTestWorkspace(page, login);
 
-  await page.goto(`${workbench}/workbench`);
+  await page.goto(`${workbench}/orbit`);
   await expect(page.locator(".orbit-page")).toBeVisible();
   const syncStatus = page.getByRole("button", { name: /Server gespeichert/ });
   await expect(syncStatus).toBeVisible({ timeout: 20_000 });
@@ -181,7 +181,7 @@ test("keeps Orbit controls usable on mobile", async ({ page }) => {
   test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   await page.setViewportSize({ width: 390, height: 844 });
 
-  await page.goto(`${workbench}/workbench`);
+  await page.goto(`${workbench}/orbit`);
   await expect(page.locator(".orbit-page")).toBeVisible();
   await expect(page.locator(".orbit-minimap")).toBeHidden();
   const command = page.getByRole("button", { name: "Befehl" });

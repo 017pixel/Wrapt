@@ -13,7 +13,7 @@ const PARTY_WINDOW_MS = 5 * 60 * 1000;
  * Sequenz neu (die Neustart-Steuerung lädt nach dem Erfolg selbst neu), holt
  * die frische Seite die Feier sichtbar nach.
  */
-const PARTY_MARKER_DELAY_MS = 4_000;
+const PARTY_MARKER_DELAY_MS = 5_000;
 
 function readPartyMarker(): string | null {
   try {

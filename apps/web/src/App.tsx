@@ -4,12 +4,14 @@ import { PwaInstallProvider } from "./lib/usePwaInstall";
 import { pageRouteRegistry } from "./extensions/pageRouteRegistry";
 import { routeHostElements } from "./extensions/routeHost";
 import { pagePreferenceAliases } from "./extensions/builtins/pageRoutes";
+import { notesPagePreferenceAliases } from "./extensions/notesBuiltins";
 import { useAppPreferences } from "./stores/appPreferences";
 import { isPageVisibleIn, useSidebarPreferences } from "./stores/sidebarPreferences";
 import { EditorOpenBridge } from "./components/EditorOpenBridge";
 import { ThemeRuntimeSync } from "./components/ThemeRuntimeSync";
 import { PluginRuntimeSync } from "./extensions/pluginRuntimeSync";
 import { ContextMenuProvider } from "./components/context-menu/ContextMenuProvider";
+import { DashboardMetricsRuntime } from "./views/DashboardMetricsRuntime";
 
 /**
  * Der statische Router ist durch den Route Host ersetzt: Pages und Routes
@@ -32,6 +34,7 @@ export function App() {
           <EditorOpenBridge />
           <ThemeRuntimeSync />
           <PluginRuntimeSync />
+          <DashboardMetricsRuntime />
           <HomeRedirect />
           <Routes>{routes}</Routes>
         </ContextMenuProvider>
@@ -41,11 +44,20 @@ export function App() {
 }
 
 /**
+ * Persistierte Preference-Keys bleiben stabil. Die Built-in-Aliase sind
+ * eingefroren; neue Seiten bringen ihren Alias in einem eigenen Modul mit.
+ */
+const allPagePreferenceAliases = {
+  ...pagePreferenceAliases,
+  ...notesPagePreferenceAliases,
+};
+
+/**
  * Leitet den Root-Pfad auf die eingestellte Standard-Seite weiter, sobald eine
  * andere als das Dashboard gewählt wurde. Der Redirect greift nur auf "/" —
  * direkte Links und die Navigation bleiben unberührt.
  */
-function HomeRedirect() {
+export function HomeRedirect() {
   const location = useLocation();
   const snapshot = useSyncExternalStore(
     pageRouteRegistry.subscribe,
@@ -58,7 +70,7 @@ function HomeRedirect() {
     if (defaultPage === "dashboard" || !isPageVisibleIn(hiddenPages, defaultPage)) {
       return null;
     }
-    const pageId = pagePreferenceAliases[defaultPage];
+    const pageId = allPagePreferenceAliases[defaultPage];
     if (pageId === undefined) return null;
     const route = routes.find(
       (entry) => entry.value.contribution.pageId === pageId,
@@ -66,6 +78,7 @@ function HomeRedirect() {
     return route === undefined ? null : route.value.contribution.path;
   }, [defaultPage, hiddenPages, routes]);
 
+  if (location.pathname === "/inbox") return <Navigate to="/" replace />;
   if (location.pathname !== "/" || target === null || target === "/") {
     return null;
   }

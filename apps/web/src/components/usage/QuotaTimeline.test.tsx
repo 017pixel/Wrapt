@@ -100,7 +100,7 @@ describe("QuotaTimeline", () => {
       <QuotaTimeline
         now={now}
         prefs={prefs({ showDataStatus: true })}
-        data={timelineData({ lanes: [{ ...timelineData().lanes[0]!, status: "stale", error: { code: "STALE_DATA", message: "Diese Limits sind älter als 90 Minuten." } }] })}
+        data={timelineData({ lanes: [{ ...timelineData().lanes[0]!, status: "stale", updatedAt: "2026-07-28T10:00:00Z", error: { code: "STALE_DATA", message: "Diese Limits sind älter als 90 Minuten." } }] })}
       />,
     );
     expect(screen.getByText(/Veraltet/)).toBeTruthy();

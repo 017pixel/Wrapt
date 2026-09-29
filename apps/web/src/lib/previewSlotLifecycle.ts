@@ -1,6 +1,7 @@
 import type { OrbitBoard } from "@wrapt/contracts";
 import { apiClient } from "./apiClient";
 import { normalizePreviewTarget } from "./previewTargets";
+import { orbitPreviewSessionKeyForNode } from "./orbitPreviewIdentity";
 
 export interface PreviewSlotRelease {
   slotId: number;
@@ -54,9 +55,15 @@ export function previewSessionKeysWithNode(board: OrbitBoard, nodeId: string): s
     nodeId,
     ...board.nodes.filter((node) => node.parentId === nodeId).map((node) => node.id),
   ]);
+  const survivingSessionKeys = new Set(
+    board.nodes
+      .filter((node) => !removedIds.has(node.id) && node.type === "previewSlot")
+      .map(orbitPreviewSessionKeyForNode),
+  );
   return board.nodes
     .filter((node) => removedIds.has(node.id) && node.type === "previewSlot")
-    .map((node) => `orbit-preview:${node.id}`);
+    .map(orbitPreviewSessionKeyForNode)
+    .filter((sessionKey) => !survivingSessionKeys.has(sessionKey));
 }
 
 export async function releasePreviewSlots(releases: PreviewSlotRelease[]): Promise<void> {

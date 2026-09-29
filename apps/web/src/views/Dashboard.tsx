@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router";
 import type {
   DashboardSection,
   CommandsResponse,
-  HealthResponse,
   LocalPort,
   OperationalMetricsResponse,
   ReadinessResponse,
@@ -16,36 +15,34 @@ import type {
 } from "@wrapt/contracts";
 import {
   CheckIcon,
+  ChevronDownIcon,
   CommandIcon,
   CopyIcon,
   ExternalLinkIcon,
   InfoIcon,
   NetworkIcon,
   NutzungIcon,
-  OpenCodeIcon,
   ServerIcon,
   ServicesIcon,
   ShieldIcon,
-  T3CodeIcon,
-  TerminalIcon,
   WarningIcon,
-  WorkbenchIcon,
 } from "../components/icons";
 import { Badge, StateDot } from "../components/primitives";
 import { Meter, Sparkline, TrendChart, loadTone } from "../components/charts";
-import { formatBytes, formatRelativeTime, formatUptime } from "../lib/format";
-import { computeTrend, useMetricsHistory, type MetricsSample } from "../stores/metricsHistory";
+import { formatBytes, formatRelativeTime } from "../lib/format";
+import { computeTrend, useMetricsHistory } from "../stores/metricsHistory";
 import { wraptQueries } from "../lib/queryOptions";
 import { useDashboardPreferences, isDashboardSectionVisible } from "../stores/dashboardPreferences";
-import { useTerminalWorkspaceStore } from "../stores/terminalWorkspace";
-import { useWorkspaceStore } from "../stores/workspace";
+import { useLayoutStore } from "../stores/layout";
 import { useRouteActivity } from "../lib/routeActivity";
 import { writeClipboardText } from "../lib/clipboard";
 import { ContentDialog } from "../components/ModalDialog";
 import { runWithViewTransition } from "../lib/viewTransition";
-import { DashboardMobileDetails, DashboardMobileSummary } from "./DashboardMobileSummary";
-import { Panel, PanelError, PanelSkeleton, formatDashboardPath, queryMessage, statusTone } from "./DashboardPanels";
+import { DashboardMobileSummary } from "./DashboardMobileSummary";
+import { Panel, PanelError, PanelSkeleton, queryMessage } from "./DashboardPanels";
 import { RuntimePanel } from "./DashboardRuntime";
+import { DashboardRecentProjects } from "./DashboardRecentProjects";
+import { DashboardStorageList } from "./DashboardStorageList";
 
 const integer = new Intl.NumberFormat("de-DE");
 const decimal = new Intl.NumberFormat("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -160,55 +157,44 @@ function deriveSystemState(
     else if (disk >= 82) { tone = tone === "ok" ? "warn" : tone; problems.push("Datenträger füllt sich"); }
   }
 
-  const label = tone === "ok" ? "Alles betriebsbereit" : tone === "warn" ? "Eingeschränkt" : "Störung";
+  const label = tone === "warn" ? "Eingeschränkt" : tone === "bad" ? "Störung" : "";
   return {
     tone,
     label,
-    detail: problems.length ? problems.join(" · ") : "Keine Auffälligkeiten in Server und Wrapt",
+    detail: problems.join(" · "),
   };
 }
 
 function DashboardHeader({
   summary,
-  health,
-  readiness,
+  state,
   metrics,
-  diagnostics,
 }: {
   summary: Query<ServerSummary>;
-  health: Query<HealthResponse>;
-  readiness: Query<ReadinessResponse>;
+  state: SystemState;
   metrics: Query<ServerMetrics>;
-  diagnostics: Query<OperationalMetricsResponse>;
 }) {
-  const state = deriveSystemState(summary.data, readiness.data, readiness.isError, metrics.data, diagnostics.data);
   const host = summary.data;
-  const facts = [
-    host ? host.serverName : null,
-    host ? `${host.operatingSystem.distro} ${host.operatingSystem.release}`.trim() : null,
-    host ? `Server läuft seit ${formatUptime(host.uptimeSeconds)}` : null,
-    diagnostics.data ? `Dienst seit ${formatUptime(diagnostics.data.uptimeSeconds)}` : null,
-  ].filter(Boolean) as string[];
 
   return (
     <header className={`dash-head is-${state.tone}`}>
       <div className="dash-head-main">
-        <p className="dash-eyebrow">Wrapt</p>
-        <h1>{state.label}</h1>
-        <p className="dash-head-detail">{state.detail}</p>
+        <h1>Dashboard</h1>
+        <p className="dash-head-detail">{host?.serverName ?? "Dein Entwicklungsserver"}</p>
       </div>
       <div className="dash-head-side">
-        <span className={`dash-pulse is-${state.tone}`}>
-          <i aria-hidden />
-          {metrics.data ? `Live · ${formatRelativeTime(metrics.data.lastUpdated)}` : "Verbindung wird geprüft"}
+        {state.tone !== "ok" ? (
+          <>
+            <span className={`dash-pulse is-${state.tone}`}>
+              <i aria-hidden />
+              {state.label}
+            </span>
+            {state.detail ? <p className="dash-head-detail">{state.detail}</p> : null}
+          </>
+        ) : null}
+        <span className="dash-meta-time">
+          {metrics.data ? `Aktualisiert ${formatRelativeTime(metrics.data.lastUpdated)}` : "Verbindung wird geprüft"}
         </span>
-        <div className="dash-head-badges">
-          {health.data ? <Badge tone="default">v{health.data.version}</Badge> : null}
-          <Badge tone={readiness.isError ? "warn" : statusTone(readiness.data?.status ?? "unknown")}>
-            {readiness.isError ? "Bereitschaft unklar" : readiness.data?.status === "ready" ? "Bereit" : readiness.data?.status === "degraded" ? "Eingeschränkt" : "Prüfung läuft"}
-          </Badge>
-        </div>
-        {facts.length ? <p className="dash-head-facts">{facts.join(" · ")}</p> : null}
       </div>
     </header>
   );
@@ -258,112 +244,60 @@ function Vital({
 
 function VitalsBand({
   metrics,
-  diagnostics,
   showMetrics,
-  showDiagnostics,
 }: {
   metrics: Query<ServerMetrics>;
-  diagnostics: Query<OperationalMetricsResponse>;
   showMetrics: boolean;
-  showDiagnostics: boolean;
 }) {
   const samples = useMetricsHistory((state) => state.samples);
   const series = useMemo(() => ({
     cpu: samples.map((sample) => sample.cpuPercent),
     memory: samples.map((sample) => sample.memoryPercent),
-    eventLoop: samples.map((sample) => sample.eventLoopP99),
-    requests: samples.map((sample) => sample.activeRequests),
-    serverErrors: samples.map((sample) => sample.serverErrorRatePercent),
-    clientErrors: samples.map((sample) => sample.clientErrorRatePercent),
   }), [samples]);
 
+  if (!showMetrics) return null;
   const tiles: ReactNode[] = [];
 
-  if (showMetrics) {
-    if (metrics.isPending) {
-      tiles.push(<div className="dash-vital" key="metrics-loading"><PanelSkeleton label="Systemwerte laden" rows={3} /></div>);
-    } else if (metrics.isError) {
-      tiles.push(<div className="dash-vital is-error" key="metrics-error"><PanelError message={queryMessage(metrics.error, "Systemwerte nicht verfügbar")} /></div>);
-    } else {
-      const data = metrics.data;
-      const memoryPercent = percentOf(data.memory.usedBytes, data.memory.totalBytes);
-      const busiestDisk = [...realDisks(data.disks)].sort((left, right) => right.usedPercent - left.usedPercent)[0];
-      tiles.push(
-        <Vital
-          key="cpu"
-          label="CPU"
-          value={decimal.format(data.cpuPercent)}
-          unit="%"
-          caption={`Last ${data.loadAverage.map((entry) => decimal.format(entry)).join(" · ")}${data.temperatureCelsius !== null ? ` · ${decimal.format(data.temperatureCelsius)} °C` : ""}`}
-          trend={computeTrend(series.cpu, 2)}
-          band={<Sparkline values={series.cpu} tone={loadTone(data.cpuPercent, 60, 85)} />}
-        />,
-        <Vital
-          key="memory"
-          label="Arbeitsspeicher"
-          value={memoryPercent.toFixed(0)}
-          unit="%"
-          caption={`${formatBytes(data.memory.usedBytes)} von ${formatBytes(data.memory.totalBytes)} · ${formatBytes(data.memory.availableBytes)} frei`}
-          trend={computeTrend(series.memory, 2)}
-          band={<Sparkline values={series.memory} tone={loadTone(memoryPercent, 75, 90)} />}
-        />,
-        <Vital
-          key="disk"
-          label="Datenträger"
-          value={busiestDisk ? busiestDisk.usedPercent.toFixed(0) : "—"}
-          unit={busiestDisk ? "%" : undefined}
-          caption={busiestDisk ? `${formatDashboardPath(busiestDisk.mount)} · ${formatBytes(busiestDisk.availableBytes)} frei` : "Keine Laufwerke erkannt"}
-          band={<Meter value={busiestDisk?.usedPercent ?? 0} tone={loadTone(busiestDisk?.usedPercent ?? 0, 75, 90)} label="Belegung des vollsten Laufwerks" />}
-        />,
-      );
-    }
-  }
-
-  if (showDiagnostics) {
-    if (diagnostics.isPending) {
-      tiles.push(<div className="dash-vital" key="diagnostics-loading"><PanelSkeleton label="Dienstwerte laden" rows={3} /></div>);
-    } else if (diagnostics.isError) {
-      tiles.push(<div className="dash-vital is-error" key="diagnostics-error"><PanelError message={queryMessage(diagnostics.error, "Dienstwerte nicht verfügbar")} /></div>);
-    } else {
-      const data = diagnostics.data;
-      const serverErrorRate = percentOf(data.http.serverErrors, data.http.totalRequests);
-      const clientErrorRate = percentOf(data.http.clientErrors, data.http.totalRequests);
-      tiles.push(
-        <Vital
-          key="event-loop"
-          label="Event-Loop"
-          value={decimal.format(data.eventLoop.p99Milliseconds)}
-          unit="ms"
-          caption={`P99 · Ø ${decimal.format(data.eventLoop.meanMilliseconds)} · max ${decimal.format(data.eventLoop.maxMilliseconds)} ms`}
-          trend={computeTrend(series.eventLoop, 1)}
-          band={<Sparkline values={series.eventLoop} tone={loadTone(data.eventLoop.p99Milliseconds, 20, 60)} />}
-        />,
-        <Vital
-          key="requests"
-          label="Anfragen"
-          value={integer.format(data.http.activeRequests)}
-          unit="aktiv"
-          caption={`${integer.format(data.http.totalRequests)} gesamt seit dem Start`}
-          band={<Sparkline values={series.requests} tone="accent" />}
-        />,
-        <Vital
-          key="server-errors"
-          label="Serverfehlerquote"
-          value={decimal.format(serverErrorRate)}
-          unit="%"
-          caption={`${integer.format(data.http.serverErrors)} Server · ${integer.format(data.http.totalRequests)} gesamt`}
-          band={<Sparkline values={series.serverErrors} tone={serverErrorRate > 5 ? "bad" : serverErrorRate > 1 ? "warn" : "ok"} />}
-        />,
-        <Vital
-          key="client-errors"
-          label="4xx-Quote"
-          value={decimal.format(clientErrorRate)}
-          unit="%"
-          caption={`${integer.format(data.http.clientErrors)} Client · ${integer.format(data.http.totalRequests)} gesamt`}
-          band={<Sparkline values={series.clientErrors} tone={clientErrorRate > 5 ? "warn" : "ok"} />}
-        />,
-      );
-    }
+  if (metrics.isPending) {
+    tiles.push(<div className="dash-vital" key="metrics-loading"><PanelSkeleton label="Systemwerte laden" rows={3} /></div>);
+  } else if (metrics.isError) {
+    tiles.push(<div className="dash-vital is-error" key="metrics-error"><PanelError message={queryMessage(metrics.error, "Systemwerte nicht verfügbar")} /></div>);
+  } else {
+    const data = metrics.data;
+    const memoryPercent = percentOf(data.memory.usedBytes, data.memory.totalBytes);
+    const busiestDisk = [...realDisks(data.disks)].sort((left, right) => right.usedPercent - left.usedPercent)[0];
+    tiles.push(
+      <Vital
+        key="cpu"
+        label="CPU"
+        value={decimal.format(data.cpuPercent)}
+        unit="%"
+        caption={data.temperatureCelsius === null ? "Aktuelle Auslastung" : `Temperatur ${decimal.format(data.temperatureCelsius)} °C`}
+        trend={computeTrend(series.cpu, 2)}
+        band={series.cpu.length > 1
+          ? <Sparkline values={series.cpu} tone={loadTone(data.cpuPercent, 60, 85)} />
+          : <Meter value={data.cpuPercent} tone={loadTone(data.cpuPercent, 60, 85)} label="CPU-Auslastung" />}
+      />,
+      <Vital
+        key="memory"
+        label="Arbeitsspeicher"
+        value={memoryPercent.toFixed(0)}
+        unit="%"
+        caption={`${formatBytes(data.memory.usedBytes)} von ${formatBytes(data.memory.totalBytes)} · ${formatBytes(data.memory.availableBytes)} frei`}
+        trend={computeTrend(series.memory, 2)}
+        band={series.memory.length > 1
+          ? <Sparkline values={series.memory} tone={loadTone(memoryPercent, 75, 90)} />
+          : <Meter value={memoryPercent} tone={loadTone(memoryPercent, 75, 90)} label="Arbeitsspeicher-Auslastung" />}
+      />,
+      <Vital
+        key="disk"
+        label="Datenträger"
+        value={busiestDisk ? busiestDisk.usedPercent.toFixed(0) : "—"}
+        unit={busiestDisk ? "%" : undefined}
+        caption={busiestDisk ? `${formatBytes(busiestDisk.availableBytes)} frei` : "Keine Laufwerke erkannt"}
+        band={<Meter value={busiestDisk?.usedPercent ?? 0} tone={loadTone(busiestDisk?.usedPercent ?? 0, 75, 90)} label="Belegung des vollsten Laufwerks" />}
+      />,
+    );
   }
 
   if (tiles.length === 0) return null;
@@ -374,11 +308,9 @@ function VitalsBand({
 
 function ServerDiagnosticsPanel({
   summary,
-  health,
   metrics,
 }: {
   summary: Query<ServerSummary>;
-  health: Query<HealthResponse>;
   metrics: Query<ServerMetrics>;
 }) {
   const samples = useMetricsHistory((state) => state.samples);
@@ -401,17 +333,11 @@ function ServerDiagnosticsPanel({
 
   return (
     <Panel
-      title="Serverdiagnose"
-      subtitle={host ? `${host.serverName} · ${host.operatingSystem.distro} ${host.operatingSystem.release}` : "Hostzustand des Entwicklungsservers"}
+      title="Systemauslastung"
+      subtitle={host ? `${host.serverName} · ${host.operatingSystem.distro}` : "Live-Werte des Entwicklungsservers"}
       icon={<ServerIcon className="h-4 w-4" />}
       name="server"
-      className="is-span-8"
-      meta={
-        <>
-          {host ? <Badge tone={host.status === "online" ? "ok" : "bad"}>{host.status === "online" ? "Online" : "Offline"}</Badge> : null}
-          {metrics.data ? <span className="dash-meta-time">Messung {formatRelativeTime(metrics.data.lastUpdated)}</span> : null}
-        </>
-      }
+      className="is-span-7 dash-server-panel"
     >
       {summary.isError || metrics.isError ? (
         <PanelError message={queryMessage(summary.error ?? metrics.error, "Serverdaten konnten nicht geladen werden.")} />
@@ -419,57 +345,25 @@ function ServerDiagnosticsPanel({
         <div className="dash-server-body">
           <div className="dash-server-chart">
             <TrendChart
-              height={188}
+              height={samples.length > 1 ? 148 : 96}
               bounds={{ min: 0, max: scaleMax }}
               scaleHint={`Skala 0–${scaleMax} %`}
               axisLabels={axisLabels}
-              emptyHint="Verlauf wird ab dem zweiten Messpunkt gezeichnet"
+              emptyHint="Messverlauf wird aufgebaut"
               series={[
-                { id: "cpu", label: "CPU", values: cpu, tone: "accent", readout: metrics.data ? `${decimal.format(metrics.data.cpuPercent)} %` : "—" },
+                { id: "cpu", label: "CPU", values: cpu, tone: "accent" },
                 {
                   id: "memory",
                   label: "Arbeitsspeicher",
                   values: memory,
                   tone: "ok",
-                  readout: metrics.data ? `${percentOf(metrics.data.memory.usedBytes, metrics.data.memory.totalBytes).toFixed(0)} %` : "—",
                 },
-              ]}
-            />
-            <Facts
-              min="150px"
-              items={[
-                { label: "Kernel", value: host?.operatingSystem.kernel ?? "—" },
-                { label: "Plattform", value: host?.operatingSystem.platform ?? "—" },
-                { label: "Laufzeit", value: host ? formatUptime(host.uptimeSeconds) : "—" },
-                { label: "Temperatur", value: metrics.data?.temperatureCelsius != null ? `${decimal.format(metrics.data.temperatureCelsius)} °C` : "nicht gemessen" },
-                { label: "Tailscale", value: host?.tailscale.hostname ?? "nicht verbunden" },
-                { label: "DNS-Name", value: host?.tailscale.dnsName ?? "—" },
-                { label: "Version", value: health.data ? `v${health.data.version}` : "—" },
-                { label: "Boot-ID", value: health.data?.bootId ? health.data.bootId.slice(0, 8) : "—" },
               ]}
             />
           </div>
 
           <div className="dash-server-side">
-            <p className="dash-subheading">Datenträger</p>
-            {metrics.isPending ? (
-              <PanelSkeleton label="Laufwerke laden" rows={2} />
-            ) : disks.length ? (
-              <ul className="dash-disk-list">
-                {disks.map((disk) => (
-                  <li key={disk.mount}>
-                    <div>
-                      <span className="font-mono">{formatDashboardPath(disk.mount)}</span>
-                      <strong className="font-mono">{disk.usedPercent.toFixed(0)} %</strong>
-                    </div>
-                    <Meter value={disk.usedPercent} tone={loadTone(disk.usedPercent, 75, 90)} label={`Belegung ${disk.mount}`} />
-                    <small>{formatBytes(disk.usedBytes)} von {formatBytes(disk.totalBytes)} · {formatBytes(disk.availableBytes)} frei</small>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="dash-muted">Keine Laufwerke erkannt.</p>
-            )}
+            <DashboardStorageList disks={disks} isPending={metrics.isPending} />
           </div>
         </div>
       )}
@@ -511,8 +405,8 @@ function WorkbenchDiagnosticsPanel({
 
   return (
     <Panel
-      title="Wrapt-Diagnose"
-      subtitle={data ? `Prozess läuft seit ${formatUptime(data.uptimeSeconds)} · Stand ${formatDateTime(data.capturedAt)}` : "Zustand des Wrapt-Dienstes"}
+      title="Betriebsdiagnose"
+      subtitle="Technische Messwerte und Systemhinweise"
       icon={<ShieldIcon className="h-4 w-4" />}
       name="workbench"
       className="is-span-12"
@@ -642,11 +536,10 @@ function ServicesPanel({ services }: { services: Query<ServicesResponse> }) {
   return (
     <Panel
       title="Dienste"
-      subtitle={data ? `${online} von ${data.services.length} erreichbar` : "Konfigurierte Dienste"}
+      subtitle={data ? `${online} von ${data.services.length} aktiv` : "Konfigurierte Dienste"}
       icon={<ServicesIcon className="h-4 w-4" />}
       name="services"
-      className="is-span-4"
-      meta={data && data.services.length ? <Badge tone={online === data.services.length ? "ok" : "warn"}>{online === data.services.length ? "vollständig" : "unvollständig"}</Badge> : null}
+      className="is-span-5 dash-services-panel"
     >
       {services.isError ? (
         <PanelError message={queryMessage(services.error, "Dienste konnten nicht geladen werden.")} />
@@ -661,7 +554,7 @@ function ServicesPanel({ services }: { services: Query<ServicesResponse> }) {
               <StateDot state={service.state} pulse={service.state === "checking"} />
               <div>
                 <strong>{service.name}</strong>
-                <small>{service.message ?? `${serverModeLabel(service.mode)} · geprüft ${formatRelativeTime(service.lastChecked)}`}</small>
+                <small>{service.message ?? serverModeLabel(service.mode)}</small>
               </div>
               {service.publicUrl ? (
                 <a href={service.publicUrl} target="_blank" rel="noopener noreferrer" className="dash-link" aria-label={`${service.name} öffnen`}>
@@ -740,54 +633,6 @@ function UsagePanel({ usage }: { usage: Query<UsageDashboardResponse> }) {
   );
 }
 
-/* ------------------------------------------------------------ Schnellzugriff */
-
-function QuickBar({
-  projectsLoading,
-  projects,
-}: {
-  projectsLoading: boolean;
-  projects: { id: string; availability: string }[];
-}) {
-  const navigate = useNavigate();
-  const selectProject = useWorkspaceStore((state) => state.selectProject);
-  const selectedProjectId = useWorkspaceStore((state) => state.selectedProjectId);
-  const addTab = useTerminalWorkspaceStore((state) => state.addTab);
-  const selectedProject =
-    projects.find((project) => project.id === selectedProjectId && project.availability === "available") ??
-    projects.find((project) => project.availability === "available");
-
-  const prepareProject = () => {
-    if (selectedProject && selectedProject.id !== selectedProjectId) selectProject(selectedProject.id);
-    return selectedProject?.id ?? selectedProjectId;
-  };
-
-  const actions = [
-    { label: "T3 Code", icon: T3CodeIcon, onClick: () => { prepareProject(); navigate("/t3-code"); } },
-    { label: "OpenCode", icon: OpenCodeIcon, onClick: () => navigate("/opencode") },
-    { label: "Workbench", icon: WorkbenchIcon, onClick: () => { prepareProject(); navigate("/workbench"); } },
-    { label: "Terminal", icon: TerminalIcon, onClick: () => { const projectId = prepareProject(); addTab("standalone", projectId, "shell"); navigate("/terminal"); } },
-    { label: "Nutzung", icon: NutzungIcon, onClick: () => navigate("/usage") },
-  ];
-
-  return (
-    <section className="dash-quickbar" aria-label="Schnellzugriff">
-      <p className="dash-quickbar-label">Schnellzugriff</p>
-      <div className="dash-quickbar-actions">
-        {actions.map(({ label, icon: Icon, onClick }) => (
-          <button key={label} type="button" onClick={onClick}>
-            <Icon className="h-3.5 w-3.5" />
-            {label}
-          </button>
-        ))}
-      </div>
-      <span className="dash-quickbar-context font-mono">
-        {projectsLoading ? "Projekt wird geladen" : selectedProject ? selectedProject.id : "kein Projekt gewählt"}
-      </span>
-    </section>
-  );
-}
-
 function CopyButton({ value }: { value: string }) {
   const [copyState, setCopyState] = useState<"idle" | "copied" | "error">("idle");
   const copy = async () => {
@@ -863,6 +708,43 @@ function CommandsPanel({
   );
 }
 
+function AdvancedDashboardPanel({
+  diagnosticsVisible,
+  commandsVisible,
+  diagnostics,
+  readiness,
+  commands,
+  onSelect,
+}: {
+  diagnosticsVisible: boolean;
+  commandsVisible: boolean;
+  diagnostics: Query<OperationalMetricsResponse>;
+  readiness: Query<ReadinessResponse>;
+  commands: Query<CommandsResponse>;
+  onSelect: (command: { name: string; description: string; command: string }) => void;
+}) {
+  if (!diagnosticsVisible && !commandsVisible) return null;
+  const description = diagnosticsVisible && commandsVisible ? "Diagnose · Befehle" : diagnosticsVisible ? "Diagnose" : "Befehle";
+  const issueCount = diagnosticsVisible ? diagnostics.data?.degradedReasons.length ?? 0 : 0;
+
+  return (
+    <details className="dash-panel dash-advanced-panel is-span-12">
+      <summary className="dash-advanced-summary">
+        <span className="dash-panel-icon"><ShieldIcon className="h-4 w-4" /></span>
+        <span className="dash-advanced-copy">
+          <strong>Technische Details</strong>
+          <small>{issueCount ? `${issueCount} Betriebshinweise` : description}</small>
+        </span>
+        <ChevronDownIcon className="dash-advanced-chevron h-4 w-4" aria-hidden="true" />
+      </summary>
+      <div className="dash-advanced-body">
+        {diagnosticsVisible ? <WorkbenchDiagnosticsPanel diagnostics={diagnostics} readiness={readiness} /> : null}
+        {commandsVisible ? <CommandsPanel commands={commands} onSelect={onSelect} /> : null}
+      </div>
+    </details>
+  );
+}
+
 /* ------------------------------------------------------------------ Seite */
 
 export function Dashboard() {
@@ -871,7 +753,7 @@ export function Dashboard() {
   const configQuery = useQuery({ ...wraptQueries.dashboardConfig(), enabled: routeActive });
   const config = configQuery.data;
   const hiddenSections = useDashboardPreferences((state) => state.hiddenSections);
-  const selectProject = useWorkspaceStore((state) => state.selectProject);
+  const selectProject = useLayoutStore((state) => state.selectProject);
   const visible = (section: DashboardSection) => isDashboardSectionVisible(config, hiddenSections, section);
   const refresh = config?.refresh;
 
@@ -879,46 +761,25 @@ export function Dashboard() {
   const metricsVisible = visible("metrics");
   const diagnosticsVisible = visible("diagnostics");
   const runtimeVisible = visible("runtime");
-  const quickActionsVisible = visible("quickActions");
+  const projectActivityVisible = visible("quickActions");
+  const servicesVisible = visible("services");
+  const usageVisible = visible("usage");
+  const commandsVisible = visible("commands");
 
-  // Der Kopf braucht Server- und Dienstzustand unabhängig davon, welche Blöcke
-  // sichtbar sind — sonst könnte er keine Gesamtaussage treffen.
+  // Der Kopf braucht Server- und Dienstzustand unabhängig von der Sichtbarkeit
+  // einzelner Dashboard-Kacheln.
   const summary = useQuery({ ...wraptQueries.serverSummary(refresh?.summaryMilliseconds), enabled: routeActive });
-  const health = useQuery({ ...wraptQueries.health(refresh?.healthMilliseconds), enabled: routeActive });
   const readiness = useQuery({ ...wraptQueries.readiness(refresh?.summaryMilliseconds), retry: false, enabled: routeActive });
   const metrics = useQuery({ ...wraptQueries.serverMetrics(refresh?.metricsMilliseconds), enabled: routeActive });
   const diagnostics = useQuery({ ...wraptQueries.operationalMetrics(refresh?.operationalMetricsMilliseconds), enabled: routeActive });
-  const services = useQuery({ ...wraptQueries.services(refresh?.servicesMilliseconds), enabled: routeActive && visible("services") });
-  const projects = useQuery({ ...wraptQueries.projects(), enabled: routeActive && (runtimeVisible || quickActionsVisible) });
+  const services = useQuery({ ...wraptQueries.services(refresh?.servicesMilliseconds), enabled: routeActive && servicesVisible });
+  const projects = useQuery({ ...wraptQueries.projects(), enabled: routeActive && (runtimeVisible || projectActivityVisible) });
   const ports = useQuery({ ...wraptQueries.localPorts(refresh?.localPortsMilliseconds), enabled: routeActive && runtimeVisible });
   const sessions = useQuery({ ...wraptQueries.terminalSessions(refresh?.terminalSessionsMilliseconds), enabled: routeActive && runtimeVisible });
-  const usage = useQuery({ ...wraptQueries.usageDashboard("30d", refresh?.usageMilliseconds), enabled: routeActive && visible("usage") });
-  const commands = useQuery({ ...wraptQueries.commands(), enabled: routeActive && visible("commands") });
+  const usage = useQuery({ ...wraptQueries.usageDashboard("30d", refresh?.usageMilliseconds), enabled: routeActive && usageVisible });
+  const commands = useQuery({ ...wraptQueries.commands(), enabled: routeActive && commandsVisible });
   const [selectedCommand, setSelectedCommand] = useState<{ name: string; description: string; command: string } | null>(null);
   const systemState = deriveSystemState(summary.data, readiness.data, readiness.isError, metrics.data, diagnostics.data);
-  // Ein einziger Sammler füttert den geteilten Verlaufsspeicher. Die
-  // Abhängigkeiten sind die Query-Daten selbst, deren Referenz sich nur bei
-  // echten Änderungen ändert.
-  const pushSample = useMetricsHistory((state) => state.push);
-  const metricsData = metrics.data;
-  const diagnosticsData = diagnostics.data;
-  useEffect(() => {
-    if (!metricsData || !diagnosticsData) return;
-    const sample: MetricsSample = {
-      timestamp: Date.now(),
-      cpuPercent: metricsData.cpuPercent,
-      memoryPercent: percentOf(metricsData.memory.usedBytes, metricsData.memory.totalBytes),
-      diskPercent: Math.max(0, ...metricsData.disks.map((disk) => disk.usedPercent)),
-      rssBytes: diagnosticsData.processMemory.rssBytes,
-      activeRequests: diagnosticsData.http.activeRequests,
-      totalRequests: diagnosticsData.http.totalRequests,
-      serverErrorRatePercent: percentOf(diagnosticsData.http.serverErrors, diagnosticsData.http.totalRequests),
-      clientErrorRatePercent: percentOf(diagnosticsData.http.clientErrors, diagnosticsData.http.totalRequests),
-      eventLoopP99: diagnosticsData.eventLoop.p99Milliseconds,
-    };
-    pushSample(sample);
-  }, [metricsData, diagnosticsData, pushSample]);
-
   const openPort = (port: LocalPort) => {
     if (port.projectId) selectProject(port.projectId);
     navigate("/previews");
@@ -928,8 +789,12 @@ export function Dashboard() {
   return (
     <div className="page-scroll">
       <div className="page-frame dash">
-        <DashboardHeader summary={summary} health={health} readiness={readiness} metrics={metrics} diagnostics={diagnostics} />
-        <DashboardMobileSummary state={systemState} liveLabel={metrics.data ? `Live · ${formatRelativeTime(metrics.data.lastUpdated)}` : "Verbindung wird geprüft"} readinessLabel={readiness.isError ? "Bereitschaft unklar" : readiness.data?.status === "ready" ? "Bereit" : "Prüfung läuft"} />
+        <DashboardHeader summary={summary} state={systemState} metrics={metrics} />
+        <DashboardMobileSummary
+          state={systemState}
+          serverName={summary.data?.serverName ?? "Dein Entwicklungsserver"}
+          liveLabel={metrics.data ? `Aktualisiert ${formatRelativeTime(metrics.data.lastUpdated)}` : "Verbindung wird geprüft"}
+        />
         {configQuery.isError ? (
           <div className="dash-notice is-warn" role="status">
             <InfoIcon className="h-4 w-4 shrink-0" />
@@ -937,23 +802,23 @@ export function Dashboard() {
           </div>
         ) : null}
 
-        <VitalsBand metrics={metrics} diagnostics={diagnostics} showMetrics={metricsVisible} showDiagnostics={diagnosticsVisible} />
+        <VitalsBand metrics={metrics} showMetrics={metricsVisible} />
 
-        {/* Bento-Raster: unterschiedlich breite Kacheln in einem gemeinsamen
-            12-Spalten-Raster. Klappt eine Kachel auf, ordnet sich der Rest neu
-            an — die Bewegung dabei kommt aus `runWithViewTransition`. */}
-        <DashboardMobileDetails hasProblem={systemState.tone !== "ok"}><div className="dash-bento">
-          {serverVisible || metricsVisible ? (
-            <ServerDiagnosticsPanel summary={summary} health={health} metrics={metrics} />
-          ) : null}
-          {visible("services") ? <ServicesPanel services={services} /> : null}
-          {diagnosticsVisible ? <WorkbenchDiagnosticsPanel diagnostics={diagnostics} readiness={readiness} /> : null}
+        <div className="dash-bento">
+          {serverVisible ? <ServerDiagnosticsPanel summary={summary} metrics={metrics} /> : null}
+          {projectActivityVisible ? <DashboardRecentProjects projects={projects} /> : null}
+          {servicesVisible ? <ServicesPanel services={services} /> : null}
           {runtimeVisible ? <RuntimePanel ports={ports} sessions={sessions} projects={projects} onOpenPort={openPort} /> : null}
-          {visible("usage") ? <UsagePanel usage={usage} /> : null}
-          {visible("commands") ? <CommandsPanel commands={commands} onSelect={setSelectedCommand} /> : null}
-          </div></DashboardMobileDetails>
-
-        {quickActionsVisible ? <QuickBar projectsLoading={projects.isLoading} projects={projects.data?.projects ?? []} /> : null}
+          {usageVisible ? <UsagePanel usage={usage} /> : null}
+          <AdvancedDashboardPanel
+            diagnosticsVisible={diagnosticsVisible}
+            commandsVisible={commandsVisible}
+            diagnostics={diagnostics}
+            readiness={readiness}
+            commands={commands}
+            onSelect={setSelectedCommand}
+          />
+        </div>
 
         {visibleCount === 0 ? (
           <div className="dash-empty">

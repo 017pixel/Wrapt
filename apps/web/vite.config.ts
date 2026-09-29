@@ -25,6 +25,7 @@ function loadWraptConfig() {
 export default defineConfig(({mode}) => {
   const environment = loadEnv(mode, "../..", "");
   const wb = loadWraptConfig();
+  const rootPackage = JSON.parse(readFileSync(resolve(import.meta.dirname, "../../package.json"), "utf8")) as { version: string };
   const appNamePlugin = {
     name: "wrapt-app-name",
     transformIndexHtml(html: string) {
@@ -38,6 +39,7 @@ export default defineConfig(({mode}) => {
   const sameOriginProxyOptions = { ...proxyOptions, changeOrigin: false };
   return ({
   base: "/wrapt/",
+  define: { __WRAPT_APP_VERSION__: JSON.stringify(rootPackage.version) },
   plugins: [react(), tailwindcss(), appNamePlugin],
   server: {
     host: "0.0.0.0",

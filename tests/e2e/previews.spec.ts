@@ -167,10 +167,13 @@ test.describe("Lokale Previews", () => {
     }
   });
 
-  test("verweigert Preview-Zugriff ohne Identität", async ({ request }) => {
-    test.skip(!process.env.WRAPT_E2E_URL, "Die isolierte Testinstanz nutzt bewusst eine Entwicklungsidentität.");
-    const response = await request.get("/api/v1/previews/slots");
-    expect(response.status()).toBe(401);
+  test("verweigert Preview-Zugriff mit unbekannter Identität", async ({ request }) => {
+    // Die isolierte E2E-Instanz vertraut Loopback-Aufrufen ohne Proxy-Header.
+    // Ein explizit unbekannter Header muss trotzdem abgewiesen werden.
+    const response = await request.get("/api/v1/previews/slots", {
+      headers: { "tailscale-user-login": "unbekannt@example.invalid" },
+    });
+    expect(response.status()).toBe(403);
   });
 
   test("recycelt belegte Slot-Origins und öffnet die Hub-Preview direkt in einem neuen Tab und Fenster", async ({ page, request }) => {

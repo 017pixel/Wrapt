@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import type { PanelType, Project } from "@wrapt/contracts";
 import {
   CodeServerIcon,
+  ClaudeCodeIcon,
   CodexIcon,
   FinderIcon,
   OpenCodeIcon,
@@ -20,13 +21,13 @@ export interface ProjectToolOption {
   previewId?: string;
 }
 
-export function projectToolOptions(project: Project): ProjectToolOption[] {
+export function projectToolOptions(project: Project, codeServerAvailable: boolean): ProjectToolOption[] {
   const options: ProjectToolOption[] = [];
 
   if (project.links.t3Code !== null) {
     options.push({ id: "t3-code", label: "T3 Code", type: "t3-code", icon: T3CodeIcon });
   }
-  if (project.links.codeServer !== null) {
+  if (project.links.codeServer !== null && codeServerAvailable) {
     options.push({ id: "code-server", label: "Editor", type: "code-server", icon: CodeServerIcon });
   }
 
@@ -35,6 +36,7 @@ export function projectToolOptions(project: Project): ProjectToolOption[] {
     { id: "terminal", label: "Terminal", type: "terminal", icon: TerminalIcon },
     { id: "opencode", label: "OpenCode", type: "opencode", icon: OpenCodeIcon },
     { id: "codex", label: "Codex", type: "codex", icon: CodexIcon },
+    { id: "claude", label: "Claude Code", type: "claude", icon: ClaudeCodeIcon },
     { id: "files", label: "Dateien", type: "files", icon: FinderIcon },
   );
 

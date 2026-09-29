@@ -41,7 +41,7 @@ export const builtinCommandOwners: readonly BuiltinCommandOwner[] = Object.freez
       contribution: commandContributionSchema.parse({
         id: "wrapt.files.command.fullscreen-toggle",
         title: "Vollbild umschalten",
-        description: "Schaltet die Workbench zwischen Fenster und Vollbild um.",
+        description: "Schaltet Orbit zwischen Fenster und Vollbild um.",
         category: "Dateien",
       }),
       runtime: Object.freeze({
@@ -55,7 +55,7 @@ export const builtinCommandOwners: readonly BuiltinCommandOwner[] = Object.freez
       contribution: commandContributionSchema.parse({
         id: "wrapt.files.command.reload",
         title: "Ansicht neu laden",
-        description: "Lädt die aktuelle Workbench-Ansicht neu.",
+        description: "Lädt die aktuelle Orbit-Ansicht neu.",
         category: "Dateien",
       }),
       runtime: Object.freeze({ execute: () => window.location.reload() }),

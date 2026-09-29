@@ -13,6 +13,24 @@ describe("Preview-Fenster", () => {
     expect(url).toContain("path=%2Fadmin");
   });
 
+  it("übergibt beim Ansichtswechsel dieselbe Preview- und Slotidentität", () => {
+    const url = new URL(previewLiveWindowUrl({
+      projectId: "projekt",
+      port: 5173,
+      sessionKey: "orbit-preview:knoten-1",
+      previewNodeId: "knoten-1",
+      requestedSlotId: 17,
+      isolate: true,
+      storageProfileId: "profil-1",
+    }, "https://server.test"));
+
+    expect(url.searchParams.get("session")).toBe("orbit-preview:knoten-1");
+    expect(url.searchParams.get("node")).toBe("knoten-1");
+    expect(url.searchParams.get("slot")).toBe("17");
+    expect(url.searchParams.get("isolate")).toBe("1");
+    expect(url.searchParams.get("storage")).toBe("profil-1");
+  });
+
   it("öffnet den Fenster- und Tab-Modus getrennt", () => {
     const open = vi.spyOn(window, "open").mockReturnValue({} as Window);
     openPreviewLiveWindow({ projectId: "projekt", port: 5173, mode: "window" });

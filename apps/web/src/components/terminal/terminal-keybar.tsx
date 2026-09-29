@@ -38,7 +38,7 @@ export function TerminalKeybar(props: TerminalKeybarProps) {
             <button type="button" className={stickyCtrl ? "is-active" : ""} aria-pressed={stickyCtrl} onClick={onToggleCtrl}>ctrl</button>
             <button type="button" className={stickyAlt ? "is-active" : ""} aria-pressed={stickyAlt} onClick={onToggleAlt}>alt</button>
             {specialKeyRow.map((key) => (
-              <button type="button" key={key} onClick={() => onSendKey(key)}>{key.toLowerCase()}</button>
+              <button type="button" key={key} aria-label={"Terminaltaste " + key + " senden"} onClick={() => onSendKey(key)}>{key.toLowerCase()}</button>
             ))}
             <button type="button" onClick={() => onSendKey("c")} title="Strg-C senden">^c</button>
             <button type="button" onClick={onPaste} aria-label="Aus Zwischenablage einfügen"><ClipboardIcon className="h-4 w-4" /></button>

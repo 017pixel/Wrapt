@@ -7,6 +7,7 @@ import {
   type DeviceOrientation,
   type DevicePresetId,
 } from "../config/devicePresets";
+import { normalizePreviewViewportDimension, orientPreviewViewportSize, type PreviewViewportSize } from "../lib/previewViewport";
 
 interface DevicePreviewFrameProps {
   deviceId: DevicePresetId;
@@ -16,6 +17,8 @@ interface DevicePreviewFrameProps {
   scaleFactor?: number;
   /** Overlay über dem iframe, solange der Canvas gezogen oder skaliert wird. */
   interactionLocked?: boolean;
+  /** Eigene CSS-Viewportmaße; `null` verwendet die Abmessungen des Presets. */
+  viewportSize?: PreviewViewportSize | null;
 }
 
 /**
@@ -64,15 +67,19 @@ export function calculateDevicePreviewScale({
   return snapToDevicePixels(raw, outerWidth, outerHeight, Math.max(1, devicePixelRatio));
 }
 
-export function DevicePreviewFrame({ deviceId, orientation, children, scaleFactor = 1, interactionLocked = false }: DevicePreviewFrameProps) {
+export function DevicePreviewFrame({ deviceId, orientation, children, scaleFactor = 1, interactionLocked = false, viewportSize = null }: DevicePreviewFrameProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const [fitScale, setFitScale] = useState(1);
   const device = findDevicePreset(deviceId);
-  const portraitWidth = device.width;
-  const portraitHeight = device.height;
-  const width = orientation === "portrait" ? portraitWidth : portraitHeight;
-  const height = orientation === "portrait" ? portraitHeight : portraitWidth;
-  const bezel = deviceBezel(deviceId);
+  const customWidth = viewportSize ? normalizePreviewViewportDimension(viewportSize.width, device.width ?? 390) : null;
+  const customHeight = viewportSize ? normalizePreviewViewportDimension(viewportSize.height, device.height ?? 844) : null;
+  const dimensions = customWidth !== null && customHeight !== null
+    ? orientPreviewViewportSize({ width: customWidth, height: customHeight }, orientation)
+    : { width: device.width, height: device.height };
+  const width = dimensions.width;
+  const height = dimensions.height;
+  const responsive = deviceId === "responsive";
+  const bezel = responsive ? 0 : deviceBezel(deviceId);
   const desktop = deviceId.startsWith("desktop-");
   const tablet = deviceId.startsWith("ipad-");
 
@@ -117,7 +124,7 @@ export function DevicePreviewFrame({ deviceId, orientation, children, scaleFacto
   return (
     <div ref={stageRef} className="device-preview-stage">
       <div
-        className={`device-preview-shell ${desktop ? "is-desktop" : tablet ? "is-tablet" : "is-phone"}`}
+        className={`device-preview-shell ${responsive ? "is-responsive" : desktop ? "is-desktop" : tablet ? "is-tablet" : "is-phone"}`}
         style={{
           // Rahmen als Padding statt Border: Shell, Rahmen und Screen teilen
           // denselben Ursprung, es entstehen keine transformierten Halbpixel.

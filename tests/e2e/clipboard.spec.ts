@@ -3,7 +3,7 @@ import { resetOrbitTestWorkspace } from "./helpers/orbit";
 import { resetTerminalTestWorkspace } from "./helpers/terminal";
 
 // `WRAPT_E2E_URL` zeigt auf den Origin des Testservers; die Wrapt
-// selbst wird unter dem `/workbench`-Basispfad ausgeliefert.
+// selbst wird unter dem `/wrapt`-Basispfad ausgeliefert.
 const workbench = process.env.WRAPT_E2E_URL
   ? `${process.env.WRAPT_E2E_URL.replace(/\/$/, "")}/wrapt`
   : undefined;
@@ -207,7 +207,7 @@ test("routes Orbit paste to the focused editor, canvas or terminal only", async 
   test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   test.setTimeout(60_000);
   await resetOrbitTestWorkspace(page, "user@example.com");
-  await page.goto(`${workbench}/workbench`);
+  await page.goto(`${workbench}/orbit`);
   await expect(page.locator(".orbit-page")).toBeVisible();
   await page.getByRole("button", { name: /Neue Notiz/ }).click();
   const note = page.getByLabel("Neue Notiz bearbeiten").last();

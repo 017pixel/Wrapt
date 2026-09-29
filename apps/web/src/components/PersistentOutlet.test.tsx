@@ -32,6 +32,24 @@ function Shell() {
   return <PersistentOutlet />;
 }
 
+function PreviewRouteSwitch() {
+  const navigate = useNavigate();
+  return (
+    <>
+      <button onClick={() => navigate("/orbit/previews")}>Preview-Hub im Orbit</button>
+      <button onClick={() => navigate("/previews")}>Preview-Hub direkt</button>
+      <button onClick={() => navigate("/orbit")}>Orbit öffnen</button>
+      <Routes>
+        <Route element={<Shell />}>
+          <Route path="/orbit" element={<iframe title="Preview im Orbit" />} />
+          <Route path="/orbit/previews" element={<p>Preview-Hub im Orbit</p>} />
+          <Route path="/previews" element={<p>Preview-Hub</p>} />
+        </Route>
+      </Routes>
+    </>
+  );
+}
+
 function TestApp() {
   const [index, setIndex] = useState(0);
   const navigate = useNavigate();
@@ -84,6 +102,23 @@ describe("PersistentOutlet", () => {
     const a = container.querySelector('[data-route-cache-key="/a"]');
     expect(a?.classList.contains("is-active")).toBe(true);
     expect(mountsA).toBe(1);
+  });
+
+  it("behält dasselbe Preview-iframe über Orbit und beide Preview-Hub-Pfade", () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={["/orbit"]}>
+        <PreviewRouteSwitch />
+      </MemoryRouter>,
+    );
+    const iframe = container.querySelector("iframe[title='Preview im Orbit']");
+    expect(iframe).not.toBeNull();
+
+    fireEvent.click(screen.getByText("Preview-Hub im Orbit"));
+    expect(container.querySelector("iframe[title='Preview im Orbit']")).toBe(iframe);
+    fireEvent.click(screen.getByText("Preview-Hub direkt"));
+    expect(container.querySelector("iframe[title='Preview im Orbit']")).toBe(iframe);
+    fireEvent.click(screen.getByText("Orbit öffnen"));
+    expect(container.querySelector("iframe[title='Preview im Orbit']")).toBe(iframe);
   });
 
   it("entfernt die älteste inaktive Route und führt ihren Cleanup aus", () => {

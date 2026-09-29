@@ -6,6 +6,11 @@ export interface PreviewLiveWindowInput {
   path?: string;
   title?: string;
   mode: PreviewExternalOpenMode;
+  sessionKey?: string;
+  previewNodeId?: string | null;
+  requestedSlotId?: number | null;
+  isolate?: boolean;
+  storageProfileId?: string | null;
 }
 
 export function previewLiveWindowUrl(input: Omit<PreviewLiveWindowInput, "mode">, origin = window.location.origin): string {
@@ -15,6 +20,11 @@ export function previewLiveWindowUrl(input: Omit<PreviewLiveWindowInput, "mode">
   url.searchParams.set("port", String(input.port));
   url.searchParams.set("path", input.path?.startsWith("/") ? input.path : "/");
   if (input.title) url.searchParams.set("title", input.title);
+  if (input.sessionKey) url.searchParams.set("session", input.sessionKey);
+  if (input.previewNodeId) url.searchParams.set("node", input.previewNodeId);
+  if (Number.isInteger(input.requestedSlotId) && (input.requestedSlotId ?? 0) > 0) url.searchParams.set("slot", String(input.requestedSlotId));
+  if (input.isolate !== undefined) url.searchParams.set("isolate", input.isolate ? "1" : "0");
+  if (input.storageProfileId) url.searchParams.set("storage", input.storageProfileId);
   return url.toString();
 }
 

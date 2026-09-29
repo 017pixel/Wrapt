@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 
 // Regressionstest für den Sidebar-Absturz: Die Hooks der Sektionen standen hinter
 // `!collapsed &&` im JSX. Startete die Seite eingeklappt, fehlten alle Einträge unterhalb
-// von "Workspace", und beim Ausklappen sprang die Hook-Anzahl — React brach den Baum ab.
+// von "Workbench", und beim Ausklappen sprang die Hook-Anzahl — React brach den Baum ab.
 
 const SIDEBAR_KEY = "wrapt.sidebar.v1";
 
@@ -58,4 +58,20 @@ test("klappt Sektionen zu und wieder auf, ohne Einträge zu verlieren", async ({
 
   await werkzeuge.click();
   await expect(sidebar.getByRole("link", { name: "Terminal" })).toBeVisible();
+});
+
+test("hält eigene Werkzeugseiten im Orbit getrennt von der Einfügepalette erreichbar", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 768 });
+  await page.goto("/wrapt/orbit");
+  const sidebar = page.locator(".sidebar-shell");
+  const pages = sidebar.getByRole("navigation", { name: "Seiten und Werkzeuge" });
+  await expect(pages.getByRole("link", { name: "Terminal" })).toBeVisible();
+  await expect(pages.getByRole("link", { name: "Notes" })).toBeVisible();
+  await expect(sidebar.getByText("Zum Orbit hinzufügen")).toBeVisible();
+  await expect(sidebar.getByRole("button", { name: "Orbit-Werkzeuge einklappen" })).toBeVisible();
+  const library = sidebar.locator(".sidebar-orbit-library");
+  await expect(library.locator(".sidebar-section-header").first()).toHaveText(/Orbit-Werkzeuge/);
+  await expect(library.getByRole("button", { name: "T3 Code", exact: true })).toBeInViewport();
+  await pages.getByRole("link", { name: "Terminal" }).click();
+  await expect(page).toHaveURL(/\/wrapt\/terminal$/);
 });

@@ -1,10 +1,11 @@
 import type { CapybaraFrameName } from "./capybaraFrames";
 
 /** Bewegungs- und Aktionsplanung des Capybaras als testbare reine Funktionen. */
-export type CapybaraAction = "walk" | "blink" | "doubleBlink" | "look" | "hop" | "sneeze" | "yawn" | "party";
+export type CapybaraAction = "walk" | "blink" | "doubleBlink" | "look" | "hop" | "sneeze" | "yawn" | "party" | "stretch" | "sniff" | "wave" | "bow" | "wiggle";
 export type CapybaraFacing = "left" | "right";
 
-export type CapybaraAnimationName = "celebrate" | "hop" | "sneeze" | "yawn";
+export type CapybaraAnimationName = "celebrate" | "hop" | "sneeze" | "yawn" | "stretch" | "sniff" | "wave" | "bow" | "wiggle";
+export type CapybaraPreviewAction = "yawn" | "party" | "hop" | "stretch" | "sniff" | "wave" | "bow" | "wiggle";
 
 export interface CapybaraAnimationStep {
   readonly frame: CapybaraFrameName;
@@ -30,9 +31,49 @@ export const CAPYBARA_ANIMATIONS: Readonly<Record<CapybaraAnimationName, readonl
     { frame: "sneezeC", duration: 260 },
   ],
   yawn: [
+    { frame: "blink", duration: 180 },
     { frame: "yawnA", duration: 300 },
-    { frame: "yawnB", duration: 520 },
+    { frame: "yawnB", duration: 280 },
+    { frame: "yawnB", duration: 580 },
     { frame: "yawnA", duration: 280 },
+    { frame: "blink", duration: 180 },
+    { frame: "calm", duration: 180 },
+  ],
+  stretch: [
+    { frame: "calm", duration: 180 },
+    { frame: "hopA", duration: 220 },
+    { frame: "yawnA", duration: 300 },
+    { frame: "hopA", duration: 220 },
+    { frame: "calm", duration: 220 },
+  ],
+  sniff: [
+    { frame: "lookLeft", duration: 260 },
+    { frame: "sneezeA", duration: 190 },
+    { frame: "lookRight", duration: 260 },
+    { frame: "sneezeA", duration: 190 },
+    { frame: "calm", duration: 220 },
+  ],
+  wave: [
+    { frame: "happyA", duration: 200 },
+    { frame: "happyB", duration: 190 },
+    { frame: "happyC", duration: 190 },
+    { frame: "happyB", duration: 190 },
+    { frame: "happyA", duration: 220 },
+    { frame: "calm", duration: 160 },
+  ],
+  bow: [
+    { frame: "calm", duration: 160 },
+    { frame: "hopA", duration: 240 },
+    { frame: "hopB", duration: 340 },
+    { frame: "hopA", duration: 240 },
+    { frame: "calm", duration: 180 },
+  ],
+  wiggle: [
+    { frame: "walkA", duration: 170 },
+    { frame: "walkB", duration: 170 },
+    { frame: "walkA", duration: 170 },
+    { frame: "walkB", duration: 170 },
+    { frame: "calm", duration: 200 },
   ],
 };
 
@@ -54,16 +95,21 @@ const NEUTRAL_WEIGHTS: CapybaraActionWeights = {
   doubleBlink: 0.04,
   yawn: 0,
   party: 0,
+  stretch: 0,
+  sniff: 0,
+  wave: 0,
+  bow: 0,
+  wiggle: 0,
 };
 
 /** Tageszeit-Stimmung: nachts schläfrig, morgens wach, abends ruhig. */
 export type CapybaraPhase = "night" | "morning" | "day" | "evening";
 
 const PHASE_WEIGHTS: Readonly<Record<CapybaraPhase, CapybaraActionWeights>> = {
-  night: { walk: 0.18, blink: 0.32, look: 0.14, hop: 0.03, sneeze: 0.04, doubleBlink: 0.07, yawn: 0.2, party: 0 },
-  morning: { walk: 0.42, blink: 0.22, look: 0.15, hop: 0.08, sneeze: 0.05, doubleBlink: 0.06, yawn: 0.02, party: 0.002 },
-  day: { walk: 0.4, blink: 0.24, look: 0.15, hop: 0.08, sneeze: 0.06, doubleBlink: 0.05, yawn: 0.04, party: 0.0015 },
-  evening: { walk: 0.34, blink: 0.26, look: 0.16, hop: 0.06, sneeze: 0.05, doubleBlink: 0.05, yawn: 0.08, party: 0.002 },
+  night: { walk: 0.17, blink: 0.29, look: 0.12, hop: 0.02, sneeze: 0.03, doubleBlink: 0.06, yawn: 0.2, party: 0, stretch: 0.03, sniff: 0.03, wave: 0.01, bow: 0.02, wiggle: 0.02 },
+  morning: { walk: 0.33, blink: 0.18, look: 0.12, hop: 0.07, sneeze: 0.04, doubleBlink: 0.05, yawn: 0.02, party: 0.002, stretch: 0.06, sniff: 0.05, wave: 0.04, bow: 0.025, wiggle: 0.04 },
+  day: { walk: 0.32, blink: 0.19, look: 0.12, hop: 0.07, sneeze: 0.05, doubleBlink: 0.04, yawn: 0.04, party: 0.0015, stretch: 0.04, sniff: 0.05, wave: 0.04, bow: 0.025, wiggle: 0.035 },
+  evening: { walk: 0.27, blink: 0.22, look: 0.13, hop: 0.05, sneeze: 0.04, doubleBlink: 0.04, yawn: 0.08, party: 0.002, stretch: 0.05, sniff: 0.04, wave: 0.03, bow: 0.025, wiggle: 0.03 },
 };
 
 const NAP_DELAY_MS: Readonly<Record<CapybaraPhase, number>> = {
@@ -115,7 +161,7 @@ export function pickCapybaraAction(
 
 /** Ersetzt bewegungsintensive Aktionen bei reduzierter Bewegung. */
 export function capybaraActionForMotion(action: CapybaraAction, reducedMotion: boolean): CapybaraAction {
-  return reducedMotion && (action === "walk" || action === "hop" || action === "sneeze" || action === "party")
+  return reducedMotion && (action === "walk" || action === "hop" || action === "sneeze" || action === "party" || action === "stretch" || action === "sniff" || action === "wave" || action === "bow" || action === "wiggle")
     ? "blink"
     : action;
 }
@@ -159,18 +205,22 @@ export interface CapybaraPartyStep {
 }
 
 /**
- * Kurzer Partytanz: Hut auf, ein paar Hüpfer nach links und rechts, Jubel.
+ * Längerer Partytanz: Anfedern, zwei volle Sprünge und ruhiges Ausklingen.
  * Bleibt bewusst in der Bühnenspur, damit nichts aus der Leiste läuft.
  */
 export function buildCapybaraPartyPlan(random: () => number): readonly CapybaraPartyStep[] {
   const shuffle = 6 + Math.round(random() * 6);
   return [
-    { frame: "party", action: "celebrate", duration: 420, facing: "right", offsetDelta: 0 },
-    { frame: "hopA", action: "hop", duration: 200, facing: "left", offsetDelta: -shuffle },
-    { frame: "party", action: "celebrate", duration: 380, facing: "left", offsetDelta: -shuffle },
-    { frame: "hopB", action: "hop", duration: 220, facing: "right", offsetDelta: shuffle },
-    { frame: "party", action: "celebrate", duration: 380, facing: "right", offsetDelta: shuffle },
-    { frame: "happyA", action: "celebrate", duration: 220, facing: "right", offsetDelta: 0 },
-    { frame: "party", action: "celebrate", duration: 460, facing: "right", offsetDelta: 0 },
+    { frame: "party", action: "celebrate", duration: 500, facing: "right", offsetDelta: 0 },
+    { frame: "hopA", action: "hop", duration: 260, facing: "left", offsetDelta: -shuffle / 2 },
+    { frame: "hopB", action: "hop", duration: 330, facing: "left", offsetDelta: -shuffle },
+    { frame: "hopC", action: "hop", duration: 300, facing: "left", offsetDelta: -shuffle },
+    { frame: "party", action: "celebrate", duration: 500, facing: "left", offsetDelta: -shuffle },
+    { frame: "hopA", action: "hop", duration: 260, facing: "right", offsetDelta: 0 },
+    { frame: "hopB", action: "hop", duration: 330, facing: "right", offsetDelta: shuffle },
+    { frame: "hopC", action: "hop", duration: 300, facing: "right", offsetDelta: shuffle },
+    { frame: "party", action: "celebrate", duration: 520, facing: "right", offsetDelta: shuffle },
+    { frame: "happyA", action: "celebrate", duration: 270, facing: "right", offsetDelta: shuffle / 2 },
+    { frame: "party", action: "celebrate", duration: 600, facing: "right", offsetDelta: 0 },
   ];
 }

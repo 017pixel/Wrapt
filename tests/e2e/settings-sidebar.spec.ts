@@ -45,6 +45,29 @@ test("schaltet Seiten in Sidebar und Navigation um und behält die Auswahl nach 
   await expect(page.locator(".workspace-sidebar").getByRole("link", { name: "Codex", exact: true })).toHaveCount(0);
 });
 
+test("zeigt Orbit erst nach Aktivierung in den Einstellungen", async ({ page }) => {
+  await startWithDefaultSidebarPreferences(page);
+  await openSurfaceTab(page);
+
+  const visibility = settingsSection(page, "Seiten-Sichtbarkeit");
+  const orbit = visibility.getByRole("button", { name: "Orbit Orbit", exact: true });
+  const sidebarOrbit = page.locator(".workspace-sidebar").getByRole("link", { name: "Orbit", exact: true });
+  await expect(orbit.getByRole("switch")).toHaveAttribute("aria-checked", "false");
+  await expect(sidebarOrbit).toHaveCount(0);
+
+  await orbit.click();
+  await expect(orbit.getByRole("switch")).toHaveAttribute("aria-checked", "true");
+  await expect(sidebarOrbit).toBeVisible();
+  await sidebarOrbit.click();
+  await expect(page).toHaveURL(/\/wrapt\/orbit$/);
+
+  await page.reload();
+  await expect(sidebarOrbit).toBeVisible();
+  await openSurfaceTab(page);
+  await visibility.getByRole("button", { name: "Orbit Orbit", exact: true }).click();
+  await expect(sidebarOrbit).toHaveCount(0);
+});
+
 test("wendet Orbit-Sidebar-Schalter sofort und nach Reload an", async ({ page }) => {
   await startWithDefaultSidebarPreferences(page);
   await openSurfaceTab(page);
@@ -52,7 +75,7 @@ test("wendet Orbit-Sidebar-Schalter sofort und nach Reload an", async ({ page })
   const orbitSettings = settingsSection(page, "Orbit-Sidebar");
   await orbitSettings.getByRole("button", { name: "OpenCode OpenCode", exact: true }).click();
 
-  await page.goto("/wrapt/workbench");
+  await page.goto("/wrapt/orbit");
   const orbitTools = page.locator(".sidebar-section")
     .filter({ has: page.locator(".sidebar-section-header", { hasText: "Werkzeuge" }) })
     .filter({ has: page.locator(".orbit-palette-item") })
@@ -65,6 +88,46 @@ test("wendet Orbit-Sidebar-Schalter sofort und nach Reload an", async ({ page })
     .filter({ has: page.locator(".orbit-palette-item") })
     .first();
   await expect(reloadedOrbitTools.locator(".orbit-palette-item").filter({ hasText: "OpenCode" })).toHaveCount(0);
+});
+
+test("hält Orbit-Projekte, Orbit-Werkzeuge und allgemeine Werkzeuge getrennt", async ({ page }) => {
+  await startWithDefaultSidebarPreferences(page);
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await page.goto("/wrapt/orbit");
+
+  await page.getByRole("button", { name: "Orbit-Projekte einklappen" }).click();
+  await page.getByRole("button", { name: "Orbit-Werkzeuge einklappen" }).click();
+  await expect(page.getByRole("button", { name: "Orbit-Projekte ausklappen" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Orbit-Werkzeuge ausklappen" })).toBeVisible();
+
+  await page.goto("/wrapt/");
+  await page.getByRole("button", { name: "Werkzeuge einklappen" }).click();
+  const persisted = await page.evaluate((key) => {
+    const value = JSON.parse(window.localStorage.getItem(key) ?? "{}");
+    return value.state?.collapsedSections as Record<string, boolean>;
+  }, SIDEBAR_PREFERENCES_KEY);
+  expect(persisted["orbit-projects"]).toBe(true);
+  expect(persisted["orbit-tools"]).toBe(true);
+  expect(persisted.tools).toBe(true);
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/wrapt/orbit");
+  await page.getByRole("button", { name: "Navigation öffnen" }).click();
+  await expect(page.getByRole("dialog", { name: "Navigation" })).toBeVisible();
+  await page.getByRole("link", { name: "Dashboard" }).click();
+  await expect(page).toHaveURL(/\/wrapt\/?$/);
+  const afterMobileNavigation = await page.evaluate((key) => {
+    const value = JSON.parse(window.localStorage.getItem(key) ?? "{}");
+    return value.state?.collapsedSections as Record<string, boolean>;
+  }, SIDEBAR_PREFERENCES_KEY);
+  expect(afterMobileNavigation["orbit-projects"]).toBe(true);
+  expect(afterMobileNavigation["orbit-tools"]).toBe(true);
+  expect(afterMobileNavigation.tools).toBe(true);
+
+  await page.setViewportSize({ width: 1440, height: 960 });
+  await page.goto("/wrapt/orbit");
+  await expect(page.getByRole("button", { name: "Orbit-Projekte ausklappen" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Orbit-Werkzeuge ausklappen" })).toBeVisible();
 });
 
 test("macht Claude Code als optionale CLI-Seite verfügbar", async ({ page }) => {

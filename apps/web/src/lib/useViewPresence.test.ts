@@ -39,7 +39,7 @@ describe("deriveViewPresence", () => {
   });
 
   it("meldet in allen übrigen Ansichten ohne Panels keine Sicht", () => {
-    for (const route of ["/", "/inbox", "/workbench", "/files", "/previews", "/settings", "/usage", "/projects", "/code-editor", "/opencode"]) {
+    for (const route of ["/", "/orbit", "/workbench", "/files", "/previews", "/settings", "/usage", "/projects", "/code-editor", "/opencode"]) {
       expect(deriveViewPresence(route, "", null, null, emptyAreas, noPanels, {})).toEqual([]);
     }
   });
@@ -49,7 +49,7 @@ describe("deriveViewPresence", () => {
       { id: "panel-t3", type: "t3-code", projectId: "p1", previewId: null, reloadKey: 0 },
       { id: "panel-t3-ohne-thread", type: "t3-code", projectId: "p2", previewId: null, reloadKey: 0 },
     ];
-    const result = deriveViewPresence("/inbox", "", null, null, emptyAreas, panels, { "panel-t3": "thread-77" });
+    const result = deriveViewPresence("/workbench", "", null, null, emptyAreas, panels, { "panel-t3": "thread-77" });
     expect(result).toEqual([{ source: "t3", threadId: "thread-77" }]);
   });
 

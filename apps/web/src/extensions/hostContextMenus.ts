@@ -37,7 +37,6 @@ const definitions: readonly Definition[] = [
   ["statusbar.claude", "host.context-menu.statusbar", "Claude anzeigen", "view", 60],
   ["statusbar.reset", "host.context-menu.statusbar", "Limits zurücksetzen", "danger", 10],
   ["orbit-pane.note", "host.context-menu.orbit-pane", "Neue Textfläche", "create", 10],
-  ["orbit-pane.todo", "host.context-menu.orbit-pane", "Neue To-do-Liste", "create", 20],
   ["orbit-pane.terminal", "host.context-menu.orbit-pane", "Neues Terminal", "create", 30],
   ["orbit-pane.codex", "host.context-menu.orbit-pane", "Codex öffnen", "create", 40],
   ["orbit-pane.opencode", "host.context-menu.orbit-pane", "OpenCode öffnen", "create", 50],

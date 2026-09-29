@@ -52,10 +52,16 @@ function standaloneMode(windowValue: Window, navigatorValue: Navigator): boolean
 }
 
 function readyWithTimeout(): Promise<ServiceWorkerRegistration> {
-  const timeout = new Promise<never>((_, reject) => {
-    window.setTimeout(() => reject(new Error("Der Service Worker ist noch nicht bereit.")), 10_000);
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(() => reject(new Error("Der Service Worker ist noch nicht bereit.")), 10_000);
+    navigator.serviceWorker.ready.then((registration) => {
+      window.clearTimeout(timer);
+      resolve(registration);
+    }, (error: unknown) => {
+      window.clearTimeout(timer);
+      reject(error);
+    });
   });
-  return Promise.race([navigator.serviceWorker.ready, timeout]);
 }
 
 export function browserWebPushEnvironment(): WebPushEnvironment {
@@ -105,6 +111,7 @@ function state(status: WebPushDeviceStatus, permission: WebPushDeviceState["perm
 function deviceName(environment: WebPushEnvironment): string {
   if (environment.appleMobile) return "iPad oder iPhone";
   if (/Android/i.test(environment.userAgent)) return "Android-Gerät";
+  if (/Mac/i.test(environment.platform) || /Macintosh|Mac OS/i.test(environment.userAgent)) return "Mac-Browser";
   return "Browsergerät";
 }
 

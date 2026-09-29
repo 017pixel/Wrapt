@@ -16,7 +16,7 @@ export const allDashboardSections: DashboardSection[] = [
 ];
 
 export const dashboardSectionMeta: Record<DashboardSection, { label: string; description: string }> = {
-  quickActions: { label: "Schnellaktionen", description: "T3 Code, Workbench und Terminal" },
+  quickActions: { label: "Projektaktivität", description: "Zuletzt verwendete Arbeitsbereiche" },
   server: { label: "Serverstatus", description: "Status, Version, Uptime, Betriebssystem und Tailscale" },
   metrics: { label: "Systemmetriken", description: "CPU, RAM, Speicher, Last und Temperatur" },
   services: { label: "Dienste", description: "Konfigurierte Dienste und ihre Erreichbarkeit" },

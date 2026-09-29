@@ -1,8 +1,8 @@
 /** Standard-Schriftgröße eines Desktop-Terminals. */
 export const baseTerminalFontSize = 14;
-// Auf Touch-Shells (Mobile und iPad) ist der Inhalt deutlich kleiner, damit
-// TUIs wie OpenCode im schmalen Viewport vollständig sichtbar bleiben.
-export const compactTerminalFontSize = 8;
+// 13 px bleiben auf Touch-Geräten lesbar und geben weiterhin genug Spalten
+// für gängige TUI-Oberflächen frei.
+export const compactTerminalFontSize = 13;
 export const minimumCompensatedRenderScale = 0.1;
 export const maximumCompensatedRenderScale = 2.2;
 

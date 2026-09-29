@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it } from "vitest";
-import type { Notification } from "@wrapt/contracts";
-import { selectVisibleToasts, shouldToastNotification, toastIdentity } from "./NotificationCenter";
+import { notificationPreferencesSchema, type Notification } from "@wrapt/contracts";
+import { selectVisibleToasts, shouldToastNotification, toastDurationMilliseconds, toastIdentity } from "./NotificationCenter";
 
 function entry(id: string, source: Notification["source"], overrides: Partial<Notification> = {}) {
   const item = notification(id, source, overrides);
@@ -63,5 +63,17 @@ describe("Toast-Gate", () => {
     expect(shouldToastNotification(item, { ...baseOptions, toastsEnabled: false })).toBe(false);
     expect(shouldToastNotification(item, { ...baseOptions, sourceToastEnabled: false })).toBe(false);
     expect(shouldToastNotification(item, baseOptions)).toBe(true);
+  });
+});
+
+describe("Toast-Anzeigedauer", () => {
+  it("verwendet drei Sekunden als Standard und speichert Sekunden mit Nachkommastellen", () => {
+    expect(notificationPreferencesSchema.parse({}).toastDurationSeconds).toBe(3);
+    expect(toastDurationMilliseconds(undefined)).toBe(3_000);
+    expect(toastDurationMilliseconds(8.5)).toBe(8_500);
+  });
+
+  it("verhindert eine sofort unsichtbare Toast-Dauer", () => {
+    expect(toastDurationMilliseconds(0)).toBe(1_000);
   });
 });

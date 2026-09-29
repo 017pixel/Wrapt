@@ -2,14 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import type { TerminalKind } from "@wrapt/contracts";
 import { TerminalArea } from "../components/terminal/TerminalArea";
 import { wraptQueries } from "../lib/queryOptions";
-import { useWorkspaceStore } from "../stores/workspace";
+import { useLayoutStore } from "../stores/layout";
 import { useRouteActivity } from "../lib/routeActivity";
 import { useSearchParams } from "react-router";
 
 function CliTerminalPage({ kind }: { kind: Exclude<TerminalKind, "shell"> }) {
   const routeActive = useRouteActivity();
   const [search] = useSearchParams();
-  const selectedProjectId = useWorkspaceStore((state) => state.selectedProjectId);
+  const selectedProjectId = useLayoutStore((state) => state.selectedProjectId);
   const projects = useQuery({ ...wraptQueries.projects(), enabled: routeActive });
   const availableProjects = projects.data?.projects.filter((project) => project.availability === "available") ?? [];
   const projectId = availableProjects.find((project) => project.id === selectedProjectId)?.id

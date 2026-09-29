@@ -74,7 +74,7 @@ export function PluginOverview({ activeTab, examples, drafts, catalogEntries, in
   }, [activeTab]);
 
   return <>
-    <header className="plugins-hero"><div><span className="plugins-kicker">Persönliche Erweiterungen</span><h1>Plugins</h1><p>Erweitere deine Workbench mit eigenen Seiten, Panels, Aktionen und kleinen Werkzeugen. Die KI ist der empfohlene Startpunkt.</p></div><div className="plugins-hero-actions"><button type="button" className="quiet-button-primary" onClick={onCreate}><PlusIcon className="h-4 w-4" /> Neues Plugin erstellen</button></div></header>
+    <header className="plugins-hero"><div><span className="plugins-kicker">Persönliche Erweiterungen</span><h1>Plugins</h1><p>Erweitere Wrapt mit eigenen Seiten, Panels, Aktionen und kleinen Werkzeugen. Die KI ist der empfohlene Startpunkt.</p></div><div className="plugins-hero-actions"><button type="button" className="quiet-button-primary" onClick={onCreate}><PlusIcon className="h-4 w-4" /> Neues Plugin erstellen</button></div></header>
     <nav ref={tabsRef} className="plugins-tabs" aria-label="Plugin-Bereiche">
       {pluginTabs.map(({ id, label }) => <button key={id} type="button" aria-pressed={activeTab === id} className={`plugins-tab ${activeTab === id ? "is-active" : ""}`} onClick={() => onTabChange(id)}>{label}</button>)}
     </nav>

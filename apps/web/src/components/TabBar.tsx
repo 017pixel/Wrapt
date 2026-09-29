@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { ChevronLeftIcon, ChevronRightIcon } from "./icons";
 import { scrollTabsByWheel } from "../lib/tabScroll";
 import "./tab-bar.css";
@@ -6,6 +6,7 @@ import "./tab-bar.css";
 export interface TabBarItem<T extends string> {
   readonly id: T;
   readonly label: string;
+  readonly group?: string;
 }
 
 interface TabBarProps<T extends string> {
@@ -90,17 +91,22 @@ export function TabBar<T extends string>({ label, items, activeId, onSelect }: T
         </button>
       ) : null}
       <nav ref={listRef} className="tab-bar-list" aria-label={label} tabIndex={0}>
-        {items.map(({ id, label: itemLabel }) => (
-          <button
-            key={id}
-            type="button"
-            aria-pressed={activeId === id}
-            className={`tab-bar-item ${activeId === id ? "is-active" : ""}`}
-            onClick={() => onSelect(id)}
-          >
-            {itemLabel}
-          </button>
-        ))}
+        {items.map(({ id, label: itemLabel, group }, index) => {
+          const showGroup = group !== undefined && group !== items[index - 1]?.group;
+          return (
+            <Fragment key={id}>
+              {showGroup ? <span className="tab-bar-group-label">{group}</span> : null}
+              <button
+                type="button"
+                aria-pressed={activeId === id}
+                className={`tab-bar-item ${activeId === id ? "is-active" : ""}`}
+                onClick={() => onSelect(id)}
+              >
+                {itemLabel}
+              </button>
+            </Fragment>
+          );
+        })}
       </nav>
       {overflow.scrollable ? (
         <button

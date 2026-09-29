@@ -100,6 +100,28 @@ describe("Web-Push-Geräteclient", () => {
     expect(backend.unregister).not.toHaveBeenCalled();
   });
 
+  it("aktiviert eine installierte iPad-PWA nach der Gerätefreigabe", async () => {
+    const created = pushSubscription("ipad-pwa");
+    const browser = environment({ appleMobile: true, standalone: true, permission: "default", replacement: created.subscription });
+    const backend = server();
+    const result = await new WebPushDeviceClient(browser.value, backend.value).activate(settings());
+    expect(result).toMatchObject({ status: "active-synced", endpoint: created.subscription.endpoint });
+    expect(browser.requestPermission).toHaveBeenCalledOnce();
+    expect(backend.register).toHaveBeenCalledOnce();
+  });
+
+  it("aktiviert Push im unterstützten Mac-Browser ohne PWA-Installation", async () => {
+    const created = pushSubscription("mac-browser");
+    const browser = environment({ standalone: false, permission: "default", replacement: created.subscription });
+    browser.value.userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X) AppleWebKit/605.1.15 Safari/605.1.15";
+    browser.value.platform = "MacIntel";
+    const backend = server();
+    const result = await new WebPushDeviceClient(browser.value, backend.value).activate(settings());
+    expect(result).toMatchObject({ status: "active-synced", endpoint: created.subscription.endpoint });
+    expect(browser.requestPermission).toHaveBeenCalledOnce();
+    expect(backend.register).toHaveBeenCalledOnce();
+  });
+
   it("deaktiviert nur das aktuelle lokale Gerät und dessen Endpoint", async () => {
     const local = pushSubscription("android");
     const backend = server();

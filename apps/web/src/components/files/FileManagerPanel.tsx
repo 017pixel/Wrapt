@@ -12,7 +12,7 @@ import { apiClient } from "../../lib/apiClient";
 import { requestOrbitNode } from "../../lib/orbitPalette";
 import { breadcrumbsFor, formatBytes, formatDate, parentPath, previewKindOf, sortEntries } from "../../lib/fileManager";
 import { useFileManagerStore } from "../../stores/fileManager";
-import { useWorkspaceStore } from "../../stores/workspace";
+import { useLayoutStore } from "../../stores/layout";
 import { useResponsiveShell } from "../../lib/useResponsiveShell";
 import { usePaneWidth } from "../../lib/usePaneWidth";
 import { ConfirmDialog, PromptDialog } from "../ModalDialog";
@@ -59,7 +59,7 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
   const setSort = useFileManagerStore((state) => state.setSort);
   const toggleFavorite = useFileManagerStore((state) => state.toggleFavorite);
   const setExpanded = useFileManagerStore((state) => state.setExpanded);
-  const openPanel = useWorkspaceStore((state) => state.openPanel);
+  const openPanel = useLayoutStore((state) => state.openPanel);
   const projects = useQuery({ ...wraptQueries.projects(), enabled: routeActive });
 
   const tree = useQuery({

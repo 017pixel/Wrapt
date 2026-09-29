@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router";
 import { useShallow } from "zustand/react/shallow";
-import type { NotificationPresenceItem, Panel, Workspace } from "@wrapt/contracts";
+import type { LayoutState, NotificationPresenceItem, Panel } from "@wrapt/contracts";
 import { apiClient } from "./apiClient";
 import { terminalAreaView, useTerminalWorkspaceStore } from "../stores/terminalWorkspace";
-import { useWorkspaceStore, visiblePanels } from "../stores/workspace";
+import { useLayoutStore, visiblePanels } from "../stores/layout";
 import { usePanelPresenceStore } from "../stores/panelPresence";
 import { useResponsiveShell } from "./useResponsiveShell";
 import { t3ThreadIdFromPath } from "./t3Thread";
@@ -12,8 +12,8 @@ import { t3ThreadIdFromPath } from "./t3Thread";
 /**
  * Meldet dem Server, welche Quelle und welcher Chat gerade sichtbar sind:
  * die aktive Route (T3-Thread, Hermes-Sitzung, CLI-Terminal) plus alle offenen
- * T3-/Hermes-/Terminal-Panels der Arbeitsfläche. Der Server markiert passende
- * Benachrichtigungen als gelesen (kein Inbox-Eintrag für offene Chats) und
+ * T3-/Hermes-/Terminal-Panels des Layouts. Der Server markiert passende
+ * bereits sichtbare Vorgänge gelten als gesehen, und Push wird während aktiver Nutzung
  * unterdrückt Push, solange die Workbench aktiv genutzt wird. Der Toast
  * erscheint in beiden Fällen.
  *
@@ -94,18 +94,20 @@ export function useViewPresence() {
     for (const areaId of Object.keys(state.document?.areaLayouts ?? {})) areas[areaId] = terminalAreaView(state, areaId);
     return areas;
   }));
-  const workspacePanels = useWorkspaceStore((state) => state.panels);
-  const workspacePage = useWorkspaceStore((state) => state.workspaces);
-  const activeWorkspaceId = useWorkspaceStore((state) => state.activeWorkspaceId);
-  const maximizedPanelId = useWorkspaceStore((state) => state.maximizedPanelId);
-  const focusedPanelId = useWorkspaceStore((state) => state.focusedPanelId);
+  const layoutPanels = useLayoutStore((state) => state.panels);
+  const layoutPages = useLayoutStore((state) => state.pages);
+  const activePageId = useLayoutStore((state) => state.activePageId);
+  const maximizedPanelId = useLayoutStore((state) => state.maximizedPanelId);
+  const focusedPanelId = useLayoutStore((state) => state.focusedPanelId);
   const visiblePanelsList = useMemo(() => visiblePanels({
-    panels: workspacePanels,
-    workspaces: workspacePage,
-    activeWorkspaceId,
+    version: 4,
+    selectedProjectId: null,
+    panels: layoutPanels,
+    pages: layoutPages,
+    activePageId,
     maximizedPanelId,
     focusedPanelId,
-  } as Workspace, responsive.isTouchShell), [activeWorkspaceId, focusedPanelId, maximizedPanelId, responsive.isTouchShell, workspacePage, workspacePanels]);
+  } satisfies LayoutState, responsive.isTouchShell), [activePageId, focusedPanelId, layoutPages, layoutPanels, maximizedPanelId, responsive.isTouchShell]);
   const panelT3Threads = usePanelPresenceStore((state) => state.t3Threads);
   const panelOpenCodeSessions = usePanelPresenceStore((state) => state.opencodeSessions);
   const [t3ThreadId, setT3ThreadId] = useState<string | null>(null);

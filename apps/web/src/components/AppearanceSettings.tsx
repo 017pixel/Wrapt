@@ -25,7 +25,7 @@ type ColorGroup = {
 const colorLabels: Record<ColorKey, { label: string; hint: string }> = {
   accent: { label: "Akzent", hint: "Primäre Aktionen und aktive Zustände" },
   accentContrast: { label: "Akzenttext", hint: "Text auf gefüllten Akzentflächen" },
-  background: { label: "Grundfläche", hint: "Hintergrund der gesamten Workbench" },
+  background: { label: "Grundfläche", hint: "Hintergrund der gesamten Wrapt-Oberfläche" },
   surface: { label: "Karte", hint: "Standardfläche für Inhalte" },
   surfaceRaised: { label: "Erhöht", hint: "Hervorgehobene Karten und Eingaben" },
   surfaceOverlay: { label: "Overlay", hint: "Dialoge, Menüs und schwebende Flächen" },

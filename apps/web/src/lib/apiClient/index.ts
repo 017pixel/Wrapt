@@ -1,6 +1,7 @@
 import { extensionsApi } from "./extensions.js";
 import { filesystemApi } from "./filesystem.js";
 import { hermesApi } from "./hermes.js";
+import { notesApi } from "./notes.js";
 import { notificationsApi } from "./notifications.js";
 import { pluginsApi } from "./plugins.js";
 import { orbitApi } from "./orbit.js";
@@ -18,6 +19,7 @@ export const apiClient = {
   ...systemApi,
   ...extensionsApi,
   ...hermesApi,
+  ...notesApi,
   ...notificationsApi,
   ...pluginsApi,
   ...previewsApi,

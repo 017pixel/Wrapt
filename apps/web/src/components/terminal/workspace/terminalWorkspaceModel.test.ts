@@ -16,6 +16,7 @@ import {
   sanitizePaneLayout,
   sanitizeWorkspaceDocument,
 } from "./terminalWorkspaceModel";
+import { openSessionOps } from "./terminal-session-operations";
 
 function document(): TerminalWorkspaceV2 {
   return {
@@ -69,6 +70,60 @@ describe("applyWorkspaceOperations", () => {
     const result = applyWorkspaceOperations(base, [{ type: "deleteEntry", id: "entry-a" }]);
     expect(result.areaLayouts.standalone!.paneLayout).toMatchObject({ type: "pane", runtimeId: RUNTIME_B });
     expect(result.areaLayouts.standalone!.focusedPaneId).toBe(`pane-${RUNTIME_B}`);
+  });
+});
+
+describe("Session-Handoff", () => {
+  it("legt eine unbekannte Session mit Server-Metadaten und derselben Runtime-ID an", () => {
+    const session = {
+      id: "00000000-0000-4000-8000-000000000021",
+      runtimeId: RUNTIME_A,
+      kind: "codex" as const,
+      mode: "agent" as const,
+      projectId: "projekt-a",
+      cwd: "/projects/a",
+      pid: 42,
+      cols: 100,
+      rows: 30,
+      status: "running" as const,
+      createdAt: "2026-09-26T10:00:00.000Z",
+      updatedAt: "2026-09-26T10:00:00.000Z",
+      exitCode: null,
+      exitSignal: null,
+      supervisor: "tmux" as const,
+      managed: true,
+      connectedClients: 1,
+    };
+    const operations = openSessionOps(document(), "codex-standalone", session);
+    const next = applyWorkspaceOperations(document(), operations);
+
+    expect(next.entries).toEqual([expect.objectContaining({
+      id: `entry-${RUNTIME_A}`,
+      runtimeId: RUNTIME_A,
+      name: "Codex 1",
+      kind: "codex",
+      projectId: "projekt-a",
+      initialCwd: "/projects/a",
+    })]);
+    expect(next.areaLayouts["codex-standalone"]!.paneLayout).toMatchObject({ type: "pane", runtimeId: RUNTIME_A });
+  });
+
+  it("fokussiert bestehende Entries ohne Namen oder Nutzereinstellungen zu ersetzen", () => {
+    const base = applyWorkspaceOperations(document(), [{
+      type: "createEntry",
+      entry: { id: "entry-existing", runtimeId: RUNTIME_A, name: "Mein Terminal", parentFolderId: null, sortOrder: 0, pinned: true, persistent: true, kind: "shell", projectId: null, initialCwd: null },
+    }]);
+    const session = {
+      id: "00000000-0000-4000-8000-000000000022", runtimeId: RUNTIME_A, kind: "shell" as const, mode: "agent" as const,
+      projectId: null, cwd: "/tmp", pid: 42, cols: 100, rows: 30, status: "running" as const,
+      createdAt: "2026-09-26T10:00:00.000Z", updatedAt: "2026-09-26T10:00:00.000Z",
+      exitCode: null, exitSignal: null, supervisor: "tmux" as const, managed: true, connectedClients: 1,
+    };
+    const next = applyWorkspaceOperations(base, openSessionOps(base, "standalone", session));
+
+    expect(next.entries).toHaveLength(1);
+    expect(next.entries[0]).toMatchObject({ name: "Mein Terminal", pinned: true, persistent: true });
+    expect(next.areaLayouts.standalone!.paneLayout).toMatchObject({ type: "pane", runtimeId: RUNTIME_A });
   });
 });
 

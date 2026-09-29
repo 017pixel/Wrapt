@@ -1,4 +1,5 @@
 import type { DeviceOrientation } from "../config/devicePresets";
+import type { PreviewViewportSize } from "../lib/previewViewport";
 import { LocalPreviewRuntime, relayCanvasPinch } from "./preview/LocalPreviewRuntime";
 
 export { relayCanvasPinch };
@@ -21,6 +22,10 @@ export function PreviewSlotFrame(props: {
   title?: string;
   lazy?: boolean;
   showControls?: boolean;
+  controlsVariant?: "overlay" | "simulator";
+  viewportSize?: PreviewViewportSize | null;
+  onViewportSizeChange?: (size: PreviewViewportSize | null) => void;
+  onDeviceChange?: (deviceId: string | null) => void;
   interactionLocked?: boolean;
   onSlotAssigned?: (slotId: number, url: string) => void;
   onOrientationChange?: (orientation: DeviceOrientation) => void;
