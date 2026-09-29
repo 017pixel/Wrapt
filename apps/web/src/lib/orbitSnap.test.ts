@@ -38,6 +38,7 @@ function node(overrides: Partial<OrbitNode>): OrbitNode {
     contributionId: null,
     stateVersion: null,
     state: {},
+    noteId: null,
     locked: false,
     zIndex: 1,
     ...overrides,

@@ -2,14 +2,13 @@ import { createContext, memo, useContext, useEffect, useMemo, useRef, useState, 
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
-import { CloseIcon, CodeFileIcon, CopyIcon, DeviceRotateIcon, ExternalLinkIcon, FileIcon, FolderCodeIcon, FrameIcon, FullscreenIcon, MoreIcon, PlusIcon, RefreshIcon, SaveIcon, TodoIcon, TrashIcon } from "../icons";
-import { Handle, NodeResizeControl, Position, useStore, type NodeProps } from "@xyflow/react";
+import { CloseIcon, CopyIcon, DeviceRotateIcon, ExternalLinkIcon, FileIcon, FolderCodeIcon, FrameIcon, FullscreenIcon, MoreIcon, RefreshIcon, SaveIcon } from "../icons";
+import { Handle, NodeResizeControl, Position, type NodeProps } from "@xyflow/react";
 import { ORBIT_SIZE_LIMITS, type HermesCronJob, type HermesResult, type HermesStatus, type HermesTask, type LocalPortsResponse, type OrbitNode, type Panel, type Project, type Service } from "@wrapt/contracts";
 import { ApiClientError, apiClient } from "../../lib/apiClient";
 import { wraptQueries } from "../../lib/queryOptions";
 import { orbitNodeColor } from "../../lib/orbitAppearance";
-import { formatUsageReset, orbitProviderWindows } from "../../lib/orbitUsage";
-import { parseOrbitTodo, serializeOrbitTodo, type OrbitTodoItem } from "../../lib/orbitTodo";
+import { formatUsageReset, orbitProviderWindows, orbitUsageEmptyMessage, orbitUsageRefreshIntervalMs } from "../../lib/orbitUsage";
 import { orbitDefaultNodeSize, previewSlotGeometry, useOrbitStore } from "../../stores/orbit";
 import { ToolPanel } from "../ToolPanel";
 import { OrbitGalleryNode } from "./OrbitGalleryNode";
@@ -25,24 +24,22 @@ import { elementContainsEventTarget } from "../../lib/domEvents";
 import { useRouteActivity } from "../../lib/routeActivity";
 import { orbitNodeRendererRegistry } from "../../extensions/orbitNodeRendererRegistry";
 import { hermesSourceLabels } from "../../lib/hermesPresentation";
+import { NoteOrbitNode } from "../notes/NoteOrbitNode.js";
+import { orbitToolLabels as toolLabels } from "../../lib/toolLabels";
+import { orbitPreviewSessionKeyForNode } from "../../lib/orbitPreviewIdentity";
+import { FocusNodeAction, focusFromHeader } from "./OrbitNodeFocusAction";
+import { OrbitSnippetEditor } from "./OrbitSnippetEditor";
+import { OrbitTodoCard } from "./OrbitTodoCard";
+import { OrbitNodeStandaloneAction } from "./OrbitNodeStandaloneAction";
+import { useOrbitCanvasScale } from "./useOrbitCanvasScale";
+import { terminalStandalonePathForTool } from "../terminal/terminal-handoff";
+import { codeServerState } from "../../lib/codeServerAvailability";
+import "./orbit-cards.css";
 
 function hermesSessionRoute(sessionId: string): string {
   const path = `/chat?resume=${encodeURIComponent(sessionId)}`;
   return `/hermes-agent?path=${encodeURIComponent(path)}`;
 }
-
-const toolLabels: Record<NonNullable<Panel["type"]>, string> = {
-  "t3-code": "T3 Code",
-  "code-server": "Code-Server",
-  preview: "Preview",
-  browser: "Browser (Legacy)",
-  terminal: "Terminal",
-  codex: "Codex",
-  opencode: "OpenCode",
-  files: "Files",
-  notion: "Notion (Legacy)",
-  hermes: "Hermes Agent",
-};
 
 export interface OrbitNodeRuntimeData {
   projects: Project[];
@@ -154,9 +151,9 @@ function NodeChrome({ id, title, children, selected, resizable = true }: { id: s
   return (
     <div className={`orbit-node-shell ${selected ? "is-selected" : ""}`}>
       {resizable ? <OrbitNodeResizer id={id} selected={selected} minWidth={160} minHeight={96} /> : null}
-      <header className="orbit-node-header orbit-node-drag-handle">
-        <span className="orbit-node-status" />
+      <header className="orbit-node-header orbit-node-drag-handle" onDoubleClick={(event) => focusFromHeader(event, id)}>
         <strong>{title}</strong>
+        <FocusNodeAction id={id} />
       </header>
       <div className="orbit-node-content nodrag nopan nowheel">{children}</div>
       <EdgeHandles />
@@ -177,11 +174,12 @@ function ProjectNode({ id, selected }: { id: string; selected: boolean }) {
   return (
     <div className={`orbit-project-node ${selected ? "is-selected" : ""}`} style={{ "--orbit-project-color": color } as React.CSSProperties}>
       <OrbitNodeResizer id={id} selected={selected} minWidth={190} minHeight={140} />
-      <div className="orbit-project-orbit orbit-node-drag-handle">
+      <div className="orbit-project-orbit orbit-node-drag-handle" onDoubleClick={(event) => focusFromHeader(event, id)}>
         <FolderCodeIcon className="h-5 w-5" />
         <span>Projekt</span>
         <strong>{project?.name ?? node.title}</strong>
         <small>{relatedCount} verbundene Knoten</small>
+        <FocusNodeAction id={id} />
       </div>
       <EdgeHandles />
     </div>
@@ -193,23 +191,30 @@ function ToolNode({ id, selected }: { id: string; selected: boolean }) {
   const focusNode = useOrbitStore((state) => state.focusNode);
   const runtime = useOrbitNodeRuntime();
   const project = runtime.projects.find((candidate) => candidate.id === node.projectId);
-  const zoom = useStore((state) => Math.round(state.transform[2] * 100) / 100);
+  const zoom = useOrbitCanvasScale();
   const type = node.toolType ?? "terminal";
   const previewId = type === "preview" ? (node.previewId ?? project?.previews[0]?.id ?? null) : node.previewId;
   const panel: Panel = { id: node.runtimeId ?? node.id, type, projectId: node.projectId, previewId, reloadKey: 0 };
+  const standalonePath = terminalStandalonePathForTool(node.runtimeId, type);
   const codeServerMode = runtime.services.find((service) => service.id === "code-server")?.mode ?? "external";
   return (
     <div className={`orbit-live-node ${selected ? "is-selected" : ""}`}>
       <OrbitNodeResizer id={id} selected={selected} minWidth={320} minHeight={220} />
-      <div className="orbit-live-drag-handle orbit-node-drag-handle" title={`${toolLabels[type]} verschieben`} aria-label={`${toolLabels[type]} verschieben`}><span /></div>
+      <header className="orbit-node-header orbit-node-drag-handle" onDoubleClick={(event) => focusFromHeader(event, id)}>
+        <strong>{node.title || toolLabels[type]}</strong>
+        {standalonePath ? <OrbitNodeStandaloneAction path={standalonePath} /> : null}
+        <FocusNodeAction id={id} />
+      </header>
       <div className="orbit-tool-content nodrag nopan nowheel">
         <ToolPanel
           panel={panel}
           project={project}
           codeServerMode={codeServerMode}
+          codeServerState={codeServerState(runtime.services)}
           isFocused={selected}
           minimal
           terminalRenderScale={zoom}
+          terminalSessionId={node.runtimeId}
           onFocus={() => focusNode(id)}
         />
       </div>
@@ -219,47 +224,19 @@ function ToolNode({ id, selected }: { id: string; selected: boolean }) {
 }
 
 function NoteNode({ id, selected }: { id: string; selected: boolean }) {
-  const updateNode = useOrbitStore((state) => state.updateNode);
   const node = useActiveOrbitNode(id)!;
-  return <NodeChrome id={id} title={node.title} selected={selected}><textarea aria-label={`${node.title} bearbeiten`} value={node.content} onChange={(event) => updateNode(id, { content: event.target.value })} placeholder="Notiz schreiben…" className="orbit-note-editor nodrag nowheel" /></NodeChrome>;
+  return <NodeChrome id={id} title={node.title} selected={selected}><NoteOrbitNode id={id} /></NodeChrome>;
 }
 
 function TodoNode({ id, selected }: { id: string; selected: boolean }) {
-  const updateNode = useOrbitStore((state) => state.updateNode);
   const node = useActiveOrbitNode(id)!;
-  const [draft, setDraft] = useState("");
-  const items = useMemo(() => parseOrbitTodo(node.content), [node.content]);
-  const saveItems = (next: OrbitTodoItem[]) => updateNode(id, { content: serializeOrbitTodo(next) });
-  const addItem = () => {
-    const text = draft.trim();
-    if (!text || items.length >= 250) return;
-    saveItems([...items, { id: globalThis.crypto.randomUUID(), text, done: false }]);
-    setDraft("");
-  };
-  const completed = items.filter((item) => item.done).length;
-  return <NodeChrome id={id} title={node.title} selected={selected}>
-    <div className="orbit-todo nodrag nowheel">
-      <div className="orbit-todo-list" role="list" aria-label={`${node.title} Aufgaben`}>
-        {items.map((item, index) => <div className={`orbit-todo-item ${item.done ? "is-done" : ""}`} role="listitem" key={item.id}>
-          <input type="checkbox" checked={item.done} aria-label={`Aufgabe ${index + 1} abhaken`} onChange={(event) => saveItems(items.map((candidate) => candidate.id === item.id ? { ...candidate, done: event.target.checked } : candidate))} />
-          <input value={item.text} aria-label={`Aufgabe ${index + 1}`} maxLength={500} onChange={(event) => saveItems(items.map((candidate) => candidate.id === item.id ? { ...candidate, text: event.target.value } : candidate))} />
-          <button type="button" aria-label={`Aufgabe ${index + 1} löschen`} onClick={() => saveItems(items.filter((candidate) => candidate.id !== item.id))}><TrashIcon className="h-3.5 w-3.5" /></button>
-        </div>)}
-        {items.length === 0 ? <div className="orbit-todo-empty"><TodoIcon className="h-5 w-5" /><span>Noch keine Aufgaben</span></div> : null}
-      </div>
-      <form className="orbit-todo-add" onSubmit={(event) => { event.preventDefault(); addItem(); }}>
-        <input value={draft} onChange={(event) => setDraft(event.target.value)} maxLength={500} aria-label="Neue Aufgabe" placeholder="Aufgabe hinzufügen…" />
-        <button type="submit" aria-label="Aufgabe hinzufügen" disabled={!draft.trim()}><PlusIcon className="h-4 w-4" /></button>
-      </form>
-      <small>{completed} von {items.length} erledigt</small>
-    </div>
-  </NodeChrome>;
+  return <NodeChrome id={id} title={node.title} selected={selected}><OrbitTodoCard id={id} title={node.title} content={node.content} /></NodeChrome>;
 }
 
 function SnippetNode({ id, selected }: { id: string; selected: boolean }) {
   const updateNode = useOrbitStore((state) => state.updateNode);
   const node = useActiveOrbitNode(id)!;
-  return <NodeChrome id={id} title={node.title} selected={selected}><div className="orbit-snippet-meta"><CodeFileIcon className="h-3.5 w-3.5" /><input aria-label="Programmiersprache" value={node.language ?? "text"} onChange={(event) => updateNode(id, { language: event.target.value })} /></div><textarea aria-label={`${node.title} Code bearbeiten`} value={node.content} onChange={(event) => updateNode(id, { content: event.target.value })} spellCheck={false} placeholder="Code einfügen…" className="orbit-code-editor nodrag nowheel" /></NodeChrome>;
+  return <NodeChrome id={id} title={node.title} selected={selected}><OrbitSnippetEditor title={node.title} language={node.language ?? "text"} content={node.content} onLanguageChange={(language) => updateNode(id, { language })} onContentChange={(content) => updateNode(id, { content })} /></NodeChrome>;
 }
 
 function FileNode({ id, selected }: { id: string; selected: boolean }) {
@@ -313,7 +290,8 @@ function UsageNode({ id, selected }: { id: string; selected: boolean }) {
   const usage = useQuery({ ...wraptQueries.usage(), enabled: routeActive });
   const provider = usage.data?.providers.find((candidate) => candidate.providerId === node.provider);
   const windows = orbitProviderWindows(provider);
-  return <NodeChrome id={id} title={`${provider?.providerName ?? node.title} Limits`} selected={selected}><div className="orbit-usage-list">{windows.length ? windows.map((window) => <div className="orbit-usage-row" key={window.id}><div><span>{window.label}</span><strong>{window.remaining}% frei</strong></div><div className="orbit-usage-track"><i style={{ width: `${window.remaining}%` }} /></div><small className="orbit-usage-reset">{formatUsageReset(window.resetsAt)}</small></div>) : <p>{usage.isLoading ? "Nutzung wird geladen…" : "Keine Limitdaten verfügbar."}</p>}</div><small className="orbit-usage-updated">Aktualisierung alle 60 Sekunden</small></NodeChrome>;
+  const emptyMessage = orbitUsageEmptyMessage(provider, usage);
+  return <NodeChrome id={id} title={`${provider?.providerName ?? node.title} Limits`} selected={selected}><div className="orbit-usage-list">{windows.length ? windows.map((window) => <div className="orbit-usage-row" key={window.id}><div><span>{window.label}</span><strong>{window.remaining}% frei</strong></div><div className="orbit-usage-track"><i style={{ width: `${window.remaining}%` }} /></div><small className="orbit-usage-reset">{formatUsageReset(window.resetsAt)}</small></div>) : <p>{emptyMessage}</p>}</div><small className="orbit-usage-updated">Aktualisierung alle {orbitUsageRefreshIntervalMs / 1_000} Sekunden</small></NodeChrome>;
 }
 
 function hermesDate(value: string | null): string {
@@ -408,7 +386,7 @@ function HermesResultsNode({ id, selected }: { id: string; selected: boolean }) 
 
 function FrameNode({ id, selected }: { id: string; selected: boolean }) {
   const node = useActiveOrbitNode(id)!;
-  return <div className={`orbit-frame-node ${selected ? "is-selected" : ""}`}><OrbitNodeResizer id={id} selected={selected} minWidth={320} minHeight={240} /><div className="orbit-frame-title orbit-node-drag-handle"><FrameIcon className="h-3.5 w-3.5" />{node.title}</div><EdgeHandles frame /></div>;
+  return <div className={`orbit-frame-node ${selected ? "is-selected" : ""}`}><OrbitNodeResizer id={id} selected={selected} minWidth={320} minHeight={240} /><div className="orbit-frame-title orbit-node-drag-handle" onDoubleClick={(event) => focusFromHeader(event, id)}><FrameIcon className="h-3.5 w-3.5" /><strong>{node.title}</strong><FocusNodeAction id={id} /></div><EdgeHandles frame /></div>;
 }
 
 function PreviewGroupNode({ id, selected }: { id: string; selected: boolean }) {
@@ -467,7 +445,7 @@ function PreviewGroupNode({ id, selected }: { id: string; selected: boolean }) {
   return (
     <div className={`orbit-preview-group ${selected ? "is-selected" : ""}`}>
       <OrbitNodeResizer id={id} selected={selected} minWidth={420} minHeight={300} />
-      <header className="orbit-preview-group-header orbit-node-drag-handle">
+      <header className="orbit-preview-group-header orbit-node-drag-handle" onDoubleClick={(event) => focusFromHeader(event, id)}>
         <input
           className="nodrag"
           value={node.title}
@@ -479,6 +457,7 @@ function PreviewGroupNode({ id, selected }: { id: string; selected: boolean }) {
         <div className="orbit-preview-layout nodrag" aria-label="Gruppenlayout">
           {(["1", "2", "3", "6"] as const).map((value) => <button type="button" key={value} className={layout === value ? "is-active" : ""} onClick={() => setLayout(id, value)}>{value}</button>)}
         </div>
+        <FocusNodeAction id={id} />
         <button type="button" className="nodrag" title="Alle Slots neu laden" aria-label="Alle Slots neu laden" onClick={() => {
           const board = useOrbitStore.getState().document.boards.find((candidate) => candidate.id === useOrbitStore.getState().document.activeBoardId);
           board?.nodes.filter((slot) => slot.parentId === id).forEach((slot) => updateNode(slot.id, { content: String(Number(slot.content || "0") + 1) }));
@@ -519,7 +498,7 @@ function PreviewSlotNode({ id, selected }: { id: string; selected: boolean }) {
     const board = useOrbitStore.getState().document.boards.find((candidate) => candidate.id === useOrbitStore.getState().document.activeBoardId);
     const release = board ? previewSlotReleasedOnTargetChange(board, id) : null;
     if (release) void releasePreviewSlots([release]);
-    void releasePreviewSessions([`orbit-preview:${id}`]);
+    if (board) void releasePreviewSessions(previewSessionKeysWithNode(board, id));
     updateNode(id, {
       previewTarget: normalized.kind === "local" ? String(normalized.port) : normalized.url,
       previewPath: normalized.kind === "local" ? normalized.path : "/",
@@ -532,7 +511,7 @@ function PreviewSlotNode({ id, selected }: { id: string; selected: boolean }) {
     const board = useOrbitStore.getState().document.boards.find((candidate) => candidate.id === useOrbitStore.getState().document.activeBoardId);
     const release = board ? previewSlotReleasedOnTargetChange(board, id) : null;
     if (release) void releasePreviewSlots([release]);
-    void releasePreviewSessions([`orbit-preview:${id}`]);
+    if (board) void releasePreviewSessions(previewSessionKeysWithNode(board, id));
     updateNode(id, { previewTarget: null, previewSlotId: null });
     setTargetDraft("");
   };
@@ -553,14 +532,7 @@ function PreviewSlotNode({ id, selected }: { id: string; selected: boolean }) {
   return (
     <div className={`orbit-preview-slot ${selected ? "is-selected" : ""} ${node.previewIsolation ? "is-isolated" : ""}`}>
       {!node.parentId ? <OrbitNodeResizer id={id} selected={selected} minWidth={320} minHeight={240} /> : null}
-      <header
-        className="orbit-node-drag-handle"
-        title={node.parentId ? "Ziehen oder doppelklicken zum Herauslösen" : "Preview verschieben"}
-        onDoubleClick={(event) => {
-          const target = event.target as HTMLElement;
-          if (node.parentId && (target === event.currentTarget || target.classList.contains("orbit-preview-slot-drag"))) detach();
-        }}
-      >
+      <header className="orbit-node-drag-handle" title="Preview verschieben" onDoubleClick={(event) => focusFromHeader(event, id)}>
         <span className={`orbit-preview-state ${reachable ? "is-active" : target && !runtime.localPortsLoading ? "is-error" : ""}`} title={stateTitle} />
         <input className="nodrag" value={node.title} aria-label="Slot-Label" maxLength={40} onChange={(event) => updateNode(id, { title: event.target.value || "Preview" })} />
         {node.previewIsolation ? <i title="Eigene localStorage-/IndexedDB-Session" /> : null}
@@ -572,6 +544,8 @@ function PreviewSlotNode({ id, selected }: { id: string; selected: boolean }) {
           orientation={node.previewOrientation}
           onSlotDeviceChange={(next) => updateNode(id, { previewDeviceId: next })}
         />
+        <FocusNodeAction id={id} />
+        {node.parentId ? <button type="button" className="nodrag orbit-preview-slot-detach" title="Preview aus Gruppe lösen" aria-label="Preview aus Gruppe lösen" onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); detach(); }}><ExternalLinkIcon className="h-3 w-3" /></button> : null}
         {deviceId !== "responsive" ? <button type="button" className="nodrag" title="Ausrichtung drehen" onClick={() => updateNode(id, { previewOrientation: node.previewOrientation === "portrait" ? "landscape" : "portrait" })}><DeviceRotateIcon className="h-3 w-3" /></button> : null}
         <button type="button" className="nodrag" title="Slot leeren" onClick={clear}><CloseIcon className="h-3 w-3" /></button>
       </header>
@@ -595,7 +569,7 @@ function PreviewSlotNode({ id, selected }: { id: string; selected: boolean }) {
             lazy
             showControls
             projectId={node.projectId}
-            sessionKey={`orbit-preview:${id}`}
+            sessionKey={orbitPreviewSessionKeyForNode(node)}
             onSlotAssigned={(slotId) => { if (slotId !== node.previewSlotId) updateNode(id, { previewSlotId: slotId }); }}
             onOrientationChange={(next) => updateNode(id, { previewOrientation: next })}
             onFocus={() => focusNode(id)}

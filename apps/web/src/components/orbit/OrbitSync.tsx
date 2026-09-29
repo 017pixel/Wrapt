@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { ApiClientError, apiClient } from "../../lib/apiClient";
-import { migrateWorkspaceToOrbit, useOrbitStore } from "../../stores/orbit";
-import { useWorkspaceStore } from "../../stores/workspace";
+import { migrateLayoutToOrbit, useOrbitStore } from "../../stores/orbit";
+import { useLayoutStore } from "../../stores/layout";
 import { useRouteActivity } from "../../lib/routeActivity";
 
 const AUTOSAVE_DELAY_MS = 700;
@@ -40,7 +40,7 @@ export function OrbitSync() {
     void apiClient.orbit().then((response) => {
       if (!active) return;
       syncInterval.current = response.syncIntervalMilliseconds;
-      const legacy = migrateWorkspaceToOrbit(useWorkspaceStore.getState());
+      const legacy = migrateLayoutToOrbit(useLayoutStore.getState());
       useOrbitStore.getState().initialize(response, legacy);
       const pending = readPendingDraft();
       if (pending?.baseRevision === response.revision) {
@@ -94,7 +94,7 @@ export function OrbitSync() {
               blockedDocument.current = snapshot.document;
               useOrbitStore.getState().resolveConflict(
                 latest,
-                "Die Arbeitsfläche wurde parallel geändert. Dein lokaler Entwurf bleibt erhalten und wird nach der nächsten Bearbeitung erneut gespeichert.",
+                "Das Orbit-Dokument wurde parallel geändert. Dein lokaler Entwurf bleibt erhalten und wird nach der nächsten Bearbeitung erneut gespeichert.",
               );
               return;
             } catch (retryError) {

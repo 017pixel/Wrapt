@@ -12,8 +12,6 @@ import {
   addEdge,
   applyEdgeChanges,
   applyNodeChanges,
-  useReactFlow,
-  useViewport,
   type Connection,
   type Edge as FlowEdge,
   type EdgeChange,
@@ -25,9 +23,10 @@ import {
   type ReactFlowInstance,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, CommandIcon, CopyIcon, EditIcon, ExternalLinkIcon, FinderIcon, FolderSearchIcon, FrameIcon, FullscreenIcon, HandIcon, LocateIcon, LockIcon, MinusIcon, NoteIcon, PlusIcon, PointerIcon, PreviewsIcon, RedoIcon, RefreshIcon, SaveIcon, SearchIcon, SelectBoxIcon, TodoIcon, TrashIcon, UndoIcon } from "../components/icons";
+import { ChevronLeftIcon, ChevronRightIcon, CloseIcon, CommandIcon, CopyIcon, EditIcon, ExternalLinkIcon, FinderIcon, FolderSearchIcon, FrameIcon, FullscreenIcon, HandIcon, LockIcon, MinusIcon, NoteIcon, PlusIcon, PointerIcon, PreviewsIcon, RefreshIcon, SaveIcon, SearchIcon, SelectBoxIcon, TrashIcon } from "../components/icons";
 import type { OrbitBoard, OrbitNode, Project } from "@wrapt/contracts";
 import { OrbitNodeRuntimeProvider, OrbitNodeView } from "../components/orbit/OrbitNodeView";
+import { OrbitMiniMap, orbitMinimapToken } from "../components/orbit/OrbitMiniMap";
 import { OrbitEdgeView } from "../components/orbit/OrbitEdgeView";
 import { OrbitSync } from "../components/orbit/OrbitSync";
 import { OrbitProjectBrowserDialog } from "../components/orbit/OrbitProjectBrowserDialog";
@@ -37,26 +36,31 @@ import { apiClient } from "../lib/apiClient";
 import { useResponsiveShell } from "../lib/useResponsiveShell";
 import { previewSlotsReleasedWithNode, releasePreviewSlots } from "../lib/previewSlotLifecycle";
 import { consumeOrbitIntents } from "../lib/wraptActions";
-import { resolveOrbitProjectId } from "../lib/orbitProjectBinding";
+import { resolveOrbitProjectId, resolveOrbitToolProjectBinding } from "../lib/orbitProjectBinding";
 import { nearestEdgeSides, orbitEdgeColor } from "../lib/orbitAppearance";
 import { OrbitColorPicker } from "../components/orbit/OrbitColorPicker";
 import { compactedOrbitBounds, expandedOrbitBounds, orbitBoundsEqual } from "../lib/orbitTerritory";
 import { orbitNodeWorldRectangle, orbitSnapPreview, type OrbitSnapPreview } from "../lib/orbitSnap";
 import { useRouteActivity } from "../lib/routeActivity";
-import { serializeOrbitTodo } from "../lib/orbitTodo";
 import { elementContainsEventTarget } from "../lib/domEvents";
 import { getActiveOrbitBoard, orbitDefaultNodeSize, previewGroupSize, previewSlotGeometry, useOrbitStore } from "../stores/orbit";
-import { useWorkspaceStore } from "../stores/workspace";
+import { useLayoutStore } from "../stores/layout";
 import { createOrbitBoardIndex, type OrbitBoardIndex } from "../lib/orbitBoardIndex";
 import { openPreviewGroupWindow } from "../lib/previewWindow";
 import { openGlobalContextMenu } from "../components/context-menu/contextMenuEvents";
 import { hostContextMenuId } from "../extensions/hostContextMenus";
 import { PromptDialog } from "../components/ModalDialog";
 import { useOrbitCanvasDrag } from "./orbitCanvasInteraction";
+import { OrbitToolbar } from "./OrbitToolbar";
+import { useOrbitQuicknote } from "../lib/orbitQuicknote";
+import { useOrbitNodeFocus } from "../lib/useOrbitNodeFocus";
+import { commandPayloads } from "../lib/orbitCommandPalette";
+import { findOrbitToolNodeByRuntimeId } from "../lib/orbitResourceLookup";
+import { openOrbitPreviewTarget } from "../lib/orbitPreviewOpen";
+import { freeOrbitPosition } from "../lib/orbitPlacement";
 
 const nodeTypes = { orbit: OrbitNodeView };
 const edgeTypes = { orbit: OrbitEdgeView };
-const PLACEMENT_PADDING = 48;
 const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 const DELETE_ZONE_HEIGHT = 128;
 
@@ -108,8 +112,6 @@ function PreviewContextIsland({ board, focusedNodeId, onOpenHub }: { board: Orbi
   );
 }
 
-const MINIMAP_WIDTH = 144;
-const MINIMAP_HEIGHT = 94;
 
 type FlowGeometry = {
   position: { x: number; y: number };
@@ -192,37 +194,15 @@ function nearestProject(board: OrbitBoard, position: { x: number; y: number }) {
     .sort((left, right) => left.distance - right.distance)[0];
 }
 
-function overlapsNode(
-  position: { x: number; y: number },
-  size: { width: number; height: number },
-  node: OrbitNode,
-) {
-  if (node.type === "frame") return false;
-  return position.x < node.position.x + node.size.width + PLACEMENT_PADDING
-    && position.x + size.width + PLACEMENT_PADDING > node.position.x
-    && position.y < node.position.y + node.size.height + PLACEMENT_PADDING
-    && position.y + size.height + PLACEMENT_PADDING > node.position.y;
-}
-
 function freePosition(
   board: OrbitBoard,
   desiredCenter: { x: number; y: number },
   size: { width: number; height: number },
 ) {
-  const clamp = (center: { x: number; y: number }) => ({
-    x: Math.round(Math.min(board.worldBounds.maxX - size.width, Math.max(board.worldBounds.minX, center.x - size.width / 2)) / 16) * 16,
-    y: Math.round(Math.min(board.worldBounds.maxY - size.height, Math.max(board.worldBounds.minY, center.y - size.height / 2)) / 16) * 16,
-  });
-  for (let index = 0; index < 96; index += 1) {
-    const radius = index === 0 ? 0 : 104 * Math.sqrt(index);
-    const center = index === 0 ? desiredCenter : {
-      x: desiredCenter.x + Math.cos(index * GOLDEN_ANGLE) * radius,
-      y: desiredCenter.y + Math.sin(index * GOLDEN_ANGLE) * radius * .72,
-    };
-    const candidate = clamp(center);
-    if (!board.nodes.some((node) => overlapsNode(candidate, size, node))) return candidate;
-  }
-  return clamp(desiredCenter);
+  const position = freeOrbitPosition(board, desiredCenter, size);
+  const bounds = expandedOrbitBounds(board.worldBounds, { position, size });
+  if (!orbitBoundsEqual(bounds, board.worldBounds)) useOrbitStore.getState().setWorldBounds(bounds);
+  return position;
 }
 
 function projectOrbitCenter(board: OrbitBoard, projectId: string | null, fallback: { x: number; y: number }, size: { width: number; height: number }) {
@@ -262,124 +242,6 @@ function containsOrbitPoint(rectangle: { position: { x: number; y: number }; siz
     && point.x <= rectangle.position.x + rectangle.size.width
     && point.y >= rectangle.position.y
     && point.y <= rectangle.position.y + rectangle.size.height;
-}
-
-function commandPayloads(projects: Project[]): Array<{ keywords: string; payload: OrbitPalettePayload }> {
-  const base: Array<{ keywords: string; payload: OrbitPalettePayload }> = [
-    { keywords: "terminal shell konsole", payload: { type: "tool", title: "Terminal", toolType: "terminal" } },
-    { keywords: "t3 code agent", payload: { type: "tool", title: "T3 Code", toolType: "t3-code" } },
-    { keywords: "hermes agent chat assistent", payload: { type: "tool", title: "Hermes Agent", toolType: "hermes" } },
-    { keywords: "hermes status health dienst gateway", payload: { type: "hermesStatus", title: "Hermes Status" } },
-    { keywords: "hermes aufgaben tasks laufend", payload: { type: "hermesTasks", title: "Hermes Aufgaben" } },
-    { keywords: "hermes cron automatisierungen jobs", payload: { type: "hermesCron", title: "Hermes Automatisierungen" } },
-    { keywords: "hermes ergebnisse results telegram cron", payload: { type: "hermesResults", title: "Hermes Ergebnisse" } },
-    { keywords: "preview browser web", payload: { type: "tool", title: "Preview", toolType: "preview" } },
-    { keywords: "preview gruppe einzeln 1er split", payload: { type: "previewGroup", title: "Einzel-Preview", layout: "1" } },
-    { keywords: "preview gruppe 2er split", payload: { type: "previewGroup", title: "2er-Preview-Gruppe", layout: "2" } },
-    { keywords: "preview gruppe 3er split", payload: { type: "previewGroup", title: "3er-Preview-Gruppe", layout: "3" } },
-    { keywords: "preview gruppe 6er 2x3 split", payload: { type: "previewGroup", title: "6er-Preview-Gruppe", layout: "6" } },
-    { keywords: "editor code server vscode", payload: { type: "tool", title: "Code-Server", toolType: "code-server" } },
-    { keywords: "codex agent", payload: { type: "tool", title: "Codex", toolType: "codex" } },
-    { keywords: "opencode agent", payload: { type: "tool", title: "OpenCode", toolType: "opencode" } },
-    { keywords: "note notiz text markdown", payload: { type: "note", title: "Neue Notiz" } },
-    { keywords: "todo aufgabe liste checkliste", payload: { type: "todo", title: "To-do-Liste" } },
-    { keywords: "snippet code block", payload: { type: "snippet", title: "Code-Snippet" } },
-    { keywords: "frame bereich gruppe umrandung", payload: { type: "frame", title: "Neuer Bereich" } },
-    { keywords: "dateien files dateimanager finder explorer ordner server upload download", payload: { type: "tool", title: "Dateimanager", toolType: "files" } },
-    { keywords: "usage codex limits nutzung", payload: { type: "usage", title: "Codex Nutzung", provider: "codex" } },
-    { keywords: "usage opencode limits nutzung", payload: { type: "usage", title: "OpenCode Nutzung", provider: "opencode" } },
-    { keywords: "usage claude code limits nutzung", payload: { type: "usage", title: "Claude Code Nutzung", provider: "claude" } },
-  ];
-  return [...base, ...projects.map((project) => ({ keywords: `projekt project ${project.name}`, payload: { type: "project" as const, title: project.name, projectId: project.id } }))];
-}
-
-const minimapTokens: Record<string, string> = {};
-function minimapToken(name: string, fallback: string): string {
-  if (!minimapTokens[name]) {
-    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-    minimapTokens[name] = value || fallback;
-  }
-  return minimapTokens[name];
-}
-
-function minimapNodeColor(type: OrbitNode["type"]): string {
-  if (type === "project") return minimapToken("--orbit-minimap-project", "#6686a5");
-  if (type === "usage") return minimapToken("--orbit-minimap-usage", "#719b77");
-  if (type === "hermesStatus" || type === "hermesTasks" || type === "hermesCron" || type === "hermesResults") return minimapToken("--orbit-minimap-usage", "#719b77");
-  if (type === "frame") return minimapToken("--orbit-minimap-frame", "#4c4c4c");
-  return minimapToken("--orbit-minimap-tool", "#8a8a84");
-}
-
-function OrbitMiniMap({ board, wrapper }: { board: OrbitBoard; wrapper: React.RefObject<HTMLDivElement | null> }) {
-  const viewport = useViewport();
-  const reactFlow = useReactFlow();
-  const [canvasSize, setCanvasSize] = useState({ width: 1_280, height: 720 });
-
-  useEffect(() => {
-    const element = wrapper.current;
-    if (!element) return;
-    const update = () => setCanvasSize({ width: element.clientWidth || 1_280, height: element.clientHeight || 720 });
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [wrapper]);
-
-  const zoom = Math.max(.1, viewport.zoom);
-  const visible = {
-    x: -viewport.x / zoom,
-    y: -viewport.y / zoom,
-    width: canvasSize.width / zoom,
-    height: canvasSize.height / zoom,
-  };
-  const center = { x: visible.x + visible.width / 2, y: visible.y + visible.height / 2 };
-  const radarAspect = MINIMAP_WIDTH / MINIMAP_HEIGHT;
-  let radarWidth = Math.max(1_800, visible.width * 2.55);
-  let radarHeight = radarWidth / radarAspect;
-  if (radarHeight < visible.height * 2.55) {
-    radarHeight = visible.height * 2.55;
-    radarWidth = radarHeight * radarAspect;
-  }
-  const radar = { x: center.x - radarWidth / 2, y: center.y - radarHeight / 2, width: radarWidth, height: radarHeight };
-
-  const panFromPointer = (event: React.PointerEvent<HTMLDivElement>) => {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const x = radar.x + ((event.clientX - bounds.left) / bounds.width) * radar.width;
-    const y = radar.y + ((event.clientY - bounds.top) / bounds.height) * radar.height;
-    void reactFlow.setCenter(x, y, { zoom: viewport.zoom, duration: event.type === "pointerdown" ? 120 : 0 });
-  };
-
-  return (
-    <div
-      className="orbit-minimap nodrag nowheel"
-      role="application"
-      tabIndex={0}
-      aria-label="Zentrierte Minimap. Ziehen zum Navigieren, Mausrad zum Zoomen."
-      onPointerDown={(event) => { if (event.button !== 0) return; event.currentTarget.setPointerCapture(event.pointerId); panFromPointer(event); }}
-      onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) panFromPointer(event); }}
-      onPointerUp={(event) => event.currentTarget.releasePointerCapture(event.pointerId)}
-      onWheel={(event) => { event.preventDefault(); if (event.deltaY < 0) void reactFlow.zoomIn({ duration: 120 }); else void reactFlow.zoomOut({ duration: 120 }); }}
-      onKeyDown={(event) => {
-        const distance = 80 / zoom;
-        if (event.key === "+" || event.key === "=") { event.preventDefault(); void reactFlow.zoomIn({ duration: 120 }); }
-        if (event.key === "-") { event.preventDefault(); void reactFlow.zoomOut({ duration: 120 }); }
-        if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
-          event.preventDefault();
-          const x = center.x + (event.key === "ArrowLeft" ? -distance : event.key === "ArrowRight" ? distance : 0);
-          const y = center.y + (event.key === "ArrowUp" ? -distance : event.key === "ArrowDown" ? distance : 0);
-          void reactFlow.setCenter(x, y, { zoom: viewport.zoom, duration: 120 });
-        }
-      }}
-    >
-      <svg viewBox={`${radar.x} ${radar.y} ${radar.width} ${radar.height}`} aria-hidden="true" preserveAspectRatio="none">
-        <rect className="orbit-minimap-surface" x={radar.x} y={radar.y} width={radar.width} height={radar.height} />
-        {board.nodes.map((node) => <rect key={node.id} className="orbit-minimap-node" x={node.position.x} y={node.position.y} width={node.size.width} height={node.size.height} rx={Math.min(24, node.size.width * .05)} fill={minimapNodeColor(node.type)} />)}
-        <rect data-testid="orbit-minimap-viewport" className="orbit-minimap-viewport" x={visible.x} y={visible.y} width={visible.width} height={visible.height} />
-        <line className="orbit-minimap-center" x1={center.x - radar.width * .025} x2={center.x + radar.width * .025} y1={center.y} y2={center.y} />
-        <line className="orbit-minimap-center" x1={center.x} x2={center.x} y1={center.y - radar.height * .038} y2={center.y + radar.height * .038} />
-      </svg>
-    </div>
-  );
 }
 
 function OrbitInspector({ projects, expanded, onExpand, onCollapse }: { projects: Project[]; expanded: boolean; onExpand: () => void; onCollapse: () => void }) {
@@ -422,9 +284,11 @@ function OrbitCanvas() {
   const syncError = useOrbitStore((state) => state.syncError);
   const syncNotice = useOrbitStore((state) => state.syncNotice);
   const updatedAt = useOrbitStore((state) => state.updatedAt);
+  const revision = useOrbitStore((state) => state.revision);
   const addNode = useOrbitStore((state) => state.addNode);
   const addPreviewGroup = useOrbitStore((state) => state.addPreviewGroup);
   const updateNode = useOrbitStore((state) => state.updateNode);
+  const assignProject = useOrbitStore((state) => state.assignProject);
   const removeNode = useOrbitStore((state) => state.removeNode);
   const duplicateNode = useOrbitStore((state) => state.duplicateNode);
   const focusNode = useOrbitStore((state) => state.focusNode);
@@ -448,8 +312,8 @@ function OrbitCanvas() {
     () => projectsQuery.data?.projects.filter((project) => project.availability === "available") ?? [],
     [projectsQuery.data?.projects],
   );
-  const selectedProjectId = useWorkspaceStore((state) => state.selectedProjectId);
-  const selectProject = useWorkspaceStore((state) => state.selectProject);
+  const selectedProjectId = useLayoutStore((state) => state.selectedProjectId);
+  const selectProject = useLayoutStore((state) => state.selectProject);
   const isMobile = useResponsiveShell().isTouchShell;
   const board = document.boards.find((candidate) => candidate.id === document.activeBoardId) ?? document.boards[0]!;
   const hasPreviewSlots = useMemo(() => board.nodes.some((node) => node.type === "previewSlot"), [board.nodes]);
@@ -464,6 +328,33 @@ function OrbitCanvas() {
     localPortsError: localPortsQuery.isError,
     refreshLocalPorts,
   }), [localPortsQuery.data, localPortsQuery.isError, localPortsQuery.isLoading, projectsQuery.data?.projects, refreshLocalPorts, servicesQuery.data?.services]);
+
+  useEffect(() => {
+    if (!routeActive || projectsQuery.isError || !projectsQuery.data) return;
+    const focusedNode = board.nodes.find((node) => node.id === document.focusedNodeId);
+    for (const node of board.nodes) {
+      const binding = resolveOrbitToolProjectBinding(node, board, focusedNode, selectedProjectId, projectsQuery.data.projects);
+      if (!binding) continue;
+      if (node.projectId !== binding.projectId) assignProject(node.id, binding.projectId);
+      if (binding.previewId !== undefined && node.previewId !== binding.previewId) {
+        updateNode(node.id, { previewId: binding.previewId });
+      }
+    }
+  }, [assignProject, board, document.focusedNodeId, projectsQuery.data, projectsQuery.isError, routeActive, selectedProjectId, updateNode]);
+
+  useEffect(() => {
+    const openToolProjectSettings = (event: Event) => {
+      const runtimeId = (event as CustomEvent<{ runtimeId?: unknown }>).detail?.runtimeId;
+      if (typeof runtimeId !== "string") return;
+      const node = board.nodes.find((candidate) => candidate.type === "tool" && (candidate.runtimeId === runtimeId || candidate.id === runtimeId));
+      if (!node) return;
+      focusNode(node.id);
+      window.requestAnimationFrame(() => setInspectorOpen(true));
+    };
+    window.addEventListener("orbit:open-tool-project-settings", openToolProjectSettings);
+    return () => window.removeEventListener("orbit:open-tool-project-settings", openToolProjectSettings);
+  }, [board.nodes, focusNode]);
+
   const boardIndex = useMemo(() => createOrbitBoardIndex(board), [board]);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const boardRef = useRef(board);
@@ -490,9 +381,6 @@ function OrbitCanvas() {
   const [edgeLabelDraft, setEdgeLabelDraft] = useState("");
   const [renameNodeId, setRenameNodeId] = useState<string | null>(null);
   const [contextName, setContextName] = useState("");
-  const [syncOpen, setSyncOpen] = useState(false);
-  const [workspaceEditing, setWorkspaceEditing] = useState(false);
-  const [workspaceName, setWorkspaceName] = useState("");
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [mobileCanvasMode, setMobileCanvasMode] = useState<MobileCanvasMode>("navigate");
   const [mobileHintVisible, setMobileHintVisible] = useState(() => {
@@ -511,6 +399,7 @@ function OrbitCanvas() {
   const [historyVersion, setHistoryVersion] = useState(0);
   const connectionRef = useRef<{ sourceId: string | null; completed: boolean }>({ sourceId: null, completed: false });
   const toolbarRef = useRef<HTMLElement>(null);
+  const setToolbarElement = useCallback((element: HTMLElement | null) => { toolbarRef.current = element; }, []);
   const prevFocusedNodeIdRef = useRef<string | null>(document.focusedNodeId);
   const nodeGeometryKey = useMemo(
     () => board.nodes.map((node) => `${node.id}:${node.parentId ?? ""}:${node.position.x}:${node.position.y}:${node.size.width}:${node.size.height}:${node.zIndex}:${Number(node.locked)}:${node.previewLayout ?? ""}:${node.previewTarget ?? ""}:${node.previewDeviceId ?? ""}:${node.previewSlotId ?? ""}`).join("|"),
@@ -518,6 +407,8 @@ function OrbitCanvas() {
   );
 
   const canvasInteractive = !isMobile || mobileCanvasMode === "interact";
+  const [pasteStatus, setPasteStatus] = useState("");
+  const { focusNodeInCanvas, cancelFocusAnimation } = useOrbitNodeFocus({ wrapperRef, instanceRef, isMobile, inspectorOpen, focusNode });
 
   const beginCanvasInteraction = useCallback((interaction: CanvasInteraction) => {
     canvasInteractionRef.current = interaction;
@@ -561,8 +452,6 @@ function OrbitCanvas() {
     setCanvasInteraction(null);
     setDeleteArmed(false);
     setInspectorOpen(false);
-    setWorkspaceEditing(false);
-    setWorkspaceName(board.name);
     const viewport = { x: board.viewport.x, y: board.viewport.y, zoom: board.viewport.zoom };
     if (instanceRef.current && !viewportsEqual(instanceRef.current.getViewport(), viewport)) {
       // React Flow verwaltet die sichtbare Bewegung selbst. Eine animierte
@@ -570,7 +459,7 @@ function OrbitCanvas() {
       // bekämpfen und den Canvas kurz auf den alten Stand ziehen.
       void instanceRef.current.setViewport(viewport, { duration: 0 });
     }
-  }, [board.id, board.name, board.viewport.x, board.viewport.y, board.viewport.zoom]);
+  }, [board.id, board.viewport.x, board.viewport.y, board.viewport.zoom]);
   useEffect(() => { setInspectorOpen(false); }, [document.focusedNodeId]);
 
   useEffect(() => {
@@ -731,6 +620,24 @@ function OrbitCanvas() {
     }
     const requestedCenter = requestedPosition ?? centerPosition();
     const current = getActiveOrbitBoard();
+    if (payload.type === "tool" && payload.runtimeId) {
+      const existing = findOrbitToolNodeByRuntimeId(document.boards, payload.runtimeId);
+      if (existing) {
+        const typeMatches = existing.node.toolType === (payload.toolType ?? "terminal");
+        const projectMatches = payload.projectId === undefined || existing.node.projectId === payload.projectId;
+        if (!typeMatches || !projectMatches) {
+          setPasteStatus("Diese Session-ID ist bereits einem anderen Werkzeug oder Projekt zugeordnet.");
+          return;
+        }
+        if (existing.board.id !== current.id) {
+          activateBoard(existing.board.id);
+          window.requestAnimationFrame(() => focusNodeInCanvas(existing.node.id));
+        } else {
+          focusNodeInCanvas(existing.node.id);
+        }
+        return;
+      }
+    }
     if (payload.type === "previewGroup") {
       const layout = payload.layout ?? "1";
       const size = previewGroupSize(layout);
@@ -769,10 +676,27 @@ function OrbitCanvas() {
       }
       return;
     }
+    if (payload.type === "previewTarget") {
+      openOrbitPreviewTarget(payload, {
+        boards: useOrbitStore.getState().document.boards,
+        activeBoardId: current.id,
+        activateBoard,
+        focusNodeInCanvas,
+        updateNode,
+        scheduleFocus: (focus) => window.requestAnimationFrame(focus),
+        create: ({ projectId, title, previewId, port, path, previewSlotId, previewStorageProfileId, previewIsolation }) => {
+          const size = orbitDefaultNodeSize("previewSlot");
+          const position = freePosition(current, projectOrbitCenter(current, projectId, requestedCenter, size), size);
+          const id = addNode({ type: "previewSlot", title, position, projectId, previewId, previewTarget: String(port), previewPath: path, ...(previewSlotId !== undefined ? { previewSlotId } : {}), ...(previewStorageProfileId !== undefined ? { previewStorageProfileId } : {}), previewIsolation });
+          if (id) { focusNode(isMobile ? null : id); revealPosition(position, size); }
+        },
+      });
+      return;
+    }
     if (payload.type === "project" && payload.projectId) {
       const existing = current.nodes.find((node) => node.type === "project" && node.projectId === payload.projectId);
       selectProject(payload.projectId);
-      if (existing) { focusNode(existing.id); void instanceRef.current?.fitView({ nodes: [{ id: existing.id }], duration: 260, padding: .7 }); return; }
+      if (existing) { focusNodeInCanvas(existing.id); return; }
     }
     const nearest = nearestProject(current, requestedCenter);
     const focusedNode = current.nodes.find((node) => node.id === document.focusedNodeId);
@@ -793,20 +717,21 @@ function OrbitCanvas() {
       title: payload.title,
       position,
       projectId: payload.type === "project" ? payload.projectId ?? null : inferredProjectId,
+      runtimeId: payload.type === "tool" ? payload.runtimeId ?? null : null,
       toolType,
       previewId: toolType === "preview" ? payload.previewId ?? project?.previews[0]?.id ?? null : null,
       provider: payload.provider ?? null,
-      content: payload.type === "todo" ? serializeOrbitTodo([]) : payload.type === "note" ? "" : payload.type === "snippet" ? "// Code-Snippet\n" : payload.type === "file" ? "" : "",
+      content: payload.type === "note" ? "" : payload.type === "snippet" ? "// Code-Snippet\n" : payload.type === "file" ? "" : "",
       language: payload.type === "snippet" ? "typescript" : null,
     });
     if (id) {
       focusNode(payload.type === "project" || !isMobile ? id : null);
       if (!requestedPosition) revealPosition(position, size);
     }
-  }, [addNode, addPreviewGroup, centerPosition, document.focusedNodeId, focusNode, isMobile, projects, revealPosition, selectProject, selectedProjectId, updateNode]);
+  }, [activateBoard, addNode, addPreviewGroup, centerPosition, document.boards, document.focusedNodeId, focusNode, focusNodeInCanvas, isMobile, projects, revealPosition, selectProject, selectedProjectId, updateNode]);
 
-  const [pasteStatus, setPasteStatus] = useState("");
   const queryClient = useQueryClient();
+  const createGlobalQuicknote = useOrbitQuicknote(setPasteStatus);
 
   // Bilder landen als Vorschau-Node in der Mediengalerie, alle anderen Dateitypen
   // werden still in die Dateigalerie hochgeladen (nur Statusmeldung, kein Node).
@@ -874,7 +799,7 @@ function OrbitCanvas() {
   }, []);
 
   useEffect(() => {
-    if (!hydrated || location.pathname !== "/workbench") return;
+    if (!hydrated || location.pathname !== "/orbit") return;
     for (const intent of consumeOrbitIntents()) addPayload(intent);
   }, [addPayload, hydrated, location.pathname]);
 
@@ -890,9 +815,9 @@ function OrbitCanvas() {
   // Anfragen, deren `orbit:add`-Event vor dem Mount der Workbench verloren ging
   // (z. B. Sidebar-Klick direkt nach dem Seitenaufbau), über die Queue nachholen.
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || location.pathname !== "/orbit") return;
     for (const payload of consumeOrbitPayloads()) addPayload(payload);
-  }, [addPayload, hydrated]);
+  }, [addPayload, hydrated, location.pathname]);
 
   useEffect(() => {
     const key = (event: KeyboardEvent) => {
@@ -900,11 +825,11 @@ function OrbitCanvas() {
       if (target?.matches("input, textarea, select, [contenteditable=true]")) return;
       if (event.key === "/") { event.preventDefault(); setCommandOpen(true); setCommandQuery(""); }
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") { event.preventDefault(); setCommandOpen(true); setCommandQuery(""); }
-      if (event.key === "Escape") { setCommandOpen(false); setEdgeMenu(null); }
+      if (event.key === "Escape") { cancelFocusAnimation(); setCommandOpen(false); setEdgeMenu(null); }
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, []);
+  }, [cancelFocusAnimation]);
 
   const expandTerritoryForGeometry = useCallback((geometry: FlowGeometry) => {
     const current = getActiveOrbitBoard();
@@ -1113,18 +1038,6 @@ function OrbitCanvas() {
     void instanceRef.current?.fitView({ duration: 260, padding: .18 });
   };
 
-  const createWorkspace = () => {
-    const name = `Arbeitsfläche ${document.boards.length + 1}`;
-    addBoard(name);
-  };
-
-  const saveWorkspaceName = () => {
-    const value = workspaceName.trim();
-    if (!value) return;
-    renameBoard(board.id, value);
-    setWorkspaceEditing(false);
-  };
-
   const drop = (event: React.DragEvent) => {
     event.preventDefault();
     setDragActive(false);
@@ -1137,7 +1050,6 @@ function OrbitCanvas() {
 
   const commands = commandPayloads(projects).filter((item) => `${item.payload.title} ${item.keywords}`.toLowerCase().includes(commandQuery.toLowerCase())).slice(0, 12);
   const syncLabel = syncError ? "Synchronisierung gestört" : saving ? "Wird gespeichert" : dirty ? "Ungespeicherte Änderung" : syncNotice ? "Serverstand übernommen" : "Auf Server gespeichert";
-  const syncTone = syncError ? "error" : saving || dirty ? "busy" : syncNotice ? "info" : "saved";
   const activeNodeIds = useMemo(() => new Set(board.nodes.map((node) => node.id)), [board.nodes]);
   const activeFlowNodes = useMemo(() => flowNodes
     .filter((node) => activeNodeIds.has(node.id))
@@ -1177,7 +1089,6 @@ function OrbitCanvas() {
       title: "Neue Fläche",
       actions: [
         { id: hostContextMenuId("orbit-pane.note"), icon: <NoteIcon className="h-4 w-4" />, onSelect: () => addPayload({ type: "note", title: "Neue Textfläche" }, position) },
-        { id: hostContextMenuId("orbit-pane.todo"), icon: <TodoIcon className="h-4 w-4" />, onSelect: () => addPayload({ type: "todo", title: "To-do-Liste" }, position) },
         { id: hostContextMenuId("orbit-pane.terminal"), icon: <CommandIcon className="h-4 w-4" />, onSelect: () => addPayload({ type: "tool", title: "Terminal", toolType: "terminal" }, position) },
         { id: hostContextMenuId("orbit-pane.codex"), icon: <CommandIcon className="h-4 w-4" />, onSelect: () => addPayload({ type: "tool", title: "Codex", toolType: "codex" }, position) },
         { id: hostContextMenuId("orbit-pane.opencode"), icon: <CommandIcon className="h-4 w-4" />, onSelect: () => addPayload({ type: "tool", title: "OpenCode", toolType: "opencode" }, position) },
@@ -1199,42 +1110,38 @@ function OrbitCanvas() {
       onPaste={pasteIntoOrbit}
       onPointerUpCapture={connectToNodeBody}
     >
-      <nav ref={toolbarRef} className="orbit-main-island" aria-label="Orbit-Steuerung" data-history-version={historyVersion} onScroll={updateToolbarOverflow}>
-        <div className="orbit-workspace-control">
-          {workspaceEditing ? <form className="orbit-workspace-rename" onSubmit={(event) => { event.preventDefault(); saveWorkspaceName(); }}>
-            <input autoFocus aria-label="Name der Arbeitsfläche" value={workspaceName} maxLength={80} onChange={(event) => setWorkspaceName(event.target.value)} onKeyDown={(event) => { if (event.key === "Escape") { setWorkspaceName(board.name); setWorkspaceEditing(false); } }} />
-            <button type="submit" disabled={!workspaceName.trim()} aria-label="Arbeitsflächenname speichern" title="Arbeitsflächenname speichern"><SaveIcon className="h-4 w-4" /></button>
-            <button type="button" onClick={() => { setWorkspaceName(board.name); setWorkspaceEditing(false); }} aria-label="Umbenennen abbrechen" title="Umbenennen abbrechen"><CloseIcon className="h-4 w-4" /></button>
-          </form> : <>
-            <label><span>Arbeitsfläche</span><select aria-label="Arbeitsfläche auswählen" value={board.id} onChange={(event) => activateBoard(event.target.value)}>{document.boards.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · {candidate.nodes.length}</option>)}</select></label>
-            <button type="button" onClick={() => { setWorkspaceName(board.name); setWorkspaceEditing(true); }} aria-label="Arbeitsfläche umbenennen" title="Arbeitsfläche umbenennen"><EditIcon className="h-4 w-4" /></button>
-          </>}
-          <button type="button" onClick={createWorkspace} aria-label="Arbeitsfläche hinzufügen" title="Arbeitsfläche hinzufügen"><PlusIcon className="h-4 w-4" /></button>
-          {document.boards.length > 1 ? <button type="button" onClick={() => removeBoard(board.id)} aria-label="Arbeitsfläche entfernen" title="Arbeitsfläche entfernen"><TrashIcon className="h-4 w-4" /></button> : null}
-        </div>
-        <span className="orbit-island-divider" />
-        <div className="orbit-island-buttons" aria-label="Verlauf und Knoten">
-          <button type="button" onClick={undo} disabled={historyRef.current.length === 0} title="Rückgängig" aria-label="Rückgängig"><UndoIcon className="h-4 w-4" /></button>
-          <button type="button" onClick={redo} disabled={futureRef.current.length === 0} title="Wiederholen" aria-label="Wiederholen"><RedoIcon className="h-4 w-4" /></button>
-          <button type="button" onClick={() => addPayload({ type: "note", title: "Neue Notiz" })} title="Notiz hinzufügen" aria-label="Notiz hinzufügen"><NoteIcon className="h-4 w-4" /></button>
-          <button type="button" onClick={() => addPayload({ type: "frame", title: "Neuer Bereich" })} title="Bereich hinzufügen" aria-label="Bereich hinzufügen"><FrameIcon className="h-4 w-4" /></button>
-          <button type="button" onClick={() => setConnectionsVisible((visible) => !visible)} className={connectionsVisible ? "is-active" : ""} title="Verbindungen umschalten" aria-label="Verbindungen umschalten"><LocateIcon className="h-4 w-4" /></button>
-        </div>
-        <span className="orbit-island-divider" />
-        <div className={`orbit-sync-status is-${syncTone} ${syncOpen ? "is-open" : ""}`}>
-          <button type="button" onClick={() => setSyncOpen((open) => !open)} aria-label={syncLabel} aria-expanded={syncOpen} title={syncLabel}><span /></button>
-          <div className="orbit-sync-popover" role="status">
-            <header><strong>{syncLabel}</strong><small>{updatedAt && !dirty ? `Revision ${useOrbitStore.getState().revision} · ${new Date(updatedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}` : "Server-Synchronisierung"}</small>{syncError ? <p className="orbit-sync-message">{syncError}</p> : syncNotice ? <p className="orbit-sync-message is-info">{syncNotice}</p> : null}</header>
-            <div><span className="is-saved" /><p><strong>Grün</strong><small>Alle Änderungen sind gespeichert.</small></p></div>
-            <div><span className="is-busy" /><p><strong>Gelb</strong><small>Änderungen warten oder werden gespeichert.</small></p></div>
-            <div><span className="is-info" /><p><strong>Blau</strong><small>Ein neuerer Serverstand wurde übernommen.</small></p></div>
-            <div><span className="is-error" /><p><strong>Rot</strong><small>Die Synchronisierung benötigt Aufmerksamkeit.</small></p></div>
-          </div>
-        </div>
-      </nav>
+      <OrbitToolbar
+        board={board}
+        boards={document.boards}
+        dirty={dirty}
+        saving={saving}
+        syncError={syncError}
+        syncNotice={syncNotice}
+        updatedAt={updatedAt}
+        revision={revision}
+        canUndo={historyRef.current.length > 0}
+        canRedo={futureRef.current.length > 0}
+        connectionsVisible={connectionsVisible}
+        activeTools={board.nodes.filter((node) => node.type === "tool").length}
+        activePreviews={board.nodes.filter((node) => node.type === "previewSlot" && node.previewTarget !== null).length}
+        historyVersion={historyVersion}
+        onToolbarMount={setToolbarElement}
+        onToolbarScroll={updateToolbarOverflow}
+        onActivateBoard={activateBoard}
+        onRenameBoard={renameBoard}
+        onAddBoard={() => addBoard(`Arbeitsfläche ${document.boards.length + 1}`)}
+        onRemoveBoard={removeBoard}
+        onUndo={undo}
+        onRedo={redo}
+        onQuicknote={createGlobalQuicknote}
+        onAddFrame={() => addPayload({ type: "frame", title: "Neuer Bereich" })}
+        onToggleConnections={() => setConnectionsVisible((visible) => !visible)}
+        onOpenNotes={() => navigate("/orbit/notizen")}
+        onOpenPreviews={() => navigate("/orbit/previews")}
+      />
       {isMobile && toolbarOverflow.before ? <button type="button" className="orbit-toolbar-step is-before" onClick={() => scrollToolbar(-1)} aria-label="Steuerleiste zurückscrollen"><ChevronLeftIcon className="h-4 w-4" /></button> : null}
       {isMobile && toolbarOverflow.after ? <button type="button" className="orbit-toolbar-step is-after" onClick={() => scrollToolbar(1)} aria-label="Steuerleiste weiterscrollen"><ChevronRightIcon className="h-4 w-4" /></button> : null}
-      <PreviewContextIsland board={board} focusedNodeId={document.focusedNodeId} onOpenHub={() => navigate("/previews")} />
+      <PreviewContextIsland board={board} focusedNodeId={document.focusedNodeId} onOpenHub={() => navigate("/orbit/previews")} />
 
       <div className="orbit-quick-panel" aria-label="Canvas-Steuerung">
         <div className="orbit-quick-primary"><button type="button" onClick={() => { setCommandQuery(""); setCommandOpen(true); }}><CommandIcon className="h-4 w-4" /><span>Befehl</span></button><button type="button" className="orbit-compact-action" onClick={compactTerritory}><SelectBoxIcon className="h-4 w-4" /><span>Kompaktieren</span></button>{isMobile ? <><button type="button" className="orbit-mobile-mode" onClick={toggleMobileCanvasMode} aria-pressed={mobileCanvasMode === "interact"} aria-label={mobileCanvasMode === "navigate" ? "Canvas-Modus: Navigieren. Zu Inhalt benutzen wechseln" : "Canvas-Modus: Inhalt benutzen. Zu Navigieren wechseln"}>{mobileCanvasMode === "navigate" ? <HandIcon className="h-4 w-4" /> : <PointerIcon className="h-4 w-4" />}<span>{mobileCanvasMode === "navigate" ? "Canvas" : "Inhalt"}</span></button></> : null}</div>
@@ -1314,21 +1221,21 @@ function OrbitCanvas() {
         className="orbit-flow"
         proOptions={{ hideAttribution: true }}
         >
-          <Background variant={BackgroundVariant.Dots} gap={24} size={1.2} color={minimapToken("--orbit-canvas-dot", "#343434")} />
+          <Background variant={BackgroundVariant.Dots} gap={24} size={1.2} color={orbitMinimapToken("--orbit-canvas-dot", "#343434")} />
         </ReactFlow>
       </OrbitNodeRuntimeProvider>
       {canvasInteraction === "node" ? <div className="orbit-interaction-shield" aria-hidden onPointerUp={endCanvasInteraction} onPointerCancel={endCanvasInteraction} /> : null}
       <OrbitMiniMap board={board} wrapper={wrapperRef} />
       <div className="orbit-drop-cue" aria-hidden><PlusIcon className="h-5 w-5" /><span>Auf dem Orbit ablegen</span></div>
       {snapPreview && snapTarget ? <div className="orbit-snap-cue is-visible" role="status" aria-live="polite"><FrameIcon className="h-4 w-4" /><div><strong>{snapPreview.action === "swap" ? "Slot tauschen" : "Preview einordnen"}</strong><span>{snapSlot ? `${snapSlot.title} in ${snapTarget.title}` : snapTarget.title}</span></div></div> : null}
-      <div className={`orbit-delete-zone ${draggingNodeId ? "is-visible" : ""} ${deleteArmed ? "is-armed" : ""}`} aria-hidden={!draggingNodeId}><TrashIcon className="h-5 w-5" /><div><strong>{deleteArmed ? "Loslassen zum Entfernen" : "Hierher ziehen zum Entfernen"}</strong><span>Der Knoten wird aus dieser Arbeitsfläche gelöscht.</span></div></div>
+      <div className={`orbit-delete-zone ${draggingNodeId ? "is-visible" : ""} ${deleteArmed ? "is-armed" : ""}`} aria-hidden={!draggingNodeId}><TrashIcon className="h-5 w-5" /><div><strong>{deleteArmed ? "Loslassen zum Entfernen" : "Hierher ziehen zum Entfernen"}</strong><span>Der Knoten wird aus diesem Board gelöscht.</span></div></div>
       {edgeMenu ? <div className={`orbit-edge-menu ${edgeEditing ? "is-editing" : ""}`} style={{ left: edgeMenu.x, top: edgeMenu.y }} role="dialog" aria-label="Verbindung bearbeiten" onPointerDown={(event) => event.stopPropagation()}>
         {edgeEditing ? <form onSubmit={(event) => { event.preventDefault(); updateEdge(edgeMenu.edgeId, { label: edgeLabelDraft.trim() || null }); setEdgeEditing(false); }}><input autoFocus aria-label="Verbindungstext" value={edgeLabelDraft} maxLength={80} onChange={(event) => setEdgeLabelDraft(event.target.value)} /><button type="submit"><SaveIcon className="h-3.5 w-3.5" /> Speichern</button></form> : <><span>Verbindung</span><div><button type="button" className="is-edit" onClick={() => setEdgeEditing(true)}><EditIcon className="h-3.5 w-3.5" /> Bearbeiten</button><button type="button" className="is-delete" onClick={() => { removeEdge(edgeMenu.edgeId); setEdgeMenu(null); }}><TrashIcon className="h-3.5 w-3.5" /> Löschen</button></div></>}
       </div> : null}
       <OrbitInspector projects={projects} expanded={inspectorOpen} onExpand={() => setInspectorOpen(true)} onCollapse={() => setInspectorOpen(false)} />
       <PromptDialog open={renameNodeId !== null} title="Knoten umbenennen" label="Name" initialValue={contextName} confirmLabel="Umbenennen" onConfirm={(name) => { if (renameNodeId) updateNode(renameNodeId, { title: name.trim() || "Unbenannt" }); setRenameNodeId(null); }} onClose={() => setRenameNodeId(null)} />
 
-      {commandOpen ? <div className="orbit-command-backdrop" onPointerDown={() => setCommandOpen(false)}><div className="orbit-command" role="dialog" aria-modal="true" aria-label="Orbit-Befehl" onPointerDown={(event) => event.stopPropagation()}><div className="orbit-command-mobile-head"><div><span>Orbit-Palette</span><strong>Knoten hinzufügen</strong></div><button type="button" onClick={() => setCommandOpen(false)} aria-label="Palette schließen"><CloseIcon className="h-5 w-5" /></button></div><label><SearchIcon className="h-4 w-4" /><input autoFocus value={commandQuery} onChange={(event) => setCommandQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && commands[0]) { addPayload(commands[0].payload); setCommandOpen(false); } }} placeholder="Terminal, Notiz oder Projekt…" /><kbd>Esc</kbd></label><div className="orbit-command-results"><button type="button" className="orbit-command-project-browser" onClick={() => { setCommandOpen(false); setProjectBrowserOpen(true); }}><span>Server</span><strong><FolderSearchIcon className="h-4 w-4" /> Projektordner durchsuchen</strong></button>{commands.map((item, index) => <button type="button" key={`${item.payload.type}-${item.payload.title}`} className={index === 0 ? "is-active" : ""} onClick={() => { addPayload(item.payload); setCommandOpen(false); }}><span>{item.payload.type === "tool" ? item.payload.toolType : typeLabels[item.payload.type]}</span><strong>{item.payload.title}</strong>{index === 0 ? <kbd>Enter</kbd> : null}</button>)}{commands.length === 0 ? <p>Kein passender Knoten gefunden.</p> : null}</div></div></div> : null}
+      {commandOpen ? <div className="orbit-command-backdrop" onPointerDown={() => setCommandOpen(false)}><div className="orbit-command" role="dialog" aria-modal="true" aria-label="Orbit-Befehl" onPointerDown={(event) => event.stopPropagation()}><div className="orbit-command-mobile-head"><div><span>Orbit-Palette</span><strong>Knoten hinzufügen</strong></div><button type="button" onClick={() => setCommandOpen(false)} aria-label="Palette schließen"><CloseIcon className="h-5 w-5" /></button></div><label><SearchIcon className="h-4 w-4" /><input autoFocus value={commandQuery} onChange={(event) => setCommandQuery(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && commands[0]) { addPayload(commands[0].payload); setCommandOpen(false); } }} placeholder="Terminal, Notiz oder Projekt…" /><kbd>Esc</kbd></label><div className="orbit-command-results"><button type="button" className="orbit-command-project-browser" onClick={() => { setCommandOpen(false); setProjectBrowserOpen(true); }}><span>Server</span><strong><FolderSearchIcon className="h-4 w-4" /> Projektordner durchsuchen</strong></button>{commands.map((item, index) => <button type="button" key={`${item.payload.type}-${item.payload.title}`} className={index === 0 ? "is-active" : ""} onClick={() => { addPayload(item.payload); setCommandOpen(false); }}><span>{item.payload.type === "tool" ? item.payload.toolType : item.payload.type === "previewTarget" ? "Preview-Slot" : typeLabels[item.payload.type]}</span><strong>{item.payload.title}</strong>{index === 0 ? <kbd>Enter</kbd> : null}</button>)}{commands.length === 0 ? <p>Kein passender Knoten gefunden.</p> : null}</div></div></div> : null}
       <OrbitProjectBrowserDialog open={projectBrowserOpen} onClose={() => setProjectBrowserOpen(false)} />
       <div className="orbit-territory-readout">Gebiet {Math.round(board.worldBounds.maxX - board.worldBounds.minX)} × {Math.round(board.worldBounds.maxY - board.worldBounds.minY)}</div>
       <div className="sr-only" aria-live="polite">{syncLabel}</div>

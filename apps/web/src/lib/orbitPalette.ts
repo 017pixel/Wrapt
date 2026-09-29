@@ -9,12 +9,17 @@
  */
 
 export interface OrbitPalettePayload {
-  type: "project" | "tool" | "previewGroup" | "note" | "todo" | "snippet" | "file" | "frame" | "usage" | "gallery" | "fileGallery" | "hermesStatus" | "hermesTasks" | "hermesCron" | "hermesResults";
+  type: "project" | "tool" | "previewGroup" | "previewTarget" | "note" | "todo" | "snippet" | "file" | "frame" | "usage" | "gallery" | "fileGallery" | "hermesStatus" | "hermesTasks" | "hermesCron" | "hermesResults";
   title: string;
   projectId?: string;
-  toolType?: "t3-code" | "code-server" | "preview" | "terminal" | "codex" | "opencode" | "files" | "hermes";
+  toolType?: "t3-code" | "code-server" | "preview" | "terminal" | "codex" | "claude" | "opencode" | "files" | "hermes";
+  runtimeId?: string;
   provider?: "codex" | "opencode" | "claude";
   previewId?: string;
+  previewPath?: string;
+  previewSlotId?: number | null;
+  previewStorageProfileId?: string | null;
+  previewIsolation?: boolean;
   layout?: "1" | "2" | "3" | "6";
   targetPort?: number;
   referenceId?: string;

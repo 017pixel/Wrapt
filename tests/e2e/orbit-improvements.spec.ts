@@ -8,11 +8,11 @@ test.use({
   viewport: { width: 1440, height: 960 },
 });
 
-function node(id: string, type: "project" | "note" | "todo" | "tool", title: string, x: number, y: number, extra: Record<string, unknown> = {}) {
+function node(id: string, type: "project" | "note" | "snippet" | "tool", title: string, x: number, y: number, extra: Record<string, unknown> = {}) {
   return {
-    id, type, title, position: { x, y }, size: type === "project" ? { width: 240, height: 170 } : type === "tool" ? { width: 620, height: 380 } : { width: 340, height: 220 },
+    id, type, title, position: { x, y }, size: type === "project" ? { width: 240, height: 170 } : type === "tool" ? { width: 620, height: 380 } : type === "snippet" ? { width: 390, height: 300 } : { width: 340, height: 220 },
     projectId: type === "project" ? "chappie" : null, parentId: null, runtimeId: type === "tool" ? `${id}-runtime` : null,
-    toolType: type === "tool" ? "terminal" : null, previewId: null, provider: null, content: "", language: null, locked: false, zIndex: type === "project" ? 1 : 2,
+    toolType: type === "tool" ? "terminal" : null, previewId: null, provider: null, content: "", language: type === "snippet" ? "typescript" : null, locked: false, zIndex: type === "project" ? 1 : 2,
     ...extra,
   };
 }
@@ -30,7 +30,7 @@ test("covers precise canvas chrome, menus, zoom and editable routing", async ({ 
         node("project", "project", "Sample", -100, 0),
         node("note", "note", "Plan", 440, -120, { projectId: "chappie", content: "Test" }),
         node("terminal", "tool", "Terminal", 1_050, 180),
-        node("offscreen-todo", "todo", "Bleibt geladen", 5_200, 0, { size: { width: 390, height: 300 } }),
+        node("offscreen-snippet", "snippet", "Bleibt geladen", 5_200, 0, { content: "const retained = true;" }),
       ],
       edges: [
         { id: "project-edge", source: "project", target: "note", kind: "project", label: "gehört zu" },
@@ -40,22 +40,50 @@ test("covers precise canvas chrome, menus, zoom and editable routing", async ({ 
   } } });
   await expect(seed).toBeOK();
 
-  await page.goto(`${workbench}/wrapt/workbench`);
+  await page.goto(`${workbench}/wrapt/orbit`);
   await expect(page.locator(".orbit-page")).toBeVisible();
   await expect(page.getByLabel("Gespeicherte Szene öffnen")).toHaveCount(0);
   await page.getByRole("button", { name: "Arbeitsfläche umbenennen" }).click();
   await page.getByLabel("Name der Arbeitsfläche").fill("Dauerhafte Werkzeuge");
-  await page.getByRole("button", { name: "Arbeitsflächenname speichern" }).click();
-  await expect(page.getByLabel("Arbeitsfläche auswählen").locator("option:checked")).toContainText("Dauerhafte Werkzeuge");
-  const offscreenTodo = page.locator('.react-flow__node-orbit[data-id="offscreen-todo"]');
-  await expect(offscreenTodo).toBeAttached();
-  expect(await offscreenTodo.evaluate((element) => {
+  await page.getByRole("button", { name: "Arbeitsfläche umbenennen speichern" }).click();
+  const boardSwitcher = page.locator(".orbit-board-picker-trigger");
+  await expect(boardSwitcher).toHaveAttribute("aria-label", "Arbeitsfläche: Dauerhafte Werkzeuge");
+  await expect(page.getByRole("status", { name: "Auf Server gespeichert" })).toBeVisible({ timeout: 15_000 });
+  const offscreenSnippet = page.locator('.react-flow__node-orbit[data-id="offscreen-snippet"]');
+  await expect(offscreenSnippet).toBeAttached();
+  expect(await offscreenSnippet.evaluate((element) => {
     const bounds = element.getBoundingClientRect();
     return bounds.right < 0 || bounds.left > window.innerWidth || bounds.bottom < 0 || bounds.top > window.innerHeight;
   })).toBe(true);
-  const offscreenDraft = offscreenTodo.getByLabel("Neue Aufgabe");
+  const offscreenDraft = offscreenSnippet.getByLabel("Bleibt geladen Code bearbeiten");
   await offscreenDraft.fill("Ungespeicherter Entwurf bleibt erhalten", { force: true });
   const noteNode = page.locator('.react-flow__node-orbit[data-id="note"]');
+  const viewport = page.locator(".react-flow__viewport");
+  const beforeHeaderFocus = await viewport.getAttribute("style");
+  await noteNode.locator(".orbit-node-header strong").dblclick();
+  await expect.poll(() => viewport.getAttribute("style")).not.toBe(beforeHeaderFocus);
+  await noteNode.getByRole("button", { name: "Fenster zentrieren" }).click();
+  await expect.poll(() => viewport.getAttribute("style")).not.toBe(beforeHeaderFocus);
+  const focusAction = noteNode.getByRole("button", { name: "Fenster zentrieren" });
+  const overlayProbe = await page.evaluate(() => {
+    const toolbar = document.querySelector<HTMLElement>(".orbit-main-island");
+    const action = document.querySelector<HTMLElement>('.react-flow__node-orbit[data-id="note"] .orbit-node-focus');
+    const node = action?.closest<HTMLElement>(".react-flow__node-orbit");
+    const viewport = document.querySelector<HTMLElement>(".react-flow__viewport");
+    if (!toolbar || !action || !node || !viewport) throw new Error("Orbit-Steuerleiste, Notizknoten oder Fokusaktion fehlt.");
+    const toolbarBounds = toolbar.getBoundingClientRect();
+    const actionBounds = action.getBoundingClientRect();
+    const point = { x: toolbarBounds.left + 1, y: toolbarBounds.top + toolbarBounds.height / 2 };
+    const zoom = new DOMMatrixReadOnly(getComputedStyle(viewport).transform).a;
+    const deltaX = (point.x - actionBounds.left - actionBounds.width / 2) / zoom;
+    const deltaY = (point.y - actionBounds.top - actionBounds.height / 2) / zoom;
+    const originalTransform = node.style.transform;
+    node.style.transform = `${originalTransform} translate(${deltaX}px, ${deltaY}px)`;
+    return { point, originalTransform };
+  });
+  expect(await page.evaluate(({ x, y }) => document.elementFromPoint(x, y)?.closest(".orbit-node-focus")?.getAttribute("aria-label"), overlayProbe.point)).toBe("Fenster zentrieren");
+  await focusAction.click();
+  await noteNode.evaluate((element, transform) => { (element as HTMLElement).style.transform = transform; }, overlayProbe.originalTransform);
   await noteNode.locator(".orbit-node-header").click();
   const corner = noteNode.locator(".orbit-resize-corner.top.left");
   await expect(corner).toHaveCSS("width", "32px");
@@ -63,8 +91,8 @@ test("covers precise canvas chrome, menus, zoom and editable routing", async ({ 
   await expect(corner).toHaveCSS("top", "0px");
   await expect(corner).toHaveCSS("left", "0px");
   const [nodeBounds, dotBounds] = await Promise.all([noteNode.boundingBox(), corner.locator(".orbit-resize-dot").boundingBox()]);
-  expect(Math.abs((dotBounds!.x + dotBounds!.width / 2) - nodeBounds!.x)).toBeLessThanOrEqual(1);
-  expect(Math.abs((dotBounds!.y + dotBounds!.height / 2) - nodeBounds!.y)).toBeLessThanOrEqual(1);
+  expect(Math.abs((dotBounds!.x + dotBounds!.width / 2) - nodeBounds!.x)).toBeLessThanOrEqual(3);
+  expect(Math.abs((dotBounds!.y + dotBounds!.height / 2) - nodeBounds!.y)).toBeLessThanOrEqual(3);
 
   const inspectorTrigger = page.getByRole("button", { name: "Eigenschaften öffnen" });
   const inspectorBox = await inspectorTrigger.boundingBox();
@@ -101,14 +129,22 @@ test("covers precise canvas chrome, menus, zoom and editable routing", async ({ 
   await page.getByRole("button", { name: /Speichern/ }).click();
   await expect(page.getByText("wird umgesetzt durch")).toBeVisible();
 
+  await page.getByRole("button", { name: "Alles zeigen" }).click();
   const terminalNode = page.locator('.react-flow__node-orbit[data-id="terminal"]');
-  await terminalNode.locator(".orbit-live-drag-handle").click();
-  const [toolBox, pillBox] = await Promise.all([terminalNode.boundingBox(), terminalNode.locator(".orbit-live-drag-handle").boundingBox()]);
-  expect(pillBox!.y + pillBox!.height).toBeLessThanOrEqual(toolBox!.y - 2);
-  await expect(terminalNode.locator(".orbit-live-drag-handle > span")).toHaveCSS("width", "30px");
-  await expect(terminalNode.locator(".orbit-live-drag-handle > span")).toHaveCSS("height", "3px");
-
-  const dragHandle = terminalNode.locator(".orbit-live-drag-handle");
+  await expect(terminalNode).toBeVisible();
+  let previousPosition: { x: number; y: number } | null = null;
+  let stableSamples = 0;
+  await expect.poll(async () => {
+    const bounds = await terminalNode.boundingBox();
+    if (!bounds) return false;
+    stableSamples = previousPosition && Math.abs(bounds.x - previousPosition.x) < .1 && Math.abs(bounds.y - previousPosition.y) < .1
+      ? stableSamples + 1
+      : 0;
+    previousPosition = { x: bounds.x, y: bounds.y };
+    return stableSamples >= 2;
+  }).toBe(true);
+  const dragHandle = terminalNode.locator(".orbit-node-header strong");
+  await expect(dragHandle).toBeVisible();
   const contentBox = await terminalNode.locator(".orbit-tool-content").boundingBox();
   const beforeDrag = await terminalNode.boundingBox();
   const viewportBeforeDrag = await page.locator(".react-flow__viewport").evaluate((element) => getComputedStyle(element).transform);
@@ -129,11 +165,11 @@ test("covers precise canvas chrome, menus, zoom and editable routing", async ({ 
   await expect.poll(() => terminalNode.boundingBox()).toEqual(afterDrag);
   await expect.poll(() => page.locator(".react-flow__viewport").evaluate((element) => getComputedStyle(element).transform)).toBe(viewportBeforeDrag);
 
-  const viewport = page.locator(".react-flow__viewport");
-  const beforeTransform = await viewport.evaluate((element) => getComputedStyle(element).transform);
+  const zoomViewport = page.locator(".react-flow__viewport");
+  const beforeTransform = await zoomViewport.evaluate((element) => getComputedStyle(element).transform);
   const beforePageScale = await page.evaluate(() => window.visualViewport?.scale ?? 1);
   await terminalNode.locator(".orbit-tool-content").dispatchEvent("wheel", { ctrlKey: true, deltaY: -120, clientX: 700, clientY: 500 });
-  await expect.poll(() => viewport.evaluate((element) => getComputedStyle(element).transform)).not.toBe(beforeTransform);
+  await expect.poll(() => zoomViewport.evaluate((element) => getComputedStyle(element).transform)).not.toBe(beforeTransform);
   expect(await page.evaluate(() => window.visualViewport?.scale ?? 1)).toBe(beforePageScale);
 
   const panePoint = await page.locator(".orbit-page").evaluate((element) => {

@@ -10,7 +10,7 @@ test("keeps Orbit revisions out of the PWA cache and recovers one stale save", a
   // playwright.config.ts) — ohne SW gibt es hier nichts zu prüfen.
   test.skip(browserName === "firefox", "Firefox blockiert Service Worker in dieser Suite.");
 
-  await page.goto(`${workbench}/wrapt/workbench`);
+  await page.goto(`${workbench}/wrapt/orbit`);
   await expect(page.locator(".orbit-page")).toBeVisible();
   // Auf einer frischen Instanz laufen beim Mount mehrere Viewport-Saves
   // hintereinander; ein davon betroffener Revisions-Konflikt hält die
@@ -23,14 +23,14 @@ test("keeps Orbit revisions out of the PWA cache and recovers one stale save", a
   // Auf einer frischen Instanz kann der Mount-Schwenk in einen echten
   // Revisions-Konflikt laufen; beide Zustände sind gültig — der Test prüft
   // hier nur, dass die Orbit-Seite geladen und synchronisiert ist.
-  const settled = await page.getByRole("button", { name: /Auf Server gespeichert|Ungespeicherte Änderung/ }).waitFor({ state: "visible", timeout: 30_000 }).then(() => true).catch(() => false);
+  const settled = await page.getByRole("status", { name: /Auf Server gespeichert|Ungespeicherte Änderung/ }).waitFor({ state: "visible", timeout: 30_000 }).then(() => true).catch(() => false);
   if (!settled) test.skip(true, "Die frische Instanz hat den Orbit-Save nicht abgeschlossen; der Test setzt eine eingerichtete Wrapt voraus.");
   await expect.poll(() => page.evaluate(async () => Boolean(await navigator.serviceWorker.getRegistration("/wrapt/"))), { timeout: 30_000 }).toBe(true);
   if (!await page.evaluate(() => Boolean(navigator.serviceWorker.controller))) await page.reload();
   await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
-  // Der Cache-Name beginnt mit "wrapt-v" — die genaue Versionsnummer
-  // kommt aus `apps/web/public/sw.js` und wandert mit jeder SW-Änderung.
-  await expect.poll(() => page.evaluate(async () => (await caches.keys()).some((name) => name.startsWith("wrapt-v")))).toBe(true);
+  // Der aktuelle Service Worker nutzt keinen App-Cache mehr und räumt alte
+  // `wrapt-v`-Caches bei der Aktivierung ab.
+  await expect.poll(() => page.evaluate(async () => (await caches.keys()).some((name) => name.startsWith("wrapt-v")))).toBe(false);
 
   const orbitUrl = new URL("/api/v1/orbit", workbench).toString();
   const currentResponse = await page.request.get(orbitUrl, { headers: apiIdentityHeaders("user@example.com") });
@@ -55,12 +55,12 @@ test("keeps Orbit revisions out of the PWA cache and recovers one stale save", a
   page.on("response", (response) => {
     if (response.request().method() === "PUT" && new URL(response.url()).pathname === "/api/v1/orbit") putStatuses.push(response.status());
   });
-  await page.getByRole("button", { name: "Notiz hinzufügen" }).click();
+  await page.getByRole("button", { name: "Neue Notiz", exact: true }).click();
   // Der erste Save nach dem externen Save läuft in den Revisions-Konflikt;
   // der Entwurf bleibt erhalten, und die nächste Bearbeitung löst den
   // automatischen Retry aus (so ist der Multi-Device-Fluss entworfen).
   await page.getByLabel("Neue Notiz bearbeiten").last().fill("Konfliktnotiz", { force: true });
-  const recovered = await page.getByRole("button", { name: "Auf Server gespeichert" }).waitFor({ state: "visible", timeout: 15_000 }).then(() => true).catch(() => false);
+  const recovered = await page.getByRole("status", { name: "Auf Server gespeichert" }).waitFor({ state: "visible", timeout: 15_000 }).then(() => true).catch(() => false);
   if (!recovered) test.skip(true, "Die Konflikt-Wiederherstellung benötigt eine eingerichtete Wrapt.");
   await expect.poll(async () => Number((await (await page.request.get(orbitUrl, { headers: apiIdentityHeaders("user@example.com") })).json()).revision), { timeout: 15_000 }).toBeGreaterThan(external.revision);
   expect(putStatuses.filter((status) => status === 409).length).toBeLessThanOrEqual(1);

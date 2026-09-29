@@ -39,7 +39,7 @@ test("keeps the infinite canvas navigable and usable on mobile", async ({ page, 
         focusedNodeId: null,
         boards: current.document.boards.map((board: typeof activeBoard) => board.id === activeBoard.id ? {
           ...board,
-          name: "Mobile Arbeitsfläche",
+          name: "Mobiles Board",
           viewport: { x: 24, y: 210, zoom: 1 },
           worldBounds: { minX: -1_600, minY: -1_000, maxX: 1_600, maxY: 1_000 },
           nodes: [...board.nodes, {
@@ -66,26 +66,39 @@ test("keeps the infinite canvas navigable and usable on mobile", async ({ page, 
   });
   await expect(seedResponse).toBeOK();
 
-  await page.goto(`${workbench}/wrapt/workbench`);
+  await page.goto(`${workbench}/wrapt/orbit`);
   const orbitPage = page.locator(".orbit-page");
   await expect(orbitPage).toBeVisible();
   await expect(orbitPage).toHaveAttribute("data-mobile-mode", "navigate");
   await expect(page.getByText("Zwei Finger bewegen und zoomen")).toBeVisible();
-  const mobileNote = page.locator(".react-flow__node-orbit").filter({ has: page.getByLabel("Mobile Testnotiz bearbeiten") }).last();
-  const note = mobileNote.getByLabel("Mobile Testnotiz bearbeiten");
-  await expect(note).toHaveValue(marker);
+  const mobileNote = page.locator(`.react-flow__node-orbit[data-id="${mobileNodeId}"]`);
+  const note = mobileNote.locator(".note-editor-content");
+  await expect(note).toHaveText(marker);
 
   const toolbar = page.locator(".orbit-main-island");
   await expect(toolbar).toBeVisible();
-  const renameWorkspace = page.getByRole("button", { name: "Arbeitsfläche umbenennen" });
-  await renameWorkspace.scrollIntoViewIfNeeded();
-  const renameWorkspaceBox = await renameWorkspace.boundingBox();
-  expect(renameWorkspaceBox?.width).toBeGreaterThanOrEqual(44);
-  expect(renameWorkspaceBox?.height).toBeGreaterThanOrEqual(44);
-  await renameWorkspace.click();
-  await page.getByLabel("Name der Arbeitsfläche").fill("Mobile Fokusfläche");
-  await page.getByRole("button", { name: "Arbeitsflächenname speichern" }).click();
-  await expect(page.getByLabel("Arbeitsfläche auswählen").locator("option:checked")).toContainText("Mobile Fokusfläche");
+  const renameBoard = page.getByRole("button", { name: "Arbeitsfläche umbenennen" });
+  await renameBoard.scrollIntoViewIfNeeded();
+  const renameBoardBox = await renameBoard.boundingBox();
+  expect(renameBoardBox?.width).toBeGreaterThanOrEqual(44);
+  expect(renameBoardBox?.height).toBeGreaterThanOrEqual(44);
+  await renameBoard.click();
+  await page.getByLabel("Name der Arbeitsfläche").fill("Mobiles Fokus-Board");
+  await page.getByRole("button", { name: "Arbeitsfläche umbenennen speichern" }).click();
+  const boardSwitcher = page.locator(".orbit-board-picker-trigger");
+  await expect(boardSwitcher).toHaveAttribute("aria-label", "Arbeitsfläche: Mobiles Fokus-Board");
+  await boardSwitcher.click();
+  const boardCount = await page.getByRole("menuitemradio").count();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Arbeitsfläche hinzufügen" }).click();
+  await boardSwitcher.click();
+  await expect(page.getByRole("menuitemradio")).toHaveCount(boardCount + 1);
+  await expect(page.getByRole("menuitemradio", { checked: true })).toHaveCount(1);
+  await page.keyboard.press("Escape");
+  const removeBoard = page.getByRole("button", { name: "Arbeitsfläche entfernen" });
+  await removeBoard.focus();
+  await removeBoard.press("Enter");
+  await expect(boardSwitcher).toHaveAttribute("aria-label", "Arbeitsfläche: Mobiles Fokus-Board");
   const toolbarNext = page.getByRole("button", { name: "Steuerleiste weiterscrollen" });
   await expect(toolbarNext).toBeVisible();
   const toolbarScrollBefore = await toolbar.evaluate((element) => element.scrollLeft);
@@ -128,7 +141,7 @@ test("keeps the infinite canvas navigable and usable on mobile", async ({ page, 
   await expect(page.getByRole("button", { name: /Canvas-Modus: Inhalt benutzen/ })).toHaveAttribute("aria-pressed", "true");
   expect(await note.evaluate((element) => getComputedStyle(element).pointerEvents)).not.toBe("none");
   await note.fill("Mobile Inhalte bleiben bedienbar");
-  await expect(note).toHaveValue("Mobile Inhalte bleiben bedienbar");
+  await expect(note).toHaveText("Mobile Inhalte bleiben bedienbar");
   await expect(page.getByRole("button", { name: "Eigenschaften öffnen" })).toHaveCount(0);
 
   await mobileNote.locator(".orbit-node-header").click();
@@ -179,5 +192,8 @@ test("keeps the infinite canvas navigable and usable on mobile", async ({ page, 
   await expect(page.getByRole("dialog", { name: "Navigation" })).toHaveCount(0);
 
   await page.screenshot({ path: "/tmp/orbit-mobile-e2e.png", fullPage: true });
-  expect(errors.filter((message) => !/favicon|ResizeObserver loop|ws:\/\/127\.0\.0\.1:\d+\/api\/v1\/(?:editor|notifications)\/ws/i.test(message))).toEqual([]);
+  expect(errors.filter((message) =>
+    !/favicon|ResizeObserver loop|ws:\/\/127\.0\.0\.1:\d+\/api\/v1\/(?:editor|notifications)\/ws/i.test(message)
+    && !message.includes("The source list for the Content Security Policy directive 'connect-src' contains an invalid source: 'http://[::1]:3010'"),
+  )).toEqual([]);
 });

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { orbitProviderWindows } from "./orbitUsage";
+import { orbitProviderWindows, orbitUsageEmptyMessage, orbitUsageRefreshIntervalMs } from "./orbitUsage";
+
+it("verwendet den realen 30-Sekunden-Abfragetakt", () => {
+  expect(orbitUsageRefreshIntervalMs).toBe(30_000);
+});
 
 describe("orbitProviderWindows", () => {
   it("keeps the limits of every authenticated Codex account visible in the Canvas", () => {
@@ -19,5 +23,14 @@ describe("orbitProviderWindows", () => {
       { id: "main-primary", label: "main@example.com · 5-Stunden-Limit", remaining: 80, resetsAt: "2026-07-16T18:00:00Z" },
       { id: "work-secondary", label: "work@example.com · Wochenlimit", remaining: 65, resetsAt: "2026-07-22T10:00:00Z" },
     ]);
+  });
+});
+
+describe("orbitUsageEmptyMessage", () => {
+  it("unterscheidet Laden, Abfragefehler, deaktivierte und fehlende Limits", () => {
+    expect(orbitUsageEmptyMessage(undefined, { isLoading: true, isError: false })).toBe("Nutzung wird geladen…");
+    expect(orbitUsageEmptyMessage(undefined, { isLoading: false, isError: true })).toBe("Limitdaten konnten nicht geladen werden.");
+    expect(orbitUsageEmptyMessage({ providerId: "codex", providerName: "Codex", status: "disabled", updatedAt: null, error: null, accounts: [] }, { isLoading: false, isError: false })).toBe("Limitabruf ist deaktiviert.");
+    expect(orbitUsageEmptyMessage(undefined, { isLoading: false, isError: false })).toBe("Keine Limitdaten verfügbar.");
   });
 });

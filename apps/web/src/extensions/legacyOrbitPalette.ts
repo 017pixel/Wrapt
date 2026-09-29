@@ -1,17 +1,23 @@
 import {
   CodeFileIcon,
   CodeServerIcon,
+  ClaudeCodeIcon,
+  ClockIcon,
   CodexIcon,
   EyeIcon,
+  FileIcon,
   FinderIcon,
   FrameIcon,
+  GalerieIcon,
   HermesIcon,
+  ListIcon,
   NoteIcon,
   NutzungIcon,
   OpenCodeIcon,
   T3CodeIcon,
   TerminalIcon,
   TodoIcon,
+  UploadIcon,
 } from "../components/icons";
 import type { OrbitPaletteItem } from "../stores/sidebarPreferences";
 import type { OrbitPalettePayload } from "../lib/orbitPalette";
@@ -40,10 +46,8 @@ interface LegacyOrbitPaletteDefinition {
 }
 
 /**
- * Die bisherige Orbit-Seitenpalette als Legacy Built-ins: sieben Werkzeuge,
- * sieben Blöcke und vier Preview-Layouts mit denselben Titeln, Reihenfolge,
- * Icons und Payloads. Die LocalStorage-Sichtbarkeit bleibt über die
- * Legacy-Keys unverändert lesbar.
+ * Die Orbit-Seitenpalette als Built-ins. Die LocalStorage-Sichtbarkeit bleibt
+ * über stabile Legacy-Keys auch für neue Bausteine lesbar.
  */
 const legacyOrbitPaletteDefinitions = [
       {
@@ -56,7 +60,8 @@ const legacyOrbitPaletteDefinitions = [
         { id: "wrapt.orbit.palette.tool.terminal", title: "Terminal", order: 40, legacyKey: "tool:terminal", icon: TerminalIcon, createPayload: () => ({ type: "tool", title: "Terminal", toolType: "terminal" }) },
         { id: "wrapt.orbit.palette.tool.opencode", title: "OpenCode", order: 50, legacyKey: "tool:opencode", icon: OpenCodeIcon, createPayload: () => ({ type: "tool", title: "OpenCode", toolType: "opencode" }) },
         { id: "wrapt.orbit.palette.tool.codex", title: "Codex", order: 60, legacyKey: "tool:codex", icon: CodexIcon, createPayload: () => ({ type: "tool", title: "Codex", toolType: "codex" }) },
-        { id: "wrapt.orbit.palette.tool.files", title: "Files", order: 70, legacyKey: "tool:files", icon: FinderIcon, createPayload: () => ({ type: "tool", title: "Files", toolType: "files" }) },
+        { id: "wrapt.orbit.palette.tool.claude", title: "Claude Code", order: 70, legacyKey: "tool:claude", icon: ClaudeCodeIcon, createPayload: () => ({ type: "tool", title: "Claude Code", toolType: "claude" }) },
+        { id: "wrapt.orbit.palette.tool.files", title: "Files", order: 80, legacyKey: "tool:files", icon: FinderIcon, createPayload: () => ({ type: "tool", title: "Files", toolType: "files" }) },
       ],
     },
     {
@@ -70,6 +75,11 @@ const legacyOrbitPaletteDefinitions = [
         { id: "wrapt.orbit.palette.block.usage-codex", title: "Codex Nutzung", order: 50, legacyKey: "block:usage-codex", icon: NutzungIcon, createPayload: () => ({ type: "usage", title: "Codex Nutzung", provider: "codex" }) },
         { id: "wrapt.orbit.palette.block.usage-opencode", title: "OpenCode Nutzung", order: 60, legacyKey: "block:usage-opencode", icon: NutzungIcon, createPayload: () => ({ type: "usage", title: "OpenCode Nutzung", provider: "opencode" }) },
         { id: "wrapt.orbit.palette.block.usage-claude", title: "Claude Code Nutzung", order: 70, legacyKey: "block:usage-claude", icon: NutzungIcon, createPayload: () => ({ type: "usage", title: "Claude Code Nutzung", provider: "claude" }) },
+        { id: "wrapt.orbit.palette.block.file", title: "Projektdatei", order: 80, legacyKey: "block:file", icon: FileIcon, createPayload: () => ({ type: "file", title: "Projektdatei" }) },
+        { id: "wrapt.orbit.palette.block.gallery", title: "Mediengalerie", order: 90, legacyKey: "block:gallery", icon: GalerieIcon, createPayload: () => ({ type: "gallery", title: "Mediengalerie" }) },
+        { id: "wrapt.orbit.palette.block.file-gallery", title: "Dateigalerie", order: 100, legacyKey: "block:file-gallery", icon: UploadIcon, createPayload: () => ({ type: "fileGallery", title: "Dateigalerie" }) },
+        { id: "wrapt.orbit.palette.block.hermes-tasks", title: "Hermes Aufgaben", order: 110, legacyKey: "block:hermes-tasks", icon: ListIcon, createPayload: () => ({ type: "hermesTasks", title: "Hermes Aufgaben" }) },
+        { id: "wrapt.orbit.palette.block.hermes-cron", title: "Hermes Automatisierungen", order: 120, legacyKey: "block:hermes-cron", icon: ClockIcon, createPayload: () => ({ type: "hermesCron", title: "Hermes Automatisierungen" }) },
       ],
     },
     {

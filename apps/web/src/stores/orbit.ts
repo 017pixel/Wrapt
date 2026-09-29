@@ -8,11 +8,14 @@ import {
   type OrbitEdge,
   type OrbitNode,
   type OrbitWorkspace,
-  type PanelType,
-  type Workspace,
+  type LayoutState,
 } from "@wrapt/contracts";
 import { create } from "zustand";
 import { generateId } from "../lib/id";
+import { connectProject, nodeFromInput, orbitDefaultSize } from "./orbitNodeFactory.js";
+import type { AddOrbitNodeInput } from "./orbitNodeFactory.js";
+export { ORBIT_DEFAULT_SIZE_SCALE, orbitDefaultNodeSize } from "./orbitNodeFactory.js";
+export type { AddOrbitNodeInput } from "./orbitNodeFactory.js";
 
 const DEFAULT_BOARD_ID = "orbit-default";
 
@@ -45,7 +48,7 @@ export function freshOrbitWorkspace(): OrbitWorkspace {
     focusedNodeId: null,
     boards: [{
       id: DEFAULT_BOARD_ID,
-      name: "Arbeitsfläche 1",
+      name: "Board 1",
       viewport: { x: 0, y: 0, zoom: 0.8 },
       worldBounds: { minX: -1_600, minY: -1_000, maxX: 1_600, maxY: 1_000 },
       nodes: [],
@@ -56,48 +59,6 @@ export function freshOrbitWorkspace(): OrbitWorkspace {
 
 // Neue Orbit-Knoten bekommen bewusst mehr Arbeitsfläche. Bereits gespeicherte
 // individuelle Größen bleiben unverändert.
-export const ORBIT_DEFAULT_SIZE_SCALE = 1.25;
-
-function orbitDefaultSize(width: number, height: number) {
-  return {
-    width: Math.round(width * ORBIT_DEFAULT_SIZE_SCALE),
-    height: Math.round(height * ORBIT_DEFAULT_SIZE_SCALE),
-  };
-}
-
-export interface AddOrbitNodeInput {
-  type: OrbitNode["type"];
-  title: string;
-  position: { x: number; y: number };
-  size?: { width: number; height: number };
-  projectId?: string | null;
-  parentId?: string | null;
-  runtimeId?: string | null;
-  toolType?: PanelType | null;
-  previewId?: string | null;
-  previewLayout?: "1" | "2" | "3" | "6" | null;
-  previewTarget?: string | null;
-  previewPath?: string;
-  previewDeviceId?: string | null;
-  previewOrientation?: "portrait" | "landscape";
-  previewSlotId?: number | null;
-  previewStorageProfileId?: string | null;
-  previewIsolation?: boolean;
-  previewReferenceId?: string | null;
-  previewLastUsedAt?: string | null;
-  assetId?: string | null;
-  assetMimeType?: string | null;
-  assetBytes?: number | null;
-  provider?: "codex" | "opencode" | "claude" | null;
-  content?: string;
-  language?: string | null;
-  hermesSourceFilter?: "all" | "web" | "telegram" | "cron";
-  hermesStatusFilter?: "all" | "success" | "failed";
-  extensionId?: string | null;
-  contributionId?: string | null;
-  stateVersion?: number | null;
-  state?: Record<string, unknown>;
-}
 
 interface OrbitState {
   document: OrbitWorkspace;
@@ -208,25 +169,6 @@ function updatePreviewReferences(
   };
 }
 
-export function orbitDefaultNodeSize(type: OrbitNode["type"], toolType?: PanelType | null) {
-  if (type === "project") return orbitDefaultSize(240, 170);
-  if (type === "frame") return orbitDefaultSize(680, 440);
-  if (type === "previewGroup") return orbitDefaultSize(880, 420);
-  if (type === "previewSlot") return orbitDefaultSize(480, 360);
-  if (type === "tool") return toolType === "terminal" || toolType === "codex" || toolType === "opencode"
-    ? orbitDefaultSize(620, 380)
-    : orbitDefaultSize(720, 460);
-  if (type === "usage") return orbitDefaultSize(340, 230);
-  if (type === "hermesStatus") return orbitDefaultSize(320, 260);
-  if (type === "hermesTasks") return orbitDefaultSize(380, 300);
-  if (type === "hermesCron") return orbitDefaultSize(380, 320);
-  if (type === "hermesResults") return orbitDefaultSize(400, 380);
-  if (type === "todo") return orbitDefaultSize(390, 300);
-  if (type === "snippet") return orbitDefaultSize(420, 260);
-  if (type === "asset") return orbitDefaultSize(420, 300);
-  if (type === "gallery" || type === "fileGallery") return orbitDefaultSize(960, 680);
-  return orbitDefaultSize(340, 220);
-}
 
 const PREVIEW_GROUP_GAP = 8;
 const PREVIEW_GROUP_PADDING = 8;
@@ -295,62 +237,16 @@ export function previewGroupGrowthOffset(
   return collides(left) ? 0 : -delta;
 }
 
-function nodeFromInput(input: AddOrbitNodeInput, zIndex: number): OrbitNode {
-  return {
-    id: generateId(),
-    type: input.type,
-    title: input.title.trim().slice(0, 120) || "Unbenannt",
-    position: input.position,
-    size: input.size ?? orbitDefaultNodeSize(input.type, input.toolType),
-    projectId: input.projectId ?? null,
-    parentId: input.parentId ?? null,
-    runtimeId: input.runtimeId ?? (input.type === "tool" ? generateId() : null),
-    toolType: input.type === "tool" ? (input.toolType ?? "terminal") : null,
-    previewId: input.previewId ?? null,
-    previewLayout: input.type === "previewGroup" ? (input.previewLayout ?? "1") : null,
-    previewTarget: input.type === "previewSlot" ? (input.previewTarget ?? null) : null,
-    previewPath: input.previewPath ?? "/",
-    // `null` erbt ab v7 die Benutzerpräferenz (Standard iPhone 13).
-    previewDeviceId: input.type === "previewSlot" ? (input.previewDeviceId ?? null) : null,
-    previewOrientation: input.previewOrientation ?? "portrait",
-    previewSlotId: input.type === "previewSlot" ? (input.previewSlotId ?? null) : null,
-    previewStorageProfileId: input.type === "previewSlot" ? (input.previewStorageProfileId ?? generateId()) : null,
-    previewIsolation: input.previewIsolation ?? true,
-    previewReferenceId: input.previewReferenceId ?? null,
-    previewLastUsedAt: input.previewLastUsedAt ?? null,
-    assetId: input.type === "asset" ? (input.assetId ?? null) : null,
-    assetMimeType: input.type === "asset" ? (input.assetMimeType ?? null) : null,
-    assetBytes: input.type === "asset" ? (input.assetBytes ?? null) : null,
-    provider: input.type === "usage" ? (input.provider ?? "codex") : null,
-    content: input.content ?? "",
-    language: input.language ?? (input.type === "snippet" ? "typescript" : null),
-    color: null,
-    hermesSourceFilter: input.hermesSourceFilter ?? "all",
-    hermesStatusFilter: input.hermesStatusFilter ?? "all",
-    extensionId: input.type === "extension" ? (input.extensionId ?? null) : null,
-    contributionId: input.type === "extension" ? (input.contributionId ?? null) : null,
-    stateVersion: input.type === "extension" ? (input.stateVersion ?? 1) : null,
-    state: input.type === "extension" ? (input.state ?? {}) : {},
-    locked: false,
-    zIndex,
-  };
-}
 
-function connectProject(nodes: OrbitNode[], newNode: OrbitNode): OrbitEdge[] {
-  if (!newNode.projectId || newNode.type === "project") return [];
-  const hub = nodes.find((node) => node.type === "project" && node.projectId === newNode.projectId);
-  return hub ? [{ id: generateId(), source: hub.id, target: newNode.id, kind: "project", label: "gehört zu", sourceSide: null, targetSide: null, waypoints: [] }] : [];
-}
-
-export function migrateWorkspaceToOrbit(workspace: Workspace): OrbitWorkspace {
-  const boards = workspace.workspaces.map((page, pageIndex): OrbitBoard => {
+export function migrateLayoutToOrbit(layout: LayoutState): OrbitWorkspace {
+  const boards = layout.pages.map((page, pageIndex): OrbitBoard => {
     const panelIds = page.groups.flatMap((group) => group.panelIds);
     const panels = panelIds.flatMap((id) => {
-      const panel = workspace.panels.find((candidate) => candidate.id === id);
+      const panel = layout.panels.find((candidate) => candidate.id === id);
       return panel ? [panel] : [];
     });
     const projectIds = [...new Set(panels.map((panel) => panel.projectId).filter((id): id is string => id !== null))];
-    if (projectIds.length === 0 && workspace.selectedProjectId) projectIds.push(workspace.selectedProjectId);
+    if (projectIds.length === 0 && layout.selectedProjectId) projectIds.push(layout.selectedProjectId);
     const nodes: OrbitNode[] = [];
     const edges: OrbitEdge[] = [];
     projectIds.forEach((projectId, index) => {
@@ -660,7 +556,7 @@ export const useOrbitStore = create<OrbitState>((set, get) => ({
     const state = get();
     if (state.document.boards.length >= ORBIT_LIMITS.maxBoards) return null;
     const id = generateId();
-    const board: OrbitBoard = { id, name: name?.trim().slice(0, 80) || `Arbeitsfläche ${state.document.boards.length + 1}`, viewport: { x: 0, y: 0, zoom: .8 }, worldBounds: { minX: -1_600, minY: -1_000, maxX: 1_600, maxY: 1_000 }, nodes: [], edges: [] };
+    const board: OrbitBoard = { id, name: name?.trim().slice(0, 80) || `Board ${state.document.boards.length + 1}`, viewport: { x: 0, y: 0, zoom: .8 }, worldBounds: { minX: -1_600, minY: -1_000, maxX: 1_600, maxY: 1_000 }, nodes: [], edges: [] };
     set({ document: { ...state.document, boards: [...state.document.boards, board], activeBoardId: id, focusedNodeId: null }, dirty: true });
     return id;
   },

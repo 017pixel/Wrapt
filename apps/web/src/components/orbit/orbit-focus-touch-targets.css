@@ -1,0 +1,8 @@
+@media (max-width: 1023px), (pointer: coarse) and (max-width: 1366px) {
+  .orbit-page[data-mobile-mode] .orbit-preview-group-header > .orbit-node-focus {
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

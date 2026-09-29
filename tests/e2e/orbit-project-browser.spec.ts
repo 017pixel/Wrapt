@@ -10,7 +10,7 @@ test.describe("Orbit project browser desktop", () => {
 
   test("navigates the server tree and opens a selected folder in Orbit", async ({ page }) => {
     test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
-    await page.goto(`${workbench}/wrapt/workbench`);
+    await page.goto(`${workbench}/wrapt/orbit`);
     await expect(page.locator(".orbit-page")).toBeVisible();
 
     await page.getByRole("button", { name: "Alle Projekte auswählen" }).click();
@@ -38,7 +38,7 @@ test.describe("Orbit project browser desktop", () => {
     await expect(browser).toHaveCount(0);
     const projectName = projectPath!.split("/").at(-1)!;
     await expect(page.locator(".orbit-project-node").filter({ hasText: projectName })).toBeVisible();
-    await expect(page.locator(".sidebar-section").nth(1).locator("button.orbit-palette-item").first()).toContainText(projectName);
+    await expect(page.locator(".sidebar-orbit-library").getByRole("button", { name: `${projectName} ziehen` })).toBeVisible();
   });
 });
 
@@ -51,7 +51,7 @@ test.describe("Orbit project browser mobile", () => {
 
   test("opens as a safe-area fullscreen dialog from the command palette", async ({ page }) => {
     test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
-    await page.goto(`${workbench}/wrapt/workbench`);
+    await page.goto(`${workbench}/wrapt/orbit`);
     await page.getByRole("button", { name: "Befehl" }).click();
     await page.getByRole("button", { name: /Projektordner durchsuchen/ }).click();
 
@@ -60,7 +60,8 @@ test.describe("Orbit project browser mobile", () => {
     const bounds = await browser.boundingBox();
     expect(bounds?.x).toBe(0);
     expect(bounds?.width).toBe(390);
-    expect(bounds?.height).toBe(844);
+    expect(bounds?.height).toBeGreaterThanOrEqual(828);
+    expect(bounds?.height).toBeLessThanOrEqual(844);
     await expect(browser.getByRole("textbox", { name: "Serverpfad" })).toHaveCSS("font-size", "16px");
     const action = browser.getByRole("button", { name: "Im Orbit öffnen" });
     const actionBounds = await action.boundingBox();

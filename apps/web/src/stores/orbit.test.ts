@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import { orbitWorkspaceSchema, type Workspace } from "@wrapt/contracts";
-import { freshOrbitWorkspace, migrateOrbitDocument, migrateWorkspaceToOrbit, previewSlotGeometry, useOrbitStore } from "./orbit";
+import { orbitWorkspaceSchema, type LayoutState } from "@wrapt/contracts";
+import { freshOrbitWorkspace, migrateLayoutToOrbit, migrateOrbitDocument, previewSlotGeometry, useOrbitStore } from "./orbit";
 
-const legacy: Workspace = {
-  version: 3,
+const legacy: LayoutState = {
+  version: 4,
   selectedProjectId: "wrapt",
   panels: [{ id: "terminal-one", type: "terminal", projectId: "wrapt", previewId: null, reloadKey: 0 }],
-  workspaces: [{ id: "legacy", name: "Arbeitsfläche", groups: [{ id: "group", panelIds: ["terminal-one"], activePanelId: "terminal-one" }], focusedGroupId: "group", layout: "single", layoutSizes: {} }],
-  activeWorkspaceId: "legacy",
+  pages: [{ id: "legacy", name: "Arbeitsfläche", groups: [{ id: "group", panelIds: ["terminal-one"], activePanelId: "terminal-one" }], focusedGroupId: "group", layout: "single", layoutSizes: {} }],
+  activePageId: "legacy",
   maximizedPanelId: null,
   focusedPanelId: "terminal-one",
 };
@@ -67,8 +67,8 @@ describe("Orbit store", () => {
   });
 
 
-  it("migrates project-bound v3 panels into hubs, tool nodes and edges", () => {
-    const migrated = migrateWorkspaceToOrbit(legacy);
+  it("migrates layout panels into project hubs, tool nodes and edges", () => {
+    const migrated = migrateLayoutToOrbit(legacy);
     expect(migrated.version).toBe(8);
     expect(migrated.boards[0]!.nodes.map((node) => node.type)).toEqual(["project", "tool"]);
     expect(migrated.boards[0]!.edges).toHaveLength(1);
@@ -176,10 +176,10 @@ describe("Orbit store", () => {
     expect(useOrbitStore.getState().document).toBe(secondSnapshot);
   });
 
-  it("creates and renames workspaces without scene state", () => {
+  it("creates and renames boards without scene state", () => {
     const boardId = useOrbitStore.getState().addBoard();
     expect(boardId).toBeTruthy();
-    expect(useOrbitStore.getState().document.boards.find((board) => board.id === boardId)?.name).toBe("Arbeitsfläche 2");
+    expect(useOrbitStore.getState().document.boards.find((board) => board.id === boardId)?.name).toBe("Board 2");
     useOrbitStore.getState().renameBoard(boardId!, "Backend Fokus");
     expect(useOrbitStore.getState().document.boards.find((board) => board.id === boardId)?.name).toBe("Backend Fokus");
     expect("addScene" in useOrbitStore.getState()).toBe(false);

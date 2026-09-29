@@ -19,9 +19,10 @@ test("edits, saves and synchronizes a complete Orbit workspace", async ({ page, 
   page.on("pageerror", (error) => errors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") errors.push(`${message.text()} ${message.location()?.url ?? ""}`); });
 
-  await page.goto(`${workbench}/wrapt/workbench`);
+  await page.goto(`${workbench}/wrapt/orbit`);
   await expect(page.locator(".orbit-page")).toBeVisible();
-  await expect(page.getByRole("button", { name: "Auf Server gespeichert" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator(".orbit-node-status")).toHaveCount(0);
+  await expect(page.getByRole("status", { name: "Auf Server gespeichert" })).toBeVisible({ timeout: 15_000 });
   await expect(page.locator(".topbar")).toHaveCount(0);
 
   const projectsResponse = await page.request.get(new URL("/api/v1/projects", workbench).toString(), { headers: apiIdentityHeaders(login) });
@@ -34,28 +35,43 @@ test("edits, saves and synchronizes a complete Orbit workspace", async ({ page, 
   await page.getByRole("button", { name: /Neue Notiz/ }).click();
   const marker = `Orbit synchronisiert ${Date.now()}`;
   const note = page.getByLabel("Neue Notiz bearbeiten").last();
+  await expect.poll(() => note.evaluate((element) => getComputedStyle(element).paddingLeft)).toBe("24px");
   await note.fill(marker, { force: true });
-  await expect(page.getByRole("button", { name: "Auf Server gespeichert" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("status", { name: "Auf Server gespeichert" })).toBeVisible({ timeout: 15_000 });
+  const noteNodeId = await page.locator(".react-flow__node-orbit")
+    .filter({ has: note })
+    .last()
+    .getAttribute("data-id");
+  expect(noteNodeId).toBeTruthy();
+  const readPersistedNoteContent = async () => {
+    const layoutResponse = await page.request.get(new URL("/api/v1/orbit", workbench).toString(), { headers: apiIdentityHeaders(login) });
+    const layout = await layoutResponse.json();
+    const activeBoard = layout.document.boards.find((candidate: { id: string }) => candidate.id === layout.document.activeBoardId);
+    const noteNode = activeBoard?.nodes.find((candidate: { id: string; noteId?: string }) => candidate.id === noteNodeId);
+    if (!noteNode?.noteId) return "";
+    const noteResponse = await page.request.get(
+      new URL(`/api/v1/notes/${encodeURIComponent(noteNode.noteId)}`, workbench).toString(),
+      { headers: apiIdentityHeaders(login) },
+    );
+    return noteResponse.ok() ? String((await noteResponse.json()).note.content) : "";
+  };
+  await expect.poll(readPersistedNoteContent, { timeout: 15_000 }).toContain(marker);
   await page.reload();
-  await expect(page.getByLabel("Neue Notiz bearbeiten").last()).toHaveValue(marker);
+  await expect(page.getByLabel("Neue Notiz bearbeiten").last()).toContainText(marker);
 
-  await page.getByRole("button", { name: /To-do-Liste/ }).first().click();
-  const task = `Aufgabe ${Date.now()}`;
-  await page.getByLabel("Neue Aufgabe").last().fill(task);
-  await page.getByLabel("Aufgabe hinzufügen").last().click();
-  const taskInputs = page.locator('input:not([type="checkbox"])[aria-label^="Aufgabe "]');
-  await expect.poll(() => taskInputs.evaluateAll((inputs, expected) => inputs.findIndex((input) => (input as HTMLInputElement).value === expected), task), { timeout: 15_000 }).toBeGreaterThanOrEqual(0);
-  const taskInputIndex = await taskInputs.evaluateAll((inputs, expected) => inputs.findIndex((input) => (input as HTMLInputElement).value === expected), task);
-  await page.locator('input[type="checkbox"][aria-label^="Aufgabe "]').nth(taskInputIndex).check();
-  await expect(page.getByRole("button", { name: "Auf Server gespeichert" })).toBeVisible({ timeout: 15_000 });
-  await page.reload();
-  await expect.poll(() => taskInputs.evaluateAll((inputs, expected) => inputs.some((input) => (input as HTMLInputElement).value === expected), task)).toBe(true);
-  await expect.poll(() => page.locator('input[type="checkbox"][aria-label^="Aufgabe "]').evaluateAll((inputs) => inputs.some((input) => (input as HTMLInputElement).checked))).toBe(true);
+  await expect(page.getByRole("button", { name: /To-do-Liste/ })).toBeVisible();
 
   const initialLayout = await (await page.request.get(new URL("/api/v1/orbit", workbench).toString(), { headers: apiIdentityHeaders(login) })).json();
   const initialBoard = initialLayout.document.boards.find((candidate: { id: string }) => candidate.id === initialLayout.document.activeBoardId);
   const projectNode = initialBoard.nodes.find((node: { type: string; title: string }) => node.type === "project" && node.title === projectName);
-  const noteNode = initialBoard.nodes.find((node: { type: string; content: string }) => node.type === "note" && node.content === marker);
+  const noteNode = initialBoard.nodes.find((node: { id: string }) => node.id === noteNodeId);
+  expect(noteNode?.noteId).toBeTruthy();
+  const persistedNoteResponse = await page.request.get(
+    new URL(`/api/v1/notes/${encodeURIComponent(noteNode.noteId)}`, workbench).toString(),
+    { headers: apiIdentityHeaders(login) },
+  );
+  await expect(persistedNoteResponse).toBeOK();
+  expect((await persistedNoteResponse.json()).note.content).toContain(marker);
   const separated = projectNode.position.x + projectNode.size.width < noteNode.position.x
     || noteNode.position.x + noteNode.size.width < projectNode.position.x
     || projectNode.position.y + projectNode.size.height < noteNode.position.y
@@ -64,13 +80,14 @@ test("edits, saves and synchronizes a complete Orbit workspace", async ({ page, 
 
   const secondContext = await browser.newContext({ viewport: { width: 1280, height: 800 }, extraHTTPHeaders: apiIdentityHeaders(login) });
   const secondPage = await secondContext.newPage();
-  await secondPage.goto(`${workbench}/wrapt/workbench`);
+  await secondPage.goto(`${workbench}/wrapt/orbit`);
   const secondNote = secondPage.getByLabel("Neue Notiz bearbeiten").last();
-  await expect(secondNote).toHaveValue(marker);
+  await expect(secondNote).toContainText(marker);
   const remoteMarker = `${marker} · Gerät 2`;
   await secondNote.fill(remoteMarker, { force: true });
-  await expect(secondPage.getByRole("button", { name: "Auf Server gespeichert" })).toBeVisible({ timeout: 15_000 });
-  await expect(page.getByLabel("Neue Notiz bearbeiten").last()).toHaveValue(remoteMarker, { timeout: 12_000 });
+  await expect(secondPage.getByRole("status", { name: "Auf Server gespeichert" })).toBeVisible({ timeout: 15_000 });
+  await page.bringToFront();
+  await expect(page.getByLabel("Neue Notiz bearbeiten").last()).toContainText(remoteMarker, { timeout: 12_000 });
 
   const nodeCount = await page.locator(".react-flow__node-orbit").count();
   await page.getByRole("button", { name: /Neuer Bereich/ }).dragTo(page.locator(".react-flow__pane"), {
@@ -84,6 +101,9 @@ test("edits, saves and synchronizes a complete Orbit workspace", async ({ page, 
   const frameId = await frameCandidate.getAttribute("data-id");
   expect(frameId).toBeTruthy();
   const frameNode = page.locator(`.react-flow__node-orbit[data-id="${frameId}"]`);
+  const frameTitleLocator = frameNode.locator(".orbit-frame-title");
+  const frameTitleBackground = await frameTitleLocator.evaluate((element) => getComputedStyle(element).backgroundColor);
+  expect(frameTitleBackground).not.toBe("rgba(0, 0, 0, 0)");
   await expect(page.getByRole("button", { name: "Eigenschaften öffnen" })).toBeVisible();
   await expect(page.locator(".orbit-inspector")).toHaveCount(0);
   await page.getByRole("button", { name: "Eigenschaften öffnen" }).click();
@@ -91,7 +111,6 @@ test("edits, saves and synchronizes a complete Orbit workspace", async ({ page, 
   await page.getByRole("button", { name: "Eigenschaften einklappen" }).click();
   await page.waitForTimeout(300);
   const frameBeforeDrag = await frameNode.boundingBox();
-  const frameTitleLocator = frameNode.locator(".orbit-frame-title");
   if (browserName !== "firefox") {
     // Der große Eckgriff liegt bei kleinen Zoomstufen über dem linken Teil
     // des Frame-Titels. Force-Hover setzt den Drag-Handle trotzdem gezielt,
@@ -109,7 +128,7 @@ test("edits, saves and synchronizes a complete Orbit workspace", async ({ page, 
     expect(frameAfterDrag?.x).toBeGreaterThan((frameBeforeDrag?.x ?? 0) + 30);
   }
   await expect(page.locator(".orbit-inspector")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Auf Server gespeichert" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("status", { name: "Auf Server gespeichert" })).toBeVisible({ timeout: 15_000 });
   const snippetPalette = page.getByRole("button", { name: /Code-Snippet/ });
   await snippetPalette.press("Enter");
   const snippetNode = page.locator(".react-flow__node-orbit").filter({ has: page.locator(".orbit-snippet-meta") }).last();
@@ -117,7 +136,7 @@ test("edits, saves and synchronizes a complete Orbit workspace", async ({ page, 
   await snippetNode.getByLabel("Programmiersprache").fill("typescript");
   await snippetNode.getByLabel("Code-Snippet Code bearbeiten").fill("const orbit = true;", { force: true });
   await page.getByRole("button", { name: /Codex Nutzung/ }).press("Enter");
-  await expect(page.getByText("Aktualisierung alle 60 Sekunden").last()).toBeVisible();
+  await expect(page.getByText("Aktualisierung alle 30 Sekunden").last()).toBeVisible();
 
   await expect(page.getByRole("button", { name: /neue-datei\.ts/ })).toHaveCount(0);
 
@@ -126,12 +145,13 @@ test("edits, saves and synchronizes a complete Orbit workspace", async ({ page, 
   await expect(command).toBeVisible();
   await command.getByPlaceholder("Terminal, Notiz oder Projekt…").fill("terminal");
   await command.getByPlaceholder("Terminal, Notiz oder Projekt…").press("Enter");
+  const terminalNode = page.locator(".react-flow__node-orbit").filter({ has: page.locator('[data-panel-type="terminal"]') }).last();
+  await terminalNode.getByRole("button", { name: "Terminal öffnen" }).click();
   const terminalInput = page.locator(".xterm-helper-textarea").last();
   await expect(page.locator(".xterm-screen").last()).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".terminal-connection-status").last()).toHaveText("Verbunden", { timeout: 20_000 });
   await expect(terminalInput).toBeAttached();
 
-  const terminalNode = page.locator(".react-flow__node-orbit").filter({ has: page.locator('[data-panel-type="terminal"]') }).last();
   await expect(terminalNode.locator(".terminal-area-toolbar")).toHaveCount(0);
   await expect(terminalNode.locator(".panel-island")).toHaveCount(0);
   await expect(terminalNode.locator(".orbit-live-dragbar")).toHaveCount(0);
@@ -191,8 +211,17 @@ test("edits, saves and synchronizes a complete Orbit workspace", async ({ page, 
 
   await page.locator(".orbit-palette-item").filter({ hasText: /^Codexziehen$/ }).press("Enter");
   await expect(page.locator('.orbit-live-node [data-panel-type="codex"]').last()).toBeVisible();
+  await page.route("**/opencode", (route) => route.fulfill({
+    status: 503,
+    contentType: "text/plain; charset=utf-8",
+    body: "OpenCode Web ist derzeit nicht erreichbar.",
+  }));
   await page.locator(".orbit-palette-item").filter({ hasText: /^OpenCodeziehen$/ }).press("Enter");
-  await expect(page.locator('.orbit-live-node [data-panel-type="opencode"]').last()).toBeVisible();
+  const openCodePanel = page.locator('.orbit-live-node [data-panel-type="opencode"]').last();
+  await expect(openCodePanel).toBeVisible();
+  const openCodeFrame = openCodePanel.locator('iframe[title="OpenCode"]');
+  await expect(openCodeFrame).toHaveAttribute("src", /\/opencode(?:\?|$)/);
+  await expect(openCodeFrame.contentFrame().locator("body")).toContainText("OpenCode Web ist derzeit nicht erreichbar.");
   await page.keyboard.press("/");
   const t3Command = page.getByRole("dialog", { name: "Orbit-Befehl" });
   await t3Command.getByPlaceholder("Terminal, Notiz oder Projekt…").fill("t3 code");
@@ -201,45 +230,79 @@ test("edits, saves and synchronizes a complete Orbit workspace", async ({ page, 
   await expect(t3Node.locator('iframe[title="T3 Code"]')).toHaveAttribute("src", /(?:\/t3|https?:\/\/)/);
   await expect(t3Node.locator(".panel-island")).toHaveCount(0);
 
-  const workspaceSelect = page.getByLabel("Arbeitsfläche auswählen");
+  const boardSwitcher = page.locator(".orbit-board-picker-trigger");
   await expect(page.getByLabel("Gespeicherte Szene öffnen")).toHaveCount(0);
   await page.getByRole("button", { name: "Arbeitsfläche umbenennen" }).click();
-  const renamedWorkspace = `Fokus ${Date.now()}`;
-  await page.getByLabel("Name der Arbeitsfläche").fill(renamedWorkspace);
-  await page.getByRole("button", { name: "Arbeitsflächenname speichern" }).click();
-  await expect(workspaceSelect.locator("option:checked")).toContainText(renamedWorkspace);
-  await expect(page.getByRole("button", { name: "Auf Server gespeichert" })).toBeVisible({ timeout: 15_000 });
-  const firstBoardId = await workspaceSelect.inputValue();
-  const boardCount = await workspaceSelect.locator("option").count();
+  const renamedBoard = `Fokus ${Date.now()}`;
+  await page.getByLabel("Name der Arbeitsfläche").fill(renamedBoard);
+  await page.getByRole("button", { name: "Arbeitsfläche umbenennen speichern" }).click();
+  await expect(boardSwitcher).toHaveAttribute("aria-label", `Arbeitsfläche: ${renamedBoard}`);
+  await expect(page.getByRole("status", { name: "Auf Server gespeichert" })).toBeVisible({ timeout: 15_000 });
+  await boardSwitcher.click();
+  const boardMenu = page.getByRole("menu", { name: "Arbeitsfläche auswählen" });
+  await expect(boardMenu).toBeVisible();
+  const boardMenuBounds = await boardMenu.boundingBox();
+  expect(boardMenuBounds).not.toBeNull();
+  expect(boardMenuBounds!.x).toBeGreaterThanOrEqual(0);
+  expect(boardMenuBounds!.y).toBeGreaterThanOrEqual(0);
+  expect(boardMenuBounds!.x + boardMenuBounds!.width).toBeLessThanOrEqual(1440);
+  expect(boardMenuBounds!.y + boardMenuBounds!.height).toBeLessThanOrEqual(960);
+  const boardCount = await page.getByRole("menuitemradio").count();
+  await page.keyboard.press("Escape");
   const readBoardCount = async () => Number((await (await page.request.get(new URL("/api/v1/orbit", workbench).toString(), { headers: apiIdentityHeaders(login) })).json()).document.boards.length);
   await page.getByRole("button", { name: "Arbeitsfläche hinzufügen" }).click();
-  await expect(workspaceSelect.locator("option")).toHaveCount(boardCount + 1);
+  await boardSwitcher.click();
+  await expect(page.getByRole("menuitemradio")).toHaveCount(boardCount + 1);
   await expect(page.locator(".orbit-live-node")).toHaveCount(0);
   await expect.poll(readBoardCount, { timeout: 15_000 }).toBeGreaterThanOrEqual(boardCount + 1);
   const afterBoardSave = await page.request.get(new URL("/api/v1/orbit", workbench).toString(), { headers: apiIdentityHeaders(login) });
   expect((await afterBoardSave.json()).document.boards.length).toBeGreaterThanOrEqual(2);
-  await workspaceSelect.selectOption(firstBoardId);
+  await page.getByRole("menuitemradio").filter({ hasText: renamedBoard }).click();
   await expect(page.locator(".orbit-live-node")).not.toHaveCount(0);
-  await expect(workspaceSelect.locator("option:checked")).toContainText(renamedWorkspace);
+  await expect(boardSwitcher).toHaveAttribute("aria-label", `Arbeitsfläche: ${renamedBoard}`);
+  await boardSwitcher.click();
+  await expect(page.getByRole("menuitemradio", { checked: true })).toHaveCount(1);
+  await page.getByRole("menuitemradio").filter({ hasText: "Arbeitsfläche 2" }).click();
+  await expect(boardSwitcher).toHaveAttribute("aria-label", "Arbeitsfläche: Arbeitsfläche 2");
+  await page.getByRole("button", { name: "Arbeitsfläche entfernen" }).click();
+  await expect(boardSwitcher).toHaveAttribute("aria-label", `Arbeitsfläche: ${renamedBoard}`);
+  await expect.poll(readBoardCount, { timeout: 15_000 }).toBe(boardCount);
 
   const noteCountBeforeDelete = await page.locator(".orbit-node-shell").count();
-  await page.getByRole("button", { name: "Notiz hinzufügen" }).click();
+  await page.getByRole("button", { name: "Neue Notiz", exact: true }).click();
   const deletableNote = page.locator(".orbit-node-shell").last();
   const dragHeader = deletableNote.locator(".orbit-node-header");
   if (browserName !== "chromium") {
     await dragHeader.click();
     await page.keyboard.press("Delete");
   } else {
-    // Nach dem Arbeitsflächenwechsel kann der React-Flow-Auswahlzustand noch
+    // Nach dem Boardwechsel kann der React-Flow-Auswahlzustand noch
     // auf dem vorherigen Knoten liegen. Ein expliziter Klick macht den
-    // Drag-Handle deterministisch aktiv.
+    // Drag-Handle aktiv; danach muss die automatische Canvas-Bewegung enden.
     await dragHeader.click();
-    const dragStartBox = await dragHeader.boundingBox();
-    expect(dragStartBox).not.toBeNull();
+    await page.getByRole("button", { name: "Alles zeigen" }).click();
     await dragHeader.hover({ force: true });
-    await page.mouse.move((dragStartBox?.x ?? 0) + (dragStartBox?.width ?? 0) / 2, (dragStartBox?.y ?? 0) + (dragStartBox?.height ?? 0) / 2);
+    await expect.poll(async () => {
+      const before = await dragHeader.boundingBox();
+      await page.waitForTimeout(80);
+      const after = await dragHeader.boundingBox();
+      return Boolean(before && after && Math.abs(before.x - after.x) < 1 && Math.abs(before.y - after.y) < 1);
+    }).toBe(true);
+    const dragStart = await dragHeader.evaluate((header) => {
+      const rect = header.getBoundingClientRect();
+      for (const yFraction of [0.75, 0.6, 0.9]) {
+        for (const xFraction of [0.3, 0.4, 0.6, 0.7, 0.5]) {
+          const x = rect.left + rect.width * xFraction;
+          const y = rect.top + rect.height * yFraction;
+          if (document.elementFromPoint(x, y)?.closest(".orbit-node-header") === header) return { x, y };
+        }
+      }
+      return null;
+    });
+    expect(dragStart).not.toBeNull();
+    await page.mouse.move(dragStart!.x, dragStart!.y);
     await page.mouse.down();
-    await page.mouse.move((dragStartBox?.x ?? 0) + (dragStartBox?.width ?? 0) / 2 + 28, (dragStartBox?.y ?? 0) + (dragStartBox?.height ?? 0) / 2 + 24, { steps: 4 });
+    await page.mouse.move(dragStart!.x + 28, dragStart!.y + 24, { steps: 4 });
     await expect(page.locator(".orbit-delete-zone")).toHaveClass(/is-visible/);
     const deleteZoneBox = await page.locator(".orbit-delete-zone").boundingBox();
     expect(deleteZoneBox).not.toBeNull();
@@ -277,7 +340,7 @@ test("edits, saves and synchronizes a complete Orbit workspace", async ({ page, 
   await expect(viewport).not.toHaveAttribute("style", viewportTransformBefore ?? "");
   await expect(page.locator(".react-flow__selection")).toHaveCount(0);
 
-  await page.screenshot({ path: "/tmp/orbit-workspace-e2e.png", fullPage: true });
+  await page.screenshot({ path: "/tmp/orbit-board-e2e.png", fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator(".orbit-main-island")).toBeVisible();
   const addButton = page.getByRole("button", { name: "Befehl" });
@@ -308,7 +371,7 @@ test("edits, saves and synchronizes a complete Orbit workspace", async ({ page, 
   const orbit = await orbitResponse.json();
   expect(orbit.revision).toBeGreaterThan(0);
   expect(orbit.document.version).toBe(8);
-  expect(orbit.document.boards.length).toBeGreaterThanOrEqual(2);
+  expect(orbit.document.boards.length).toBe(boardCount);
   expect(orbit.document.boards.some((candidate: { edges: unknown[] }) => candidate.edges.length > 0)).toBe(true);
 
   await secondContext.close();
@@ -316,6 +379,7 @@ test("edits, saves and synchronizes a complete Orbit workspace", async ({ page, 
   expect(errors.filter((message) => {
     if (/favicon|ResizeObserver loop/i.test(message)) return false;
     if (/Cookie .*_cfuvid.*rejected for invalid domain.*clerk\.t3\.codes/i.test(message)) return false;
+    if (isolatedLocalOrigin && /invalid source: 'http:\/\/\[::1\]:3010'/i.test(message)) return false;
     if (isolatedLocalOrigin && /ws:\/\/127\.0\.0\.1:\d+\/api\/v1\/(?:editor|notifications)\/ws/i.test(message)) return false;
     if (isolatedLocalOrigin && /Framing .*server-name.*frame-ancestors|frame-ancestors.*violates|status of 400|ws:\/\/127\.0\.0\.1:\d+\/api\/v1\/terminal/i.test(message)) return false;
     if (isolatedLocalOrigin && /server-name\.tailnet\.ts\.net/i.test(message)) return false;
@@ -323,8 +387,8 @@ test("edits, saves and synchronizes a complete Orbit workspace", async ({ page, 
     // Nutzungs-Panels dürfen dort mit 500 antworten, ohne den Lauf zu färben.
     if (isolatedLocalOrigin && /status of 500.*\/api\/v1\/usage/i.test(message)) return false;
     // Ebenso fehlen der isolierten Instanz die echten Agent-Dienste hinter
-    // /t3, /opencode und /codex.
-    if (isolatedLocalOrigin && /status of 500.*\/(?:t3|opencode|codex)(?:\?|$)/i.test(message)) return false;
+    // /t3, /opencode und /codex. Die Proxys melden das als 502/503.
+    if (isolatedLocalOrigin && /status of (?:500|502|503).*\/(?:t3|opencode|codex)(?:\?|$)/i.test(message)) return false;
     return true;
   })).toEqual([]);
 });

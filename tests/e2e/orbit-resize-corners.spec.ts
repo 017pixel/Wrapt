@@ -41,7 +41,7 @@ test("keeps every visible resize point centered on its window corner", async ({ 
   const saved = await page.request.put(orbitUrl, { data: { expectedRevision: current.revision, document: current.document }, headers: apiIdentityHeaders(login) });
   await expect(saved).toBeOK();
 
-  await page.goto(`${workbench}/wrapt/workbench`);
+  await page.goto(`${workbench}/wrapt/orbit`);
   const node = page.locator(`.react-flow__node-orbit[data-id="${nodeId}"]`);
   await node.locator(".orbit-node-header").click();
   const result = await node.evaluate((element) => {
