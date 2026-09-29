@@ -62,7 +62,10 @@ test.describe("Notizen", () => {
     await expect(
       page.locator(".notes-sidebar .notes-tree-row").getByRole("button", { name: noteTitle }),
     ).toBeVisible();
-    expect(consoleErrors).toEqual([]);
+    // Verbindungsabbrüche der Live-Kanäle (Editor, Benachrichtigungen) meldet
+    // der Browser als Konsolenfehler, die App verbindet sich still neu — wie
+    // in terminal-sidebar-improvements.spec.ts herausgefiltert.
+    expect(consoleErrors.filter((message) => !/ws:\/\/127\.0\.0\.1:\d+\/api\/v1\/(?:editor|notifications)\/ws/i.test(message))).toEqual([]);
   });
 
   test("öffnet das Slash-Menü und fügt Blöcke ein", async ({ page }) => {
@@ -126,7 +129,13 @@ test.describe("Notizen", () => {
     expect(pageErrors).toEqual([]);
   });
 
-  test("wandelt eingefügtes Markdown automatisch in Blöcke um", async ({ page }) => {
+  test("wandelt eingefügtes Markdown automatisch in Blöcke um", async ({ page, browserName }) => {
+    // Firefox liefert für synthetische ClipboardEvents kein clipboardData
+    // (Sicherheitsgrenze für nicht vertrauenswürdige Events) — der Handler
+    // bekommt allenfalls leere Daten. Echte Einfügungen enthalten dort die
+    // regulären Zwischenablage-Daten und nehmen denselben Codepfad wie hier
+    // auf Chromium und WebKit.
+    test.skip(browserName === "firefox", "Synthetische Einfügung trägt in Firefox keine Zwischenablage-Daten.");
     await openNotes(page);
     await createPage(page);
     const editor = page.locator(".notes-workspace .note-editor-content").first();

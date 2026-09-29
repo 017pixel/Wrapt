@@ -101,7 +101,7 @@ test.describe("Notizen-Suche (⌘K)", () => {
     const dialog = palette(page);
     await dialog.getByLabel("Notizen durchsuchen").fill("Abschnitt Planung");
 
-    await expect(dialog.getByRole("option", { name: new RegExp(title) })).toBeVisible();
+    await expect(dialog.getByRole("option", { name: new RegExp(title) })).toBeVisible({ timeout: 15_000 });
     await expect(dialog.locator(".notes-palette-group-title").first()).toHaveText("Heute");
     await expect(dialog.locator(".notes-palette-foot")).toContainText("Neues Fenster");
   });

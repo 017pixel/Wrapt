@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { workbenchUrl } from "./helpers/environment";
 
 test.use({ extraHTTPHeaders: { "tailscale-user-login": "user@example.com" } });
 
@@ -92,14 +93,30 @@ test("hält Plugin-Topbar und Werkzeugaktionen als rechte Gruppe zusammen", asyn
   }
 });
 
-test("keeps one standalone tool menu after switching between tool routes", async ({ page }) => {
+test("keeps one standalone tool menu after switching between tool routes", async ({ page, request }) => {
+  // Ohne laufenden Code-Server zeigt die Editor-Seite bewusst die
+  // Ausfallseite statt eines kaputten iframes (siehe
+  // code-server-availability.spec.ts). Der Menü-Bestand gilt in beiden Fällen.
+  const origin = new URL(workbenchUrl).origin;
+  const servicesResponse = await request.get(`${origin}/api/v1/services`, {
+    headers: { "tailscale-user-login": "user@example.com" },
+  });
+  await expect(servicesResponse).toBeOK();
+  const services = await servicesResponse.json() as { services: Array<{ id: string; state: string }> };
+  const editorRunning = services.services.some((service) => service.id === "code-server" && service.state === "active");
+
   await page.goto("/wrapt/t3-code");
   const actions = page.locator("#topbar-tool-actions");
   await expect(actions.getByRole("button", { name: "Werkzeugaktionen" })).toHaveCount(1);
 
   await page.getByRole("link", { name: "Code-Server" }).click();
   await expect(page).toHaveURL(/\/wrapt\/code-editor$/);
-  await expect(page.locator('iframe[title="Editor"]')).toBeVisible();
+  if (editorRunning) {
+    await expect(page.locator('iframe[title="Editor"]')).toBeVisible();
+  } else {
+    await expect(page.getByText(/Code-Server (läuft auf diesem Gerät nicht|ist derzeit nicht erreichbar|Status ist noch nicht verfügbar)/)).toBeVisible();
+    await expect(page.locator('iframe[title="Editor"]')).toHaveCount(0);
+  }
   await expect(page.locator("#topbar-tool-actions").getByRole("button", { name: "Werkzeugaktionen" })).toHaveCount(1);
 
   await page.getByRole("link", { name: "T3 Code" }).click();
