@@ -60,6 +60,26 @@ function providerLimit(provider: ProviderUsage | undefined, compactAccounts = fa
   }).join(" | ");
 }
 
+/**
+ * Kompakter Systemstatus für kleine Viewports ohne Seitenleiste: Die
+ * Desktop-Statusleiste ist dort ausgeblendet, Bedienung und Version bleiben
+ * aber über eine einzeilige, umbrechende Region erreichbar — auch bei
+ * 200 Prozent Textgröße.
+ */
+export function CompactSystemStatus() {
+  const health = useQuery(wraptQueries.health());
+  return (
+    <div
+      className="flex min-w-0 items-center gap-2 overflow-hidden px-3 py-1 text-xs text-muted"
+      role="region"
+      aria-label="Kompakter Systemstatus"
+    >
+      {health.isLoading ? <Spinner /> : <StateDot state={health.isError ? "error" : "active"} />}
+      <span className="truncate font-mono">v{health.data?.version ?? "—"} · {health.isError ? "nicht erreichbar" : "bereit"}</span>
+    </div>
+  );
+}
+
 export function StatusBar() {
   const queryClient = useQueryClient();
   const health = useQuery(wraptQueries.health());

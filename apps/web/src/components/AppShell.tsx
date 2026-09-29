@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronRightIcon, MenuIcon, RestoreIcon } from "./icons";
 import { Sidebar } from "./Sidebar";
 import { MobileNav } from "./MobileNav";
-import { StatusBar } from "./StatusBar";
+import { StatusBar, CompactSystemStatus } from "./StatusBar";
 import { useSidebarLayout } from "../lib/useSidebarLayout";
 import { PersistentOutlet } from "./PersistentOutlet";
 import { useLayoutStore } from "../stores/layout";
@@ -343,7 +343,7 @@ export function AppShell() {
           <PersistentOutlet />
         </main>
         <PwaInstallHint />
-        {showsNavigationSidebar ? <StatusBar /> : null}
+        {showsNavigationSidebar ? <StatusBar /> : <CompactSystemStatus />}
       </div>
       {terminalFocus ? <button type="button" className="terminal-focus-exit" onClick={() => setTerminalFocus(false)} aria-label="Vollbild verlassen" title="Vollbild verlassen"><RestoreIcon className="h-4 w-4" /></button> : null}
       <MobileNav open={mobileNavigationOpen && !hasTabletSidebar} onClose={closeMobileNavigation} triggerRef={navigationTriggerRef} />
