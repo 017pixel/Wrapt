@@ -1,0 +1,98 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { Note, UpdateNoteRequest } from "@wrapt/contracts";
+import { IconPicker } from "./icons/IconPicker.js";
+import { NotePageIcon } from "./icons/NotePageIcon.js";
+
+interface NoteTitleProps {
+  note: Note;
+  onPatch: (patch: UpdateNoteRequest) => void;
+  disabled?: boolean;
+}
+
+const TITLE_SAVE_DELAY_MS = 500;
+
+/** Titelzeile mit Material-Symbol; speichert den Titel entprellt. */
+export function NoteTitle({ note, onPatch, disabled = false }: NoteTitleProps) {
+  const [title, setTitle] = useState(note.title);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const timerRef = useRef<number | null>(null);
+  const pendingRef = useRef<{ value: string; originalTitle: string; onPatch: NoteTitleProps["onPatch"] } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const iconButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    setTitle(note.title);
+  }, [note.id, note.title]);
+
+  const commitTitle = useCallback(() => {
+    const pending = pendingRef.current;
+    pendingRef.current = null;
+    if (!pending) return;
+    const trimmed = pending.value.trim();
+    if (trimmed && trimmed !== pending.originalTitle) pending.onPatch({ title: trimmed });
+  }, []);
+
+  useEffect(() => () => {
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    commitTitle();
+  }, [commitTitle, note.id]);
+
+  const changeTitle = (value: string) => {
+    setTitle(value);
+    pendingRef.current = { value, originalTitle: note.title, onPatch };
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(() => {
+      timerRef.current = null;
+      commitTitle();
+    }, TITLE_SAVE_DELAY_MS);
+  };
+
+  return (
+    <div className="notes-title-row">
+      <div className="notes-title-icon-wrap">
+        <button
+          ref={iconButtonRef}
+          type="button"
+          className={`notes-title-icon ${note.icon === null ? "is-empty" : ""}`}
+          aria-label={note.icon === null ? "Symbol wählen" : "Symbol ändern"}
+          title={note.icon === null ? "Symbol hinzufügen" : "Symbol ändern"}
+          disabled={disabled}
+          data-dismiss-ignore
+          onClick={() => setPickerOpen((open) => !open)}
+        >
+          <NotePageIcon name={note.icon} />
+        </button>
+        {pickerOpen ? (
+          <IconPicker
+            onPick={(name) => onPatch({ icon: name })}
+            {...(note.icon === null ? {} : { onRemove: () => onPatch({ icon: null }) })}
+            onClose={() => setPickerOpen(false)}
+            anchor={iconButtonRef.current}
+          />
+        ) : null}
+      </div>
+      <input
+        ref={inputRef}
+        className="notes-title-input"
+        value={title}
+        disabled={disabled}
+        placeholder="Notiz"
+        aria-label="Notiztitel"
+        onChange={(event) => changeTitle(event.target.value)}
+        onBlur={() => {
+          if (timerRef.current !== null) {
+            window.clearTimeout(timerRef.current);
+            timerRef.current = null;
+          }
+          commitTitle();
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            (event.target as HTMLInputElement).blur();
+          }
+        }}
+      />
+    </div>
+  );
+}

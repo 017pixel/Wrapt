@@ -1,11 +1,9 @@
+import { migrateLegacyLayoutStorage } from "../stores/layoutPersistence";
+
 const storageKeyAliases: ReadonlyArray<readonly [string, string]> = [
   ["remote-workplace.app-preferences.v1", "wrapt.app-preferences.v1"],
   ["remote-workplace.sidebar-preferences.v1", "wrapt.sidebar-preferences.v1"],
   ["remote-workplace.sidebar.v1", "wrapt.sidebar.v1"],
-  ["remote-workplace.workspace.v2", "wrapt.workspace.v2"],
-  ["remote-workplace.workspace.v1", "wrapt.workspace.v1"],
-  ["benjamin-dev-workbench.workspace.v2", "wrapt.workspace.v2"],
-  ["benjamin-dev-workbench.workspace.v1", "wrapt.workspace.v1"],
   ["remote-workplace.dashboard-preferences.v1", "wrapt.dashboard-preferences.v1"],
   ["remote-workplace.usage-preferences.v1", "wrapt.usage-preferences.v1"],
   ["remote-workplace.node-colors.v1", "wrapt.node-colors.v1"],
@@ -51,4 +49,5 @@ export function migrateLegacyBrowserStorage(storage: Storage = window.localStora
     if (raw === null || storage.getItem(wraptKey) !== null || !isValidStoredJson(raw)) continue;
     storage.setItem(wraptKey, raw);
   }
+  migrateLegacyLayoutStorage(storage);
 }

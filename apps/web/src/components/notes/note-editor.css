@@ -1,0 +1,239 @@
+/* Notizen: Editor-Inhalt (ProseMirror). Typografie und Standardblöcke. */
+
+.note-editor {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.note-editor-content {
+  min-height: 100%;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-md);
+  line-height: 1.7;
+  outline: none;
+  overflow-wrap: anywhere;
+}
+
+.note-editor-content.is-compact { font-size: var(--text-base); line-height: 1.6; }
+
+.note-editor-content > * + * { margin-top: var(--space-3); }
+
+.note-editor-content p { margin: 0; }
+
+.note-editor-content h1,
+.note-editor-content h2,
+.note-editor-content h3 {
+  margin: var(--space-6) 0 0;
+  color: var(--color-text);
+  font-weight: 650;
+  letter-spacing: -.01em;
+  line-height: 1.2;
+}
+
+.note-editor-content h1 { font-size: 1.75em; }
+.note-editor-content h2 { font-size: 1.4em; }
+.note-editor-content h3 { font-size: 1.15em; }
+.note-editor-content h1:first-child, .note-editor-content h2:first-child, .note-editor-content h3:first-child { margin-top: 0; }
+
+/* Leere Blöcke bleiben sichtbar, damit der Cursor hineinpasst. */
+.note-editor-content h1.is-empty::before,
+.note-editor-content h2.is-empty::before,
+.note-editor-content h3.is-empty::before,
+.note-editor-content p.is-empty::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--color-faint);
+  pointer-events: none;
+}
+
+.note-editor-content strong { font-weight: 650; }
+.note-editor-content a { color: var(--color-accent); text-decoration: underline; text-underline-offset: 2px; }
+.note-editor-content code {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  background: var(--color-ink-800);
+  padding: 1px 4px;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: .88em;
+}
+
+.note-editor-content mark {
+  border-radius: 2px;
+  background: color-mix(in oklab, var(--color-warn) 30%, transparent);
+  padding: 0 1px;
+  color: inherit;
+}
+
+/* Tailwind-Preflight entfernt Listenmarker; im Editor gehören sie zurück. */
+.note-editor-content ul:not([data-type="taskList"]) { list-style: disc; }
+.note-editor-content ol { list-style: decimal; }
+.note-editor-content ul ul:not([data-type="taskList"]) { list-style: circle; }
+.note-editor-content ul ul ul:not([data-type="taskList"]) { list-style: square; }
+.note-editor-content ul, .note-editor-content ol { margin: 0; padding-left: 1.45em; }
+.note-editor-content li { margin: 2px 0; }
+.note-editor-content li > p { margin: 0; }
+.note-editor-content ul li::marker, .note-editor-content ol li::marker { color: var(--color-faint); }
+
+.note-editor-content ul[data-type="taskList"] { padding-left: 2px; list-style: none; }
+.note-editor-content ul[data-type="taskList"] li { display: flex; align-items: flex-start; gap: var(--space-2); }
+.note-editor-content ul[data-type="taskList"] li > label { display: contents; }
+.note-editor-content ul[data-type="taskList"] li > div { min-width: 0; flex: 1; }
+.note-editor-content ul[data-type="taskList"] ul[data-type="taskList"] { margin-left: var(--space-4); }
+
+.note-editor-content ul[data-type="taskList"] input[type="checkbox"] {
+  position: relative;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin: 4px 0 0;
+  appearance: none;
+  border: 1px solid var(--color-ink-600);
+  border-radius: 3px;
+  background: var(--color-ink-800);
+  cursor: pointer;
+}
+
+.note-editor-content ul[data-type="taskList"] input[type="checkbox"]:hover { border-color: var(--color-accent-line); }
+.note-editor-content ul[data-type="taskList"] input[type="checkbox"]:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+
+.note-editor-content ul[data-type="taskList"] input[type="checkbox"]:checked {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+}
+
+.note-editor-content ul[data-type="taskList"] input[type="checkbox"]:checked::after {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--color-accent-contrast);
+  content: "✓";
+  font-size: 11px;
+  line-height: 1;
+}
+
+.note-editor-content ul[data-type="taskList"] li[data-checked="true"] > div { color: var(--color-faint); text-decoration: line-through; }
+
+.note-editor-content blockquote {
+  border-left: 2px solid var(--color-line);
+  margin: var(--space-3) 0;
+  padding: 2px 0 2px var(--space-3);
+  color: var(--color-muted);
+}
+
+.note-editor-content hr {
+  border: 0;
+  border-top: 1px solid var(--color-line);
+  margin: var(--space-5) 0;
+}
+
+.note-editor-content img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  margin: var(--space-3) 0;
+}
+
+.note-editor-content img.ProseMirror-selectednode { outline: 2px solid var(--color-accent); }
+
+/* Code-Block mit Sprachwahl und Kopierknopf (NodeView) */
+.note-code-block {
+  position: relative;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-850);
+  margin: var(--space-3) 0;
+  overflow: hidden;
+}
+
+.note-code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--color-line-soft);
+  padding: 4px 8px;
+}
+
+.note-code-language {
+  border: 0;
+  background: transparent;
+  padding: 2px 4px;
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+.note-code-language:hover { color: var(--color-text); }
+.note-code-copy { border: 0; border-radius: var(--radius-sm); background: transparent; padding: 3px 6px; color: var(--color-faint); font-size: var(--text-xs); }
+.note-code-copy:hover { background: var(--color-ink-700); color: var(--color-text); }
+
+.note-code-block pre {
+  margin: 0;
+  padding: var(--space-3);
+  overflow-x: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  line-height: 1.6;
+}
+
+.note-code-block pre code { border: 0; background: transparent; padding: 0; font-size: inherit; }
+
+/* Tabellen */
+.note-editor-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--space-3) 0;
+  table-layout: fixed;
+  overflow: hidden;
+}
+
+.note-editor-content th, .note-editor-content td {
+  position: relative;
+  border: 1px solid var(--color-line);
+  padding: 6px 8px;
+  vertical-align: top;
+}
+
+.note-editor-content th { background: var(--color-ink-800); font-weight: 600; text-align: left; }
+.note-editor-content th p, .note-editor-content td p { margin: 0; }
+
+.note-editor-content .selectedCell::after {
+  position: absolute;
+  inset: 0;
+  background: var(--color-accent-soft);
+  content: "";
+  pointer-events: none;
+}
+
+.note-editor-content .column-resize-handle {
+  position: absolute;
+  top: 0;
+  right: -2px;
+  bottom: 0;
+  width: 4px;
+  background: var(--color-accent);
+  pointer-events: none;
+}
+
+.note-editor-content.resize-cursor { cursor: col-resize; }
+
+/* Auswahl und Cursor */
+.note-editor-content ::selection { background: var(--color-accent-soft); }
+.note-editor-content .ProseMirror-selectednode { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+.note-editor-content .ProseMirror-gapcursor::after { border-top-color: var(--color-text); }
+
+.note-editor-content p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  color: var(--color-faint);
+  pointer-events: none;
+}

@@ -1,0 +1,112 @@
+/* Notizen: Orbit-Knoten (kompakter Editor im Knoten). */
+
+/* --- Orbit-Knoten --------------------------------------------------------- */
+
+.orbit-note-bound {
+  position: relative;
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  background: var(--color-ink-900);
+}
+
+.orbit-note-bound .note-editor { min-height: 0; flex: 1; }
+.orbit-note-bound .note-conflict {
+  flex: none;
+  flex-wrap: wrap;
+  border-right: 0;
+  border-left: 0;
+  border-radius: 0;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+}
+.orbit-note-bound .note-conflict-actions { width: 100%; flex-wrap: wrap; }
+.orbit-note-bound .note-conflict-actions button { min-height: 44px; flex: 1 1 120px; }
+.orbit-note-bound .note-editor-content {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: none;
+  padding: var(--space-5) var(--space-6);
+  font-size: var(--text-sm);
+  line-height: 1.7;
+}
+
+.orbit-note-actions {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  min-height: 50px;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--color-line);
+  background: var(--color-ink-800);
+  padding: 0 var(--space-2) 0 var(--space-4);
+}
+
+.orbit-note-actions > span {
+  min-width: 0;
+  flex: 1;
+  color: var(--color-faint);
+  font-size: var(--text-xs);
+  font-weight: 650;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+
+.orbit-note-actions button {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-muted);
+}
+
+.orbit-note-actions button:hover, .orbit-note-actions button:focus-visible {
+  border-color: var(--color-line);
+  background: var(--color-ink-700);
+  color: var(--color-text);
+}
+
+.orbit-note-rename-error {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--color-bad-soft);
+  background: var(--color-bad-soft);
+  padding: var(--space-1) var(--space-3);
+  color: var(--color-bad);
+  font-size: var(--text-xs);
+}
+
+.orbit-note-rename-error button { min-height: 44px; color: var(--color-text); text-decoration: underline; }
+
+.orbit-note-state {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  color: var(--color-faint);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.orbit-note-state button {
+  min-height: 44px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  background: var(--color-ink-800);
+  padding: 0 var(--space-3);
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+}
+
+.orbit-note-state button:hover { background: var(--color-ink-700); color: var(--color-text); }

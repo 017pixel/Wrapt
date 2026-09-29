@@ -1,0 +1,132 @@
+/* Notizen: mobile und Touch-Anpassungen.
+   Diese Datei wird in index.css NACH allen Basisdateien importiert. Media
+   Queries erhöhen die CSS-Spezifität nicht; nur durch diese Reihenfolge
+   gewinnen die mobilen Regeln gegen die Basisregeln der Einzeldateien. */
+
+/* --- Handy und schmale Fenster: Seitenleiste als Schublade ---------------- */
+
+@media (max-width: 900px) {
+  .notes-workspace { position: relative; }
+  .notes-note-head { padding: 0 var(--space-2); }
+  .notes-note-crumbs .notes-note-crumb { display: none; }
+  .notes-note-crumbs .notes-note-crumb.is-nearest { display: inline-flex; max-width: 42%; }
+
+  .notes-sidebar {
+    position: absolute;
+    z-index: 30;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    height: 100%;
+    max-width: min(320px, 86vw);
+    box-shadow: var(--shadow-overlay);
+    transition: transform var(--duration-base) var(--ease-standard);
+  }
+
+  .notes-sidebar:not(.is-open) { transform: translateX(-100%); }
+  .notes-sidebar-resizer { display: none; }
+
+  .notes-sidebar-backdrop {
+    position: absolute;
+    z-index: 25;
+    inset: 0;
+    display: block;
+    border: 0;
+    background: rgb(0 0 0 / .5);
+  }
+
+  .notes-editor-frame { padding: var(--space-5) var(--space-4) 35vh; }
+  /* Auf dem Handy ist der Editor die Hauptlesefläche: 16px statt 14px. */
+  .note-editor-content { font-size: var(--text-lg); }
+
+  /* Eingabefelder mindestens 16px: Sonst zoomt iOS Safari beim Fokussieren. */
+  .notes-tree-rename,
+  .note-callout-title,
+  .note-link-dialog input,
+  .notes-icon-popover input { font-size: 16px; }
+
+  /* Schwebende Menüs bleiben im Bild. Beide Farb-Popover hängen an den
+     letzten beiden Knöpfen der Leiste, deshalb rechtsbündig. */
+  .note-format-popover { right: 0; left: auto; }
+  .note-slash-menu { width: min(320px, calc(100vw - 16px)); }
+  .notes-icon-popover { width: min(300px, calc(100vw - 32px)); max-height: 46vh; }
+  .notes-icon-grid { grid-template-columns: repeat(6, 1fr); }
+  .notes-head-popover { width: min(220px, calc(100vw - 24px)); }
+
+  .note-link-dialog {
+    top: 50%;
+    bottom: auto;
+    right: var(--space-3);
+    left: var(--space-3);
+    flex-wrap: wrap;
+    width: auto;
+    max-height: calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    transform: translateY(-50%);
+  }
+
+  .note-link-dialog input { width: 100%; flex: 1 1 100%; }
+  .note-link-picker-backdrop { padding-right: var(--space-3); padding-left: var(--space-3); }
+  .note-link-picker { min-height: 240px; }
+
+  /* Verschieben als Bottom Sheet über der Tastatur-freien Zone. */
+  .notes-move-backdrop { place-items: end center; padding: 0; }
+
+  .notes-move-dialog {
+    width: 100%;
+    max-height: 78vh;
+    border-bottom: 0;
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+
+  .notes-move-filter { font-size: 16px; }
+  .notes-move-list { padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px)); }
+}
+
+@media (max-width: 430px) {
+  .notes-note-head { gap: var(--space-1); }
+  .notes-note-head .notes-note-crumbs { font-size: var(--text-sm); }
+  .notes-save-state { font-size: var(--text-2xs); padding-inline: var(--space-1); }
+  .notes-head-actions { gap: 0; }
+}
+
+/* --- Touch-Ziele ----------------------------------------------------------
+   Deckt den Touch-Shell der App (inklusive Tablet quer) und die eigenständige
+   Notizfenster-Route ab, die ohne .app-shell rendert. */
+
+@media (max-width: 900px), (pointer: coarse) and (max-width: 1366px) {
+  .notes-search-row { min-height: 44px; }
+  .notes-sidebar-row, .notes-tree-row { min-height: 44px; }
+  .notes-sidebar-new { min-height: 44px; }
+  .notes-sidebar-row-menu { display: grid; width: 44px; height: 44px; }
+
+  .notes-sidebar-collapse,
+  .notes-group-action,
+  .notes-tree-action,
+  .notes-tree-toggle { width: 44px; height: 44px; }
+
+  .notes-group-action svg,
+  .notes-tree-action svg,
+  .notes-tree-toggle svg,
+  .notes-title-icon svg { width: 15px; height: 15px; }
+
+  .notes-title-icon { width: 44px; height: 44px; }
+  .notes-icon-button { width: 44px; height: 44px; }
+  .notes-search-row-kbd { display: none; }
+
+  /* Menüzeilen der Popups und der Verschieben-Liste. */
+  .notes-item-menu button,
+  .notes-head-popover button,
+  .note-block-menu-actions button,
+  .notes-move-row,
+  .notes-icon-remove { min-height: 44px; }
+
+  /* Formatierungsleiste bleibt einreihig und scrollt notfalls seitlich. */
+  .note-format-toolbar { max-width: calc(100vw - 16px); overflow-x: auto; }
+  .note-format-toolbar > button,
+  .note-format-popover-wrap > button { min-width: 40px; height: 40px; }
+  .note-color-swatch, .note-highlight-swatch { width: 34px; height: 34px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notes-sidebar { transition: none; }
+}

@@ -1,0 +1,76 @@
+/* Notizen: Workspace, Hauptbereich und responsive Anpassungen.
+   Farben und Abstände ausschließlich aus den @theme-Tokens.
+   Die Seitenleiste liegt in note-sidebar.css, der Baum in note-tree.css. */
+
+.notes-workspace {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  background: var(--surface-base);
+}
+
+/* --- Hauptbereich --------------------------------------------------------- */
+
+.notes-main {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.notes-document {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+}
+
+.notes-editor-scroll {
+  min-height: 0;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.notes-editor-frame {
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-8) 30vh;
+}
+
+.notes-empty {
+  display: grid;
+  height: 100%;
+  place-items: center;
+  padding: var(--space-8);
+  color: var(--color-faint);
+  text-align: center;
+}
+
+.notes-empty strong { display: block; margin-bottom: 6px; color: var(--color-text); font-size: var(--text-lg); }
+.notes-empty span { font-size: var(--text-sm); }
+.notes-empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); margin-top: var(--space-4); }
+.notes-empty-actions > button { min-height: 44px; }
+
+.notes-toast {
+  position: absolute;
+  z-index: 40;
+  bottom: var(--space-4);
+  left: 50%;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-850);
+  box-shadow: var(--shadow-overlay);
+  padding: 6px var(--space-3);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  transform: translateX(-50%);
+}
+
+/* --- Mobile: Overlay-Verhalten der Seitenleiste ----------------------------
+   Die mobilen und Touch-Regeln liegen in note-responsive.css und werden
+   zuletzt importiert, damit sie die Basisregeln dieser Datei überschreiben. */
+
+.notes-sidebar-backdrop { display: none; }

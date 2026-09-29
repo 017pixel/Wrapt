@@ -1,0 +1,15 @@
+/* Notizen: alle Stilmodule des Features an einer Stelle gebündelt. */
+
+@import "katex/dist/katex.min.css";
+@import "./notes.css";
+@import "./note-sidebar.css";
+@import "./note-tree.css";
+@import "./note-palette.css";
+@import "./note-chrome.css";
+@import "./note-editor.css";
+@import "./note-blocks.css";
+@import "./note-menus.css";
+@import "./note-orbit.css";
+/* Mobile- und Touch-Regeln zuletzt: Media Queries erhöhen die Spezifität
+   nicht, die mobilen Regeln müssen die Basisdateien überschreiben können. */
+@import "./note-responsive.css";

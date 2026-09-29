@@ -1,0 +1,220 @@
+/* Notizen: eigene Blöcke (Callout, Toggle, Spalten, TOC, Mathe, Farben).
+
+   Die Textfarb-Palette ist Inhalt, keine Oberflächenfarbe: Sie liegt wie die
+   Emoji-Auswahl außerhalb der @theme-Tokens und bleibt bewusst stabil, damit
+   gespeicherte Notizen überall gleich aussehen. */
+
+:root {
+  --note-text-gray: #9aa0a6;
+  --note-text-brown: #c58b6a;
+  --note-text-orange: #e8a24d;
+  --note-text-yellow: #e3c14b;
+  --note-text-green: #74c168;
+  --note-text-blue: #6aa8ef;
+  --note-text-purple: #b48ae8;
+  --note-text-pink: #e07ab0;
+  --note-text-red: #e5736f;
+}
+
+/* --- Callout -------------------------------------------------------------- */
+
+.note-callout {
+  border: 1px solid var(--color-line);
+  border-left-width: 2px;
+  border-radius: var(--radius);
+  background: var(--color-ink-800);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+  margin: var(--space-3) 0;
+}
+
+.note-callout[data-variant="info"] { border-left-color: var(--color-info); background: color-mix(in oklab, var(--color-info) 12%, transparent); }
+.note-callout[data-variant="ok"] { border-left-color: var(--color-ok); background: var(--color-ok-soft); }
+.note-callout[data-variant="warn"] { border-left-color: var(--color-warn); background: var(--color-warn-soft); }
+.note-callout[data-variant="bad"] { border-left-color: var(--color-bad); background: var(--color-bad-soft); }
+.note-callout[data-variant="neutral"] { border-left-color: var(--color-faint); background: var(--color-ink-800); }
+
+.note-callout-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: 2px;
+}
+
+.note-callout-title {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.note-callout-title::placeholder { color: var(--color-faint); font-weight: 500; }
+.note-callout-title:focus { outline: none; }
+
+.note-callout-variants { display: flex; flex: none; gap: 4px; opacity: 0; transition: opacity var(--duration-fast) var(--ease-standard); }
+.note-callout:hover .note-callout-variants, .note-callout:focus-within .note-callout-variants { opacity: 1; }
+
+.note-callout-variants button {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 50%;
+  background: var(--color-ink-700);
+  padding: 0;
+}
+
+.note-callout-variants button[data-variant="info"] { background: var(--color-info); }
+.note-callout-variants button[data-variant="ok"] { background: var(--color-ok); }
+.note-callout-variants button[data-variant="warn"] { background: var(--color-warn); }
+.note-callout-variants button[data-variant="bad"] { background: var(--color-bad); }
+.note-callout-variants button[data-variant="neutral"] { background: var(--color-faint); }
+.note-callout-variants button.is-active { box-shadow: 0 0 0 2px var(--color-ink-850), 0 0 0 3px var(--color-accent); }
+
+.note-callout-content > * + * { margin-top: var(--space-2); }
+.note-callout-content p { margin: 0; }
+
+/* --- Toggle (Details) ----------------------------------------------------- */
+
+.note-editor-content .wrapt-details {
+  border: 1px solid var(--color-line-soft);
+  border-radius: var(--radius);
+  margin: var(--space-2) 0;
+  padding: 2px 0;
+}
+
+.note-editor-content .wrapt-details > button {
+  display: grid;
+  width: 22px;
+  height: 22px;
+  place-items: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-faint);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.note-editor-content .wrapt-details > button:hover { background: var(--color-ink-700); color: var(--color-text); }
+.note-editor-content .wrapt-details > button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
+
+/* Der Knotenaufbau der Extension: Wrapper mit Toggle-Button und Inhalt. */
+.note-editor-content .wrapt-details {
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  align-items: start;
+  padding: 2px 6px 2px 2px;
+}
+
+.note-editor-content .wrapt-details > div { min-width: 0; grid-column: 2; }
+.note-editor-content .wrapt-details > button { grid-column: 1; grid-row: 1; margin-top: 1px; }
+
+.note-editor-content [data-type="detailsSummary"] {
+  padding: 3px 2px;
+  border-radius: var(--radius-sm);
+  font-weight: 550;
+}
+
+.note-editor-content [data-type="detailsContent"] { padding: 2px 2px 6px; }
+.note-editor-content [data-type="detailsContent"][hidden] { display: none; }
+
+/* --- Spalten -------------------------------------------------------------- */
+
+.note-editor-content [data-wrapt-columns] { display: flex; gap: var(--space-4); margin: var(--space-3) 0; }
+.note-editor-content [data-wrapt-column] { min-width: 0; flex: 1 1 0; }
+.note-editor-content [data-wrapt-column] > * + * { margin-top: var(--space-2); }
+
+@media (max-width: 720px) {
+  .note-editor-content [data-wrapt-columns] { flex-direction: column; }
+}
+
+/* --- Inhaltsverzeichnis --------------------------------------------------- */
+
+.note-toc {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-800);
+  padding: var(--space-3);
+  margin: var(--space-3) 0;
+}
+
+.note-toc-title {
+  margin: 0 0 6px;
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.note-toc-empty { margin: 0; color: var(--color-faint); font-size: var(--text-sm); }
+.note-toc-list { margin: 0; padding: 0; list-style: none; }
+.note-toc-list li[data-level="2"] { padding-left: var(--space-3); }
+.note-toc-list li[data-level="3"] { padding-left: var(--space-6); }
+.note-toc-list button {
+  border: 0;
+  background: transparent;
+  padding: 2px 0;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  text-align: left;
+}
+.note-toc-list button:hover { color: var(--color-accent); }
+
+.note-editor-content .note-toc.ProseMirror-selectednode { outline: 2px solid var(--color-accent); }
+
+/* --- Mathematik ----------------------------------------------------------- */
+
+.note-editor-content .tiptap-mathematics-render { padding: 0 2px; }
+.note-editor-content .tiptap-mathematics-render--editable { cursor: pointer; }
+.note-editor-content .tiptap-mathematics-render--editable:hover { background: var(--color-accent-soft); }
+.note-editor-content [data-type="block-math"] { display: block; margin: var(--space-3) 0; text-align: center; overflow-x: auto; }
+
+/* --- Notiz-Verweis (Mention) ---------------------------------------------- */
+
+.note-mention { display: inline; cursor: grab; }
+.note-mention:active { cursor: grabbing; }
+
+.note-mention button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  background: var(--color-ink-800);
+  padding: 0 5px;
+  color: var(--color-accent);
+  font-size: .92em;
+  vertical-align: baseline;
+}
+
+.note-mention button:hover { background: var(--color-accent-soft); border-color: var(--color-accent-line); }
+.note-mention svg { width: 13px; height: 13px; }
+
+/* --- Textfarben (Inhaltspalette) ------------------------------------------ */
+
+.note-editor-content [style*="color: var(--note-text"] { text-decoration-color: currentColor; }
+.note-color-swatch[data-color="gray"] { background: var(--note-text-gray); }
+.note-color-swatch[data-color="brown"] { background: var(--note-text-brown); }
+.note-color-swatch[data-color="orange"] { background: var(--note-text-orange); }
+.note-color-swatch[data-color="yellow"] { background: var(--note-text-yellow); }
+.note-color-swatch[data-color="green"] { background: var(--note-text-green); }
+.note-color-swatch[data-color="blue"] { background: var(--note-text-blue); }
+.note-color-swatch[data-color="purple"] { background: var(--note-text-purple); }
+.note-color-swatch[data-color="pink"] { background: var(--note-text-pink); }
+.note-color-swatch[data-color="red"] { background: var(--note-text-red); }
+
+/* --- Syntax-Hervorhebung (highlight.js) ----------------------------------- */
+
+.note-editor-content .hljs-comment, .note-editor-content .hljs-quote { color: var(--color-faint); font-style: italic; }
+.note-editor-content .hljs-keyword, .note-editor-content .hljs-selector-tag, .note-editor-content .hljs-literal { color: #c792ea; }
+.note-editor-content .hljs-string, .note-editor-content .hljs-attr { color: #9ece6a; }
+.note-editor-content .hljs-number, .note-editor-content .hljs-built_in { color: #e8a24d; }
+.note-editor-content .hljs-title, .note-editor-content .hljs-function, .note-editor-content .hljs-section { color: #6aa8ef; }
+.note-editor-content .hljs-type, .note-editor-content .hljs-class { color: #7dcfff; }
+.note-editor-content .hljs-variable, .note-editor-content .hljs-template-variable { color: #e5736f; }
+.note-editor-content .hljs-meta, .note-editor-content .hljs-tag { color: var(--color-muted); }
