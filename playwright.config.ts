@@ -17,6 +17,18 @@ if (process.env.WRAPT_E2E_URL && process.env.WRAPT_E2E_ISOLATED !== "true") {
   );
 }
 
+// Harness-Specs mit eigener Isolation (Energiemodus, externe E2E-Root)
+// werfen ohne ihre Umgebungsvariablen sofort. Sie laufen ausschließlich
+// über ihre Harness-Konfiguration, nie im Standard-CI-Durchlauf. Die
+// Desktop-Projekte definieren eigenes testIgnore und ersetzen damit die
+// Top-Level-Filter — deshalb steht die Liste hier und wird je Projekt
+// übernommen.
+const desktopTestIgnore = [
+  /responsive-shell\.spec\.ts/,
+  /orbit-performance\.spec\.ts$/,
+  /preview-start-performance\.spec\.ts$/,
+];
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: false,
@@ -26,11 +38,11 @@ export default defineConfig({
   retries: 1,
   reporter: [["list"], ["./tests/e2e/reporters/audit-reporter.ts"]],
   projects: [
-    { name: "chromium", testIgnore: /responsive-shell\.spec\.ts/, use: { ...devices["Desktop Chrome"] } },
+    { name: "chromium", testIgnore: desktopTestIgnore, use: { ...devices["Desktop Chrome"] } },
     // Playwrights Firefox-Transport verliert bei page.reload() gelegentlich die
     // Service-Worker-Response-Bindung. Diese Suite prüft Desktop-UI, nicht PWA-Caching.
-    { name: "firefox", testIgnore: /responsive-shell\.spec\.ts/, use: { ...devices["Desktop Firefox"], serviceWorkers: "block" } },
-    { name: "webkit", testIgnore: /responsive-shell\.spec\.ts/, use: { ...devices["Desktop Safari"] } },
+    { name: "firefox", testIgnore: desktopTestIgnore, use: { ...devices["Desktop Firefox"], serviceWorkers: "block" } },
+    { name: "webkit", testIgnore: desktopTestIgnore, use: { ...devices["Desktop Safari"] } },
     { name: "phone-touch", testMatch: /responsive-shell\.spec\.ts/, use: { ...devices["iPhone 13"], browserName: "chromium" } },
     { name: "phone-landscape", testMatch: /responsive-shell\.spec\.ts/, use: { ...devices["iPhone 13"], browserName: "chromium", viewport: { width: 844, height: 390 } } },
     { name: "ipad-portrait", testMatch: /responsive-shell\.spec\.ts/, use: { ...devices["iPad Mini"], browserName: "chromium" } },
