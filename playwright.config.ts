@@ -56,7 +56,12 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   webServer: process.env.WRAPT_E2E_EXTERNAL === "true" ? undefined : {
-    command: "pnpm build && node scripts/start-e2e-server.mjs",
+    // Der Build läuft bewusst im Produktionsmodus: Die CI setzt
+    // NODE_ENV=development (der Server braucht es für die
+    // Entwicklungsidentität), doch die E2E-Suite soll das ausgelieferte
+    // Bundle prüfen — kein Development-React mit StrictMode-Doppeleffekten.
+    // Der Server selbst erbt weiterhin die Umgebung und bleibt in Entwicklung.
+    command: "NODE_ENV=production pnpm build && node scripts/start-e2e-server.mjs",
     url: `${e2eBaseURL}/api/v1/health`,
     reuseExistingServer: false,
     timeout: 120_000,
