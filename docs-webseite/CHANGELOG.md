@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.5] - 2026-09-30
+
+### Verändert
+- Kurze Nebenüberschriften und Erläuterungen auf der Landingpage entfernt
+
 ## [0.1.4] - 2026-09-30
 
 ### Verändert
