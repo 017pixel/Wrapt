@@ -280,7 +280,9 @@ bash scripts/install-hermes.sh
 Das Skript installiert Hermes nicht neu. Es erkennt CLI, Checkout und virtuelle
 Python-Umgebung, erstellt zuerst ein Backup, baut die offizielle SPA, trägt die
 gefundenen Pfade in `config/wrapt.local.json` ein und installiert die zugehörigen
-User-Units. API-Schlüssel und Sessions verbleiben bei Hermes.
+User-Units. API-Schlüssel und Sessions verbleiben bei Hermes. Das Skript
+unterstützt sowohl das klassische venv-Layout als auch das pm-Layout neuerer
+Hermes-Versionen.
 
 Prüfung:
 
