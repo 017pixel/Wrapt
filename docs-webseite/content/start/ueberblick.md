@@ -30,9 +30,9 @@ Wie die Teile zusammenspielen, steht unter [Architektur](../projekt/architektur.
 
 ## Auf Handy und Tablet
 
-Die Oberfläche passt sich an breite und schmale Bildschirme an. Werkzeuge und Sitzungen laufen auf dem Server; die mobile Ansicht zeigt denselben Arbeitsstand mit kompakter Navigation.
-
 :::phones
 ![Dashboard auf dem Mobilgerät mit kompakter Statusübersicht](../assets/wrapt-mobil.png)
 ![Notizen auf dem Mobilgerät mit geöffneter Checkliste](../assets/wrapt-mobil-notizen.png)
 :::
+
+Die Oberfläche passt sich an breite und schmale Bildschirme an. Werkzeuge und Sitzungen laufen auf dem Server; die mobile Ansicht zeigt denselben Arbeitsstand mit kompakter Navigation.

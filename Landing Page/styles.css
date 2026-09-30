@@ -69,7 +69,7 @@
   --lp-gap: clamp(72px, 11vw, 132px);
 }
 
-*, *::before, *::after { box-sizing: border-box; overscroll-behavior-y: none; }
+*, *::before, *::after { box-sizing: border-box; }
 html, body { overflow-x: clip; }
 html { scroll-behavior: smooth; scroll-padding-top: 84px; }
 body {

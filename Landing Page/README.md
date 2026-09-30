@@ -86,7 +86,8 @@ Sichtbar sind nur erfundene Daten (`demo-server`, `demo@example.com`). Ohne
   scrollbar.
 - Diese Vorschau startet und stoppt keine Wrapt-Dienste. Laufende
   Preview-Sessions und Dev-Server bleiben unberührt.
-- Der Versionsmarker `docs-revision.txt` wird bei reinen Doku-Änderungen angepasst,
-  damit der vorhandene GitHub-Pages-Trigger den Build startet.
+- Der Versionsmarker `docs-revision.txt` muss bei jeder Doku-Änderung auf dieselbe
+  Version wie der neueste Eintrag in `docs-webseite/CHANGELOG.md` gesetzt werden.
+  So startet der vorhandene GitHub-Pages-Trigger auch bei reinen Doku-Änderungen.
 - Veröffentlicht wird ausschließlich `dist/`. Der GitHub-Actions-Workflow liegt
   außerhalb dieses Ordners unter `.github/workflows/`.

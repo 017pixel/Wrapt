@@ -20,4 +20,4 @@ Screenshots stammen nur aus anonymisierten öffentlichen Motiven oder aus einer 
 
 ## GitHub Pages
 
-Die Pages-Aktion veröffentlicht `Landing Page/dist/` und nimmt die Doku unter `doku/` mit. Der Workflow startet bei Änderungen an `Landing Page/**`; der Skill `docs-webseite-screenshots` pflegt deshalb auch `Landing Page/docs-revision.txt`, damit eine reine Doku-Veröffentlichung denselben Pages-Build auslöst.
+Die Pages-Aktion veröffentlicht `Landing Page/dist/` und nimmt die Doku unter `doku/` mit. Der Workflow startet bei Änderungen an `Landing Page/**`; deshalb muss `Landing Page/docs-revision.txt` bei einer Doku-Änderung auf dieselbe Version wie der neueste Eintrag in `CHANGELOG.md` gesetzt werden. So löst auch eine reine Doku-Änderung denselben Pages-Build aus.

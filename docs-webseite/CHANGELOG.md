@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.4] - 2026-09-30
+
+### Verändert
+- Dokumentationsbilder erhalten denselben dezenten Tilt-Hover wie auf der Landingpage
+- Handyaufnahmen erscheinen kleiner und rechts am Erklärungstext
+- Tabellen füllen den verfügbaren Inhaltsbereich bis zur rechten Kante
+- Kapitel-Hintergründe aus dem aktuellen Stand erscheinen auf GitHub Pages
+- Über Tilt-Bildern und Tabellen scrollt die Seite weiter; das Wrapt-Favicon lädt ohne 404
+
 ## [0.1.3] - 2026-09-29
 
 ### Erstellt

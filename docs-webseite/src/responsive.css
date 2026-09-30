@@ -63,7 +63,7 @@
   .search-trigger { min-height: 44px; gap: 0; padding: 0 6px; font-size: 13px; }
   .search-trigger kbd { display: none; }
   .prose figure.figure--phone { float: none; width: min(58%, 204px); margin: 16px 0 16px auto; }
-  .phone-pair { float: none; width: 100%; gap: 12px; margin: 16px 0; }
+  .phone-pair { float: right; width: min(58%, 216px); gap: 8px; margin: 6px 0 16px 12px; }
   .doc-main { padding-top: 18px; }
   .docs-home-hero { height: clamp(320px, 92vw, 440px); background-position: center, 100% center; }
   .docs-home-hero__content { padding: 20px var(--docs-gutter) 0; }
