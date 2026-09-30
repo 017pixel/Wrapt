@@ -294,7 +294,6 @@ function Toast({ notification, leaving, duration, onOpen, onDismiss }: { notific
   return <article className={`notification-toast is-${notification.severity}${leaving ? " is-leaving" : ""}`} style={style} role={notification.severity === "error" ? "alert" : undefined}
     onPointerDown={swipe.pointerDown} onPointerMove={swipe.pointerMove} onPointerUp={swipe.pointerUp} onPointerCancel={swipe.pointerCancel}>
     <div className="notification-toast-surface">
-      <span className="notification-toast-accent" aria-hidden="true" />
       <button type="button" className="notification-toast-main" onClick={(event) => { if (swipe.consumeClick()) event.preventDefault(); else onOpen(); }}>
         <span className="notification-toast-meta"><span>{notificationSourceLabels[notification.source] ?? notification.source}</span><span>{severityLabel(notification.severity)}</span></span>
         <strong>{notification.title}</strong>
@@ -312,7 +311,6 @@ function UiToastItem({ toast, leaving, duration, onDismiss }: { toast: UiToast; 
   return <article className={`notification-toast is-${toast.severity}${leaving ? " is-leaving" : ""}`} style={style}
     onPointerDown={swipe.pointerDown} onPointerMove={swipe.pointerMove} onPointerUp={swipe.pointerUp} onPointerCancel={swipe.pointerCancel}>
     <div className="notification-toast-surface">
-      <span className="notification-toast-accent" aria-hidden="true" />
       <button type="button" className="notification-toast-main" onClick={(event) => { if (swipe.consumeClick()) event.preventDefault(); else onDismiss(); }}>
         <span className="notification-toast-meta"><span>Wrapt</span><span>{severityLabel(toast.severity)}</span></span>
         <strong>{toast.title}</strong>

@@ -296,10 +296,6 @@
   box-shadow: var(--shadow-overlay);
   pointer-events: auto;
 }
-.notification-toast-accent { width: 3px; flex: none; background: var(--color-accent); }
-.notification-toast.is-success .notification-toast-accent { background: var(--color-ok); }
-.notification-toast.is-error .notification-toast-accent { background: var(--color-bad); }
-.notification-toast.is-warning .notification-toast-accent { background: var(--color-warn); }
 .notification-toast-main {
   display: grid;
   min-width: 0;
