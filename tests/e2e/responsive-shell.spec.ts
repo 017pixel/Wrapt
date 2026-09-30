@@ -132,6 +132,8 @@ test("keeps all main routes inside the viewport", async ({ page }) => {
   for (const route of routes) {
     await page.goto(`/wrapt/${route}`);
     await expect(page.locator(".app-shell")).toBeVisible();
+    // Die Shell erscheint vor der Lazy-Route; warte auf deren geladenen Inhalt.
+    await expect(page.locator('[aria-label="Ansicht wird geladen"]')).toHaveCount(0);
     const overflow = await page.locator(".app-shell").evaluate((element) => ({
       clientWidth: element.clientWidth,
       scrollWidth: element.scrollWidth,
