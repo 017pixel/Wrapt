@@ -1,0 +1,337 @@
+/* Capybara-Easter-Egg der Doku-Seite. Die Laufspur liegt fest am unteren
+   Fensterrand; das Capybara steht auf der Unterkante und schaut mit Kopf und
+   Rücken darüber hinaus. Bühnenmaße und Sprite-Größe setzt capybara.js, damit
+   Laufstrecke, Klickfläche und Blase synchron bleiben. */
+.capybara-track {
+  position: fixed;
+  z-index: 40;
+  inset: auto 0 0;
+  display: flex;
+  height: 42px;
+  align-items: center;
+  pointer-events: none;
+  --capy-item-width: 86px;
+  --capy-sprite-size: 88px;
+  --capy-step: 230ms;
+  --capy-bubble: color-mix(in oklab, var(--color-accent) 15%, var(--color-ink-850));
+}
+
+.capybara-stage {
+  position: relative;
+  height: 42px;
+  min-width: 0;
+  flex: 1;
+}
+
+.capybara-button {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  width: var(--capy-item-width);
+  height: 42px;
+  place-items: center;
+  place-content: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+  pointer-events: auto;
+  transform: translateX(var(--capy-offset, 0px));
+  transition: transform var(--capy-step) cubic-bezier(.33, 0, .67, 1);
+}
+
+.capybara-button:focus-visible {
+  outline: 2px solid var(--focus-ring-color, var(--color-accent));
+  outline-offset: 1px;
+}
+
+.capybara-button:active {
+  transform: translateX(var(--capy-offset, 0px)) translateY(-1px) scale(.98);
+}
+
+.capy-sprite {
+  display: block;
+  max-width: none;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  user-select: none;
+}
+
+/* Die Füße stehen auf der Unterkante des Fensters; der Rest ragt darüber.
+   Die Frames haben unten transparente Pixel; der Versatz ist so gewählt, dass
+   die sichtbare Unterkante der Pixel (Zeile 54 von 64) auf der Kante steht. */
+.capybara-button .capy-sprite {
+  --capy-rest-y: calc(var(--capy-sprite-size, 88px) * -.12);
+  transform: translateY(var(--capy-rest-y)) scaleX(var(--capy-facing, 1));
+  transform-origin: center;
+  transition: transform var(--duration-fast, 120ms) var(--ease-standard, ease);
+}
+
+.capybara-track[data-facing="left"] {
+  --capy-facing: -1;
+}
+
+/* Die Zzz steigen schwebend über dem Kopf auf und verblassen am Ende. */
+.capy-zzz {
+  position: absolute;
+  top: calc(var(--capy-sprite-size, 88px) * -.364);
+  right: calc(var(--capy-sprite-size, 88px) * .045);
+  display: block;
+  width: 30px;
+  height: 30px;
+  pointer-events: none;
+}
+
+.capy-zzz[hidden] {
+  display: none;
+}
+
+.capy-zzz-letter {
+  position: absolute;
+  bottom: 0;
+  left: 8px;
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  opacity: 0;
+  animation: capy-zzz-rise 2.6s cubic-bezier(.4, 0, .6, 1) infinite;
+}
+
+.capy-zzz-1 {
+  width: 10px;
+  height: 11px;
+  animation-delay: 0s;
+}
+
+.capy-zzz-2 {
+  width: 12px;
+  height: 13px;
+  animation-delay: .85s;
+}
+
+.capy-zzz-3 {
+  width: 14px;
+  height: 15px;
+  animation-delay: 1.7s;
+}
+
+@keyframes capy-zzz-rise {
+  0% { opacity: 0; transform: translate(0, 5px); }
+  20% { opacity: .8; }
+  55% { opacity: .8; transform: translate(-3px, -7px); }
+  100% { opacity: 0; transform: translate(2px, -16px); }
+}
+
+/* Der Anker trägt die Blase mit derselben linearen Transition wie das Capybara. */
+.capybara-bubble-anchor {
+  position: absolute;
+  z-index: 5;
+  bottom: calc(100% + 28px);
+  left: 0;
+  display: block;
+  width: max-content;
+  max-width: min(280px, 55vw);
+  pointer-events: none;
+  transform: translateX(calc(var(--capy-offset, 0px) + var(--capy-item-width) / 2)) translateX(-50%);
+  transition: transform var(--capy-step) cubic-bezier(.33, 0, .67, 1);
+}
+
+.capybara-bubble-anchor[hidden] {
+  display: none;
+}
+
+.capybara-bubble {
+  position: relative;
+  display: block;
+  border: 1px solid var(--color-accent-line);
+  border-radius: var(--radius-lg);
+  background: var(--capy-bubble);
+  padding: 8px 12px;
+  color: var(--color-text);
+  font-size: var(--text-xs, 12px);
+  line-height: 1.5;
+  box-shadow: var(--shadow-popover);
+  transform-origin: 50% 100%;
+  animation: capy-bubble-in var(--duration-base, 160ms) var(--ease-standard, ease);
+}
+
+/* Der Schwanz ist ein gedrehtes Quadrat mit gerundeter Spitze; dieselbe Füllung
+   lässt ihn nahtlos aus der Blase wachsen. */
+.capybara-bubble::after {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  transform: translate(-50%, -5px) rotate(45deg);
+  border-right: 1px solid var(--color-accent-line);
+  border-bottom: 1px solid var(--color-accent-line);
+  border-radius: 0 0 3px 0;
+  background: var(--capy-bubble);
+  content: "";
+}
+
+@keyframes capy-bubble-in {
+  from { opacity: 0; transform: translateY(6px) scale(.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Kleine Körperbewegungen verbinden die Pixelbilder ohne weichgezeichnete Zwischenbilder. */
+.capybara-track[data-action="celebrate"] .capy-sprite {
+  animation: capy-bounce 1.2s cubic-bezier(.45, 0, .25, 1) infinite;
+}
+
+@keyframes capy-bounce {
+  0%, 100% { transform: translateY(var(--capy-rest-y, 0px)) scaleX(var(--capy-facing, 1)); }
+  48% { transform: translateY(calc(var(--capy-rest-y, 0px) - 4px)) scaleX(var(--capy-facing, 1)); }
+}
+
+.capybara-track[data-action="hop"] .capy-sprite {
+  animation: capy-hop .89s cubic-bezier(.34, 0, .2, 1) both;
+}
+
+@keyframes capy-hop {
+  0%, 100% { transform: translateY(var(--capy-rest-y, 0px)) scaleX(var(--capy-facing, 1)); }
+  18% { transform: translateY(calc(var(--capy-rest-y, 0px) + 2px)) scaleX(var(--capy-facing, 1)); }
+  52% { transform: translateY(calc(var(--capy-rest-y, 0px) - 9px)) scaleX(var(--capy-facing, 1)); }
+  78% { transform: translateY(calc(var(--capy-rest-y, 0px) - 3px)) scaleX(var(--capy-facing, 1)); }
+}
+
+.capybara-track[data-action="wake"] .capy-sprite,
+.capybara-track[data-action="yawn"] .capy-sprite {
+  animation: capy-yawn 1.98s ease-in-out both;
+}
+
+@keyframes capy-yawn {
+  0%, 100% { transform: translateY(var(--capy-rest-y, 0px)) scaleX(var(--capy-facing, 1)); }
+  18% { transform: translateY(calc(var(--capy-rest-y, 0px) + 2px)) scaleX(var(--capy-facing, 1)); }
+  47%, 65% { transform: translateY(calc(var(--capy-rest-y, 0px) - 2px)) scale(1.035, 1.035) scaleX(var(--capy-facing, 1)); }
+  86% { transform: translateY(calc(var(--capy-rest-y, 0px) + 1px)) scaleX(var(--capy-facing, 1)); }
+}
+
+.capybara-track[data-action="stretch"] .capy-sprite {
+  animation: capy-stretch 1.14s ease-in-out both;
+}
+
+@keyframes capy-stretch {
+  0%, 100% { transform: translateY(var(--capy-rest-y, 0px)) scaleX(var(--capy-facing, 1)); }
+  48% { transform: translateY(calc(var(--capy-rest-y, 0px) - 3px)) scale(1.07, .96) scaleX(var(--capy-facing, 1)); }
+}
+
+.capybara-track[data-action="sniff"] .capy-sprite {
+  animation: capy-sniff 1.12s ease-in-out both;
+}
+
+@keyframes capy-sniff {
+  0%, 100% { transform: translateY(var(--capy-rest-y, 0px)) scaleX(var(--capy-facing, 1)); }
+  27%, 68% { transform: translateY(calc(var(--capy-rest-y, 0px) + 2px)) scaleX(var(--capy-facing, 1)); }
+  45%, 83% { transform: translateY(var(--capy-rest-y, 0px)) scaleX(var(--capy-facing, 1)); }
+}
+
+.capybara-track[data-action="wave"] .capy-sprite {
+  animation: capy-wave 1.15s ease-in-out both;
+}
+
+@keyframes capy-wave {
+  0%, 100% { transform: translateY(var(--capy-rest-y, 0px)) rotate(0) scaleX(var(--capy-facing, 1)); }
+  35%, 72% { transform: translateY(calc(var(--capy-rest-y, 0px) - 2px)) rotate(3deg) scaleX(var(--capy-facing, 1)); }
+  52% { transform: translateY(calc(var(--capy-rest-y, 0px) - 1px)) rotate(-2deg) scaleX(var(--capy-facing, 1)); }
+}
+
+.capybara-track[data-action="bow"] .capy-sprite {
+  animation: capy-bow 1.16s ease-in-out both;
+}
+
+@keyframes capy-bow {
+  0%, 100% { transform: translateY(var(--capy-rest-y, 0px)) rotate(0) scaleX(var(--capy-facing, 1)); }
+  42%, 65% { transform: translateY(calc(var(--capy-rest-y, 0px) + 3px)) rotate(5deg) scaleX(var(--capy-facing, 1)); }
+}
+
+.capybara-track[data-action="wiggle"] .capy-sprite {
+  animation: capy-wiggle .88s ease-in-out both;
+}
+
+@keyframes capy-wiggle {
+  0%, 100% { transform: translateY(var(--capy-rest-y, 0px)) rotate(0) scaleX(var(--capy-facing, 1)); }
+  25%, 75% { transform: translateY(var(--capy-rest-y, 0px)) rotate(3deg) scaleX(var(--capy-facing, 1)); }
+  50% { transform: translateY(var(--capy-rest-y, 0px)) rotate(-3deg) scaleX(var(--capy-facing, 1)); }
+}
+
+/* Konfetti fällt während der Party über dem Capybara. */
+.capy-confetti {
+  position: absolute;
+  top: calc(var(--capy-sprite-size, 88px) * -.523);
+  right: calc(var(--capy-sprite-size, 88px) * -.159);
+  display: block;
+  width: 44px;
+  height: 44px;
+  pointer-events: none;
+}
+
+.capy-confetti[hidden] {
+  display: none;
+}
+
+.capy-confetti-piece {
+  position: absolute;
+  inset: 0;
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  opacity: 0;
+  animation: capy-confetti-fall 1.5s cubic-bezier(.35, 0, .75, .9) forwards;
+}
+
+.capy-confetti-piece:nth-child(2) {
+  animation-delay: .18s;
+}
+
+.capy-confetti-piece:nth-child(3) {
+  animation-delay: .36s;
+}
+
+@keyframes capy-confetti-fall {
+  0% { opacity: 0; transform: translate(0, -10px) rotate(0deg); }
+  15% { opacity: .95; }
+  70% { opacity: .95; }
+  100% { opacity: 0; transform: translate(-4px, 26px) rotate(24deg); }
+}
+
+/* Unter 860 px liegt die mobile Navigationsleiste unten; dort bleibt das
+   Easter Egg aus, damit nichts überlappt. */
+@media (max-width: 860px) {
+  .capybara-track {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .capybara-button,
+  .capybara-bubble-anchor {
+    transition: none;
+  }
+
+  .capybara-bubble {
+    animation: none;
+  }
+
+  .capybara-track[data-action] .capy-sprite {
+    animation: none;
+  }
+
+  .capy-confetti {
+    display: none;
+  }
+
+  /* Ohne Bewegung bleiben die Zzz als ruhige, sichtbare Zeichen stehen. */
+  .capy-zzz-letter {
+    animation: none;
+    opacity: 1;
+  }
+
+  .capy-zzz-1 { bottom: 2px; left: 6px; }
+  .capy-zzz-2 { bottom: 10px; left: 12px; }
+  .capy-zzz-3 { bottom: 18px; left: 18px; }
+}

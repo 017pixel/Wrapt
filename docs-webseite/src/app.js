@@ -1,3 +1,5 @@
+import { initCapybara } from "./capybara.js";
+
 const article = document.querySelector("#article");
 const desktopNavigation = document.querySelector("#desktop-navigation");
 const mobileNavigation = document.querySelector("#mobile-navigation");
@@ -290,4 +292,5 @@ async function start() {
   }
 }
 
+initCapybara();
 start();

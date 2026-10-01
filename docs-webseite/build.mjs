@@ -12,6 +12,9 @@ const contentDir = join(here, "content");
 const assetsDir = join(here, "assets");
 const distDir = join(here, "dist");
 const themeFile = join(repoRoot, "apps/web/src/index.css");
+// Das Doku-Capybara nutzt dieselben Sprites wie die Workbench; der Build kopiert
+// sie aus der App, damit es keine doppelte Quelle gibt.
+const mascotAssetsDir = join(repoRoot, "apps/web/src/components/mascot/assets");
 
 function fail(message) {
   console.error(`Doku-Build abgebrochen: ${message}`);
@@ -136,10 +139,15 @@ async function build() {
     });
   }
 
-  const [html, app, shell, contentCss, responsive, sourceTheme] = await Promise.all([
+  if (!existsSync(mascotAssetsDir)) fail("Capybara-Sprites fehlen: apps/web/src/components/mascot/assets");
+
+  const [html, app, capybara, capybaraMotion, shell, capybaraCss, contentCss, responsive, sourceTheme] = await Promise.all([
     readFile(join(sourceDir, "index.html"), "utf8"),
     readFile(join(sourceDir, "app.js"), "utf8"),
+    readFile(join(sourceDir, "capybara.js"), "utf8"),
+    readFile(join(sourceDir, "capybaraMotion.js"), "utf8"),
     readFile(join(sourceDir, "shell.css"), "utf8"),
+    readFile(join(sourceDir, "capybara.css"), "utf8"),
     readFile(join(sourceDir, "content.css"), "utf8"),
     readFile(join(sourceDir, "responsive.css"), "utf8"),
     readFile(themeFile, "utf8"),
@@ -148,9 +156,13 @@ async function build() {
   await rm(distDir, { recursive: true, force: true });
   await mkdir(join(distDir, "data"), { recursive: true });
   await cp(assetsDir, join(distDir, "assets"), { recursive: true });
+  await cp(mascotAssetsDir, join(distDir, "assets/capybara"), { recursive: true });
   await writeFile(join(distDir, "index.html"), html);
   await writeFile(join(distDir, "app.js"), app);
+  await writeFile(join(distDir, "capybara.js"), capybara);
+  await writeFile(join(distDir, "capybaraMotion.js"), capybaraMotion);
   await writeFile(join(distDir, "shell.css"), shell);
+  await writeFile(join(distDir, "capybara.css"), capybaraCss);
   await writeFile(join(distDir, "content.css"), contentCss);
   await writeFile(join(distDir, "responsive.css"), responsive);
   await writeFile(join(distDir, "theme.css"), makeTheme(sourceTheme));

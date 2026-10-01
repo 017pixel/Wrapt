@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.7] - 2026-10-01
+
+### Erstellt
+- Capybara-Easter-Egg läuft unten am Fensterrand mit und zeigt alle Bewegungen der Workbench
+- Klick auf das Capybara startet die Jubel-Animation und zeigt einen Spruch zur Dokumentation
+
+### Verändert
+- Capybara-Sprites kommen beim Doku-Build direkt aus der Workbench, statt doppelt gepflegt zu werden
+- Auf schmalen Bildschirmen bleibt das Easter Egg ausgeblendet
+
 ## [0.1.6] - 2026-09-30
 
 ### Verändert

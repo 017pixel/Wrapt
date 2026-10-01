@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="./shell.css" />
     <link rel="stylesheet" href="./content.css" />
     <link rel="stylesheet" href="./responsive.css" />
+    <link rel="stylesheet" href="./capybara.css" />
     <script src="./app.js" type="module"></script>
   </head>
   <body>
@@ -109,5 +110,26 @@
         <nav id="mobile-navigation"></nav>
       </div>
     </dialog>
+
+    <div class="capybara-track" id="capybara-track" data-action="idle" data-facing="right">
+      <div class="capybara-stage" id="capybara-stage">
+        <button type="button" class="capybara-button" id="capybara-button" aria-label="Capybara begrüßen">
+          <img class="capy-sprite" id="capybara-sprite" src="./assets/capybara/capybara-idle.png" width="88" height="88" alt="" decoding="async" draggable="false" />
+          <span class="capy-zzz" id="capybara-zzz" hidden aria-hidden="true">
+            <img class="capy-zzz-letter capy-zzz-1" src="./assets/capybara/capybara-zzz-small.png" alt="" />
+            <img class="capy-zzz-letter capy-zzz-2" src="./assets/capybara/capybara-zzz-medium.png" alt="" />
+            <img class="capy-zzz-letter capy-zzz-3" src="./assets/capybara/capybara-zzz-large.png" alt="" />
+          </span>
+          <span class="capy-confetti" id="capybara-confetti" hidden aria-hidden="true">
+            <img class="capy-confetti-piece" src="./assets/capybara/capybara-confetti-a.png" alt="" />
+            <img class="capy-confetti-piece" src="./assets/capybara/capybara-confetti-b.png" alt="" />
+            <img class="capy-confetti-piece" src="./assets/capybara/capybara-confetti-c.png" alt="" />
+          </span>
+        </button>
+      </div>
+      <span class="capybara-bubble-anchor" id="capybara-bubble-anchor" hidden>
+        <span class="capybara-bubble" id="capybara-bubble" role="status"></span>
+      </span>
+    </div>
   </body>
 </html>
