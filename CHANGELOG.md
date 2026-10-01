@@ -2,6 +2,35 @@
 
 Alle Änderungen werden in fünf kurzen Stichpunkten pro Kategorie dokumentiert.
 
+## [1.25.2] - 2026-09-30
+
+### Verändert
+- Produktversion auf 1.25.2 angehoben (Root, Server und Web)
+- Dashboard-Hintergrund ist dunkler und leicht weichgezeichnet
+- Notizen öffnen ohne Auswahl die zuletzt verwendete Seite wieder
+
+### Behoben
+- Scrollen über Dashboard-Bilder und Artwork-Vorschaubilder möglich
+
+## [1.25.1] - 2026-09-30
+
+### Verändert
+- Produktversion auf 1.25.1 angehoben (Root, Server und Web)
+
+### Behoben
+- Tailwind-Basisstile überschreiben Komponenten nach dem Laden des Dashboard-Artwork-CSS nicht mehr
+
+## [1.25.0] - 2026-09-30
+
+### Erstellt
+- Optionale Galerie mit 19 Doku-Motiven für den Dashboard-Hintergrund
+- Capybara-Einstellungen und Vorschaubereich neu angeordnet
+
+### Verändert
+- Produktversion auf 1.25.0 angehoben (Root, Server und Web)
+- Dashboard-Hintergrund bleibt standardmäßig ausgeschaltet
+- Capybara-Aktionen und Darstellungsoptionen sind auf Desktop und Mobil klar gruppiert
+
 ## [1.24.5] - 2026-09-30
 
 ### Verändert
