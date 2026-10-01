@@ -31,6 +31,9 @@ const desktopTestIgnore = [
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  // Der erste Firefox-Navigationsaufruf kann in CI mehr als 30 Sekunden brauchen.
+  // Der Retry läuft dann nur wegen des Standardlimits erneut durch.
+  timeout: 60_000,
   fullyParallel: false,
   workers: 1,
   // Der isolierte Launcher besitzt ein eigenes Dist-Verzeichnis; kein E2E-Lauf
