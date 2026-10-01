@@ -1,8 +1,8 @@
 # Orbit als integrierter Wrapt-Arbeitsbereich
 
-**Status:** Codeumsetzung abgeschlossen; Windows- und Live-Provider-Abnahmen offen und auf Nutzerentscheidung zurückgestellt  
-**Stand:** 2026-09-26  
-**Zielgruppe:** Neuer Umsetzungsagent mit delegierbaren Teilaufgaben  
+**Status:** Codeumsetzung abgeschlossen; Windows- und Live-Provider-Abnahmen offen und auf Nutzerentscheidung zurückgestellt\
+**Stand:** 2026-09-26\
+**Zielgruppe:** Neuer Umsetzungsagent mit delegierbaren Teilaufgaben\
 **Projekt:** Wrapt-Monorepo
 
 ## 1. Auftrag und Ziel
