@@ -38,7 +38,7 @@ jobs:
         run: node "Landing Page/build.mjs"
       # Es wird ausschließlich die Landingpage-Ausgabe hochgeladen.
       - name: Seitenartefakt hochladen
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: "Landing Page/dist/"
 
