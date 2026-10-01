@@ -48,7 +48,7 @@ test("überlebt das Aus- und Einklappen ohne Absturz", async ({ page }) => {
 });
 
 test("klappt Sektionen zu und wieder auf, ohne Einträge zu verlieren", async ({ page }) => {
-  await page.goto("/wrapt/");
+  await page.goto("/wrapt/", { waitUntil: "domcontentloaded" });
   const sidebar = page.locator(".sidebar-shell");
   await expect(sidebar).toBeVisible();
 
