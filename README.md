@@ -4,9 +4,9 @@ Die selbst gehostete Remote-Development-Workbench für den privaten Arbeitsplatz
 Wrapt verbindet Projekte, Terminals, Editoren, Coding-Agenten, Previews, Dateien,
 Automatisierungen und Systemdiagnose in einer Oberfläche.
 
-**Aktuelle Version 1.23.0 · MIT · Node.js 22+ · pnpm 10 · [Changelog](CHANGELOG.md)**
+**Aktuelle Version 1.25.2 · MIT · Node.js 22+ · pnpm 10 · [Changelog](CHANGELOG.md)**
 
-![Wrapt-Dashboard mit anonymisiertem Beispielserver](docs/screenshots/01-dashboard.png)
+![Wrapt-Dashboard mit anonymisiertem Beispielserver](docs-webseite/assets/01-dashboard.png)
 
 Wrapt läuft standardmäßig auf `127.0.0.1:3010`. Für den Remote-Zugriff ist Tailscale
 vorgesehen; öffentliche Freigaben per Funnel gehören bewusst nicht zum Betriebsmodell.
@@ -175,26 +175,28 @@ Installation und API sind in
 Die Wrapt-Aufnahmen stammen aus einer isolierten Dokumentationsinstanz; eingebettete
 Werkzeuge wurden zusätzlich einzeln auf persönliche Inhalte geprüft. Es sind nur
 Beispielkonten und neutrale Projektdaten sichtbar; T3 Code ist im Dark Mode dargestellt.
+Es sind dieselben Dateien wie auf der Dokumentationsseite unter `docs-webseite/assets/`;
+gepflegt werden sie über den Skill „docs/readme Screenshots updaten“.
 
 | Orbit | Dateimanager |
 | :--: | :--: |
-| ![Orbit mit Beispielprojekten](docs/screenshots/02-workbench.png) | ![Dateimanager](docs/screenshots/06-gallery.png) |
+| ![Orbit mit Beispielprojekten](docs-webseite/assets/02-workbench.png) | ![Dateimanager](docs-webseite/assets/06-gallery.png) |
 
 | T3 Code im Dark Mode | code-server |
 | :--: | :--: |
-| ![T3 Code im Dark Mode ohne angemeldetes Konto](docs/screenshots/04-t3-code.png) | ![code-server ohne persönliche Dateien](docs/screenshots/05-code-server.png) |
+| ![T3 Code im Dark Mode ohne angemeldetes Konto](docs-webseite/assets/04-t3-code.png) | ![code-server ohne persönliche Dateien](docs-webseite/assets/05-code-server.png) |
 
 | Hermes Agent | Nutzung |
 | :--: | :--: |
-| ![Hermes-Chat in der Wrapt-Oberfläche](docs/screenshots/10-hermes-chat.png) | ![Nutzungsübersicht ohne echte Accounts](docs/screenshots/08-usage.png) |
+| ![Hermes-Chat in der Wrapt-Oberfläche](docs-webseite/assets/10-hermes-chat.png) | ![Nutzungsübersicht ohne echte Accounts](docs-webseite/assets/08-usage.png) |
 
 | Plugin-Verwaltung | Wrapt-Plugins |
 | :--: | :--: |
-| ![Lokale Plugin-Verwaltung](docs/screenshots/12-plugins.png) | ![Auswahl des Wrapt-Plugins-Skills](docs/screenshots/13-plugin-creator.png) |
+| ![Lokale Plugin-Verwaltung](docs-webseite/assets/12-plugins.png) | ![Auswahl des Wrapt-Plugins-Skills](docs-webseite/assets/13-plugin-creator.png) |
 
 | Terminal | Einstellungen |
 | :--: | :--: |
-| ![Terminal mit Beispiel-Prompt](docs/screenshots/07-terminal.png) | ![Wrapt-Einstellungen](docs/screenshots/09-settings.png) |
+| ![Terminal mit Beispiel-Prompt](docs-webseite/assets/07-terminal.png) | ![Wrapt-Einstellungen](docs-webseite/assets/09-settings.png) |
 
 ## Entwicklung
 

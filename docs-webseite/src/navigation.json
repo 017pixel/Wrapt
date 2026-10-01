@@ -8,39 +8,39 @@
   {
     "title": "Wrapt nutzen",
     "items": [
-      { "id": "produkt/arbeitsbereich", "source": "produkt/arbeitsbereich.md", "heroImage": "hero-arbeitsbereich.jpg" },
-      { "id": "produkt/orbit", "source": "produkt/orbit.md", "heroImage": "hero-orbit.jpg" },
-      { "id": "produkt/werkzeuge", "source": "produkt/werkzeuge.md", "heroImage": "hero-werkzeuge.jpg" },
-      { "id": "produkt/terminal", "source": "produkt/terminal.md", "heroImage": "hero-terminal.jpg" },
-      { "id": "produkt/previews", "source": "produkt/previews.md", "heroImage": "hero-previews.jpg" },
-      { "id": "produkt/plugins-extensions", "source": "produkt/plugins-extensions.md", "heroImage": "hero-plugins-extensions.jpg" },
-      { "id": "produkt/notizen-nutzung", "source": "produkt/notizen-nutzung.md", "heroImage": "hero-notizen-nutzung.jpg" }
+      { "id": "produkt/arbeitsbereich", "source": "produkt/arbeitsbereich.md", "heroImage": "hero-arbeitsbereich.webp" },
+      { "id": "produkt/orbit", "source": "produkt/orbit.md", "heroImage": "hero-orbit.webp" },
+      { "id": "produkt/werkzeuge", "source": "produkt/werkzeuge.md", "heroImage": "hero-werkzeuge.webp" },
+      { "id": "produkt/terminal", "source": "produkt/terminal.md", "heroImage": "hero-terminal.webp" },
+      { "id": "produkt/previews", "source": "produkt/previews.md", "heroImage": "hero-previews.webp" },
+      { "id": "produkt/plugins-extensions", "source": "produkt/plugins-extensions.md", "heroImage": "hero-plugins-extensions.webp" },
+      { "id": "produkt/notizen-nutzung", "source": "produkt/notizen-nutzung.md", "heroImage": "hero-notizen-nutzung.webp" }
     ]
   },
   {
     "title": "Einrichten und betreiben",
     "items": [
-      { "id": "betrieb/installation-erster-start", "source": "betrieb/installation-erster-start.md", "heroImage": "hero-installation.jpg" },
-      { "id": "betrieb/konfigurieren", "source": "betrieb/konfigurieren.md", "heroImage": "hero-konfigurieren.jpg" },
-      { "id": "betrieb/zugriff-sicherheit", "source": "betrieb/zugriff-sicherheit.md", "heroImage": "hero-zugriff-sicherheit.jpg" },
-      { "id": "betrieb/sichern-wiederherstellen-update", "source": "betrieb/sichern-wiederherstellen-update.md", "heroImage": "hero-sichern.jpg" },
-      { "id": "betrieb/altbestand-und-migration", "source": "betrieb/altbestand-und-migration.md", "heroImage": "hero-migration.jpg" },
-      { "id": "betrieb/fehlerdiagnose", "source": "betrieb/fehlerdiagnose.md", "heroImage": "hero-fehlerdiagnose.jpg" }
+      { "id": "betrieb/installation-erster-start", "source": "betrieb/installation-erster-start.md", "heroImage": "hero-installation.webp" },
+      { "id": "betrieb/konfigurieren", "source": "betrieb/konfigurieren.md", "heroImage": "hero-konfigurieren.webp" },
+      { "id": "betrieb/zugriff-sicherheit", "source": "betrieb/zugriff-sicherheit.md", "heroImage": "hero-zugriff-sicherheit.webp" },
+      { "id": "betrieb/sichern-wiederherstellen-update", "source": "betrieb/sichern-wiederherstellen-update.md", "heroImage": "hero-sichern.webp" },
+      { "id": "betrieb/altbestand-und-migration", "source": "betrieb/altbestand-und-migration.md", "heroImage": "hero-migration.webp" },
+      { "id": "betrieb/fehlerdiagnose", "source": "betrieb/fehlerdiagnose.md", "heroImage": "hero-fehlerdiagnose.webp" }
     ]
   },
   {
     "title": "Projekt",
     "items": [
-      { "id": "projekt/ueber-wrapt", "source": "projekt/ueber-wrapt.md", "heroImage": "hero-ueber-wrapt.jpg" },
-      { "id": "projekt/architektur", "source": "projekt/architektur.md", "heroImage": "hero-architektur.jpg" },
-      { "id": "projekt/open-source", "source": "projekt/open-source.md", "heroImage": "hero-open-source.jpg" },
-      { "id": "projekt/mitarbeiten", "source": "projekt/mitarbeiten.md", "heroImage": "hero-mitarbeiten.jpg" }
+      { "id": "projekt/ueber-wrapt", "source": "projekt/ueber-wrapt.md", "heroImage": "hero-ueber-wrapt.webp" },
+      { "id": "projekt/architektur", "source": "projekt/architektur.md", "heroImage": "hero-architektur.webp" },
+      { "id": "projekt/open-source", "source": "projekt/open-source.md", "heroImage": "hero-open-source.webp" },
+      { "id": "projekt/mitarbeiten", "source": "projekt/mitarbeiten.md", "heroImage": "hero-mitarbeiten.webp" }
     ]
   },
   {
     "title": "Änderungen",
     "items": [
-      { "id": "changelog", "source": "changelog.md", "heroImage": "hero-changelog.jpg" }
+      { "id": "changelog", "source": "changelog.md", "heroImage": "hero-changelog.webp" }
     ]
   }
 ]

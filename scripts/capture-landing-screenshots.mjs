@@ -209,6 +209,14 @@ async function captureThemes(options = {}) {
   await shoot(options.output ?? "wrapt-themes", viewport.width, viewport.height);
 }
 
+async function captureSimpleRoute(route, options = {}) {
+  const viewport = options.viewport ?? desktopViewport;
+  await page.setViewportSize(viewport);
+  await open(route);
+  await page.waitForTimeout(options.waitMs ?? 2000);
+  await shoot(options.output ?? "wrapt-simple", viewport.width, viewport.height);
+}
+
 async function captureUsage(options = {}) {
   const viewport = options.viewport ?? desktopViewport;
   await page.setViewportSize(viewport);
@@ -311,15 +319,19 @@ const landingTasks = [
   ["mobil-notizen", () => captureMobileNotes()],
 ];
 
-// Dokumentationsmotive (docs-webseite/assets): gleiche Abläufe, andere Dateinamen
-// und ein größerer Desktop-Viewport. Werden nur über die Gruppe "docs" oder per
+// Dokumentations- und README-Motive (docs-webseite/assets, einzige Quelle für
+// Doku und README): gleiche Abläufe, andere Dateinamen und ein größerer
+// Desktop-Viewport. Werden nur über die Gruppe "docs" oder per
 // explizitem Namen gestartet, damit die Landing-Defaults unberührt bleiben.
 const docsTasks = [
   ["docs-dashboard", () => captureDashboard({ output: "01-dashboard" })],
   ["docs-orbit", () => captureOrbit({ output: "02-workbench" })],
+  ["docs-dateimanager", () => captureSimpleRoute("/wrapt/files", { output: "06-gallery" })],
   ["docs-terminal", () => captureTerminal({ output: "07-terminal" })],
   ["docs-usage", () => captureUsage({ output: "08-usage" })],
+  ["docs-settings", () => captureSimpleRoute("/wrapt/settings", { output: "09-settings" })],
   ["docs-plugins", () => capturePlugins({ output: "12-plugins" })],
+  ["docs-plugin-creator", () => captureSimpleRoute("/wrapt/plugins/maker", { output: "13-plugin-creator" })],
   ["docs-mobile", () => captureMobile({ output: "wrapt-mobil" })],
   ["docs-mobil-notizen", () => captureMobileNotes({ output: "wrapt-mobil-notizen" })],
   ["docs-t3-code", () => captureT3Code({ output: "04-t3-code" })],

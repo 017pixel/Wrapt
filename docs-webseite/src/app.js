@@ -2,7 +2,6 @@ const article = document.querySelector("#article");
 const desktopNavigation = document.querySelector("#desktop-navigation");
 const mobileNavigation = document.querySelector("#mobile-navigation");
 const tableOfContents = document.querySelector("#table-of-contents");
-const breadcrumb = document.querySelector("#breadcrumbs");
 const pageTurn = document.querySelector("#page-turn");
 const searchDialog = document.querySelector("#search-dialog");
 const navigationDialog = document.querySelector("#navigation-dialog");
@@ -10,12 +9,9 @@ const searchInput = document.querySelector("#search-input");
 const searchResults = document.querySelector("#search-results");
 const docMain = document.querySelector(".doc-main");
 const homeHero = document.querySelector("#docs-home-hero");
-const homeHeroContent = document.querySelector("#docs-home-hero-content");
 const homeHeroCopy = document.querySelector("#docs-home-hero-copy");
 const pageHero = document.querySelector("#docs-page-hero");
-const pageHeroContent = document.querySelector("#docs-page-hero-content");
 const pageHeroCopy = document.querySelector("#docs-page-hero-copy");
-const docInner = document.querySelector(".doc-main__inner");
 
 let groups = [];
 let pages = [];
@@ -49,10 +45,6 @@ function routeFromHash() {
   const value = fragment.replace(/^\//, "");
   const [id, ...anchorParts] = value.split("#");
   return { id: pageById.has(id) ? id : "start", anchor: anchorParts.join("#") };
-}
-
-function renderBreadcrumb(page) {
-  breadcrumb.innerHTML = `<a href="#/start">Dokumentation</a><span class="breadcrumbs__divider">/</span><span>${escapeText(page.group)}</span><span class="breadcrumbs__divider">/</span><span>${escapeText(page.title)}</span>`;
 }
 
 function renderToc() {
@@ -94,23 +86,19 @@ function renderPage(id) {
   if (isHome) {
     const intro = [article.querySelector("h1"), article.querySelector(".lead")].filter(Boolean);
     homeHeroCopy.replaceChildren(...intro);
-    homeHeroContent.prepend(breadcrumb);
   } else if (hasPageHero) {
     homeHeroCopy.replaceChildren();
     const intro = [article.querySelector("h1"), article.querySelector(".lead")].filter(Boolean);
     pageHeroCopy.replaceChildren(...intro);
     pageHero.setAttribute("aria-label", page.title + " – Einführung");
-    pageHeroContent.prepend(breadcrumb);
   } else {
     homeHeroCopy.replaceChildren();
-    docInner.prepend(breadcrumb);
   }
   article.classList.remove("route-enter");
   void article.offsetWidth;
   article.classList.add("route-enter");
   article.setAttribute("aria-label", page.title);
   document.title = `${page.title} · Wrapt Dokumentation`;
-  renderBreadcrumb(page);
   renderToc();
   renderPageTurn(page);
   document.querySelectorAll("[data-page-link]").forEach((link) => {

@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.6] - 2026-09-30
+
+### Verändert
+- Einleitungstexte aller Themenseiten sitzen bündig über dem Inhaltsbereich
+- Hintergrundbilder laden als WebP deutlich schneller
+
+### Gelöscht
+- Pfadleiste über den Überschriften entfernt
+
 ## [0.1.5] - 2026-09-30
 
 ### Verändert

@@ -16,7 +16,7 @@ Der erste Befehl teilt `CHANGELOG.md` in einzelne Versionsdateien unter `content
 
 Neue Seiten gehören in einen thematischen Unterordner von `content/`. Danach `src/navigation.json` und die Links auf der Übersichtsseite prüfen. Der Build verarbeitet Überschriften, Links, Listen, Tabellen, Codeblöcke, Bilder und einfache Flussdiagramme.
 
-Screenshots stammen nur aus anonymisierten öffentlichen Motiven oder aus einer isolierten Demo-Instanz mit Dummy-Daten. Die Regeln stehen in `.agents/skills/docs-webseite-screenshots/SKILL.md`; Desktop-Motive sind 1728 × 1117 Pixel groß (16-Zoll-MacBook-Maßstab, nicht hineingezoomt), mobile Motive 390 × 844.
+Screenshots stammen nur aus anonymisierten öffentlichen Motiven oder aus einer isolierten Demo-Instanz mit Dummy-Daten. Die Regeln stehen im Skill „docs/readme Screenshots updaten“ unter `.agents/skills/docs-webseite-screenshots/SKILL.md`; Desktop-Motive sind 1728 × 1117 Pixel groß (16-Zoll-MacBook-Maßstab, nicht hineingezoomt), mobile Motive 390 × 844. Die Dateien unter `assets/` sind die einzige Quelle und werden von der Doku und der README im Repository-Wurzelverzeichnis gemeinsam genutzt.
 
 ## GitHub Pages
 

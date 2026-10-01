@@ -1,24 +1,18 @@
 # Screenshots
 
-Die öffentliche README verwendet PNG-Aufnahmen mit 1280 × 720 Pixeln.
+Die einzige gepflegte Bildquelle für Doku und README ist
+`docs-webseite/assets/`. Die README im Repository-Wurzelverzeichnis bindet
+dieselben Dateien direkt ein; Aufnahmen entstehen über den Skill
+„docs/readme Screenshots updaten“ unter
+`.agents/skills/docs-webseite-screenshots/SKILL.md`.
 
-| Datei | Motiv |
-| --- | --- |
-| `01-dashboard.png` | Dashboard mit anonymisiertem `demo-server` |
-| `02-workbench.png` | Orbit mit neutralen Beispielprojekten |
-| `04-t3-code.png` | T3 Code im Dark Mode, nicht angemeldet |
-| `05-code-server.png` | code-server ohne persönliche Dateien |
-| `06-gallery.png` | Dateimanager |
-| `07-terminal.png` | Terminal mit `demo@wrapt`-Prompt |
-| `08-usage.png` | Nutzung ohne konfigurierte Accounts |
-| `09-settings.png` | Einstellungen |
-| `12-plugins.png` | Plugin-Verwaltung |
-| `13-plugin-creator.png` | Auswahl des Wrapt-Plugins-Skills |
+Desktop-Motive sind 1728 × 1117 Pixel groß, mobile Motive 390 × 844.
 
-`10-hermes-chat.png` und `11-hermes-system.png` bleiben als sichere
-Kompatibilitätsdateien erhalten, werden aber nicht öffentlich eingebunden. Hermes kann
-Host-, Sitzungs- und Credential-Metadaten anzeigen und wird deshalb nicht aus einer
-persönlichen Instanz dokumentiert.
+`11-hermes-system.png` bleibt als sichere Kompatibilitätsdatei erhalten, wird
+aber nicht öffentlich eingebunden. Hermes kann Host-, Sitzungs- und
+Credential-Metadaten anzeigen und wird deshalb nicht aus einer persönlichen
+Instanz dokumentiert. `10-hermes-chat.png` lebt in `docs-webseite/assets/`
+und wird nur manuell aus einer neutralen Instanz erneuert.
 
 ## Verbindliche Regeln
 
@@ -31,3 +25,5 @@ persönlichen Instanz dokumentiert.
 - T3 Code wird immer im Dark Mode und ohne persönliches Konto aufgenommen.
 - Vor dem Commit werden Accessibility-Snapshot und Bild visuell geprüft.
 - Nutzer-Previews und laufende Produktionsdienste werden für Aufnahmen nicht verändert.
+- Kein zweites Verzeichnis mit Kopien befüllen; README und Doku teilen sich
+  `docs-webseite/assets/`.
