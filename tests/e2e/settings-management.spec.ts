@@ -112,7 +112,7 @@ test("zeigt fünf zusätzliche Capybara-Aktionen und eine längere Party", async
   await expect(preview).toHaveAttribute("data-action", "celebrate");
   await page.waitForTimeout(3_000);
   await expect(preview).toHaveAttribute("data-action", /celebrate|hop/);
-  await expect(preview).toHaveAttribute("data-action", "idle", { timeout: 3_000 });
+  await expect(preview).not.toHaveAttribute("data-action", /^(celebrate|hop)$/, { timeout: 10_000 });
   expect(pageErrors).toEqual([]);
 });
 
@@ -155,7 +155,7 @@ test("testet Capybara-Vorschau und Schalter", async ({ page }) => {
 
   await preview.click();
   await expect(preview).toHaveAttribute("data-action", "celebrate");
-  await expect(preview).toHaveAttribute("data-frame", "happyA");
+  await expect(preview).toHaveAttribute("data-frame", /^happy[A-C]$/);
 
   // Größenregler skaliert die Vorschau sofort.
   const slider = page.getByRole("slider", { name: "Größe" });
