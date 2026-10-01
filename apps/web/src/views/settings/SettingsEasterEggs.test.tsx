@@ -2,6 +2,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { defaultDashboardArtworkId } from "../../lib/dashboardArtwork";
+import { useDashboardPreferences } from "../../stores/dashboardPreferences";
 import { SettingsEasterEggs } from "./SettingsEasterEggs";
 
 const mocks = vi.hoisted(() => ({
@@ -26,10 +28,19 @@ function renderSettings() {
 }
 
 describe("SettingsEasterEggs", () => {
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    window.localStorage.removeItem("wrapt.dashboard-preferences.v1");
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
+    useDashboardPreferences.setState({
+      hiddenSections: new Set(),
+      artworkEnabled: false,
+      artworkId: defaultDashboardArtworkId,
+    });
+    window.localStorage.removeItem("wrapt.dashboard-preferences.v1");
     mocks.getMascot.mockResolvedValue({ mascot: { enabled: false, scale: 1 } });
     mocks.saveMascot.mockImplementation(async (mascot: { enabled: boolean; scale: number }) => ({ mascot }));
   });
@@ -41,6 +52,8 @@ describe("SettingsEasterEggs", () => {
     expect(toggle.getAttribute("aria-checked")).toBe("false");
     expect(screen.getByRole("button", { name: "Capybara testen" })).toBeTruthy();
     expect(screen.getByText("In der Statusleiste pausiert")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Vorschau und Aktionen" })).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Darstellung" })).toBeTruthy();
 
     fireEvent.click(toggle);
     await waitFor(() => expect(mocks.saveMascot).toHaveBeenCalledWith({ enabled: true, scale: 1 }));
@@ -71,6 +84,24 @@ describe("SettingsEasterEggs", () => {
     fireEvent.pointerUp(slider);
     await waitFor(() => expect(mocks.saveMascot).toHaveBeenCalledWith({ enabled: false, scale: 1.5 }));
     expect((await screen.findByRole("status")).textContent).toContain("150 % Größe");
+  });
+
+  it("speichert den gewählten Doku-Hintergrund und aktiviert ihn separat", async () => {
+    renderSettings();
+
+    const toggle = screen.getByRole("switch", { name: "Dashboard-Hintergrund anzeigen" });
+    const orbit = screen.getByRole("radio", { name: "Orbit" }) as HTMLInputElement;
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
+    expect(screen.getAllByRole("radio")).toHaveLength(19);
+
+    fireEvent.click(orbit);
+    fireEvent.click(toggle);
+
+    expect(orbit.checked).toBe(true);
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    const stored = JSON.parse(window.localStorage.getItem("wrapt.dashboard-preferences.v1") ?? "{}");
+    expect(stored.version).toBe(2);
+    expect(stored.state).toMatchObject({ artworkEnabled: true, artworkId: "hero-orbit" });
   });
 
   it("zeigt Konfetti, solange die Party läuft", async () => {

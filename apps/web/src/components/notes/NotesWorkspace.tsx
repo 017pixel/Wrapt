@@ -18,6 +18,7 @@ import { NotesCommandPalette } from "./search/NotesCommandPalette.js";
 import { NotesSidebar } from "./sidebar/NotesSidebar.js";
 import type { NotesDropResult } from "./sidebar/treeDrop.js";
 import type { NoteSaveState } from "./editor/useNoteAutosave.js";
+import { useLastOpenedNote } from "./useLastOpenedNote.js";
 
 interface NotesWorkspaceProps {
   noteId: string | null;
@@ -225,12 +226,8 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
     return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [setSidebarCollapsed, sidebarCollapsed, windowMode]);
 
-  // Ohne Auswahl die zuletzt geänderte Seite öffnen (wie Notion).
-  useEffect(() => {
-    if (windowMode || noteId !== null || notes.length === 0) return;
-    const first = notes.find((note) => !note.archived) ?? notes[0];
-    if (first) onSelectNote(first.id);
-  }, [windowMode, noteId, notes, onSelectNote]);
+  // Ohne Auswahl die zuletzt geöffnete Seite wiederherstellen, sonst die oberste.
+  useLastOpenedNote({ noteId, notes, windowMode, onSelectNote });
 
   const ancestors = useMemo(() => {
     const byId = new Map(notes.map((note) => [note.id, note]));

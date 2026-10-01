@@ -32,6 +32,7 @@ import { Meter, Sparkline, TrendChart, loadTone } from "../components/charts";
 import { formatBytes, formatRelativeTime } from "../lib/format";
 import { computeTrend, useMetricsHistory } from "../stores/metricsHistory";
 import { wraptQueries } from "../lib/queryOptions";
+import { getDashboardArtwork } from "../lib/dashboardArtwork";
 import { useDashboardPreferences, isDashboardSectionVisible } from "../stores/dashboardPreferences";
 import { useLayoutStore } from "../stores/layout";
 import { useRouteActivity } from "../lib/routeActivity";
@@ -43,6 +44,7 @@ import { Panel, PanelError, PanelSkeleton, queryMessage } from "./DashboardPanel
 import { RuntimePanel } from "./DashboardRuntime";
 import { DashboardRecentProjects } from "./DashboardRecentProjects";
 import { DashboardStorageList } from "./DashboardStorageList";
+import "./dashboard-artwork.css";
 
 const integer = new Intl.NumberFormat("de-DE");
 const decimal = new Intl.NumberFormat("de-DE", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -753,6 +755,9 @@ export function Dashboard() {
   const configQuery = useQuery({ ...wraptQueries.dashboardConfig(), enabled: routeActive });
   const config = configQuery.data;
   const hiddenSections = useDashboardPreferences((state) => state.hiddenSections);
+  const artworkEnabled = useDashboardPreferences((state) => state.artworkEnabled);
+  const artworkId = useDashboardPreferences((state) => state.artworkId);
+  const artwork = getDashboardArtwork(artworkId);
   const selectProject = useLayoutStore((state) => state.selectProject);
   const visible = (section: DashboardSection) => isDashboardSectionVisible(config, hiddenSections, section);
   const refresh = config?.refresh;
@@ -787,7 +792,10 @@ export function Dashboard() {
   const visibleCount = dashboardSections.filter(visible).length;
 
   return (
-    <div className="page-scroll">
+    <div
+      className={`page-scroll ${artworkEnabled ? "dash-has-artwork" : ""}`}
+      style={artworkEnabled ? { "--dashboard-artwork-image": `url("${artwork.src}")` } as CSSProperties : undefined}
+    >
       <div className="page-frame dash">
         <DashboardHeader summary={summary} state={systemState} metrics={metrics} />
         <DashboardMobileSummary

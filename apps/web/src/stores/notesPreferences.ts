@@ -19,11 +19,14 @@ interface NotesPreferencesState {
   expanded: Record<string, boolean>;
   /** Eingeklappte Bereiche der Seitenleiste, etwa Favoriten und Privat. */
   collapsedSections: Record<string, boolean>;
+  /** Zuletzt geöffnete Seite; wird beim Start ohne Auswahl wiederhergestellt. */
+  lastOpenedNoteId: string | null;
   setSidebarWidth: (width: number) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleExpanded: (noteId: string) => void;
   toggleSection: (sectionId: string) => void;
   expandNotes: (noteIds: readonly string[]) => void;
+  setLastOpenedNoteId: (noteId: string | null) => void;
 }
 
 /** Persistente Ansichtseinstellungen der Notizen-Seitenleiste. */
@@ -34,6 +37,7 @@ export const useNotesPreferences = create<NotesPreferencesState>()(
       sidebarCollapsed: false,
       expanded: {},
       collapsedSections: { trash: true },
+      lastOpenedNoteId: null,
       setSidebarWidth: (width) => set({ sidebarWidth: clampNotesSidebarWidth(width) }),
       setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
       toggleExpanded: (noteId) =>
@@ -51,6 +55,7 @@ export const useNotesPreferences = create<NotesPreferencesState>()(
           for (const noteId of noteIds) next[noteId] = true;
           return { expanded: next };
         }),
+      setLastOpenedNoteId: (noteId) => set({ lastOpenedNoteId: noteId }),
     }),
     { name: "wrapt.notes-preferences.v1", version: 1 },
   ),

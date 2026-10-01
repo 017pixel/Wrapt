@@ -9,6 +9,7 @@ import { CapybaraZzz } from "../../components/mascot/CapybaraZzz";
 import { useCapybaraBehavior, usePrefersReducedMotion } from "../../components/mascot/useCapybaraBehavior";
 import { apiClient } from "../../lib/apiClient";
 import { wraptQueries } from "../../lib/queryOptions";
+import { DashboardArtworkSettings } from "./DashboardArtworkSettings";
 
 const PREVIEW_SIZE = 105;
 const PREVIEW_NAP_MS = 15_000;
@@ -73,8 +74,12 @@ export function SettingsEasterEggs() {
         action={<SparklesIcon className="h-4 w-4 text-faint" />}
       >
         <div className="mascot-setting">
-          <CapybaraPreview scale={scalePercent / 100} />
-          <div className="mascot-setting-body">
+          <section className="mascot-setting-preview" aria-labelledby="mascot-preview-title">
+            <h3 id="mascot-preview-title" className="mascot-setting-label">Vorschau und Aktionen</h3>
+            <CapybaraPreview scale={scalePercent / 100} />
+          </section>
+          <section className="mascot-setting-controls" aria-labelledby="mascot-controls-title">
+            <h3 id="mascot-controls-title" className="mascot-setting-label">Darstellung</h3>
             <button
               type="button"
               className="settings-toggle-row mascot-toggle"
@@ -115,14 +120,11 @@ export function SettingsEasterEggs() {
                 onBlur={persistScale}
               />
             </div>
-            <p className="mascot-setting-hint">
-              Klick die Vorschau für Freude. Die Aktionen unten kannst du einzeln ausprobieren;
-              nach einer Weile Ruhe schläft es von selbst ein.
-            </p>
-          </div>
+          </section>
         </div>
         {message ? <p className="mascot-setting-message" role="status">{message}</p> : null}
       </Card>
+      <DashboardArtworkSettings />
     </section>
   );
 }
@@ -153,7 +155,7 @@ function CapybaraPreview({ scale }: { readonly scale: number }) {
         {behavior.sleeping ? <CapybaraZzz /> : null}
         {behavior.frame === "party" ? <CapybaraConfetti /> : null}
       </button>
-      <div className="mascot-preview-actions">
+      <div className="mascot-preview-actions" role="group" aria-label="Capybara-Aktionen testen">
         <button type="button" onClick={() => behavior.play("yawn")}>Gähnen</button>
         <button type="button" onClick={() => behavior.play("party")}>Party</button>
         <button type="button" onClick={() => behavior.play("stretch")}>Strecken</button>

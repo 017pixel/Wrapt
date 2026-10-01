@@ -25,6 +25,7 @@ import {
 } from "./settings/settingsTabs";
 import "../components/appearance.css";
 import "./settings/mascot-settings.css";
+import "./settings/dashboard-artwork-settings.css";
 import "./settings/settings.css";
 
 const TAB_HASH_PREFIX = "einstellungen:";

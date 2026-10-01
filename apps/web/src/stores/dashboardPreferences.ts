@@ -3,6 +3,11 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { DashboardConfig, DashboardSection } from "@wrapt/contracts";
 import { dashboardSectionRegistry } from "../extensions/dashboardRegistry";
+import {
+  defaultDashboardArtworkId,
+  isDashboardArtworkId,
+  type DashboardArtworkId,
+} from "../lib/dashboardArtwork";
 
 export const allDashboardSections: DashboardSection[] = [
   "quickActions",
@@ -65,35 +70,64 @@ export function useDashboardSections(): readonly DashboardSectionView[] {
 
 interface DashboardPreferencesState {
   hiddenSections: Set<DashboardSection>;
+  artworkEnabled: boolean;
+  artworkId: DashboardArtworkId;
   toggleSection: (section: DashboardSection) => void;
+  setArtworkEnabled: (enabled: boolean) => void;
+  setArtworkId: (artworkId: DashboardArtworkId) => void;
   isVisible: (section: DashboardSection) => boolean;
 }
 
 const STORAGE_KEY = "wrapt.dashboard-preferences.v1";
+const PERSIST_VERSION = 2;
 
 function validSections(value: unknown): Set<DashboardSection> {
   if (!Array.isArray(value)) return new Set();
   return new Set(value.filter((item): item is DashboardSection => typeof item === "string" && allDashboardSections.includes(item as DashboardSection)));
 }
 
+export function migrateDashboardPreferences(persisted: unknown) {
+  const raw = persisted as { hiddenSections?: unknown } | undefined;
+  return {
+    hiddenSections: [...validSections(raw?.hiddenSections)],
+    artworkEnabled: false,
+    artworkId: defaultDashboardArtworkId,
+  };
+}
+
 export const useDashboardPreferences = create<DashboardPreferencesState>()(
   persist(
     (set, get) => ({
       hiddenSections: new Set<DashboardSection>(),
+      artworkEnabled: false,
+      artworkId: defaultDashboardArtworkId,
       toggleSection: (section) => set((state) => {
         const next = new Set(state.hiddenSections);
         if (next.has(section)) next.delete(section);
         else next.add(section);
         return { hiddenSections: next };
       }),
+      setArtworkEnabled: (artworkEnabled) => set({ artworkEnabled }),
+      setArtworkId: (artworkId) => set({ artworkId }),
       isVisible: (section) => !get().hiddenSections.has(section),
     }),
     {
       name: STORAGE_KEY,
-      partialize: (state) => ({ hiddenSections: [...state.hiddenSections] }),
+      version: PERSIST_VERSION,
+      migrate: migrateDashboardPreferences,
+      partialize: (state) => ({
+        hiddenSections: [...state.hiddenSections],
+        artworkEnabled: state.artworkEnabled,
+        artworkId: state.artworkId,
+      }),
       merge: (persisted, current) => {
-        const raw = persisted as { hiddenSections?: unknown } | undefined;
-        return { ...current, hiddenSections: validSections(raw?.hiddenSections) };
+        const raw = persisted as { hiddenSections?: unknown; artworkEnabled?: unknown; artworkId?: unknown } | undefined;
+        return {
+          ...current,
+          hiddenSections: validSections(raw?.hiddenSections),
+          artworkEnabled: raw?.artworkEnabled === true,
+          artworkId: isDashboardArtworkId(raw?.artworkId) ? raw.artworkId : defaultDashboardArtworkId,
+        };
       },
     },
   ),
