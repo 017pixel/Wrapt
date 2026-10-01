@@ -81,8 +81,9 @@ export default class AuditReporter implements Reporter {
     );
     if (this.totals.flaky > FLAKY_BUDGET) {
       process.stdout.write(`Flake-Budget überschritten: ${this.flakes.map((flake) => `${flake.project}: ${flake.title}`).join("; ")}\n`);
-      process.exitCode = 1;
+      return { status: "failed" };
     }
+    return { status: result.status };
   }
 }
 
