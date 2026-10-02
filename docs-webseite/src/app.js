@@ -14,6 +14,7 @@ const homeHero = document.querySelector("#docs-home-hero");
 const homeHeroCopy = document.querySelector("#docs-home-hero-copy");
 const pageHero = document.querySelector("#docs-page-hero");
 const pageHeroCopy = document.querySelector("#docs-page-hero-copy");
+const llmPageAlternate = document.querySelector("#llm-page-alternate");
 
 let groups = [];
 let pages = [];
@@ -101,6 +102,7 @@ function renderPage(id) {
   article.classList.add("route-enter");
   article.setAttribute("aria-label", page.title);
   document.title = `${page.title} · Wrapt Dokumentation`;
+  if (llmPageAlternate) llmPageAlternate.href = `./markdown/${page.id}.md`;
   renderToc();
   renderPageTurn(page);
   document.querySelectorAll("[data-page-link]").forEach((link) => {
