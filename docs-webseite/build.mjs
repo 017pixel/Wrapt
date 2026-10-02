@@ -1,7 +1,7 @@
 import { cp, mkdir, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { escapeHtml, renderMarkdown } from "./src/markdown.mjs";
 
@@ -15,6 +15,8 @@ const themeFile = join(repoRoot, "apps/web/src/index.css");
 // Das Doku-Capybara nutzt dieselben Sprites wie die Workbench; der Build kopiert
 // sie aus der App, damit es keine doppelte Quelle gibt.
 const mascotAssetsDir = join(repoRoot, "apps/web/src/components/mascot/assets");
+const publicSiteRoot = "https://017pixel.github.io/Wrapt";
+const publicDocsRoot = `${publicSiteRoot}/doku`;
 
 function fail(message) {
   console.error(`Doku-Build abgebrochen: ${message}`);
@@ -65,6 +67,80 @@ function plainText(markdown) {
     .replace(/[`*#>|]/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function publicMarkdownUrl(id) {
+  return `${publicDocsRoot}/markdown/${id}.md`;
+}
+
+function llmMarkdown(markdown, source, pageIds, assetNames) {
+  const rewriteTarget = (target, asImage = false) => {
+    const trimmed = target.trim();
+    if (!trimmed || /^(?:https:\/\/|mailto:|data:)/i.test(trimmed) || trimmed.startsWith("#")) return trimmed;
+
+    const [pathPart, ...hashParts] = trimmed.split("#");
+    const anchor = hashParts.length ? `#${hashParts.join("#")}` : "";
+
+    if (asImage) {
+      const filename = pathPart.match(/(?:^|\/)assets\/([^/]+)$/)?.[1];
+      if (filename && assetNames.has(filename)) {
+        return `${publicDocsRoot}/assets/${encodeURIComponent(filename)}${anchor}`;
+      }
+      return trimmed;
+    }
+
+    const resolved = resolve(contentDir, dirname(source), pathPart);
+    if (!resolved.startsWith(`${contentDir}${sep}`) && resolved !== contentDir) return trimmed;
+    const relativeSource = relative(contentDir, resolved).replaceAll(sep, "/");
+    if (!relativeSource.endsWith(".md")) return trimmed;
+    const id = pageIds.get(relativeSource);
+    return id ? `${publicMarkdownUrl(id)}${anchor}` : trimmed;
+  };
+
+  return markdown
+    .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_match, alt, target) => `![${alt}](${rewriteTarget(target, true)})`)
+    .replace(/(?<!!)\[([^\]]+)\]\(([^)]+)\)/g, (_match, label, target) => `[${label}](${rewriteTarget(target)})`);
+}
+
+function llmsIndex(llmPages) {
+  const lines = [
+    "# Wrapt",
+    "",
+    "> Selbst gehostete Remote-Development-Workbench für Projekte, Terminals, Editoren, Coding-Agenten, Previews, Dateien, Automatisierungen und Systemdiagnose.",
+    "",
+    "## Dokumentation",
+  ];
+
+  for (const page of llmPages) {
+    const summary = plainText(page.markdown).slice(0, 180);
+    lines.push(`- [${page.title}](${publicMarkdownUrl(page.id)}): ${summary}`);
+  }
+
+  lines.push(
+    "",
+    "## Volltext",
+    `- [Komplette Dokumentation in einer Datei](${publicDocsRoot}/llms-full.txt)`,
+    "",
+    "## Quellcode",
+    "- [GitHub Repository](https://github.com/017pixel/Wrapt)",
+    "",
+  );
+  return lines.join("\n");
+}
+
+function llmsFullText(llmPages) {
+  const header = [
+    "# Wrapt Dokumentation",
+    "",
+    "> Vollständige, maschinenlesbare Fassung der öffentlichen Wrapt-Dokumentation.",
+    "",
+  ].join("\n");
+
+  const body = llmPages
+    .map((page) => `<!-- ${publicMarkdownUrl(page.id)} -->\n\n${page.markdown.trim()}`)
+    .join("\n\n---\n\n");
+
+  return `${header}${body}\n`;
 }
 
 function releaseVersion(markdown, filename) {
@@ -120,6 +196,7 @@ async function build() {
   const pageIds = new Map(items.map((item) => [item.source, item.id]));
   const assetNames = new Set(await readdir(assetsDir));
   const pages = [];
+  const llmPages = [];
 
   for (const item of items) {
     const file = join(contentDir, item.source);
@@ -129,6 +206,12 @@ async function build() {
     const title = firstTitle(markdown, item.id.split("/").at(-1));
     const content = renderMarkdown(markdown, item.source, pageIds, contentDir, assetNames, { leadFirstParagraph: item.id === "start" || Boolean(item.heroImage) });
     const releaseData = item.id === "changelog" ? await buildReleases(pageIds, assetNames) : { html: "", search: "" };
+    llmPages.push({
+      id: item.id,
+      title,
+      group: item.group,
+      markdown: llmMarkdown(markdown, item.source, pageIds, assetNames),
+    });
     pages.push({
       id: item.id,
       title,
@@ -167,8 +250,15 @@ async function build() {
   await writeFile(join(distDir, "responsive.css"), responsive);
   await writeFile(join(distDir, "theme.css"), makeTheme(sourceTheme));
   await writeFile(join(distDir, "data/pages.json"), JSON.stringify({ groups, pages }));
+  for (const page of llmPages) {
+    const target = join(distDir, "markdown", `${page.id}.md`);
+    await mkdir(dirname(target), { recursive: true });
+    await writeFile(target, `${page.markdown.trim()}\n`);
+  }
+  await writeFile(join(distDir, "llms.txt"), llmsIndex(llmPages));
+  await writeFile(join(distDir, "llms-full.txt"), llmsFullText(llmPages));
   await writeFile(join(distDir, ".nojekyll"), "");
-  console.log(`Doku gebaut: ${pages.length} Seiten, ${assetNames.size} Assets.`);
+  console.log(`Doku gebaut: ${pages.length} Seiten, ${assetNames.size} Assets, ${llmPages.length} Markdown-Endpunkte.`);
   console.log(`Ausgabe: ${distDir}`);
 }
 
