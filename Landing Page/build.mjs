@@ -15,6 +15,7 @@ const repoRoot = resolve(here, "..");
 const themePath = resolve(repoRoot, "apps/web/src/index.css");
 const distDir = join(here, "dist");
 const assetsDir = join(here, "assets");
+const publicSiteRoot = "https://017pixel.github.io/Wrapt";
 
 const FONT_DIR = "assets/fonts";
 const FONTS = [
@@ -81,6 +82,21 @@ function injectTheme(css, tokens) {
   return `${head}\n${themeRoot(tokens)}\n${tail}`;
 }
 
+function sitemapXml() {
+  const urls = [`${publicSiteRoot}/`, `${publicSiteRoot}/doku/`];
+  const entries = urls.map((url) => `  <url><loc>${url}</loc></url>`).join("\n");
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</urlset>\n`;
+}
+
+function robotsTxt() {
+  return [
+    "User-agent: *",
+    "Allow: /",
+    `Sitemap: ${publicSiteRoot}/sitemap.xml`,
+    "",
+  ].join("\n");
+}
+
 async function copyFonts() {
   const target = join(distDir, FONT_DIR);
   const localDir = join(assetsDir, "fonts");
@@ -127,8 +143,15 @@ async function build() {
     stdio: "inherit",
   });
   await cp(resolve(repoRoot, "docs-webseite/dist"), join(distDir, "doku"), { recursive: true });
+  await Promise.all([
+    writeFile(join(distDir, "sitemap.xml"), sitemapXml()),
+    writeFile(join(distDir, "robots.txt"), robotsTxt()),
+    cp(resolve(repoRoot, "docs-webseite/dist/llms.txt"), join(distDir, "llms.txt")),
+    cp(resolve(repoRoot, "docs-webseite/dist/llms-full.txt"), join(distDir, "llms-full.txt")),
+  ]);
 
   console.log(`Fertig: ${tokens.size} Theme-Token übernommen, ${fontCount} Fonts kopiert, Doku unter /doku gebündelt.`);
+  console.log("Discovery: sitemap.xml, robots.txt, llms.txt und llms-full.txt erzeugt.");
   console.log(`Ausgabe: ${distDir}`);
 }
 
