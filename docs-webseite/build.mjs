@@ -164,7 +164,7 @@ function publishedVersions() {
 
 async function buildReleases(pageIds, assetNames) {
   const releaseDir = join(contentDir, "changelog/releases");
-  if (!existsSync(releaseDir)) return { html: "", search: "" };
+  if (!existsSync(releaseDir)) return { html: "", search: "", markdown: "" };
   const files = (await readdir(releaseDir)).filter((name) => name.endsWith(".md"));
   const releases = [];
   const publicVersionSet = publishedVersions();
@@ -176,7 +176,7 @@ async function buildReleases(pageIds, assetNames) {
     const categories = [...body.matchAll(/^###\s+(Erstellt|Verändert|Gelöscht|Behoben)/gm)].map((item) => item[1]);
     const summary = body.match(/^[-*+]\s+(.+)$/m)?.[1] ?? "Änderungen und Korrekturen";
     const html = renderMarkdown(body, source, pageIds, contentDir, assetNames, { headingOffset: 1 });
-    releases.push({ version, date, categories, summary: plainText(summary), html, search: plainText(body), published: publicVersionSet.has(version) });
+    releases.push({ version, date, categories, summary: plainText(summary), html, search: plainText(body), markdown: llmMarkdown(body, source, pageIds, assetNames), published: publicVersionSet.has(version) });
   }
 
   releases.sort((a, b) => b.date.localeCompare(a.date) || b.version.localeCompare(a.version, undefined, { numeric: true }));
@@ -187,7 +187,14 @@ async function buildReleases(pageIds, assetNames) {
     return `<details class="release" data-release data-categories="${escapeHtml(categories)}" data-search="${escapeHtml(searchable)}"><summary><span class="release__meta"><span class="release__version">${escapeHtml(release.version)}</span><time class="release__date">${escapeHtml(release.date)}</time>${state}</span><span class="release__summary">${escapeHtml(release.summary)}</span></summary><div class="release__body prose">${release.html}</div></details>`;
   }).join("\n");
   const filterTools = `<div class="release-tools"><label class="visually-hidden" for="release-search">Änderungen durchsuchen</label><input class="release-search" id="release-search" type="search" placeholder="Version oder Änderung suchen" /><div class="release-filters" role="group" aria-label="Nach Änderungstyp filtern"><button class="release-filter" type="button" data-release-filter="all" aria-pressed="true">Alle</button><button class="release-filter" type="button" data-release-filter="erstellt" aria-pressed="false">Erstellt</button><button class="release-filter" type="button" data-release-filter="verändert" aria-pressed="false">Verändert</button><button class="release-filter" type="button" data-release-filter="gelöscht" aria-pressed="false">Gelöscht</button><button class="release-filter" type="button" data-release-filter="behoben" aria-pressed="false">Behoben</button></div></div><p class="release-count" aria-live="polite">${releases.length} Versionen</p><div class="release-list">${html}</div><p class="release-empty" hidden>Keine Änderungen passen zu diesem Filter.</p>`;
-  return { html: filterTools, search: releases.map((release) => `${release.version} ${release.date} ${release.search}`).join(" ") };
+  const markdown = releases
+    .map((release) => `## [${release.version}] - ${release.date}\n\n${release.markdown.trim()}`)
+    .join("\n\n");
+  return {
+    html: filterTools,
+    search: releases.map((release) => `${release.version} ${release.date} ${release.search}`).join(" "),
+    markdown,
+  };
 }
 
 async function build() {
@@ -205,12 +212,12 @@ async function build() {
     if (item.heroImage && !assetNames.has(item.heroImage)) fail("Titelbild fehlt: assets/" + item.heroImage);
     const title = firstTitle(markdown, item.id.split("/").at(-1));
     const content = renderMarkdown(markdown, item.source, pageIds, contentDir, assetNames, { leadFirstParagraph: item.id === "start" || Boolean(item.heroImage) });
-    const releaseData = item.id === "changelog" ? await buildReleases(pageIds, assetNames) : { html: "", search: "" };
+    const releaseData = item.id === "changelog" ? await buildReleases(pageIds, assetNames) : { html: "", search: "", markdown: "" };
     llmPages.push({
       id: item.id,
       title,
       group: item.group,
-      markdown: llmMarkdown(markdown, item.source, pageIds, assetNames),
+      markdown: `${llmMarkdown(markdown, item.source, pageIds, assetNames)}${releaseData.markdown ? `\n\n${releaseData.markdown}` : ""}`,
     });
     pages.push({
       id: item.id,
