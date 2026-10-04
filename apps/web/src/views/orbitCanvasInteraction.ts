@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { OrbitBoard } from "@wrapt/contracts";
 import type { ReactFlowInstance } from "@xyflow/react";
 
@@ -18,6 +18,29 @@ export function useOrbitCanvasDrag({ canvasInteractionRef, instanceRef, beginCan
   const restoreNodeDragViewportRef = useRef<OrbitViewport | null>(null);
   const nodeDragActiveRef = useRef(false);
   const [nodeDragActive, setNodeDragActive] = useState(false);
+
+  useEffect(() => {
+    const handlePointerRelease = () => {
+      // D3 beendet den Drag erst mit mouseup/touchend. Der Shield muss bis
+      // dahin bleiben, sonst verwirft WebKit das Mouseup auf dem entfernten Ziel.
+      if (canvasInteractionRef.current !== "node") endCanvasInteraction();
+    };
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "hidden") endCanvasInteraction();
+    };
+    window.addEventListener("pointerup", handlePointerRelease, true);
+    window.addEventListener("pointercancel", endCanvasInteraction, true);
+    window.addEventListener("lostpointercapture", handlePointerRelease, true);
+    window.addEventListener("blur", endCanvasInteraction);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("pointerup", handlePointerRelease, true);
+      window.removeEventListener("pointercancel", endCanvasInteraction, true);
+      window.removeEventListener("lostpointercapture", handlePointerRelease, true);
+      window.removeEventListener("blur", endCanvasInteraction);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [canvasInteractionRef, endCanvasInteraction]);
 
   const beginNodeDrag = (viewport: OrbitViewport | null) => {
     nodeDragActiveRef.current = true;

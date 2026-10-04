@@ -34,7 +34,9 @@ export function useMenuFocus<T extends HTMLElement>(
     return () => {
       menu.removeEventListener("keydown", keydown);
       window.setTimeout(() => {
-        if (previous?.isConnected) previous.focus();
+        // Eine gewählte Aktion kann bereits einen Editor oder Dialog
+        // fokussiert haben. Diesen Fokus darf das alte Menü nicht stehlen.
+        if (previous?.isConnected && document.activeElement === document.body) previous.focus();
       }, 0);
     };
   }, [menuRef, open]);

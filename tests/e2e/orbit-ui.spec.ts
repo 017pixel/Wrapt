@@ -146,7 +146,7 @@ test("edits, saves and synchronizes a complete Orbit workspace", async ({ page, 
   await command.getByPlaceholder("Terminal, Notiz oder Projekt…").fill("terminal");
   await command.getByPlaceholder("Terminal, Notiz oder Projekt…").press("Enter");
   const terminalNode = page.locator(".react-flow__node-orbit").filter({ has: page.locator('[data-panel-type="terminal"]') }).last();
-  await terminalNode.getByRole("button", { name: "Terminal öffnen" }).click();
+  await expect(terminalNode).toBeVisible();
   const terminalInput = page.locator(".xterm-helper-textarea").last();
   await expect(page.locator(".xterm-screen").last()).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".terminal-connection-status").last()).toHaveText("Verbunden", { timeout: 20_000 });
@@ -352,8 +352,13 @@ test("edits, saves and synchronizes a complete Orbit workspace", async ({ page, 
   await addButton.click();
   const mobilePalette = page.getByRole("dialog", { name: "Orbit-Befehl" });
   await expect(mobilePalette).toBeVisible();
-  const paletteBox = await mobilePalette.boundingBox();
-  expect(Math.round((paletteBox?.y ?? 0) + (paletteBox?.height ?? 0))).toBeGreaterThanOrEqual(842);
+  const [paletteBox, mobileOrbitBox] = await Promise.all([
+    mobilePalette.boundingBox(),
+    page.locator(".orbit-page").boundingBox(),
+  ]);
+  expect(paletteBox).not.toBeNull();
+  expect(mobileOrbitBox).not.toBeNull();
+  expect(Math.round(paletteBox!.y + paletteBox!.height)).toBe(Math.round(mobileOrbitBox!.y + mobileOrbitBox!.height));
   await mobilePalette.getByPlaceholder("Terminal, Notiz oder Projekt…").fill("notiz");
   await mobilePalette.getByRole("button", { name: /Neue Notiz/ }).click();
   await expect(page.locator(".react-flow__node-orbit")).toHaveCount(mobileNodeCount + 1);
