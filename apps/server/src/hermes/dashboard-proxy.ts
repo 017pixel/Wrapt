@@ -93,13 +93,20 @@ function isApiPath(resourcePath: string): boolean {
  * ein 304 kann also nie zustande kommen. `must-revalidate` würde damit nur den
  * vollen Body kosten. Stattdessen bekommen sie eine Stunde Ruhe.
  *
- * Die drei Bedingungen sind der eigentliche Schutz: ein `etag` (nur echte
- * Dateien), eine lesende Methode und kein API-Pfad. API-Antworten,
- * schreibende Methoden und alles mit Upstream-Angabe bleiben unberührt — dort
- * ist Zustandsfreigabe wichtiger als Bytes.
+ * Die Bedingungen sind der eigentliche Schutz und keine Kosmetik: ein `etag` und
+ * ein `content-type` (nur bei echten Dateien), eine lesende Methode und
+ * ausgeschlossen jeder API-Pfad. Ohne diese Grenzen würde auch eine Nutzlast
+ * zwischengespeichert.
+ *
+ * Der `content-type` schließt zugleich `304 Not Modified` aus: Hermes' Datei-
+ * Mount setzt die Cache-Angabe nur beim Status 200, ein 304 kommt also weder mit
+ * Typ noch mit `cache-control` an. Ohne diese Schranke bekäme die Antwort
+ * `max-age=3600` und würde dem Browser die einjährige Frische seines
+ * `immutable`-Eintrags wegnehmen. Der 304 bleibt deshalb unverändert — laut HTTP
+ * ersetzt er nur die Validatoren des gespeicherten Eintrags.
  */
 function isUnversionedStaticFile(context: HermesCacheContext | undefined, headers: IncomingHttpHeaders): boolean {
-  if (!context || !headers.etag) return false;
+  if (!context || !headers.etag || !headers["content-type"]) return false;
   if (context.method !== "GET" && context.method !== "HEAD") return false;
   if (context.resourcePath === "" || isApiPath(context.resourcePath)) return false;
   return true;

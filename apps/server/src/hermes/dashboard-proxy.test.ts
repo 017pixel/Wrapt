@@ -200,4 +200,26 @@ describe("Hermes-Dashboard-Proxy", () => {
     const headers = rewriteResponseHeaders({ "content-type": "font/woff2", etag: '"abc"' });
     expect(headers["cache-control"]).toBeUndefined();
   });
+
+  it("lässt ein 304 unangetastet, damit die einjährige Frische erhalten bleibt", () => {
+    // Hermes' Datei-Mount setzt `cache-control` nur beim Status 200. Ein 304
+    // kommt ohne Typ und ohne Cache-Angabe an und darf die Frische des
+    // gespeicherten `immutable`-Eintrags nicht auf eine Stunde herabsetzen.
+    const headers = rewriteResponseHeaders({ etag: '"77d67bda"' }, "/hermes", { method: "GET", resourcePath: "/assets/index-BqKNhaVF.js" });
+    expect(headers["cache-control"]).toBeUndefined();
+  });
+
+  it("behandelt eine Anfrage mit Query-String am API-Pfad als API-Pfad", () => {
+    // `proxyHttp` trennt den Query-String vor der Prüfung; `/api?x=1` darf nicht
+    // als statische Datei durchrutschen.
+    const resourcePath = "/api?x=1".split("?")[0] ?? "";
+    expect(resourcePath).toBe("/api");
+    const headers = rewriteResponseHeaders({ "content-type": "application/json", etag: '"abc"' }, "/hermes", { method: "GET", resourcePath });
+    expect(headers["cache-control"]).toBeUndefined();
+  });
+
+  it("cacht auch bei HEAD, weil der Datei-Mount dieselben Header liefert", () => {
+    const headers = rewriteResponseHeaders({ "content-type": "font/woff2", etag: '"abc"' }, "/hermes", { method: "HEAD", resourcePath: "/fonts-terminal/JetBrainsMono-Regular.woff2" });
+    expect(headers["cache-control"]).toBe("private, max-age=3600");
+  });
 });

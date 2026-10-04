@@ -32,22 +32,26 @@ Versionsmarker) und muss deshalb Längen- und Kompressionsheader entfernen. Er d
 Cache-Zusage des Upstreams nicht zerstören: Hermes deklariert seine gebauten, inhaltsgehashten
 Module als `immutable`, und mit `no-store` lud die Wrapt vor dieser Änderung bei jedem Öffnen
 des Hermes-Fensters rund 500 KB erneut. Grundregel: **der Proxy überschreibt nur, was Hermes
-nicht selbst gesagt hat.** Eine fehlende `cache-control`-Angabe gilt als Stille, jede
-vorhandene Angabe — auch eine ungewohnte wie `private, max-age=0` — wird respektiert.
+nicht selbst gesagt hat.** Eine fehlende `cache-control`-Angabe gilt als Stille; jede
+vorhandene Angabe wird bei unverändertem Body unverändert durchgereicht.
 
 | Antwort | Cache-Control | Grund |
 | --- | --- | --- |
 | HTML | immer `no-store` | trägt das Session-Token, das Hermes pro Prozessstart neu injiziert |
 | JavaScript, Upstream `immutable` | `immutable` | Dateiname ist der Inhalts-Hash |
-| JavaScript, Upstream `no-store` (Plugin-Bundles) | `no-store` | ausdrückliche Upstream-Zusage |
-| JavaScript ohne Upstream-Angabe | `private, max-age=3600`, sonst `no-store` | der Proxy kann die Zusage durch sein Umschreiben nicht garantieren |
-| Unveränderter Body ohne Upstream-Angabe, mit `etag`, lesend, nicht `/api` | `private, max-age=3600` | betrifft Fonts, Favicon und `hermes-build.json` |
-| Body unverändert mit Upstream-Angabe | unverändert | Zustandsfreigabe ist wichtiger als Bytes |
-| `/api/...`, `/api` und schreibende Methoden | unverändert | dito |
+| JavaScript, Upstream-`no-store` (Plugin-Bundles) | `no-store` | ausdrückliche Upstream-Zusage |
+| JavaScript, Upstream-Angabe ohne `immutable` | `no-store` | der Proxy kann die Zusage durch sein Umschreiben nicht garantieren |
+| JavaScript ohne Upstream-Angabe | `private, max-age=3600`, sonst `no-store` | dito, aber mit der eigenen Stunde-Ruhe-Regel |
+| Unveränderter Body ohne Upstream-Angabe, mit `etag` und `content-type`, lesend, nicht `/api` | `private, max-age=3600` | betrifft Fonts, Favicon und `hermes-build.json` |
+| Unveränderter Body **mit** Upstream-Angabe | unverändert | Zustandsfreigabe ist wichtiger als Bytes |
+| `/api/...`, `/api`, `304` und schreibende Methoden | unverändert | dito |
 
-Die Bedingungen der 3600er-Regel sind der eigentliche Schutz und keine Kosmetik: ein `etag`
-nur bei echten Dateien, eine lesende Methode und ausgeschlossen alle API-Pfade. Ohne diese drei
-Grenzen würde auch eine Nutzlast zwischengespeichert.
+Die vier Bedingungen der 3600er-Regel sind der eigentliche Schutz und keine Kosmetik: Kontext
+vorhanden, `etag` **und** `content-type` (nur bei echten Dateien), eine lesende Methode und
+ausgeschlossen jeder API-Pfad. Ohne diese Grenzen würde auch eine Nutzlast zwischengespeichert.
+Der `content-type` schließt `304 Not Modified` ein: Hermes setzt die Cache-Angabe nur beim
+Status 200, ein 304 soll den gespeicherten `immutable`-Eintrag aber nicht auf eine Stunde
+herabsetzen.
 
 Warum `max-age=3600` und nicht `must-revalidate`: Starlettes `FileResponse` beantwortet
 `If-None-Match` nicht, ein 304 kann bei diesen Pfaden also nie zustande kommen.
