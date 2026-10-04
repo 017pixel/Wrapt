@@ -62,8 +62,14 @@ export class HermesStatusService {
     });
 
     const installed = existsSync(settings.hermes.cliPath) && existsSync(settings.hermes.pythonPath);
-    const dashboardState = await serviceState("dashboard");
-    const gatewayState = await serviceState("gateway");
+    // Die drei Abfragen sind unabhängig voneinander. Seriell gereiht addierten
+    // sich zwei `systemctl`-Aufrufe, der Git-Call und die beiden HTTP-Aufrufe
+    // (~140 ms für `/api/status`) zu rund 250 ms pro Statusabruf.
+    const [dashboardState, gatewayState, commit] = await Promise.all([
+      serviceState("dashboard"),
+      serviceState("gateway"),
+      checkoutCommit(),
+    ]);
     let reachable = false;
     let version: string | null = null;
     let provider: string | null = null;
@@ -90,7 +96,7 @@ export class HermesStatusService {
       installed,
       reachable,
       version,
-      commit: await checkoutCommit(),
+      commit,
       provider,
       model,
       dashboard: { state: dashboardState, reachable, url: `${settings.hermes.proxyPrefix}/` },

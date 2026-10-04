@@ -2,7 +2,7 @@ import { chmod, mkdtemp, mkdir, readFile, readlink, symlink, unlink, writeFile }
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AccountService } from "./account-service.js";
 import { UsageDatabase } from "./database.js";
 
@@ -254,5 +254,42 @@ describe("account registry", () => {
     await service.listWithState();
     expect(database.listActiveAccounts()).toMatchObject({ codex: first.id });
     expect(database.listActivationJournal()).toEqual([]);
+  });
+
+  it("restarts the running Codex runtime only when the active account really changes", async () => {
+    const root = await mkdtemp(join(tmpdir(), "workbench-account-runtime-"));
+    const sharedHome = join(root, ".codex");
+    const firstProfile = join(root, "first");
+    const secondProfile = join(root, "second");
+    await Promise.all([mkdir(sharedHome), mkdir(firstProfile), mkdir(secondProfile)]);
+    await Promise.all([
+      writeFile(join(firstProfile, "auth.json"), "{}"),
+      writeFile(join(secondProfile, "auth.json"), "{}"),
+    ]);
+    const database = new UsageDatabase(":memory:"); databases.push(database);
+    const restartCodexRuntime = vi.fn(async () => ({ restarted: 1, terminated: [123], forced: [] }));
+    const service = new AccountService({
+      database,
+      allowedRoots: [root],
+      profilesRoot: join(root, "profiles"),
+      codexbarConfigPath: join(root, "codexbar.json"),
+      restartCodexRuntime,
+      sharedHomes: {
+        codex: { sharedHome, authFileName: "auth.json" },
+        claude: { sharedHome: join(root, ".claude"), authFileName: ".credentials.json" },
+        opencode: { sharedHome: join(root, "opencode"), authFileName: "auth.json" },
+      },
+    });
+    const first = await service.create({ provider: "codex", label: "Erster", profilePath: firstProfile, source: "local" });
+    const second = await service.create({ provider: "codex", label: "Zweiter", profilePath: secondProfile, source: "local" });
+
+    await service.activate(first.id);
+    expect(restartCodexRuntime).toHaveBeenCalledTimes(1);
+
+    await service.activate(first.id);
+    expect(restartCodexRuntime).toHaveBeenCalledTimes(1);
+
+    await service.activate(second.id);
+    expect(restartCodexRuntime).toHaveBeenCalledTimes(2);
   });
 });

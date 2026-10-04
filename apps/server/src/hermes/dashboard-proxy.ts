@@ -46,7 +46,70 @@ export function rewriteCookiePath(value: string, proxyPrefix = prefix): string {
   });
 }
 
-export function rewriteResponseHeaders(headers: IncomingHttpHeaders, proxyPrefix = prefix): IncomingHttpHeaders {
+const noStoreCacheControl = "no-store, no-cache, must-revalidate";
+const immutableCacheControl = "public, max-age=31536000, immutable";
+/**
+ * Eigene Regel des Proxy für Dateien, die Hermes ohne jede Cache-Angabe
+ * ausliefert. `private`, weil alles unterhalb von `/hermes` hinter der
+ * Workbench-Identität liegt und in keine gemeinsame Cache gehört.
+ */
+const shortCacheControl = "private, max-age=3600";
+
+/** Upstream-Kontext, den `reply-from` beim Antwort-Hook nicht mitgibt. */
+export interface HermesCacheContext {
+  method: string;
+  /** Upstream-Pfad ohne Workbench-Präfix, z. B. `/assets/index-BqKNhaVF.js`. */
+  resourcePath: string;
+}
+
+/**
+ * Hermes deklariert seine gebauten Assets selbst als `immutable` — die Dateinamen
+ * tragen einen Inhalts-Hash. Diese Zusage darf der Proxy nicht zerstören: mit
+ * `no-store` lud die Workbench vor der Änderung bei jedem Öffnen des
+ * Hermes-Fensters rund 500 KB JavaScript erneut, obwohl sich kein Byte geändert
+ * hatte.
+ */
+type UpstreamCachePolicy = "immutable" | "declared" | "silent";
+
+function upstreamCachePolicy(headers: IncomingHttpHeaders): UpstreamCachePolicy {
+  const value = headers["cache-control"];
+  // Bewusst streng: nur eine fehlende Angabe gilt als Stille. Eine unbekannte
+  // Formulierung wie `private, max-age=0` ist eine Entscheidung des Upstreams
+  // und wird nicht durch eine eigene Regel überschrieben.
+  if (typeof value !== "string") return "silent";
+  if (/(?:^|,)\s*immutable\s*(?:,|$)/i.test(value)) return "immutable";
+  return "declared";
+}
+
+/** Zustandsführende API-Pfade, auch die Wurzel `/api` ohne Schrägstrich. */
+function isApiPath(resourcePath: string): boolean {
+  return resourcePath === "/api" || resourcePath.startsWith("/api/");
+}
+
+/**
+ * Ungehashte statische Dateien (`/fonts-terminal`, `/fonts`, `/ds-assets`,
+ * `/favicon.ico`) liefert Hermes ohne Cache-Angabe und ohne funktionierende
+ * Revalidierung — Starlettes `FileResponse` beantwortet `If-None-Match` nicht,
+ * ein 304 kann also nie zustande kommen. `must-revalidate` würde damit nur den
+ * vollen Body kosten. Stattdessen bekommen sie eine Stunde Ruhe.
+ *
+ * Die drei Bedingungen sind der eigentliche Schutz: ein `etag` (nur echte
+ * Dateien), eine lesende Methode und kein API-Pfad. API-Antworten,
+ * schreibende Methoden und alles mit Upstream-Angabe bleiben unberührt — dort
+ * ist Zustandsfreigabe wichtiger als Bytes.
+ */
+function isUnversionedStaticFile(context: HermesCacheContext | undefined, headers: IncomingHttpHeaders): boolean {
+  if (!context || !headers.etag) return false;
+  if (context.method !== "GET" && context.method !== "HEAD") return false;
+  if (context.resourcePath === "" || isApiPath(context.resourcePath)) return false;
+  return true;
+}
+
+export function rewriteResponseHeaders(
+  headers: IncomingHttpHeaders,
+  proxyPrefix = prefix,
+  cache?: HermesCacheContext,
+): IncomingHttpHeaders {
   const result: IncomingHttpHeaders = { ...headers };
   if (typeof result.location === "string") result.location = rewriteLocation(result.location, proxyPrefix);
   if (Array.isArray(result["set-cookie"])) result["set-cookie"] = result["set-cookie"].map((cookie) => rewriteCookiePath(cookie, proxyPrefix));
@@ -54,10 +117,22 @@ export function rewriteResponseHeaders(headers: IncomingHttpHeaders, proxyPrefix
   // before `onResponse`, so remove the upstream length here rather than too
   // late in the response hook.
   const contentType = result["content-type"];
-  if (typeof contentType === "string" && (contentType.toLowerCase().includes("text/html") || contentType.toLowerCase().includes("javascript"))) {
+  const type = typeof contentType === "string" ? contentType.toLowerCase() : "";
+  const policy = upstreamCachePolicy(result);
+  if (type.includes("text/html")) {
     delete result["content-length"];
     delete result["content-encoding"];
-    result["cache-control"] = "no-store, no-cache, must-revalidate";
+    // HTML trägt das Session-Token, das Hermes bei jedem Prozessstart neu
+    // injiziert. Hier ist `no-store` zwingend, unabhängig von Hermes' Angabe.
+    result["cache-control"] = noStoreCacheControl;
+  } else if (type.includes("javascript")) {
+    delete result["content-length"];
+    delete result["content-encoding"];
+    result["cache-control"] = policy === "immutable"
+      ? immutableCacheControl
+      : policy === "silent" && isUnversionedStaticFile(cache, result) ? shortCacheControl : noStoreCacheControl;
+  } else if (policy === "silent" && isUnversionedStaticFile(cache, result)) {
+    result["cache-control"] = shortCacheControl;
   }
   return result;
 }
@@ -70,8 +145,15 @@ export function rewriteResponseHeaders(headers: IncomingHttpHeaders, proxyPrefix
  * CSS-Eintrag ein `?rw=N`, schlägt diese Prüfung fehl, Vite lädt das Stylesheet
  * als Modul und der Browser bricht mit „Expected a JavaScript-or-Wasm module
  * script but the server responded with a MIME type of text/css" ab. Die
- * Cache-Busting-Absicht betrifft ohnehin nur Module: Antworten mit
- * JavaScript-Typ gehen mit `no-store` raus, CSS-Namen sind inhaltsgehasht.
+ * Cache-Busting-Absicht betrifft ohnehin nur Module: JavaScript geht mit
+ * `immutable` raus (siehe `rewriteResponseHeaders`), CSS-Namen sind
+ * inhaltsgehasht.
+ *
+ * WICHTIG: Der Marker ist jetzt die Invalidierung für die Cache-Regel. JavaScript
+ * wird `immutable` ausgeliefert, damit der Browser es nicht bei jedem Öffnen neu
+ * lädt. Eine Änderung an `rewriteJavascriptAssetReferences` ändert den umgeschriebenen
+ * Body und muss deshalb `assetRewriteVersion` erhöhen — sonst liefert der Browser
+ * ein Jahr lang die alte Fassung aus dem Cache.
  */
 function withAssetVersion(assetPath: string): string {
   return assetPath.endsWith(".js") ? `${assetPath}?rw=${assetRewriteVersion}` : assetPath;
@@ -183,9 +265,11 @@ function sendProxyError(reply: FastifyReply) {
 
 function proxyHttp(request: FastifyRequest, reply: FastifyReply) {
   reply.removeHeader("content-security-policy");
-  return reply.from(`${upstream}${upstreamPath(request.raw.url ?? request.url)}`, {
+  const resourcePath = upstreamPath(request.raw.url ?? request.url);
+  const cacheContext = { method: request.method, resourcePath: resourcePath.split("?")[0] ?? "" };
+  return reply.from(`${upstream}${resourcePath}`, {
     rewriteRequestHeaders: (_request, headers) => proxyRequestHeaders(request, headers),
-    rewriteHeaders: (headers) => rewriteResponseHeaders(headers),
+    rewriteHeaders: (headers) => rewriteResponseHeaders(headers, prefix, cacheContext),
     onError: () => { sendProxyError(reply); },
     onResponse: (_request, response, rawResponse) => {
       const upstreamResponse = rawResponse as unknown as HermesUpstreamResponse;

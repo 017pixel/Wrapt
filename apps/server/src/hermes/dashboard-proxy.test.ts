@@ -103,4 +103,101 @@ describe("Hermes-Dashboard-Proxy", () => {
     expect(headers["content-length"]).toBeUndefined();
     expect(headers["content-encoding"]).toBeUndefined();
   });
+
+  it("gibt die Unveränderlichkeit upstream-gehashter JavaScript weiter", () => {
+    // Hermes’ `_ImmutableAssetFiles` deklariert die gebauten Module bereits als
+    // `immutable`. Mit `no-store` lud die Workbench vor der Änderung bei jedem
+    // Öffnen des Hermes-Fensters rund 500 KB erneut.
+    const headers = rewriteResponseHeaders({
+      "content-type": "text/javascript; charset=utf-8",
+      "cache-control": "public, max-age=31536000, immutable",
+      "content-length": "123",
+    }, "/hermes", { method: "GET", resourcePath: "/assets/index-BqKNhaVF.js" });
+    expect(headers["cache-control"]).toBe("public, max-age=31536000, immutable");
+    expect(headers["content-length"]).toBeUndefined();
+  });
+
+  it("respektiert auch eine ungewohnte Upstream-Angabe statt sie zu ersetzen", () => {
+    // `private, max-age=0` ist eine Entscheidung des Upstreams, keine Stille.
+    // Bei unverändertem Body wird sie unverändert durchgereicht.
+    for (const contentType of ["font/woff2", "application/json"]) {
+      const headers = rewriteResponseHeaders({
+        "content-type": contentType,
+        "cache-control": "private, max-age=0",
+        etag: '"abc"',
+      }, "/hermes", { method: "GET", resourcePath: "/fonts-terminal/JetBrainsMono-Regular.woff2" });
+      expect(headers["cache-control"]).toBe("private, max-age=0");
+    }
+    // Bei JavaScript muss der Proxy selbst entscheiden, weil er den Body
+    // umschreibt und damit die Upstream-Zusage nicht mehr garantieren kann.
+    // Ohne `immutable` bleibt deshalb nur das sichere `no-store`.
+    const script = rewriteResponseHeaders({
+      "content-type": "text/javascript; charset=utf-8",
+      "cache-control": "private, max-age=0",
+      etag: '"abc"',
+    }, "/hermes", { method: "GET", resourcePath: "/assets/handwritten.js" });
+    expect(script["cache-control"]).toBe("no-store, no-cache, must-revalidate");
+  });
+
+  it("behält `no-store` für JavaScript mit ausdrücklicher Upstream-Zusage", () => {
+    // Hermes verbietet das Cachen für Plugin-Bundles ausdrücklich
+    // (`hermes_cli/web_routers/dashboard_ui.py`).
+    const headers = rewriteResponseHeaders({
+      "content-type": "text/javascript; charset=utf-8",
+      "cache-control": "no-store, no-cache, must-revalidate",
+      etag: '"abc"',
+    }, "/hermes", { method: "GET", resourcePath: "/dashboard-plugins/kanban/dist/index.js" });
+    expect(headers["cache-control"]).toBe("no-store, no-cache, must-revalidate");
+  });
+
+  it("hält HTML immer `no-store`, weil Hermes das Session-Token neu injiziert", () => {
+    const headers = rewriteResponseHeaders({
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "public, max-age=31536000, immutable",
+    }, "/hermes", { method: "GET", resourcePath: "/chat" });
+    expect(headers["cache-control"]).toBe("no-store, no-cache, must-revalidate");
+  });
+
+  it("gibt ungehashten statischen Dateien eine Stunde statt sofortiger Revalidierung", () => {
+    // `/fonts-terminal` liefert Hermes ohne Cache-Angabe und ohne 304-Fähigkeit:
+    // 276 KB Terminal-Fonts, die sonst bei jedem Aufruf vollständig neu kommen.
+    const headers = rewriteResponseHeaders({
+      "content-type": "font/woff2",
+      etag: '"18545b4e"',
+      "content-length": "92380",
+    }, "/hermes", { method: "GET", resourcePath: "/fonts-terminal/JetBrainsMono-Regular.woff2" });
+    expect(headers["cache-control"]).toBe("private, max-age=3600");
+    expect(headers["content-length"]).toBe("92380");
+  });
+
+  it("fasst API-Antworten und schreibende Methoden nicht an", () => {
+    const api = rewriteResponseHeaders({ "content-type": "application/json", etag: '"abc"' }, "/hermes", { method: "GET", resourcePath: "/api/sessions" });
+    expect(api["cache-control"]).toBeUndefined();
+    const apiRoot = rewriteResponseHeaders({ "content-type": "application/json", etag: '"abc"' }, "/hermes", { method: "GET", resourcePath: "/api" });
+    expect(apiRoot["cache-control"]).toBeUndefined();
+    const pluginApi = rewriteResponseHeaders({ "content-type": "application/json", etag: '"abc"' }, "/hermes", { method: "GET", resourcePath: "/api/plugins/kanban/board" });
+    expect(pluginApi["cache-control"]).toBeUndefined();
+    const post = rewriteResponseHeaders({ "content-type": "image/png", etag: '"abc"' }, "/hermes", { method: "POST", resourcePath: "/files/upload" });
+    expect(post["cache-control"]).toBeUndefined();
+    const postJs = rewriteResponseHeaders({ "content-type": "text/javascript", etag: '"abc"' }, "/hermes", { method: "POST", resourcePath: "/files/upload.js" });
+    expect(postJs["cache-control"]).toBe("no-store, no-cache, must-revalidate");
+    const withoutEtag = rewriteResponseHeaders({ "content-type": "font/woff2" }, "/hermes", { method: "GET", resourcePath: "/fonts-terminal/JetBrainsMono-Regular.woff2" });
+    expect(withoutEtag["cache-control"]).toBeUndefined();
+  });
+
+  it("respektiert eine vorhandene Upstream-Cache-Regel auch bei statischen Dateien", () => {
+    const headers = rewriteResponseHeaders({
+      "content-type": "font/woff2",
+      etag: '"abc"',
+      "cache-control": "public, max-age=31536000, immutable",
+    }, "/hermes", { method: "GET", resourcePath: "/assets/Collapse-Bold-mgICk9-_.woff2" });
+    expect(headers["cache-control"]).toBe("public, max-age=31536000, immutable");
+  });
+
+  it("lässt Assets ohne Kontextangabe unverändert", () => {
+    // Ohne `cache`-Kontext kennt der Proxy weder Methode noch Pfad und fasst
+    // deshalb gar nichts an.
+    const headers = rewriteResponseHeaders({ "content-type": "font/woff2", etag: '"abc"' });
+    expect(headers["cache-control"]).toBeUndefined();
+  });
 });

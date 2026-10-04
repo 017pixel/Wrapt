@@ -13,7 +13,7 @@ export class AccountService {
   private readonly switcher: AccountSwitch;
   private readonly providerQueues = new Map<UsageProviderId, Promise<void>>();
 
-  constructor(private readonly options: { database: UsageDatabase; allowedRoots: string[]; profilesRoot: string; codexbarConfigPath: string; codexbarCliPath?: string; claudeCliPath?: string; homeDirectory?: string; sharedHomes: Record<UsageProviderId, ProviderLayout> }) {
+  constructor(private readonly options: { database: UsageDatabase; allowedRoots: string[]; profilesRoot: string; codexbarConfigPath: string; codexbarCliPath?: string; claudeCliPath?: string; homeDirectory?: string; sharedHomes: Record<UsageProviderId, ProviderLayout>; restartCodexRuntime?: () => Promise<unknown> }) {
     this.switcher = new AccountSwitch(options.sharedHomes);
   }
 
@@ -73,9 +73,18 @@ export class AccountService {
       }
 
       const candidates = this.list().filter((item) => item.provider === account.provider).map((item) => item.profilePath);
+      const previousActive = await this.switcher.activeProfilePath(account.provider);
       const result = await this.switcher.activate(account.provider, account.profilePath, candidates);
       this.options.database.setActivationJournal(account.provider, account.id, "filesystem-switched");
       this.options.database.setActiveAccount(account.provider, account.id);
+      // Ein laufender Codex-App-Server hält die Anmeldung im Speicher und arbeitet
+      // sonst weiter mit dem alten Account. Der Runtime-Neustart liegt bewusst VOR
+      // clearActivationJournal: Bricht der Server dazwischen ab, schließt die
+      // Recovery-Saga den Wechsel beim nächsten Start ab, statt eine veraltete
+      // Runtime ohne Wiederherstellung zurückzulassen.
+      if (account.provider === "codex" && previousActive !== resolve(account.profilePath)) {
+        await this.restartCodexRuntime();
+      }
       this.options.database.clearActivationJournal(account.provider);
       const identity = await this.switcher.identity(account.provider, account.profilePath);
       return { ...result, migratedTo, account: { ...account, email: identity?.email ?? account.email, plan: identity?.plan ?? null, active: true } };
@@ -88,6 +97,22 @@ export class AccountService {
         error instanceof Error ? error.message.slice(0, 500) : "Unbekannter Fehler",
       );
       throw error;
+    }
+  }
+
+  /**
+   * Startet die Codex-Runtime neu, damit der neue Account beim nächsten Start
+   * gelesen wird. Best-Effort: Der Dateisystemwechsel ist bereits abgeschlossen
+   * und wird nicht wegen eines fehlgeschlagenen Neustarts zurückgerollt.
+   */
+  private async restartCodexRuntime() {
+    const restart = this.options.restartCodexRuntime;
+    if (!restart) return;
+    try {
+      await restart();
+    } catch {
+      // Kein Fehler nach außen: Der Account ist umgeschaltet, nur die
+      // laufende Codex-Runtime konnte nicht neu gestartet werden.
     }
   }
 

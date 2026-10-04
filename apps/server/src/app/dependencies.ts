@@ -50,6 +50,7 @@ import type { WorkbenchIdentityOptions } from "../security/workbench-identity.js
 import { SkillEditorService } from "../skills/skillEditorService.js";
 import { TerminalDatabase } from "../terminal/database.js";
 import { AccountService } from "../usage/account-service.js";
+import { restartCodexRuntimeForAccountSwitch } from "../usage/codex-runtime.js";
 import { UsageDatabase } from "../usage/database.js";
 import { UsageTimelineService } from "../usage/timeline-service.js";
 import { UsageAnalyticsService } from "../usage/usage-service.js";
@@ -263,11 +264,10 @@ export async function createAppDependencies(app: FastifyInstance) {
     ...(settings.codexOauthPrimaryFallbackEnabled ? { primaryWindowFallback: new CodexOAuthPrimaryWindowFallback({ profileHomes: settings.codexOauthProfileHomes, configPath: settings.codexbarConfigPath, timeoutMilliseconds: settings.codexOauthTimeoutMilliseconds }) } : {}),
   });
   const analytics = new UsageAnalyticsService({ database: usageDatabase, client: codexbarClient, live: liveUsage, intervalMilliseconds: settings.usageSnapshotIntervalMilliseconds, monitoring: () => usageMonitoringService.get(), opencodeUsagePath: join(settings.sharedHomes.opencode.sharedHome, "opencode.db") });
-  const accounts = new AccountService({ database: usageDatabase, allowedRoots: settings.terminalAllowedRoots, profilesRoot: settings.wraptProfilesRoot, codexbarConfigPath: settings.codexbarConfigPath, codexbarCliPath: settings.codexbarCliPath, claudeCliPath: settings.claudeCliPath, sharedHomes: settings.sharedHomes });
+  const accounts = new AccountService({ database: usageDatabase, allowedRoots: settings.terminalAllowedRoots, profilesRoot: settings.wraptProfilesRoot, codexbarConfigPath: settings.codexbarConfigPath, codexbarCliPath: settings.codexbarCliPath, claudeCliPath: settings.claudeCliPath, sharedHomes: settings.sharedHomes, restartCodexRuntime: () => restartCodexRuntimeForAccountSwitch({ serviceUnit: settings.t3ServiceUnit, host: settings.t3Host, port: settings.t3Port }) });
   const usageTimeline = new UsageTimelineService({ accounts, client: codexbarClient, live: liveUsage, database: usageDatabase, ttlMilliseconds: settings.codexbarCacheMilliseconds });
-  // Die Timeline ist eine Ableitung des Live-Caches: Nach jedem Refreshtakt
-  // wird sie im Hintergrund neu gebaut, damit die Oberfläche beim nächsten
-  // Abruf bereits den aktuellen Stand erhält.
+  // Die Timeline ist eine Ableitung des Live-Caches: Nach jedem Refreshtakt wird
+  // sie im Hintergrund neu gebaut, damit die Oberfläche den aktuellen Stand erhält.
   liveUsage.subscribe(() => usageTimeline.invalidate());
   const projectFiles = createProjectFileService(projects);
   const localPorts = createLocalPortService({

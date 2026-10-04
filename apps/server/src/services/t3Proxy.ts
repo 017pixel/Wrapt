@@ -270,7 +270,14 @@ function proxyWebSocket(source: WebSocket, request: FastifyRequest, observer?: W
   const target = new WebSocket(`${t3WebSocketUpstream}${upstreamPath(request.raw.url ?? request.url)}`, {
     headers: proxyHeaders(request, optionalHeaders),
   });
-  bridgeWebSockets(source, target, { label: "T3 Code", ...(observer === undefined ? {} : { observer }) });
+  // Eigene, großzügigere Puffergrenzen: V2-Snapshots sind deutlich größer als
+  // die Standardwerte der übrigen Brücken.
+  bridgeWebSockets(source, target, {
+    label: "T3 Code",
+    pendingLimit: settings.t3WebSocketPendingBytes,
+    bufferedLimit: settings.t3WebSocketBufferedBytes,
+    ...(observer === undefined ? {} : { observer }),
+  });
 }
 
 export async function registerT3Proxy(app: FastifyInstance, observer?: WebSocketBridgeObserver) {
