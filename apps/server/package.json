@@ -1,11 +1,11 @@
 {
   "name": "@wrapt/server",
-  "version": "1.25.2",
+  "version": "2.1.6",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "WRAPT_DEV_WATCH=1 tsx watch src/index.ts",
-    "build": "rm -rf dist && tsc -p tsconfig.build.json",
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "start": "node dist/index.js",
     "test": "vitest run",

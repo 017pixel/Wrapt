@@ -1,6 +1,6 @@
 {
   "name": "@wrapt/contracts",
-  "version": "0.15.0",
+  "version": "0.17.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -10,7 +10,7 @@
     }
   },
   "scripts": {
-    "build": "rm -rf dist && tsc -p tsconfig.json",
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests",
     "test:coverage": "vitest run --coverage --passWithNoTests"

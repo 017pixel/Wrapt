@@ -38,6 +38,10 @@ identity-proxy.mjs
 *.swp
 *.log
 
+# Python-Bytecode der Hilfsskripte
+__pycache__/
+*.pyc
+
 # Lokale private Agent-Skills
 .codex/
 .opencode/skills/t3-pairing-links/

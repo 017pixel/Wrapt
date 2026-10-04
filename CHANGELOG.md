@@ -1,6 +1,117 @@
 # Changelog
 
-Alle Änderungen werden in fünf kurzen Stichpunkten pro Kategorie dokumentiert.
+Alle relevanten Änderungen werden in kurzen Stichpunkten dokumentiert.
+
+## [2.1.6] - 2026-10-04
+
+### Behoben
+- Dashboard-Hintergrund erscheint ohne Nachladezeit. Das Bild wird schon beim Start der App geladen statt erst, wenn das Dashboard aufgebaut wird, und ist damit fertig, bevor der erste Inhalt erscheint
+- Ein im Einstellungsraster ausgewähltes Motiv ist sofort verfügbar, wenn man danach das Dashboard öffnet
+
+### Verändert
+- Dashboard-Motive werden in zwei kleineren Größen ausgeliefert: 1280 × 720 statt 1672 × 941 für den Hintergrund, das spart die Hälfte der Ladezeit beim Dekodieren
+- Die Motiv-Auswahl in den Einstellungen nutzt kleine Vorschaubilder. Der Tab lädt dadurch 59 KB statt 2,7 MB und reagiert sofort
+- Beim Öffnen der Motiv-Auswahl wird kein Hintergrundbild geladen, solange der Hintergrund ausgeschaltet bleibt
+- Das Hermes-Fenster lädt beim wiederholten Öffnen rund 500 KB weniger: 96 KB statt 598 KB. Die Programmdateien der Oberfläche bleiben im Browser-Cache, statt bei jedem Mal neu geladen zu werden
+- Schriften und Symbole der Hermes-Oberfläche werden nicht mehr bei jedem Öffnen neu geladen. Bisher hatten sie gar keine Cache-Regel und wurden nur zufällig zwischengespeichert
+- Die Hermes-Statusanzeige antwortet schneller, weil die benötigten Angaben nicht mehr nacheinander abgefragt werden
+
+## [2.1.5] - 2026-10-03
+
+### Verändert
+- Previews-Seite aufgeräumt: ein pulsierender Laufstatus, kompakte Aktionen und weniger doppelte Statusanzeigen und Hilfstexte
+- Preview-Ziel und Hauptziel verwenden eigene Dropdowns im Wrapt-Stil mit Tastaturbedienung
+
+## [2.1.4] - 2026-10-03
+
+### Behoben
+- Codex-Accountwechsel greift jetzt auch in T3 Code: Läuft der geteilte Codex-Prozess noch mit der alten Anmeldung, startet Wrapt T3 Code einmal neu, damit der nächste Codex-Auftrag den aktiven Account nutzt
+- Ein abgestürzter Codex-Prozess wird so zuverlässig wie möglich behandelt; Wrapt erkennt ihn und startet T3 für einen sauberen Neustart neu, statt ihn hängen zu lassen
+
+## [2.1.3] - 2026-10-03
+
+### Behoben
+- Previews melden jetzt jeden Dienst einer Projektlaufzeit korrekt; zuvor galten Dienste außerhalb des ersten Fensters als gestoppt und wurden nicht überwacht
+- Fehlgeschlagene Dienste werden zuverlässig automatisch neu gestartet; ein manueller Start baut eine teilweise fehlgeschlagene Projektlaufzeit vollständig neu auf
+- „Im neuen Tab öffnen“ und „URL kopieren“ starten einen gestoppten Dienst neu, statt einen toten Slot-Link zu verwenden
+
+### Verändert
+- Preview-Symbol in der Seitenleiste zeigt deutlicher eine startbare Webseite
+- Anleitung zu `preview.config.json` an das tatsächliche Verhalten angepasst (alle Fenster überwacht, statische Seiten, Vordergrundprozesse)
+
+## [2.1.2] - 2026-10-02
+
+### Behoben
+- Verwaiste, nicht mehr sichtbare Terminalsitzungen belegen kein Sitzungslimit mehr; neue Terminals lassen sich wieder öffnen
+
+## [2.1.1] - 2026-10-02
+
+### Behoben
+- Neue Terminalflächen im Orbit starten mit ihrer gespeicherten Kennung; vorhandene Sitzungen bleiben erhalten
+- Orbit-Flächen bleiben in Safari nach dem Loslassen der Maus an ihrer Position
+- Push meldet wichtige Ereignisse auch bei aktiver Workbench; bereits im geöffneten Chat sichtbare Ereignisse bleiben ausgenommen
+
+### Verändert
+- Veraltete Browser-Prüfungen an Notizeditor, mobile Aktionen und Orbit-Information angepasst
+- README und Benachrichtigungsplanung an den aktuellen Funktionsumfang angepasst
+
+## [2.1.0] - 2026-10-02
+
+### Verändert
+- Terminal-Verbindungen, Bildschirmwiederherstellung und Ausgabe bei Unterbrechungen überarbeitet; Verbindungs- und Layoutfehler werden sichtbar angezeigt
+- Split-Terminals und Größenänderungen reagieren direkt; mobile Ansichten bewahren andere Sitzungen auch im Querformat
+- Terminalordner lassen sich direkt benennen; Einträge und Ordner haben erreichbare Touch- und Tastaturaktionen
+- Terminalkern für Linux, macOS und natives Windows angepasst; PowerShell, Windows-Pfade und CLI-Shims werden unterstützt
+
+### Erstellt
+- Automatischer Wiederanlauf ausdrücklich persistenter Terminals nach einem Host-Neustart mit gespeichertem Arbeitsverzeichnis
+- Regressionstests für Wiederverbindung, große Ausgabeschübe, Resize, mobile Splits, Persistenz und das Beenden von Sitzungen
+- Native PTY-Prüfung und CI-Prüfmatrix für Linux, macOS und Windows
+
+### Behoben
+- Einzelnes Beenden schließt jetzt auch den zugehörigen Prozess und gibt dessen Sitzungsplatz frei
+- Terminals im Split starten im aktuellen Arbeitsverzeichnis der aktiven Sitzung
+
+### Gelöscht
+- Projekt- und Standardpfadauswahl in der Terminal-Topbar
+
+## [2.0.1] - 2026-10-02
+
+### Verändert
+- Landingpage mit klarem Entwickler-Einstieg, größeren Produktaufnahmen und dezentem Randraster überarbeitet
+- Mobile Notes mit umbrechenden Titeln, ruhiger Kopfzeile, größeren Touch-Zielen und direktem Zugriff auf Seiten, Suche und neue Notizen gestaltet
+- Mobiler Notes-Screenshot durch eine neue Aufnahme mit Dummy-Daten ersetzt
+
+### Behoben
+- Aufwendige Bildtransformationen und Kopfzeilen-Blur auf der Landingpage entfernt; weitere Aufnahmen werden erst bei Bedarf geladen
+- Lange Notiztitel bleiben vollständig sichtbar und eingefügte Zeilenumbrüche bleiben mit vorhandenen Titeln kompatibel
+- Dashboard-Scrollen funktioniert auch über Diagrammen und Tabellen; horizontales Wackeln entfällt und das Hintergrundbild wird früher geladen
+
+## [2.0.0] - 2026-10-02
+
+### Erstellt
+- Regressionstests für kombinierte Nutzungsfilter, Push-Einstellungen und die verbleibende Benachrichtigungssynchronisierung
+- Ausführbare Browser-Tests der Nutzungsübersicht mit isolierten Demo-Daten
+
+### Verändert
+- Benachrichtigungseinstellungen enthalten nur noch Push-Schalter. Frühere Toast-Felder entfallen aus API-Antworten; bestehende Einstellungen bleiben lesbar und behalten ihre Push-Auswahl.
+- README, technische Dokumentation und Dokumentationswebseite an den aktuellen Funktionsumfang angepasst
+
+### Gelöscht
+- Sämtliche Toast-Oberflächen, Aufrufe, Einstellungen, Styles und überholten Tests entfernt
+- Ungenutzte Timeline, doppelte Werkzeug- und Routingdefinitionen, alte Hilfsfunktionen und Diagnoseskripte entfernt
+
+### Behoben
+- Ausgeblendete Accounts bleiben auch bei aktiviertem Problemfilter ausgeblendet
+- Nutzungsseite und lange Accountnamen im Detaildialog passen auf kleine Displays
+
+## [1.25.3] - 2026-10-01
+
+### Verändert
+- Produktversion auf 1.25.3 angehoben (Root, Server und Web)
+
+### Behoben
+- Schnelle Änderungen in Notes bleiben beim Autospeichern erhalten
 
 ## [1.25.2] - 2026-09-30
 

@@ -1,6 +1,6 @@
 {
   "name": "wrapt",
-  "version": "1.25.2",
+  "version": "2.1.6",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@10.29.2",
@@ -10,6 +10,8 @@
   "scripts": {
     "dev": "pnpm --filter @wrapt/extension-contracts build && pnpm --filter @wrapt/contracts build && pnpm --parallel --filter @wrapt/server --filter @wrapt/web dev",
     "build:icons": "node scripts/build-app-icons.mjs",
+    "build:artwork": "python3 scripts/generate-dashboard-artwork-variants.py",
+    "build:artwork:check": "python3 scripts/generate-dashboard-artwork-variants.py --check",
     "build": "pnpm build:icons && pnpm --filter @wrapt/extension-contracts build && pnpm --filter @wrapt/contracts build && pnpm --filter @wrapt/server build && pnpm --filter @wrapt/web build",
     "typecheck": "pnpm --filter @wrapt/extension-contracts typecheck && pnpm --filter @wrapt/contracts typecheck && pnpm --parallel --filter @wrapt/server --filter @wrapt/web typecheck",
     "lint": "eslint .",
@@ -20,6 +22,7 @@
     "test:wrapt-plugins-skill": "node scripts/validate-wrapt-plugins-skill.mjs",
     "test:quality-gates": "node scripts/test-quality-gates.mjs",
     "test:e2e": "playwright test",
+    "test:terminal:platform": "pnpm --filter @wrapt/contracts build && pnpm --filter @wrapt/contracts test src/filesystem-path.test.ts && pnpm --filter @wrapt/server test src/terminal/shell.test.ts src/terminal/Manager.platform.test.ts src/terminal/Manager.native.test.ts src/terminal/Manager.resume.test.ts src/terminal/persistentSessions.test.ts src/config/terminal-platform.test.ts && pnpm --filter @wrapt/web test src/stores/terminalWorkspace.test.ts",
     "security:audit": "pnpm audit --prod --audit-level=high",
     "architecture:extensions": "node scripts/extensions/check-boundary.mjs",
     "architecture:file-lines": "node scripts/architecture/check-file-lines.mjs",
