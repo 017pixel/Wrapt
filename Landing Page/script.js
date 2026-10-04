@@ -1,9 +1,6 @@
-/* global window, document, IntersectionObserver */
+/* global window, document */
 (function () {
   "use strict";
-
-  var root = document.documentElement;
-  root.classList.add("js");
 
   var motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
 
@@ -42,34 +39,8 @@
     });
   }
 
-  function setupReveal() {
-    var nodes = Array.prototype.slice.call(document.querySelectorAll(".reveal"));
-    if (!nodes.length) return;
-
-    function showAll() {
-      nodes.forEach(function (node) { node.classList.add("is-visible"); });
-    }
-
-    if (!("IntersectionObserver" in window)) {
-      showAll();
-      return;
-    }
-
-    var observer = new IntersectionObserver(function (entries) {
-      entries.forEach(function (entry) {
-        if (entry.isIntersecting) {
-          entry.target.classList.add("is-visible");
-          observer.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.16, rootMargin: "0px 0px -8% 0px" });
-
-    nodes.forEach(function (node) { observer.observe(node); });
-  }
-
   function init() {
     setupSmoothScroll();
-    setupReveal();
   }
 
   if (document.readyState === "loading") {

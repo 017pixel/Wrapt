@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Note, UpdateNoteRequest } from "@wrapt/contracts";
 import { IconPicker } from "./icons/IconPicker.js";
 import { NotePageIcon } from "./icons/NotePageIcon.js";
@@ -17,12 +17,35 @@ export function NoteTitle({ note, onPatch, disabled = false }: NoteTitleProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const timerRef = useRef<number | null>(null);
   const pendingRef = useRef<{ value: string; originalTitle: string; onPatch: NoteTitleProps["onPatch"] } | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const iconButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     setTitle(note.title);
   }, [note.id, note.title]);
+
+  useLayoutEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
+    const resize = () => {
+      input.style.height = "auto";
+      input.style.height = `${input.scrollHeight}px`;
+    };
+    resize();
+    let width = input.getBoundingClientRect().width;
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => {
+      const nextWidth = input.getBoundingClientRect().width;
+      if (nextWidth === width) return;
+      width = nextWidth;
+      resize();
+    });
+    observer?.observe(input);
+    window.addEventListener("resize", resize);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", resize);
+    };
+  }, [title]);
 
   const commitTitle = useCallback(() => {
     const pending = pendingRef.current;
@@ -71,14 +94,15 @@ export function NoteTitle({ note, onPatch, disabled = false }: NoteTitleProps) {
           />
         ) : null}
       </div>
-      <input
+      <textarea
         ref={inputRef}
         className="notes-title-input"
         value={title}
         disabled={disabled}
         placeholder="Notiz"
         aria-label="Notiztitel"
-        onChange={(event) => changeTitle(event.target.value)}
+        rows={1}
+        onChange={(event) => changeTitle(event.target.value.replace(/[\r\n]+/g, " "))}
         onBlur={() => {
           if (timerRef.current !== null) {
             window.clearTimeout(timerRef.current);
@@ -89,7 +113,7 @@ export function NoteTitle({ note, onPatch, disabled = false }: NoteTitleProps) {
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             event.preventDefault();
-            (event.target as HTMLInputElement).blur();
+            (event.target as HTMLTextAreaElement).blur();
           }
         }}
       />

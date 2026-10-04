@@ -7,7 +7,7 @@
   <meta name="description" content="Wrapt bündelt T3 Code, Hermes Agent, Terminals, Previews und Plugins auf dem eigenen Server und macht die Arbeit von mehreren Geräten aus zugänglich." />
   <meta name="theme-color" content="#0a0a0a" />
   <link rel="icon" href="./doku/assets/wrapt-icon.png" type="image/png" />
-  <script>document.documentElement.classList.add("js");</script>
+  <link rel="preload" href="./assets/fonts/dm-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="./styles.css" />
   <link rel="stylesheet" href="./docs.css" />
   <meta property="og:type" content="website" />
@@ -25,155 +25,160 @@
       <span class="brand__name">Wrapt</span>
     </a>
     <nav class="nav" aria-label="Hauptnavigation">
-      <a href="#entstehung">Entstehung</a>
       <a href="#werkzeuge">Werkzeuge</a>
       <a href="#previews">Previews</a>
-      <a href="#themes">Themes</a>
-      <a href="#nutzung">Nutzung</a>
       <a href="#notizen">Notizen</a>
       <a href="#orbit">Orbit</a>
       <a href="#dokumentation">Dokumentation</a>
-      <a href="#open-source">Open Source</a>
+      <a href="https://github.com/017pixel/Wrapt">GitHub</a>
     </nav>
   </header>
 
   <main id="main" tabindex="-1">
     <section class="hero" id="top" tabindex="-1">
-      <div class="hero__text reveal">
-        <h1 class="hero__title">Ein Coding-Workspace für deine Agenten. Auf jedem Gerät derselbe Stand</h1>
-        <p class="hero__lead">Wrapt bündelt T3 Code, Hermes, Terminals, Previews und Plugins auf deinem eigenen Server. Projekte, Threads und Terminals laufen dort weiter, während du am Rechner, am Laptop oder am Handy weiterarbeitest.</p>
-        <p class="hero__note">Der Name spielt auf den Wrap an: Verschiedene Bestandteile, zusammen in einem Ganzen.</p>
-        <a class="hero__jump" href="#entstehung">So funktioniert’s</a>
+      <div class="hero__text">
+        <div>
+          <p class="hero__eyebrow">Self-hosted. Open Source.</p>
+          <h1 class="hero__title">Dein Dev-Workspace.<br />Auf jedem Gerät.</h1>
+        </div>
+        <div class="hero__intro">
+          <p class="hero__lead">Agenten, Terminals und Previews auf deinem Server. Starte am PC, prüfe den Stand am Handy und arbeite im selben Thread weiter.</p>
+          <div class="hero__actions">
+            <a class="cta" href="https://github.com/017pixel/Wrapt">Code auf GitHub</a>
+            <a class="hero__jump" href="./doku/">Dokumentation</a>
+          </div>
+          <p class="hero__note">T3 Code · Hermes · Terminal · Previews</p>
+        </div>
       </div>
 
-      <div class="stage reveal">
+      <div class="stage">
         <div class="stage__frame">
           <figure class="stage__desktop">
-            <img src="./assets/wrapt-dashboard.png" alt="Wrapt-Dashboard am Rechner: Auslastungskacheln, Systemauslastung, zuletzt aktive Projekte und Dienststatus." width="1440" height="900" />
+            <img src="./assets/wrapt-dashboard.png" alt="Wrapt-Dashboard am Rechner: Auslastungskacheln, Systemauslastung, zuletzt aktive Projekte und Dienststatus." width="1440" height="900" fetchpriority="high" decoding="async" />
           </figure>
           <figure class="stage__mobile">
-            <img src="./assets/wrapt-mobil.png" alt="Dieselbe Dashboard-Ansicht auf dem Handy mit kompakter Statuszeile und Systemdiagrammen." width="390" height="844" />
+            <img src="./assets/wrapt-mobil.png" alt="Dieselbe Dashboard-Ansicht auf dem Handy mit kompakter Statuszeile und Systemdiagrammen." width="390" height="844" decoding="async" />
           </figure>
         </div>
-        <p class="stage__caption">Rechner und Handy greifen auf denselben Server zu. Projekte, Threads und der aktuelle Stand liegen dort, nicht auf einem einzelnen Gerät.</p>
+        <p class="stage__caption">PC und Handy greifen auf denselben Server zu. Projekte, Threads und der aktuelle Stand liegen dort, nicht auf einem einzelnen Gerät.</p>
       </div>
     </section>
 
     <section class="section section--text" id="entstehung" tabindex="-1">
-      <div class="section__head reveal">
+      <div class="section__head">
         <h2>Entstehung</h2>
       </div>
-      <div class="section__body reveal">
+      <div class="section__body">
         <p>Angefangen hat es mit T3 Code. Ich habe darin gearbeitet und gemerkt, dass mir eine Umgebung fehlte, in der T3 Code, Hermes Agent und meine eigenen Werkzeuge zusammenlaufen, auf einem Server, der weiterläuft, wenn ich den Rechner zuklappe. Wrapt ist diese Umgebung. Sie läuft auf meinem eigenen Server und ist von mehreren Geräten aus erreichbar.</p>
       </div>
     </section>
 
     <section class="section" id="werkzeuge" tabindex="-1">
-      <div class="section__head reveal">
+      <div class="section__head">
         <h2>Werkzeuge</h2>
       </div>
-      <div class="section__body reveal">
+      <div class="section__body">
         <p>T3 Code, Hermes Agent und die Terminals liegen in derselben Oberfläche. Du öffnest einen Agent-Thread, schreibst eine Nachricht oder arbeitest direkt im Terminal, ohne zwischen Programmen zu wechseln. Was auf dem Server läuft, siehst du im Browser und greifst mit denselben Flächen darauf zu, egal an welchem Gerät du sitzt.</p>
       </div>
-      <figure class="shot reveal">
-        <img src="./assets/wrapt-terminal.png" alt="Wrapt-Terminalbereich mit zwei geöffneten Sitzungen und sichtbarer Befehlsausgabe." width="1440" height="900" />
+      <figure class="shot">
+        <img src="./assets/wrapt-terminal.png" alt="Wrapt-Terminalbereich mit zwei geöffneten Sitzungen und sichtbarer Befehlsausgabe." width="1440" height="900" loading="lazy" decoding="async" />
       </figure>
     </section>
 
     <section class="section section--flip" id="previews" tabindex="-1">
-      <div class="section__head reveal">
+      <div class="section__head">
         <h2>Previews und Server</h2>
       </div>
-      <div class="section__body reveal">
+      <div class="section__body">
         <p>Für Frontend-Arbeit startet Wrapt den Dev-Server und bindet die Vorschau in die Oberfläche ein. Du öffnest die laufende Seite im Panel oder kopierst die Adresse und lädst sie in einem eigenen Browser. Über Tailscale erreichst du Oberfläche und Vorschau auch von außerhalb deines Netzes. Das Dashboard zeigt dazu Ressourcen und aktive Prozesse des Servers.</p>
       </div>
-      <figure class="shot reveal">
-        <img src="./assets/wrapt-previews.png" alt="Wrapt-Previewbereich mit laufendem Dev-Server, Log-Ansicht und Adressfeld für das Beispielprojekt Nordlicht." width="1440" height="900" />
+      <figure class="shot">
+        <img src="./assets/wrapt-previews.png" alt="Wrapt-Previewbereich mit laufendem Dev-Server, Log-Ansicht und Adressfeld für das Beispielprojekt Nordlicht." width="1440" height="900" loading="lazy" decoding="async" />
       </figure>
     </section>
 
     <section class="section" id="themes" tabindex="-1">
-      <div class="section__head reveal">
+      <div class="section__head">
         <h2>Themes</h2>
       </div>
-      <div class="section__body reveal">
+      <div class="section__body">
         <p>Zehn vorgefertigte Themes stehen bereit: die dunklen T3-Code-Paletten, Dark Modern und Monokai sowie Carbon und Signal aus eigener Hand. Einzelne Farbrollen wie Akzent, Flächen und Text lassen sich unabhängig anpassen. Ich wähle das Theme in den Einstellungen und speichere es in der Projektkonfiguration.</p>
       </div>
-      <figure class="shot reveal">
-        <img src="./assets/wrapt-themes.png" alt="Wrapt-Einstellungen mit der Themenauswahl aus vorgefertigten Paletten und eigenen Farben." width="1440" height="900" />
+      <figure class="shot">
+        <img src="./assets/wrapt-themes.png" alt="Wrapt-Einstellungen mit der Themenauswahl aus vorgefertigten Paletten und eigenen Farben." width="1440" height="900" loading="lazy" decoding="async" />
       </figure>
     </section>
 
     <section class="section section--flip" id="nutzung" tabindex="-1">
-      <div class="section__head reveal">
+      <div class="section__head">
         <h2>Nutzung und Limits</h2>
       </div>
-      <div class="section__body reveal">
+      <div class="section__body">
         <p>Wrapt liest Limits, Verbrauch und Verlauf von Codex und OpenCode aus und wertet sie auf dem eigenen Server aus. Die Konten verwalte ich je Werkzeug, Limits und Reset-Zeitpunkte laufen über den lokalen CodexBar-Abruf zusammen. Der Verlauf zeigt Tokens nach Tag, Projekt und Modell.</p>
       </div>
-      <figure class="shot reveal">
-        <img src="./assets/wrapt-usage.png" alt="Wrapt-Nutzungsübersicht mit Limits, Tokenverlauf und Aufschlüsselung nach Projekt und Modell." width="1440" height="900" />
+      <figure class="shot">
+        <img src="./assets/wrapt-usage.png" alt="Wrapt-Nutzungsübersicht mit Limits, Tokenverlauf und Aufschlüsselung nach Projekt und Modell." width="1440" height="900" loading="lazy" decoding="async" />
       </figure>
     </section>
 
     <section class="section" id="notizen" tabindex="-1">
-      <div class="section__head reveal">
+      <div class="section__head">
         <h2>Notizen</h2>
       </div>
-      <div class="section__body reveal">
+      <div class="section__body">
         <p>Notizen liegen in Ordnern, lassen sich durchsuchen und im Markdown-Editor schreiben. Der Editor kennt Blöcke wie Callouts und aufklappbare Toggles. Jede Notiz lässt sich als Knoten in Orbit verwenden.</p>
       </div>
-      <figure class="shot reveal">
-        <img src="./assets/wrapt-notes.png" alt="Wrapt-Notizen mit Ordnerleiste, Suche und Markdown-Editor inklusive Callout." width="1440" height="900" />
+      <figure class="shot">
+        <img src="./assets/wrapt-notes.png" alt="Wrapt-Notizen mit Ordnerleiste, Suche und Markdown-Editor inklusive Callout." width="1440" height="900" loading="lazy" decoding="async" />
       </figure>
     </section>
 
     <section class="section section--flip" id="orbit" tabindex="-1">
-      <div class="section__head reveal">
+      <div class="section__head">
         <h2>Orbit</h2>
       </div>
-      <div class="section__body reveal">
+      <div class="section__body">
         <p>Orbit ist eine freie Arbeitsfläche: Projekte, Terminals, Agenten, Previews, Notizen und Nutzung liegen als Knoten darauf. Ich verbinde die Knoten zu einem Board und sehe so den Zusammenhang. Der Stand wird laufend in Revisionen gesichert.</p>
       </div>
-      <figure class="shot reveal">
-        <img src="./assets/wrapt-orbit.png" alt="Wrapt-Orbit mit verbundenen Knoten für Projekte, Terminals, Previews und Notizen." width="1440" height="900" />
+      <figure class="shot">
+        <img src="./assets/wrapt-orbit.png" alt="Wrapt-Orbit mit verbundenen Knoten für Projekte, Terminals, Previews und Notizen." width="1440" height="900" loading="lazy" decoding="async" />
       </figure>
     </section>
 
     <section class="section" id="mobile" tabindex="-1">
-      <div class="section__head reveal">
+      <div class="section__head">
         <h2>Mobile Nutzung</h2>
       </div>
-      <div class="section__body reveal">
+      <div class="section__body">
         <p>Auf dem Handy nutzt du Wrapt als installierbare Web-App. Wenn ein Agent fertig ist, kommt ein Push-Hinweis. Du öffnest den Thread direkt und siehst den Stand, ohne den Rechner aufzuklappen.</p>
       </div>
-      <div class="shots reveal">
+      <div class="shots">
         <figure class="shot shot--mobile">
-          <img src="./assets/wrapt-mobil.png" alt="Mobile Wrapt-Ansicht mit Dashboard und Systemdiagrammen." width="390" height="844" />
+          <img src="./assets/wrapt-mobil.png" alt="Mobile Wrapt-Ansicht mit Dashboard und Systemdiagrammen." width="390" height="844" loading="lazy" decoding="async" />
         </figure>
         <figure class="shot shot--mobile">
-          <img src="./assets/wrapt-mobil-notizen.png" alt="Mobile Wrapt-Ansicht der Notizen mit Checkliste und Callout." width="390" height="844" />
+          <img src="./assets/wrapt-mobil-notizen.png" alt="Mobile Wrapt-Ansicht der Notizen mit Checkliste und Callout." width="390" height="844" loading="lazy" decoding="async" />
         </figure>
       </div>
     </section>
 
     <section class="section section--flip" id="erweiterungen" tabindex="-1">
-      <div class="section__head reveal">
+      <div class="section__head">
         <h2>Erweiterungen</h2>
       </div>
-      <div class="section__body reveal">
+      <div class="section__body">
         <p>Wrapt lässt sich um eigene Plugins ergänzen. Der Codex-Account-Switcher ist ein Beispiel: Er ergänzt die Oberfläche um eine Aktionsleiste zum Wechseln zwischen verwalteten Konten. Eigene Erweiterungen bringen neue Flächen und Werkzeuge mit, ohne den Kern zu verändern.</p>
       </div>
-      <figure class="shot reveal">
-        <img src="./assets/wrapt-plugins.png" alt="Wrapt-Pluginverwaltung mit dem Katalog installierbarer Beispiel-Plugins und der Schaltfläche „Neues Plugin erstellen“." width="1440" height="900" />
+      <figure class="shot">
+        <img src="./assets/wrapt-plugins.png" alt="Wrapt-Pluginverwaltung mit dem Katalog installierbarer Beispiel-Plugins und der Schaltfläche „Neues Plugin erstellen“." width="1440" height="900" loading="lazy" decoding="async" />
       </figure>
     </section>
 
     <section class="section section--text" id="dokumentation" tabindex="-1">
-      <div class="section__head reveal">
+      <div class="section__head">
         <h2>Dokumentation</h2>
       </div>
-      <div class="section__body reveal">
+      <div class="section__body">
         <div class="docs-callout">
           <div>
             <h3>Wrapt in Ruhe kennenlernen</h3>
@@ -185,10 +190,10 @@
     </section>
 
     <section class="section section--text" id="open-source" tabindex="-1">
-      <div class="section__head reveal">
+      <div class="section__head">
         <h2>Open Source</h2>
       </div>
-      <div class="section__body reveal">
+      <div class="section__body">
         <p>Wrapt ist Open Source und steht unter der MIT-Lizenz. Der gesamte Quellcode liegt auf GitHub. Du kannst ihn forken, an deine Umgebung anpassen und eigene Änderungen als Pull Request beisteuern.</p>
         <p class="cta-row">
           <a class="cta" href="https://github.com/017pixel/Wrapt">Auf GitHub ansehen</a>

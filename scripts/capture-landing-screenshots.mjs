@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 import { mkdir, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium } from "@playwright/test";
+import { chromium, expect } from "@playwright/test";
 import { warmMetricsHistory } from "./lib/screenshot-metrics-warmup.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -269,11 +269,12 @@ async function captureMobileNotes(options = {}) {
   await open("/wrapt/notizen");
   await notes;
   await page.waitForTimeout(1500);
-  // Der zuletzt geöffnete Zettel kann variieren; gezielt die Checkliste zeigen.
-  await page.getByRole("button", { name: "Notizen-Übersicht öffnen" }).click().catch(() => undefined);
-  await page.waitForTimeout(600);
-  await page.getByText("Onboarding-Checkliste", { exact: true }).first().click().catch(() => undefined);
-  await page.waitForTimeout(900);
+  // Die mobile Navigation öffnet den Baum. Eine fehlende Auswahl muss den
+  // Lauf abbrechen, sonst entsteht eine Aufnahme der falschen Notiz.
+  await page.getByRole("button", { name: "Seiten anzeigen", exact: true }).click();
+  await page.locator(".notes-sidebar").getByRole("button", { name: "Onboarding-Checkliste", exact: true }).click();
+  await expect(page.locator(".notes-title-input")).toHaveValue("Onboarding-Checkliste");
+  await page.waitForTimeout(300);
   await shoot(options.output ?? "wrapt-mobil-notizen", viewport.width, viewport.height);
 }
 

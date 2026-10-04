@@ -66,7 +66,7 @@
   /* Bilder brauchen mehr Breite als der Text, damit die Aufnahmen lesbar bleiben. */
   --lp-wide: 1380px;
   --lp-gutter: clamp(20px, 5vw, 64px);
-  --lp-gap: clamp(72px, 11vw, 132px);
+  --lp-gap: clamp(72px, 9vw, 112px);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -112,8 +112,7 @@ a { color: inherit; }
   gap: 8px 20px;
   padding: 10px var(--lp-gutter);
   border-bottom: 1px solid var(--color-line);
-  background: color-mix(in srgb, var(--color-ink-950) 88%, transparent);
-  backdrop-filter: blur(12px);
+  background: var(--color-ink-950);
 }
 .brand {
   display: inline-flex;
@@ -157,8 +156,8 @@ a { color: inherit; }
   padding: clamp(48px, 8vw, 96px) var(--lp-gutter) 0;
 }
 .hero__title {
-  max-width: 15ch;
-  font-size: clamp(30px, 1.4rem + 3vw, 54px);
+  max-width: 20ch;
+  font-size: clamp(36px, 1.4rem + 3vw, 52px);
   line-height: 1.08;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -202,7 +201,7 @@ a { color: inherit; }
   background: var(--color-ink-900);
   box-shadow: var(--shadow-raised);
 }
-.stage__caption { margin-top: 20px; max-width: 46ch; color: var(--color-muted); font-size: 15px; text-align: center; }
+.stage__caption { margin-top: 40px; max-width: 70ch; color: var(--color-muted); font-size: 15px; text-align: center; }
 
 .section {
   max-width: var(--lp-max);
@@ -290,34 +289,14 @@ a { color: inherit; }
 }
 .footer__links a:hover { color: var(--color-text); }
 
-/* Aufnahmen liegen zurück und richten sich unter dem Zeiger auf (Vorbild t3.codes).
-   opacity/translate stehen mit in der Liste, sonst verdrängt die Reveal-Regel transform. */
-.shot,
-.stage__desktop,
-.stage__mobile {
-  transform: perspective(2000px) rotateX(4deg);
-  transition:
-    transform 1s var(--ease-emphasized),
-    opacity 560ms var(--ease-standard),
-    translate 560ms var(--ease-standard);
-}
-.shot:hover,
-.stage__frame:hover .stage__desktop,
-.stage__frame:hover .stage__mobile {
-  transform: perspective(2000px) rotateX(0deg);
-}
+/* Große Aufnahmen bleiben flach: keine dauerhaften 3D-Compositing-Layer. */
+.shot, .stage__desktop, .stage__mobile { contain: paint; }
 
-/* Einblenden läuft über translate, damit transform für den Bild-Tilt frei bleibt. */
-.js .reveal { opacity: 0; translate: 0 16px; }
-.js .reveal.is-visible { opacity: 1; translate: 0 0; }
-.js .reveal:not(.shot) { transition: opacity 560ms var(--ease-standard), translate 560ms var(--ease-standard); }
-.js .hero__text.reveal { opacity: 1; transform: none; }
-.js .hero__text.reveal > * { opacity: 0; transform: translateY(18px); }
-.js .hero__text.reveal.is-visible > * { opacity: 1; transform: none; transition: opacity 620ms var(--ease-standard), transform 620ms var(--ease-standard); }
-.js .hero__text.reveal.is-visible > :nth-child(1) { transition-delay: 60ms; }
-.js .hero__text.reveal.is-visible > :nth-child(2) { transition-delay: 160ms; }
-.js .hero__text.reveal.is-visible > :nth-child(3) { transition-delay: 260ms; }
-.js .hero__text.reveal.is-visible > :nth-child(4) { transition-delay: 360ms; }
+/* Nur der Einstieg blendet ein; Abschnittsinhalte sind beim schnellen Scrollen sofort da. */
+@media (prefers-reduced-motion: no-preference) {
+  .hero__text { animation: hero-enter 360ms var(--ease-standard) both; }
+}
+@keyframes hero-enter { from { opacity: 0; transform: translateY(8px); } }
 
 @media (min-width: 1024px) {
   .section {
@@ -343,7 +322,9 @@ a { color: inherit; }
   .section--text { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); align-items: start; }
   .section--text .section__body { grid-column: 2; grid-row: 1; margin-top: 0; }
 
-  .hero { grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); align-items: center; padding-top: clamp(64px, 8vw, 112px); }
+  .hero__text { display: grid; grid-template-columns: 1.35fr 1fr; gap: 64px; align-items: end; }
+  .hero__title { font-size: clamp(40px, 3.6vw, 52px); }
+  .hero__lead { margin-top: 0; }
   .hero__lead { max-width: 48ch; }
   .nav { justify-content: flex-end; }
   .nav a { font-size: 14px; }
@@ -368,9 +349,7 @@ a { color: inherit; }
 
 @media (max-width: 700px) {
   .shots .shot--mobile { max-width: calc(50% - 8px); }
-  .stage__frame { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 16px; }
-  .stage__desktop { flex: 1 0 100%; }
-  .stage__mobile { position: static; width: 40%; max-width: 150px; bottom: auto; left: auto; }
+  .stage__mobile { width: 23%; right: 2%; bottom: -5%; }
   .stage__caption { text-align: left; margin-top: 22px; }
 }
 
@@ -378,8 +357,26 @@ a { color: inherit; }
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
   /* Ohne diese Zeile überschreibt scroll-behavior: smooth das behavior:"auto" des Skripts. */
   html { scroll-behavior: auto; }
-  .js .reveal, .js .hero__text.reveal > * { opacity: 1 !important; transform: none !important; translate: none !important; }
   .shot,
   .stage__desktop,
   .stage__mobile { transform: none !important; transition: none !important; }
 }
+
+/* Statisches Karopapier: Die Deckkraft nimmt in der SVG zur Mitte hin ab.
+   Zwei schmale Flächen bleiben hinter dem Inhalt, ohne Scroll-Handler oder Blur. */
+body { isolation: isolate; }
+body::before, body::after {
+  content: "";
+  position: fixed;
+  z-index: -1;
+  inset-block: 0;
+  width: min(22vw, 288px);
+  background: url("./assets/edge-grid.svg") left top / 100% auto repeat-y;
+  pointer-events: none;
+}
+body::before { left: 0; }
+body::after { right: 0; transform: scaleX(-1); }
+.hero__eyebrow { margin-bottom: 20px; color: var(--color-muted); font: 12px var(--font-mono); letter-spacing: .04em; }
+.hero__actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+.hero__actions .hero__jump { margin-top: 0; min-height: 48px; border-color: var(--color-line); }
+.hero__note { font: 12px var(--font-mono); }

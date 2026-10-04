@@ -30,7 +30,7 @@ const notes = [
     title: "Arbeitsbereich",
     content: "# Arbeitsbereich\n\nAlles, was gerade auf dem Tisch liegt. Untergeordnete Notizen sind hier gebündelt.\n",
     children: [
-      { title: "Onboarding-Checkliste", content: "# Onboarding-Checkliste\n\n- [x] Tailscale-Gerät verbinden\n- [x] Erstes Projekt registrieren\n- [ ] Preview-Slot freigeben\n- [ ] T3 Code koppeln\n\n> Hinweis: Die Schritte laufen ohne Neustart der Workbench.\n" },
+      { title: "Onboarding-Checkliste", content: "Bereit für die erste Session.\n\n## Setup\n\n- [x] Tailscale-Gerät verbinden\n- [x] Erstes Projekt registrieren\n- [ ] T3 Code koppeln\n- [ ] Erste Preview öffnen\n\n## Nächster Schritt\n\nThread am Handy öffnen und den letzten Commit prüfen.\n\n> Notizen und Preview bleiben direkt im Workspace.\n" },
       { title: "Release 1.23 vorbereiten", content: "## Ziele\n\n- [x] Changelog schreiben\n- [ ] Screenshots erneuern\n- [ ] Landingpage bauen\n\n> Der Stichtag ist Donnerstag, 14 Uhr.\n" },
     ],
   },

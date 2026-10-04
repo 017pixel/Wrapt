@@ -18,7 +18,7 @@ Im Orbit ist eine Notizfläche ein freier Textblock oder ein Verweis auf eine Se
 
 ## Nutzungslimits
 
-Die Seite **Nutzung** fasst Konten und unterstützte Limitfenster von Codex, Claude Code und OpenCode Go zusammen, sofern die Instanz Datenquellen dafür eingerichtet hat. Accountzeilen lassen sich öffnen und zeigen Zeitfenster, verbleibende Nutzung und den nächsten bekannten Reset. Eine Timeline stellt verfügbare Fenster zeitlich dar; Filter und Darstellungsoptionen helfen beim Vergleich.
+Die Seite **Nutzung** zeigt eine Tabelle der verfügbaren Codex-, Claude-Code- und OpenCode-Go-Konten. Aufklappbare Accountzeilen zeigen unterstützte Limitfenster, verbleibende Nutzung und den nächsten bekannten Reset. Filter grenzen die Konten nach ihrem Datenstatus ein.
 
 Für Codex können außerdem lokal erkannte Reset-Guthaben erscheinen. Die optionale Community-Historie ist ein globaler Hinweis und keine Aussage über den persönlichen Account. Fehlende Daten oder abgelaufene Abrufe werden mit ihrem Datenstatus dargestellt; die Seite garantiert nicht, dass ein Anbieterendpunkt erreichbar ist.
 
@@ -26,15 +26,15 @@ Für Codex können außerdem lokal erkannte Reset-Guthaben erscheinen. Die optio
 
 ## Benachrichtigungen
 
-Wrapt kann ausgewählte Ereignisse als Toast anzeigen. Quellen sind unter anderem T3 Code, OpenCode, Hermes, Codex, Claude Code, Terminal und Wrapt selbst. Ein Toast lässt sich öffnen oder schließen; beim Öffnen gilt er als gelesen und folgt bei vorhandenem Ziel dem passenden Link.
+Ausgewählte Ereignisse werden serverseitig gespeichert. Unter **Einstellungen → Benachrichtigungen** steuerst du Web-Push global und je Quelle. Web-Push wird pro Gerät aktiviert und kann dort getestet oder deaktiviert werden. Der globale Server-Push-Schalter und das Geräte-Abo sind getrennt: Ein aktives Geräte-Abo allein schaltet den Serverversand nicht ein.
 
-Unter **Einstellungen → Benachrichtigungen** steuerst du Toastdauer, Anzahl der Toasts und die Toast-/Push-Ausgabe je Quelle. Web-Push wird pro Gerät aktiviert und kann dort getestet oder deaktiviert werden. Der globale Server-Push-Schalter und das Geräte-Abo sind getrennt: Ein aktives Geräte-Abo allein schaltet den Serverversand nicht ein.
+Push kann auch eintreffen, während Wrapt geöffnet ist. Ein Ereignis zum gerade sichtbaren Thread oder Terminal wird als gelesen markiert und nicht zusätzlich gepusht.
 
 Auf iPadOS lässt sich Web-Push nur über eine installierte PWA vom Home-Bildschirm aus aktivieren. Browserberechtigung und HTTPS müssen verfügbar sein. Push-Nachrichten können außerhalb des sichtbaren Wrapt-Fensters erscheinen; die Ereignisse und Abos verwaltet der Server.
 
 ## Grenzen
 
-- Eine eigene Inbox-Seite gibt es nicht. Toasts schließen sich nach der eingestellten Zeit; öffne sie, wenn du dem Ziel folgen möchtest.
+- Eine eigene Inbox-Seite gibt es nicht. Benachrichtigungen bleiben serverseitig gespeichert, bis sie durch die Aufbewahrungsregel entfernt werden.
 - Benachrichtigungen kommen nur, wenn die jeweilige Integration Ereignisse liefert und die Einstellungen den Kanal zulassen.
 - Nutzungslimits hängen von externen Anbieterdaten und lokaler Konfiguration ab. Fehlende oder veraltete Werte sind kein verlässlicher Verbrauchsstand.
 - Push gilt je Gerät. Ein Browserwechsel oder ein neues Gerät braucht ein eigenes Abo.

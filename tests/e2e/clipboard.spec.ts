@@ -215,7 +215,7 @@ test("routes Orbit paste to the focused editor, canvas or terminal only", async 
   const noteMarker = `NOTIZ_${Date.now()}`;
   await page.evaluate((text) => navigator.clipboard.writeText(text), noteMarker);
   await note.press("Control+V");
-  await expect(note).toHaveValue(`Vorhanden: ${noteMarker}`);
+  await expect(note).toHaveText(`Vorhanden: ${noteMarker}`);
 
   const nodesBeforeCanvasPaste = await page.locator(".react-flow__node-orbit").count();
   const canvasMarker = `CANVAS_${Date.now()}`;
@@ -224,7 +224,10 @@ test("routes Orbit paste to the focused editor, canvas or terminal only", async 
   // Notiz in der Mitte und würde den Klick (und damit den Fokus) abfangen.
   await page.locator(".react-flow__pane").click({ position: { x: 80, y: 60 } });
   await page.keyboard.press("Control+V");
-  await expect(page.getByLabel("Eingefügter Text bearbeiten").last()).toHaveValue(canvasMarker);
+  const pastedNote = page.locator(".react-flow__node-orbit").filter({
+    has: page.getByText("Eingefügter Text", { exact: true }),
+  }).last();
+  await expect(pastedNote.getByLabel("Neue Notiz bearbeiten")).toHaveText(canvasMarker);
   await expect(page.locator(".react-flow__node-orbit")).toHaveCount(nodesBeforeCanvasPaste + 1);
 
   await page.locator(".orbit-palette-item").filter({ hasText: /^Terminalziehen$/ }).click();

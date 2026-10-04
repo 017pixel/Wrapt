@@ -12,6 +12,7 @@ import type { NoteReferenceAppender } from "./NoteEditor.js";
 import { appendNoteReferenceToPage } from "./editor/noteReferences.js";
 import { NoteHeader } from "./NoteHeader.js";
 import { NoteTitle } from "./NoteTitle.js";
+import { NoteMobileNavigation } from "./NoteMobileNavigation.js";
 import { NotesEmpty } from "./NotesEmpty.js";
 import { newNoteTitle } from "./noteTitles.js";
 import { NotesCommandPalette } from "./search/NotesCommandPalette.js";
@@ -42,7 +43,7 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
   const [saveState, setSaveState] = useState<NoteSaveState>("saved");
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const editorReferenceAppenderRef = useRef<{ parentId: string; append: NoteReferenceAppender } | null>(null);
   const sidebarCollapsed = useNotesPreferences((state) => state.sidebarCollapsed);
   const setSidebarCollapsed = useNotesPreferences((state) => state.setSidebarCollapsed);
@@ -50,10 +51,7 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
   // einer Spalte daneben.
   const isDrawerSidebar = useMediaQuery("(max-width: 900px)");
 
-  const showToast = useCallback((message: string) => {
-    setToast(message);
-    window.setTimeout(() => setToast((current) => (current === message ? null : current)), 2400);
-  }, []);
+  const showActionError = useCallback((message: string) => setActionError(message), []);
 
   const registerReferenceAppender = useCallback(
     (parentId: string, append: NoteReferenceAppender | null) => {
@@ -87,13 +85,13 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
     onSuccess: async (note, variables) => {
       if (variables.parentId !== null) {
         const linked = await appendParentReference(variables.parentId, note);
-        if (!linked) showToast("Unterseite erstellt; der Verweis konnte nicht gespeichert werden.");
+        if (!linked) showActionError("Unterseite erstellt; der Verweis konnte nicht gespeichert werden.");
       }
       void invalidateNotes();
       onSelectNote(note.id);
       setMobileSidebarOpen(false);
     },
-    onError: () => showToast("Die Seite konnte nicht erstellt werden."),
+    onError: () => showActionError("Die Seite konnte nicht erstellt werden."),
   });
 
   const patchMutation = useMutation({
@@ -103,7 +101,7 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
       return response.note;
     },
     onSuccess: () => void invalidateNotes(),
-    onError: () => showToast("Die Änderung konnte nicht gespeichert werden."),
+    onError: () => showActionError("Die Änderung konnte nicht gespeichert werden."),
   });
 
   const moveMutation = useMutation({
@@ -116,7 +114,7 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
       return response.note;
     },
     onSuccess: () => void invalidateNotes(),
-    onError: () => showToast("Die Seite konnte nicht verschoben werden."),
+    onError: () => showActionError("Die Seite konnte nicht verschoben werden."),
   });
 
   // Nach jedem eigenen Speichern den Detail-Cache frisch halten: Sonst würde
@@ -165,24 +163,22 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
           if (detail.note.icon !== null) await apiClient.updateNote(created.note.id, { icon: detail.note.icon });
           void invalidateNotes();
           onSelectNote(created.note.id);
-          showToast("Seite dupliziert");
         } catch {
           void invalidateNotes();
-          showToast("Die Seite konnte nicht vollständig dupliziert werden.");
+          showActionError("Die Seite konnte nicht vollständig dupliziert werden.");
         }
       })();
     },
-    [invalidateNotes, onSelectNote, showToast],
+    [invalidateNotes, onSelectNote, showActionError],
   );
 
   const handleCopyLink = useCallback(
     (note: Note | NoteSummary) => {
       void navigator.clipboard
         .writeText(notesWorkspaceUrl(note.id))
-        .then(() => showToast("Link kopiert"))
-        .catch(() => showToast("Link konnte nicht kopiert werden"));
+        .catch(() => showActionError("Link konnte nicht kopiert werden."));
     },
-    [showToast],
+    [showActionError],
   );
 
   const openWindow = useCallback((id: string) => {
@@ -369,11 +365,15 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
             }
           </QueryBoundary>
         )}
-        {toast !== null ? (
-          <div className="notes-toast" role="status">
-            {toast}
-          </div>
+        {!windowMode ? (
+          <NoteMobileNavigation
+            sidebarOpen={mobileSidebarOpen}
+            onOpenPages={toggleSidebar}
+            onSearch={() => { setMobileSidebarOpen(false); setPaletteOpen(true); }}
+            onCreate={() => handleCreate(null)}
+          />
         ) : null}
+        {actionError !== null ? <p className="note-action-error" role="alert">{actionError}</p> : null}
       </div>
 
       {!windowMode ? (

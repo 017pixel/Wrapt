@@ -39,7 +39,8 @@ test.describe("Notizen-Seitenleiste", () => {
     await expect(popup.getByLabel("Notiztitel")).toHaveValue(parentTitle);
 
     const parentUrl = popup.url();
-    await popup.getByRole("button", { name: "Unterseite erstellen" }).click();
+    await popup.locator(".notes-note-head").getByRole("button", { name: "Weitere Aktionen" }).click();
+    await popup.getByRole("menuitem", { name: "Unterseite erstellen", exact: true }).click();
     await expect.poll(() => popup.url()).not.toBe(parentUrl);
     await expect(popup.getByRole("navigation", { name: "Pfad" })).toContainText(parentTitle);
     const childUrl = popup.url();

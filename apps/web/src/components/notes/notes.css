@@ -54,20 +54,7 @@
 .notes-empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); margin-top: var(--space-4); }
 .notes-empty-actions > button { min-height: 44px; }
 
-.notes-toast {
-  position: absolute;
-  z-index: 40;
-  bottom: var(--space-4);
-  left: 50%;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius);
-  background: var(--color-ink-850);
-  box-shadow: var(--shadow-overlay);
-  padding: 6px var(--space-3);
-  color: var(--color-text);
-  font-size: var(--text-sm);
-  transform: translateX(-50%);
-}
+.note-action-error { margin: var(--space-3); color: var(--color-bad); font-size: var(--text-sm); }
 
 /* --- Mobile: Overlay-Verhalten der Seitenleiste ----------------------------
    Die mobilen und Touch-Regeln liegen in note-responsive.css und werden

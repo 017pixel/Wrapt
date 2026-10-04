@@ -83,19 +83,10 @@ export const notePageIcons: NotePageIconDefinition[] = [
   { name: "psychiatry", label: "Notizbuch", keywords: ["notizbuch", "journal", "tagebuch", "planung"] },
 ];
 
-const byName = new Map(notePageIcons.map((icon) => [icon.name, icon]));
-
-export const defaultNoteIconName = "description";
-
 /** Liefert die Pfaddaten eines Symbols; unbekannte Werte (alte Emojis) ergeben null. */
 export function noteIconPath(name: string | null | undefined): string | null {
   if (!name) return null;
   return notePageIconPaths[name] ?? null;
-}
-
-export function findNotePageIcon(name: string | null | undefined): NotePageIconDefinition | null {
-  if (!name) return null;
-  return byName.get(name) ?? null;
 }
 
 /** Suche über Label und Stichworte, Treffer am Wortanfang zuerst. */

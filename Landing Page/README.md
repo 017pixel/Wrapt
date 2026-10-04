@@ -10,9 +10,9 @@ fertige Ausgabe, alle Quellen liegen daneben.
 | Datei | Aufgabe |
 | --- | --- |
 | `index.html` | Semantische Seitenstruktur und deutsche Texte |
-| `styles.css` | Layout, Theme-Variablen, Tilt, Raster und Responsive Styles |
+| `styles.css` | Layout, Theme-Variablen, Randraster und Responsive Styles |
 | `docs.css` | Layout der Doku-Einstiegsfläche auf der Landingpage |
-| `script.js` | Cursor-Tilt, weiches Scrollen und sparsame Scrollzustände |
+| `script.js` | Sprunglinks mit weichem Scrollen und Fokusübergabe |
 | `build.mjs` | Erzeugt die Landingpage und bündelt die Doku unter `dist/doku/` |
 | `assets/` | Echte Wrapt-Ansichten aus der Demo-Instanz mit reinen Beispieldaten als PNG |
 | `dist/` | Generierte Ausgabe, nicht direkt bearbeiten |
@@ -78,6 +78,10 @@ Sichtbar sind nur erfundene Daten (`demo-server`, `demo@example.com`). Ohne
 
 ## Hinweise
 
+- Das statische SVG-Raster verblasst spaltenweise zu beiden Seiten der Mitte.
+  Große Screenshots bleiben flach; die Kopfzeile kommt ohne Blur aus.
+- Bilder unterhalb des Einstiegs laden verzögert und werden asynchron dekodiert.
+  Inhalte sind beim schnellen Scrollen sofort sichtbar.
 - Die Seite ist bei 360, 390, 768, 1024 und 1440 px ohne horizontales Scrollen
   nutzbar.
 - Gleiche-Seiten-Sprunglinks scrollen weich und halten den Sticky-Header frei.

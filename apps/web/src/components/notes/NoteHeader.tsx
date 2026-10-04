@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from "react";
 import type { Note, NoteSummary } from "@wrapt/contracts";
 import {
   BookmarkIcon,
+  ChevronLeftIcon,
   CopyIcon,
   ExternalLinkIcon,
   LayoutPanelIcon,
@@ -86,11 +87,11 @@ export function NoteHeader({
           title={sidebarTitle}
           onClick={onToggleSidebar}
         >
-          <LayoutPanelIcon />
+          {isDrawer ? <ChevronLeftIcon style={{ color: "currentColor" }} /> : <LayoutPanelIcon />}
         </button>
       )}
 
-      <nav className="notes-note-crumbs" aria-label="Pfad">
+      <nav className="notes-note-crumbs" aria-label="Pfad" data-has-ancestors={ancestors.length > 0}>
         {[...ancestors].reverse().map((ancestor, index) => (
           <span
             key={ancestor.id}
@@ -105,7 +106,7 @@ export function NoteHeader({
           </span>
         ))}
         <span className="notes-note-current" title={note.title}>{note.title}</span>
-        <span className="notes-save-state" data-state={saveState}>
+        <span className="notes-save-state" data-state={saveState} role="status">
           {noteSaveStateLabels[saveState]}
         </span>
       </nav>
@@ -113,12 +114,12 @@ export function NoteHeader({
       <div className="notes-head-actions">
         <button
           type="button"
-          className="notes-icon-button"
+          className="notes-icon-button notes-subpage-action"
           aria-label="Unterseite erstellen"
           title="Unterseite erstellen"
           onClick={onCreateSubpage}
         >
-          <PlusIcon />
+          <PlusIcon style={{ color: "currentColor" }} />
         </button>
         <button
           type="button"
@@ -128,7 +129,7 @@ export function NoteHeader({
           title={note.favorite ? "Favorit entfernen" : "Als Favorit markieren"}
           onClick={onToggleFavorite}
         >
-          <BookmarkIcon fill={note.favorite ? "currentColor" : "none"} />
+          <BookmarkIcon fill={note.favorite ? "currentColor" : "none"} style={{ color: "currentColor" }} />
         </button>
         <div className="notes-head-menu" ref={menuRef}>
           <button
@@ -140,10 +141,18 @@ export function NoteHeader({
             data-dismiss-ignore
             onClick={() => setMenuOpen((value) => !value)}
           >
-            <MoreIcon />
+            <MoreIcon style={{ color: "currentColor" }} />
           </button>
           {menuOpen ? (
             <div className="notes-head-popover" role="menu">
+              <button
+                type="button"
+                role="menuitem"
+                className="notes-mobile-subpage-action"
+                onClick={() => runMenuAction(onCreateSubpage)}
+              >
+                <PlusIcon aria-hidden /> Unterseite erstellen
+              </button>
               <button
                 type="button"
                 role="menuitem"

@@ -144,6 +144,8 @@
   font-weight: 650;
   letter-spacing: -.01em;
   line-height: 1.15;
+  resize: none;
+  overflow: hidden;
 }
 
 .notes-title-input::placeholder { color: var(--color-faint); }

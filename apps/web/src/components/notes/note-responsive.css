@@ -5,6 +5,9 @@
 
 /* --- Handy und schmale Fenster: Seitenleiste als Schublade ---------------- */
 
+.notes-mobile-navigation, .notes-mobile-subpage-action { display: none; }
+.notes-head-popover .notes-mobile-subpage-action { display: none; }
+
 @media (max-width: 900px) {
   .notes-workspace { position: relative; }
   .notes-note-head { padding: 0 var(--space-2); }
@@ -87,6 +90,85 @@
   .notes-note-head .notes-note-crumbs { font-size: var(--text-sm); }
   .notes-save-state { font-size: var(--text-2xs); padding-inline: var(--space-1); }
   .notes-head-actions { gap: 0; }
+}
+
+/* Die Seite bekommt dieselbe klare Hierarchie wie ein mobiles Dokument:
+   Pfad oben, Symbol und umbrechender Titel im Inhalt, Aktionen am unteren Rand. */
+@media (max-width: 600px) {
+  .notes-note-head { min-height: 52px; border-bottom: 0; gap: 0; }
+  .notes-note-head .notes-note-crumbs { font-size: var(--text-sm); }
+  .notes-note-crumbs .notes-note-crumb.is-nearest { max-width: 100%; }
+  .notes-note-crumbs button { min-height: 44px; }
+  .notes-note-crumbs[data-has-ancestors="true"] .notes-note-current,
+  .notes-note-crumb-sep,
+  .notes-subpage-action { display: none; }
+  .notes-save-state[data-state="saved"] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+  .notes-note-head .notes-icon-button { color: var(--color-muted); }
+  .notes-note-head .notes-icon-button.is-active { color: var(--color-accent); }
+  .notes-note-head .notes-icon-button svg { width: 20px; height: 20px; }
+  .notes-head-popover .notes-mobile-subpage-action { display: flex; }
+  .notes-head-popover {
+    position: fixed;
+    top: auto;
+    bottom: calc(80px + env(safe-area-inset-bottom));
+    right: var(--space-3);
+    left: var(--space-3);
+    width: auto;
+    padding: var(--space-2);
+  }
+  .notes-editor-frame { padding: var(--space-6) var(--space-6) 20vh; }
+  .notes-title-row { flex-direction: column; gap: var(--space-3); margin-bottom: var(--space-5); }
+  .notes-title-row .notes-title-icon { width: 44px; height: 44px; justify-items: start; }
+  .notes-title-row .notes-title-icon svg { width: 34px; height: 34px; }
+  .notes-title-input { flex: none; font-size: 32px; line-height: 1.2; letter-spacing: -.025em; }
+  .note-editor-content, .note-editor-content.is-compact { font-size: 16px; line-height: 1.65; }
+  .note-editor-content:not(:focus-within) p.is-empty:not(:first-child)::before { content: none; }
+  .note-editor-content h2 { margin-top: var(--space-6); font-size: 1.25em; }
+  .note-editor-content ul[data-type="taskList"] > li { min-height: 44px; gap: 0; }
+  .note-editor-content ul[data-type="taskList"] li > label {
+    display: flex;
+    min-width: 44px;
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    margin-left: -12px;
+  }
+  .note-editor-content ul[data-type="taskList"] input[type="checkbox"] { width: 18px; height: 18px; margin: 0; }
+  .note-editor-content ul[data-type="taskList"] li > div { padding-top: 9px; }
+  .note-editor-content blockquote { padding-left: var(--space-4); }
+  .notes-mobile-navigation {
+    display: flex;
+    flex: none;
+    justify-content: space-around;
+    border-top: 1px solid var(--color-line);
+    background: var(--surface-base);
+    padding: var(--space-1) var(--space-4) max(var(--space-1), env(safe-area-inset-bottom));
+  }
+  .notes-mobile-navigation button {
+    display: flex;
+    min-width: 72px;
+    min-height: 52px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-1);
+    border: 0;
+    border-radius: var(--radius);
+    background: transparent;
+    color: var(--color-muted);
+    font-size: var(--text-2xs);
+  }
+  .notes-mobile-navigation button:hover, .notes-mobile-navigation button:active {
+    background: var(--color-ink-800);
+    color: var(--color-text);
+  }
+  .notes-mobile-navigation svg { width: 20px; height: 20px; }
 }
 
 /* --- Touch-Ziele ----------------------------------------------------------

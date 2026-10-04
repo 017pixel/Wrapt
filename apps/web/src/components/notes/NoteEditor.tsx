@@ -189,7 +189,7 @@ export function NoteEditor({
     getMarkdown,
     onSaved: handleSaved,
   });
-  const { schedule, flush, acceptServerNote, conflictNote, state } = autosave;
+  const { schedule, flush, acceptServerNote, getDraftContent, conflictNote, state } = autosave;
   saveNowRef.current = autosave.saveNow;
 
   useEffect(() => {
@@ -212,7 +212,8 @@ export function NoteEditor({
     if (loadedNoteIdRef.current !== note.id) {
       loadedNoteIdRef.current = note.id;
       loadedRevisionRef.current = note.revision;
-      editor.commands.setContent(parseNoteMarkdown(manager, note.content), { emitUpdate: false });
+      const content = getDraftContent(note.id) ?? note.content;
+      editor.commands.setContent(parseNoteMarkdown(manager, content), { emitUpdate: false });
       if (autoFocus) editor.commands.focus("start");
       return;
     }
@@ -220,7 +221,7 @@ export function NoteEditor({
     loadedRevisionRef.current = note.revision;
     editor.commands.setContent(parseNoteMarkdown(manager, note.content), { emitUpdate: false });
     acceptServerNote(note);
-  }, [acceptServerNote, autoFocus, editor, note, state]);
+  }, [acceptServerNote, autoFocus, editor, getDraftContent, note, state]);
 
   useEffect(() => {
     if (!editor) return;

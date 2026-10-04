@@ -85,3 +85,56 @@ it("lädt die Serverrevision als neue Grundlage für spätere Änderungen", asyn
     expectedRevision: 2,
   });
 });
+
+it("bewahrt Eingaben, die während eines laufenden Speicherns dazukommen", async () => {
+  vi.useFakeTimers();
+  type SaveResult = Awaited<ReturnType<typeof apiClient.saveNoteContent>>;
+  let finishFirstSave!: (result: SaveResult) => void;
+  const firstSave = new Promise<SaveResult>((resolve) => {
+    finishFirstSave = resolve;
+  });
+  let draft = "Wort";
+  const save = vi.spyOn(apiClient, "saveNoteContent")
+    .mockReturnValueOnce(firstSave)
+    .mockResolvedValueOnce({
+      status: "saved",
+      note: { ...serverNote, content: "Wort weiter", revision: 3 },
+    });
+  const { result } = renderHook(() => useNoteAutosave({
+    noteId: serverNote.id,
+    revision: 1,
+    getMarkdown: () => draft,
+    onSaved: vi.fn(),
+  }));
+
+  await act(async () => {
+    result.current.schedule();
+    await vi.advanceTimersByTimeAsync(800);
+  });
+  expect(save).toHaveBeenCalledWith(serverNote.id, {
+    content: "Wort",
+    expectedRevision: 1,
+  });
+
+  draft = "Wort weiter";
+  act(() => result.current.schedule());
+  await act(async () => {
+    finishFirstSave({
+      status: "saved",
+      note: { ...serverNote, content: "Wort", revision: 2 },
+    });
+    await firstSave;
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  expect(result.current.state).toBe("dirty");
+
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(800);
+  });
+  expect(save).toHaveBeenLastCalledWith(serverNote.id, {
+    content: "Wort weiter",
+    expectedRevision: 2,
+  });
+  expect(result.current.state).toBe("saved");
+});

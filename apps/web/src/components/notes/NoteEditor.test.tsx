@@ -7,6 +7,7 @@ import { NoteEditor } from "./NoteEditor";
 
 const autosave = vi.hoisted(() => ({
   acceptServerNote: vi.fn(),
+  getDraftContent: vi.fn(() => null),
   resolveKeepMine: vi.fn(),
 }));
 
@@ -18,6 +19,7 @@ vi.mock("./editor/useNoteAutosave.js", () => ({
     flush: vi.fn(),
     saveNow: vi.fn(),
     acceptServerNote: autosave.acceptServerNote,
+    getDraftContent: autosave.getDraftContent,
     resolveKeepMine: autosave.resolveKeepMine,
   }),
 }));
