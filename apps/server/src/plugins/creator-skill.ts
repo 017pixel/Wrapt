@@ -34,6 +34,3 @@ export async function readWraptPluginsSkill(path: string) {
     sizeBytes: details.size,
   });
 }
-
-/** Kompatibilitätsalias für bereits importierende Server-Module. */
-export const readPluginCreatorSkill = readWraptPluginsSkill;

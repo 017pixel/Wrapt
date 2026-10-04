@@ -18,7 +18,7 @@ export const legacySettingsCards: readonly SettingsCardMetadata[] =
     Object.freeze({ id: contributionIdSchema.parse("wrapt.settings.card.usage-monitoring"), title: "Limitüberwachung", description: "Limits je Werkzeug erfassen oder pauschal deaktivieren", order: 40, hostOnly: false }),
     Object.freeze({ id: contributionIdSchema.parse("wrapt.settings.card.workspace"), title: "Layout", description: "Lokaler, persistenter Layout-Zustand", order: 50, hostOnly: false }),
     Object.freeze({ id: contributionIdSchema.parse("wrapt.settings.card.dashboard"), title: "Dashboard", description: "Bereiche lokal ein- und ausblenden", order: 60, hostOnly: false }),
-    Object.freeze({ id: contributionIdSchema.parse("wrapt.settings.card.notifications"), title: "Benachrichtigungen", description: "Toasts und System-Benachrichtigungen pro Quelle", order: 70, hostOnly: false }),
+    Object.freeze({ id: contributionIdSchema.parse("wrapt.settings.card.notifications"), title: "Benachrichtigungen", description: "Push-Mitteilungen pro Quelle", order: 70, hostOnly: false }),
     Object.freeze({ id: contributionIdSchema.parse("wrapt.settings.card.install"), title: "App installieren", description: "Für einen schnellen Zugriff vom Homescreen oder Desktop", order: 80, hostOnly: true }),
     Object.freeze({ id: contributionIdSchema.parse("wrapt.settings.card.orbit-sidebar"), title: "Orbit-Sidebar", description: "Elemente im Infinite Canvas ein- oder ausblenden", order: 90, hostOnly: false }),
     Object.freeze({ id: contributionIdSchema.parse("wrapt.settings.card.page-visibility"), title: "Seiten-Sichtbarkeit", description: "Navigationselemente global steuern (Sidebar, Dashboard, Mobile)", order: 100, hostOnly: false }),

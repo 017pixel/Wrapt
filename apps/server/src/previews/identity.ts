@@ -1,7 +1,6 @@
 import type { FastifyRequest } from "fastify";
 import { isSameOriginRequest } from "../security/same-origin.js";
 import {
-  firstHeader,
   resolveWorkbenchUser,
   type WorkbenchIdentityOptions,
 } from "../security/workbench-identity.js";
@@ -25,16 +24,5 @@ export function resolvePreviewUser(request: FastifyRequest, options: PreviewIden
 export function requireSameOrigin(request: FastifyRequest): void {
   if (!isSameOriginRequest(request)) {
     throw new AppError(403, "PREVIEW_CROSS_ORIGIN", "Diese Aktion ist nur aus der Workbench-Oberfläche erlaubt.");
-  }
-}
-
-/** Prüft Origin und Identität beim WebSocket-Upgrade. */
-export function isAllowedWebSocketOrigin(request: FastifyRequest, allowedOrigins: readonly string[]): boolean {
-  const origin = firstHeader(request.headers.origin);
-  if (!origin) return false;
-  try {
-    return allowedOrigins.includes(new URL(origin).origin);
-  } catch {
-    return false;
   }
 }

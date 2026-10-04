@@ -20,17 +20,6 @@ export const allDashboardSections: DashboardSection[] = [
   "commands",
 ];
 
-export const dashboardSectionMeta: Record<DashboardSection, { label: string; description: string }> = {
-  quickActions: { label: "Projektaktivität", description: "Zuletzt verwendete Arbeitsbereiche" },
-  server: { label: "Serverstatus", description: "Status, Version, Uptime, Betriebssystem und Tailscale" },
-  metrics: { label: "Systemmetriken", description: "CPU, RAM, Speicher, Last und Temperatur" },
-  services: { label: "Dienste", description: "Konfigurierte Dienste und ihre Erreichbarkeit" },
-  runtime: { label: "Laufzeit", description: "Projekte, Ports, Prozesse und Terminal-Sessions" },
-  diagnostics: { label: "Diagnose", description: "HTTP, Event Loop, Prozessspeicher und Betriebszustand" },
-  usage: { label: "Nutzung und Limits", description: "Aktuelle Codex-, OpenCode- und Claude-Limits" },
-  commands: { label: "Command Reference", description: "Konfigurierte Befehle zum Kopieren" },
-};
-
 export interface DashboardSectionView {
   readonly section: DashboardSection;
   readonly label: string;

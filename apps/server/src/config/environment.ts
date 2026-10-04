@@ -37,5 +37,3 @@ export function canonicalizeWraptEnvironment(input: NodeJS.ProcessEnv): NodeJS.P
   }
   return result;
 }
-
-export const wraptEnvironmentAliases = Object.freeze({ ...legacyAliases });

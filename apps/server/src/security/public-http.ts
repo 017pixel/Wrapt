@@ -1,8 +1,5 @@
 import { lookup as dnsLookup, promises as dnsPromises } from "node:dns";
 import { BlockList, isIP, type LookupFunction } from "node:net";
-import { Agent, fetch as undiciFetch, type Dispatcher, type RequestInit } from "undici";
-
-const MAX_REDIRECTS = 5;
 
 const blockedIpv4Addresses = new BlockList();
 for (const [network, prefix] of [
@@ -110,67 +107,4 @@ export function createPublicLookup(resolve: PublicLookupResolver = dnsLookup): L
       callback(null, selected.address, selected.family);
     });
   };
-}
-
-const publicDispatcher = new Agent({
-  connect: { lookup: createPublicLookup() },
-});
-
-export interface PublicFetchOptions extends Omit<RequestInit, "redirect" | "dispatcher"> {
-  allowedOrigins?: ReadonlySet<string>;
-  maxRedirects?: number;
-}
-
-/**
- * Führt öffentliche HTTP-Aufrufe mit gepinnter, geprüfter DNS-Auflösung aus.
- * Redirects werden einzeln validiert; dadurch können weder DNS-Rebinding noch
- * Redirects auf Loopback-, Link-Local- oder private Netze die URL-Prüfung umgehen.
- */
-export async function fetchPublic(value: string | URL, options: PublicFetchOptions = {}) {
-  const { allowedOrigins, maxRedirects = MAX_REDIRECTS, ...requestOptions } = options;
-  let target = assertPublicHttpUrl(value);
-  for (let redirect = 0; redirect <= maxRedirects; redirect += 1) {
-    if (allowedOrigins && !allowedOrigins.has(target.origin)) throw new Error("Die Ziel-Origin ist nicht freigegeben.");
-    const response = await undiciFetch(target, {
-      ...requestOptions,
-      redirect: "manual",
-      dispatcher: publicDispatcher as Dispatcher,
-    });
-    if (![301, 302, 303, 307, 308].includes(response.status)) return response;
-    const location = response.headers.get("location");
-    await response.body?.cancel();
-    if (!location) return response;
-    if (redirect === maxRedirects) throw new Error("Zu viele HTTP-Weiterleitungen.");
-    target = assertPublicHttpUrl(new URL(location, target));
-  }
-  throw new Error("Zu viele HTTP-Weiterleitungen.");
-}
-
-interface StreamedHttpResponse {
-  headers: { get(name: string): string | null };
-  body: (AsyncIterable<Uint8Array> & { cancel(): Promise<void> }) | null;
-}
-
-export async function readBodyLimited(
-  response: StreamedHttpResponse,
-  maximumBytes: number,
-): Promise<Buffer> {
-  const declaredLength = Number(response.headers.get("content-length") ?? "0");
-  if (Number.isFinite(declaredLength) && declaredLength > maximumBytes) {
-    await response.body?.cancel();
-    throw new Error("Antwort überschreitet das Größenlimit.");
-  }
-  if (!response.body) return Buffer.alloc(0);
-  const chunks: Buffer[] = [];
-  let bytes = 0;
-  for await (const chunk of response.body) {
-    const buffer = Buffer.from(chunk);
-    bytes += buffer.byteLength;
-    if (bytes > maximumBytes) {
-      await response.body.cancel();
-      throw new Error("Antwort überschreitet das Größenlimit.");
-    }
-    chunks.push(buffer);
-  }
-  return Buffer.concat(chunks, bytes);
 }

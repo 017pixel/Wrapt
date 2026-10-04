@@ -15,7 +15,3 @@ export function useMediaQuery(query: string): boolean {
 
   return matches;
 }
-
-export function useIsMobile(breakpoint = 768): boolean {
-  return useMediaQuery(`(max-width: ${breakpoint - 1}px)`);
-}

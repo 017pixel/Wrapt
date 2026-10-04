@@ -67,9 +67,6 @@ export const devicePresets = [
 export type DevicePresetId = (typeof devicePresets)[number]["id"];
 export type DeviceOrientation = "portrait" | "landscape";
 
-// Neue Preview-Slots starten mit iPhone-13-Maßen statt im freien Responsive-Modus.
-export const defaultPreviewDeviceId: DevicePresetId = "iphone-13";
-
 export function findDevicePreset(id: DevicePresetId) {
   return devicePresets.find((device) => device.id === id) ?? devicePresets[0];
 }

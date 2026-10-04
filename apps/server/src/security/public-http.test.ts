@@ -1,6 +1,5 @@
-import { Readable } from "node:stream";
 import { describe, expect, it } from "vitest";
-import { assertPublicHttpUrl, createPublicLookup, isPublicAddress, readBodyLimited } from "./public-http.js";
+import { assertPublicHttpUrl, createPublicLookup, isPublicAddress } from "./public-http.js";
 
 describe("öffentliche HTTP-Ziele", () => {
   it.each([
@@ -36,14 +35,6 @@ describe("öffentliche HTTP-Ziele", () => {
     "http://user:password@example.com/",
   ])("lehnt unsicheres Ziel %s vor dem Request ab", (url) => {
     expect(() => assertPublicHttpUrl(url)).toThrow();
-  });
-
-  it("begrenzt auch Antworten ohne Content-Length während des Streamings", async () => {
-    const stream = Readable.from([Buffer.from("1234"), Buffer.from("5678")]);
-    await expect(readBodyLimited({
-      headers: { get: () => null },
-      body: Object.assign(stream, { cancel: async () => { stream.destroy(); } }),
-    }, 6)).rejects.toThrow("Größenlimit");
   });
 
   it("liefert DNS-Ergebnisse im passenden Undici-Callback-Format", () => {

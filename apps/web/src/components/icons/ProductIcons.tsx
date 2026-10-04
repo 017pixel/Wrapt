@@ -46,7 +46,9 @@ export function TerminalIcon(props: ProductIconProps) {
 }
 
 export function PreviewsIcon(props: ProductIconProps) {
-  return <IconShell {...props}><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 8h18M8 21h8M12 18v3"/></IconShell>;
+  // Browserfenster mit Startfläche: unterscheidet die Preview-Seite sichtbar
+  // von Terminal- und Workbench-Symbolen.
+  return <IconShell {...props}><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 8.5h18"/><path d="m10.5 12.4 4.3 2.5-4.3 2.5Z"/></IconShell>;
 }
 
 export function GalerieIcon(props: ProductIconProps) {

@@ -465,9 +465,10 @@ Dual-Read-Migration kompatibel.
 
 #### Keyboard Shortcut Contributions
 
-Keyboard Shortcuts verknüpfen plattformübergreifende Tastenkombinationen mit bereits
-deklarierten Commands. Das Manifest enthält nur Defaults und Context-Metadaten, keine zweite
-Ausführungslogik:
+Das Manifest-Schema beschreibt plattformübergreifende Tastenkombinationen für bereits
+deklarierte Commands. Der Host registriert oder verarbeitet `keyboardShortcuts` derzeit nicht;
+eine eigenständige Shortcut-Runtime ist entfernt. Die Contracts bleiben aus Kompatibilitätsgründen
+erhalten. Das Manifest enthält nur Defaults und Context-Metadaten, keine zweite Ausführungslogik:
 
 ```json
 {
@@ -533,8 +534,8 @@ Ausführungslogik:
   oder deaktivierten Extension erhalten.
 
 Der bestehende Orbit-Handler für `/` und `Ctrl/Cmd+K` bleibt in diesem Subgoal unverändert.
-Phase 2 registriert vorhandene Tastaturaktionen zunächst als Legacy Built-in Contributions und
-führt erst dann eine zentrale Registry und Konfliktoberfläche ein.
+Die beschriebenen Runtime-Regeln sind das vorgesehene Verhalten einer späteren Implementierung.
+Sie sind keine Aussage über aktuell aktive Tastaturbelegungen des Extension-Hosts.
 
 #### Context Menu Contributions
 
@@ -1363,7 +1364,7 @@ keinen neuen produktiven Socket.
 #### Notification Contributions
 
 Notification Contributions registrieren erweiterbare Quellen und ihre hostgerenderten Metadaten.
-Die Notification-Datenbank, Redaction, Inbox, Toasts, Push-Zustellung und Deep-Link-Prüfung bleiben
+Die Notification-Datenbank, Redaction, Push-Zustellung und Deep-Link-Prüfung bleiben
 Kernel-Infrastruktur:
 
 ```json

@@ -56,13 +56,3 @@ export function resolveActivePluginContents(
   }
   return [...result.values()].sort((left, right) => left.content.name.localeCompare(right.content.name, "de"));
 }
-
-export function findActivePluginContent(
-  slug: string | undefined,
-  drafts: readonly PluginDraft[],
-  examples: readonly PluginExample[],
-  registry: readonly RegistryState[],
-): ActivePluginContent | undefined {
-  if (!slug) return undefined;
-  return resolveActivePluginContents(drafts, examples, registry).find((item) => item.content.slug === slug);
-}

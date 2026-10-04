@@ -7,6 +7,12 @@
 
 ## Kontext
 
+Dieses ADR hält das angenommene Registry-Zielbild und frühere Migrationsschritte fest. Der
+aktuelle Code enthält keine eigenständige Shortcut-Runtime und registriert oder verarbeitet
+`keyboardShortcuts` nicht. Die öffentlichen Shortcut-Schemas bleiben aus Kompatibilitätsgründen
+erhalten. Die zuvor parallelen Built-in-Listen für Commands und Navigation wurden entfernt;
+weiterhin genutzte Legacy-Registries bleiben bestehen.
+
 Manifest V1 beschreibt Pages, Routes, Navigation, Commands, Shortcuts, Context Menus,
 Statusleiste, Topbar, Dashboard, Settings und Orbit. Das aktuelle Frontend rendert dieselben
 Informationen aber aus mehreren statischen Listen. Alle 18 sichtbaren Seiten stehen in der

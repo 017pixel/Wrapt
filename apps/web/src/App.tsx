@@ -3,7 +3,7 @@ import { BrowserRouter, Navigate, Routes, useLocation } from "react-router";
 import { PwaInstallProvider } from "./lib/usePwaInstall";
 import { pageRouteRegistry } from "./extensions/pageRouteRegistry";
 import { routeHostElements } from "./extensions/routeHost";
-import { pagePreferenceAliases } from "./extensions/builtins/pageRoutes";
+import { pagePreferenceAliases } from "./extensions/pagePreferenceAliases";
 import { notesPagePreferenceAliases } from "./extensions/notesBuiltins";
 import { useAppPreferences } from "./stores/appPreferences";
 import { isPageVisibleIn, useSidebarPreferences } from "./stores/sidebarPreferences";

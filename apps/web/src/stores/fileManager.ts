@@ -239,8 +239,3 @@ export function documentFromStore(store: Pick<FileManagerStore, "currentPath" | 
     sortDirection: store.sortDirection,
   };
 }
-
-export function useFileManagerDocumentSnapshot(): FileManagerState {
-  const state = useFileManagerStore.getState();
-  return documentFromStore(state);
-}
