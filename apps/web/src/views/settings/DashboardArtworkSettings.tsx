@@ -1,5 +1,7 @@
+import { useEffect } from "react";
 import { Card } from "../../components/Card";
-import { dashboardArtworks } from "../../lib/dashboardArtwork";
+import { dashboardArtworks, type DashboardArtworkId } from "../../lib/dashboardArtwork";
+import { preloadDashboardArtwork } from "../../lib/dashboardArtworkPreload";
 import { useDashboardPreferences } from "../../stores/dashboardPreferences";
 
 export function DashboardArtworkSettings() {
@@ -7,6 +9,19 @@ export function DashboardArtworkSettings() {
   const artworkId = useDashboardPreferences((state) => state.artworkId);
   const setArtworkEnabled = useDashboardPreferences((state) => state.setArtworkEnabled);
   const setArtworkId = useDashboardPreferences((state) => state.setArtworkId);
+
+  // Beim Öffnen des Tabs nur das laden, was ohnehin gleich sichtbar wird. Wer
+  // den Hintergrund ausgeschaltet lässt, soll dafür keine Bildbytes zahlen.
+  useEffect(() => {
+    if (enabled) preloadDashboardArtwork(artworkId);
+  }, [enabled, artworkId]);
+
+  // Eine bewusste Auswahl wird immer vorgeladen. Wer hier ein Motiv anklickt
+  // und danach den Hintergrund einschaltet, sieht es dadurch sofort.
+  const chooseArtwork = (nextId: DashboardArtworkId) => {
+    setArtworkId(nextId);
+    preloadDashboardArtwork(nextId);
+  };
 
   return (
     <Card title="Dashboard-Hintergrund" subtitle="Doku-Motive hinter den Systemwidgets">
@@ -41,10 +56,10 @@ export function DashboardArtworkSettings() {
                   name="dashboard-artwork"
                   value={artwork.id}
                   checked={artworkId === artwork.id}
-                  onChange={() => setArtworkId(artwork.id)}
+                  onChange={() => chooseArtwork(artwork.id)}
                 />
                 <span className="dashboard-artwork-option-visual">
-                  <img src={artwork.src} alt="" loading="lazy" decoding="async" />
+                  <img src={artwork.thumbnail} alt="" loading="lazy" decoding="async" width={320} height={180} />
                   <span>{artwork.label}</span>
                 </span>
               </label>

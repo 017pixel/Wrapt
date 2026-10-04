@@ -76,6 +76,16 @@ export default defineConfig(({mode}) => {
     manifest: "build-manifest.json",
     outDir: process.env.WRAPT_E2E_WEB_OUT_DIR || "dist",
     sourcemap: false,
+    // Die Auswahlvorschauen des Dashboard-Hintergrunds liegen unter der
+    // Standard-Inlining-Schwelle und würden sonst als Base64 in den Chunk
+    // wandern, der schon beim App-Start geladen wird. 19 Motive wären dann
+    // 72 KB Grundlast für alle, die die Einstellungen nie öffnen. Als eigene
+    // Dateien sind es 3 KB pro Vorschau, einmalig und immutable gecacht.
+    // Der Regex verlangt den vollen Asset-Pfad, weil ein Checkout, dessen
+    // eigener Pfad "dashboard-artwork" enthält, sonst alle anderen
+    // Inline-Assets verlieren würde.
+    assetsInlineLimit: (filePath, content) =>
+      /\/src\/assets\/dashboard-artwork\/[^/]+$/.test(filePath) ? false : content.length < 4096,
   },
   test: {
     setupFiles: ["src/test/setup.ts"],

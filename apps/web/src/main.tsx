@@ -7,6 +7,7 @@ import { bootstrapBuiltinContributions } from "./extensions/builtinContributions
 import { migrateLegacyBrowserStorage } from "./lib/legacyStorageMigration";
 import { addBreadcrumb, installGlobalErrorHandlers, subscribeToCrash } from "./lib/crashReport";
 import { apiClient } from "./lib/apiClient";
+import { preloadDashboardArtwork } from "./lib/dashboardArtworkPreload";
 import { synchronizeExistingPushDevice } from "./lib/webPushDevice";
 import "./index.css";
 import "./views/dashboard-layout.css";
@@ -22,6 +23,13 @@ try {
 } catch {
   // Gesperrter Browser-Storage darf den App-Start nicht verhindern.
 }
+
+// Vor dem awaited Import-Block und nicht im Dashboard-Render: dort hing der
+// Preload am React-Mount und startete erst bei rund 510 ms, nach dem ersten
+// sichtbaren Inhalt. Hier startet er bei rund 240 ms, das Bild ist rund 200 ms
+// vor dem ersten Paint fertig. Früher geht es nicht ohne Server-Endpunkt, weil
+// die Auswahl im localStorage steht und nur JS sie lesen kann.
+preloadDashboardArtwork();
 
 const [{ App }, { CrashReportDialog }, { ErrorBoundary }] = await Promise.all([
   import("./App"),

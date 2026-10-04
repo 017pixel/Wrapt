@@ -31,6 +31,7 @@ describe("SettingsEasterEggs", () => {
   afterEach(() => {
     cleanup();
     window.localStorage.removeItem("wrapt.dashboard-preferences.v1");
+    document.head.querySelector("link[data-dashboard-artwork]")?.remove();
   });
 
   beforeEach(() => {
@@ -102,6 +103,27 @@ describe("SettingsEasterEggs", () => {
     const stored = JSON.parse(window.localStorage.getItem("wrapt.dashboard-preferences.v1") ?? "{}");
     expect(stored.version).toBe(2);
     expect(stored.state).toMatchObject({ artworkEnabled: true, artworkId: "hero-orbit" });
+  });
+
+  it("zeigt kleine Vorschauen statt der vollen Hintergrunddateien", () => {
+    renderSettings();
+
+    const thumbnails = screen
+      .getAllByRole("radio")
+      .map((radio) => radio.parentElement?.querySelector("img")?.getAttribute("src") ?? "");
+    expect(thumbnails).toHaveLength(19);
+    for (const source of thumbnails) expect(source).toMatch(/-thumb\.webp$/);
+  });
+
+  it("lädt ein gewähltes Motiv sofort, damit es nach dem Aktivieren da ist", async () => {
+    renderSettings();
+
+    expect(document.head.querySelector("link[data-dashboard-artwork]")).toBeNull();
+
+    fireEvent.click(screen.getByRole("radio", { name: "Orbit" }));
+
+    const link = document.head.querySelector<HTMLLinkElement>("link[data-dashboard-artwork]");
+    await waitFor(() => expect(link?.getAttribute("href")).toMatch(/hero-orbit-bg\.webp$/));
   });
 
   it("zeigt Konfetti, solange die Party läuft", async () => {

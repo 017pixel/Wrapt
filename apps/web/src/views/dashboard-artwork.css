@@ -16,8 +16,7 @@
   pointer-events: none;
   background-image: var(--dashboard-artwork-image);
   background-repeat: no-repeat;
-  background-position: center, 72% center;
-  background-size: 100% 100%, cover;
+  background-position: 72% center;
+  background-size: cover;
   filter: brightness(.42) blur(1px);
-  transform: scale(1.02);
 }

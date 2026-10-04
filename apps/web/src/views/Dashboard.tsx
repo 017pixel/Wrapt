@@ -793,8 +793,8 @@ export function Dashboard() {
 
   return (
     <div
-      className={`page-scroll ${artworkEnabled ? "dash-has-artwork" : ""}`}
-      style={artworkEnabled ? { "--dashboard-artwork-image": `url("${artwork.src}")` } as CSSProperties : undefined}
+      className={`page-scroll dash-scroll ${artworkEnabled ? "dash-has-artwork" : ""}`}
+      style={artworkEnabled ? { "--dashboard-artwork-image": `url("${artwork.background}")` } as CSSProperties : undefined}
     >
       <div className="page-frame dash">
         <DashboardHeader summary={summary} state={systemState} metrics={metrics} />

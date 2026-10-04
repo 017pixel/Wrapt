@@ -33,3 +33,30 @@
   .dash-runtime-content > .dash-more { min-height: 44px; }
   @container (max-width: 640px) { .dash-server-body { grid-template-columns: minmax(0, 1fr); } }
 }
+
+/* Text truncation and rounded edges must not create nested wheel targets. */
+.page-frame.dash :is(
+  .dash-facts,
+  .dash-check-name,
+  .dash-route-head > span,
+  .dash-route-list small,
+  .dash-service-list strong,
+  .dash-service-list small,
+  .dash-runtime-group,
+  .dash-runtime-group > header strong,
+  .dash-runtime-main strong,
+  .dash-runtime-main small,
+  .dash-limit-head span,
+  .dash-command-list strong,
+  .dash-command-list small,
+  .dash-command-list code,
+  .dash-disk-summary > span,
+  .dash-disk-list .dash-disk-path,
+  .dash-recent-project-list strong,
+  .dash-mobile-summary h2,
+  .dash-mobile-summary-main div > span,
+  .dash-mobile-summary-meta,
+  .meter
+) { overflow: clip; }
+.page-scroll.dash-scroll { overflow-x: hidden; }
+.page-frame.dash .chart-svg { pointer-events: none; }
