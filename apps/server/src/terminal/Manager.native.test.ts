@@ -39,10 +39,16 @@ test("native PTY-Shell antwortet, verfolgt cd, resizet und startet erneut", asyn
   try {
     const session = await manager.createSession("owner", { cols: 80, rows: 24 });
     manager.attachSession("owner", session.id, (message) => received.push(message));
-    manager.writeToSession("owner", session.id, process.platform === "win32"
-      ? "Write-Output ('__NATIVE_' + 'READY__'); Set-Location -LiteralPath 'mit Leerzeichen'\r"
-      : "printf '__NATIVE_%s__\\n' 'READY'; cd 'mit Leerzeichen'\r");
-    await vi.waitFor(() => expect(output()).toContain("__NATIVE_READY__"), { timeout: 15_000 });
+    // Eine frisch gestartete Shell nimmt Eingaben erst mit ihrem Prompt an.
+    // Unter Windows startet PowerShell über ConPTY sichtbar später als bash,
+    // deshalb wird der Befehl so lange erneut gesendet, bis seine Ausgabe
+    // sichtbar ist. `Set-Location` ist mehrfach ausfuehrbar.
+    await vi.waitFor(() => {
+      manager.writeToSession("owner", session.id, process.platform === "win32"
+        ? "Write-Output ('__NATIVE_' + 'READY__'); Set-Location -LiteralPath 'mit Leerzeichen'\r"
+        : "printf '__NATIVE_%s__\\n' 'READY'; cd 'mit Leerzeichen'\r");
+      expect(output()).toContain("__NATIVE_READY__");
+    }, { timeout: 30_000, interval: 500 });
     await vi.waitFor(() => expect(sameDirectory(session.cwd, nested)).toBe(true), { timeout: 15_000 });
     manager.resizeSession("owner", session.id, 110, 32);
     expect(session).toMatchObject({ cols: 110, rows: 32, status: "running" });
@@ -51,8 +57,10 @@ test("native PTY-Shell antwortet, verfolgt cd, resizet und startet erneut", asyn
     expect(session.pid).not.toBe(previousPid);
     lastPid = session.pid;
     received.length = 0;
-    manager.writeToSession("owner", session.id, process.platform === "win32" ? "Write-Output ('__NATIVE_' + 'RESTARTED__')\r" : "printf '__NATIVE_%s__\\n' 'RESTARTED'\r");
-    await vi.waitFor(() => expect(output()).toContain("__NATIVE_RESTARTED__"), { timeout: 15_000 });
+    await vi.waitFor(() => {
+      manager.writeToSession("owner", session.id, process.platform === "win32" ? "Write-Output ('__NATIVE_' + 'RESTARTED__')\r" : "printf '__NATIVE_%s__\\n' 'RESTARTED'\r");
+      expect(output()).toContain("__NATIVE_RESTARTED__");
+    }, { timeout: 30_000, interval: 500 });
     expect(sameDirectory(session.cwd, nested)).toBe(true);
     manager.closeSession("owner", session.id);
     expect(session.status).toBe("closed");
@@ -63,4 +71,6 @@ test("native PTY-Shell antwortet, verfolgt cd, resizet und startet erneut", asyn
     // Arbeitsverzeichnisses, weil es dessen aktuelles Verzeichnis ist.
     await removeTempTree(root, () => waitForProcessExit(lastPid));
   }
-}, 40_000);
+  // ConPTY braucht unter Windows deutlich laenger als ein POSIX-PTY, dazu
+  // kommen die Wartezeiten fuer den Prozessabbau in der Bereinigung.
+}, 150_000);
