@@ -35,11 +35,28 @@ export function preserveRootAlias(value: string, configuredRoot: string): string
 
 /** Normalisiert erlaubte Roots nur für bekannte Betriebssystem-Aliases. */
 export function canonicalRootCandidates(roots: readonly string[]): string[] {
-  return [...new Set(roots.flatMap((value) => {
-    const lexical = normalizePlatformPathAlias(value);
-    try { return [lexical, normalizePlatformPathAlias(realpathSync(resolve(value)))]; }
-    catch { return [lexical]; }
-  }))];
+  return [...new Set(roots.flatMap(canonicalPathCandidates))];
+}
+
+/**
+ * Alle Schreibweisen eines Pfades: lexikalisch, aufgelöst und nativ aufgelöst.
+ * Unter Windows liefert `realpathSync` den 8.3-Kurzpfad unverändert zurück,
+ * `realpathSync.native` über `GetFinalPathNameByHandle` dagegen den Langpfad.
+ * Eine Shell meldet den Langpfad, die Konfiguration kann den Kurzpfad tragen —
+ * ohne beide Formen wäre die Grenzprüfung dort zu streng.
+ */
+export function canonicalPathCandidates(value: string): string[] {
+  const candidates = [normalizePlatformPathAlias(value)];
+  for (const resolvePath of [realpathSync, realpathSync.native]) {
+    try { candidates.push(normalizePlatformPathAlias(resolvePath(resolve(value)))); }
+    catch { /* Pfad existiert nicht; die lexikalische Form bleibt allein. */ }
+  }
+  return [...new Set(candidates)];
+}
+
+/** Prüft, ob eine Schreibweise des Pfades in einer der Wurzeln liegt. */
+export function anyContained(roots: readonly string[], value: string): boolean {
+  return canonicalPathCandidates(value).some((candidate) => roots.some((root) => contained(root, candidate)));
 }
 
 /** Normalisiert absolute Pfade unter einem konfigurierten Alias auf dessen Root. */

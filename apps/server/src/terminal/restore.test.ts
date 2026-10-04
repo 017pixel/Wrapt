@@ -6,6 +6,7 @@ import { TerminalManager } from "./Manager.js";
 import type { PtyProcess } from "./NodePtyAdapter.js";
 import { TerminalDatabase } from "./database.js";
 import { canonicalCwdWithinRootsSync, validateCwd } from "./restore.js";
+import { anyContained, canonicalRootCandidates } from "../utils/pathRoots.js";
 
 const directories: string[] = [];
 const managers: TerminalManager[] = [];
@@ -49,6 +50,24 @@ describe("kanonische Terminal-Arbeitsverzeichnisse", () => {
 
     expect(await validateCwd(canonicalRoot, [rootAlias])).toBe(canonicalRoot);
     expect(canonicalCwdWithinRootsSync(canonicalRoot, [rootAlias])).toBe(canonicalRoot);
+  });
+
+  it("prüft jede Schreibweise einer Wurzel gegen jeden aufgelösten Pfad", async () => {
+    const root = await temporaryDirectory("wrapt-cwd-candidates-");
+    const alias = join(root, "workspace-alias");
+    await symlink(root, alias, "dir");
+    const nested = join(root, "project");
+    await mkdir(nested);
+    const roots = canonicalRootCandidates([alias]);
+
+    // Die Konfiguration darf einen Alias nennen, das Ziel nur aufgelöst
+    // vorliegen. Unter Windows trägt die Konfiguration den 8.3-Kurzpfad,
+    // während die Shell den Langpfad meldet.
+    expect(roots).toContain(alias);
+    expect(roots).toContain(await realpath(root));
+    expect(anyContained(roots, nested)).toBe(true);
+    expect(anyContained(roots, await realpath(nested))).toBe(true);
+    expect(anyContained(roots, `${root}-fremd`)).toBe(false);
   });
 
   it("lehnt einen Symlink ab, der die erlaubte Wurzel verlässt", async () => {

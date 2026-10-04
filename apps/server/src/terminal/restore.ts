@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { realpathSync, statSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
-import { canonicalRootCandidates, contained } from "../utils/pathRoots.js";
+import { anyContained, canonicalRootCandidates } from "../utils/pathRoots.js";
 import type { TerminalDatabase, StoredTerminalSession } from "./database.js";
 import type { TmuxSupervisor } from "./TmuxSupervisor.js";
 import { GeometryLease } from "./runtime/GeometryLease.js";
@@ -17,11 +17,11 @@ export function canonicalCwdWithinRootsSync(value: string, allowedRoots: string[
   let candidate: string;
   try { candidate = resolve(value); } catch { return null; }
   const roots = canonicalRootCandidates(allowedRoots);
-  if (!roots.some((root) => contained(root, candidate))) return null;
+  if (!anyContained(roots, candidate)) return null;
   let canonical: string;
   try { canonical = realpathSync(candidate); } catch { return null; }
   try { if (!statSync(canonical).isDirectory()) return null; } catch { return null; }
-  if (!roots.some((root) => contained(root, canonical))) return null;
+  if (!anyContained(roots, canonical)) return null;
   return canonical;
 }
 
@@ -171,7 +171,7 @@ export function validateCwdSync(value: string, allowedRoots: string[]): string {
   try { cwd = resolve(value); }
   catch { throw new TerminalFailure("INVALID_CWD", "Das Arbeitsverzeichnis ist ungültig."); }
   const roots = canonicalRootCandidates(allowedRoots);
-  if (!roots.some((root) => contained(root, cwd))) {
+  if (!anyContained(roots, cwd)) {
     throw new TerminalFailure("INVALID_CWD", "Das Arbeitsverzeichnis liegt außerhalb der erlaubten Bereiche.");
   }
   let details;
@@ -184,7 +184,7 @@ export function validateCwdSync(value: string, allowedRoots: string[]): string {
   // Nicht nur der lexikalische Pfad, sondern auch sein realpath-Ziel muss in
   // einer erlaubten Wurzel liegen. Ein Symlink innerhalb des Root, der aus ihm
   // herausführt, kann die Workspace-Grenze sonst umgehen.
-  if (!roots.some((root) => contained(root, canonical))) {
+  if (!anyContained(roots, canonical)) {
     throw new TerminalFailure("INVALID_CWD", "Das Arbeitsverzeichnis liegt außerhalb der erlaubten Bereiche.");
   }
   return canonical;
