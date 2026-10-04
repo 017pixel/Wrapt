@@ -1,10 +1,11 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test, vi } from "vitest";
 import { TerminalManager } from "./Manager.js";
 import type { ServerTerminalMessage } from "./protocol.js";
 import { resolveTerminalShell } from "./shell.js";
+import { removeTempTree, waitForProcessExit } from "./terminalTestCleanup.js";
 
 test("native PTY-Shell antwortet, verfolgt cd, resizet und startet erneut", async () => {
   const root = mkdtempSync(join(tmpdir(), "wrapt-terminal-native-"));
@@ -20,6 +21,7 @@ test("native PTY-Shell antwortet, verfolgt cd, resizet und startet erneut", asyn
   const manager = new TerminalManager({ allowedRoots: [root], defaultCwd: root, homeDirectory: root, maxSessions: 1, shell });
   const received: ServerTerminalMessage[] = [];
   const output = () => received.filter((message) => message.type === "terminal.output").map((message) => message.data).join("");
+  let lastPid: number | undefined;
   try {
     const session = await manager.createSession("owner", { cols: 80, rows: 24 });
     manager.attachSession("owner", session.id, (message) => received.push(message));
@@ -33,6 +35,7 @@ test("native PTY-Shell antwortet, verfolgt cd, resizet und startet erneut", asyn
     const previousPid = session.pid;
     await manager.restartSession("owner", session.id);
     expect(session.pid).not.toBe(previousPid);
+    lastPid = session.pid;
     received.length = 0;
     manager.writeToSession("owner", session.id, process.platform === "win32" ? "Write-Output ('__NATIVE_' + 'RESTARTED__')\r" : "printf '__NATIVE_%s__\\n' 'RESTARTED'\r");
     await vi.waitFor(() => expect(output()).toContain("__NATIVE_RESTARTED__"), { timeout: 15_000 });
@@ -42,6 +45,8 @@ test("native PTY-Shell antwortet, verfolgt cd, resizet und startet erneut", asyn
   } finally {
     manager.shutdown();
     vi.unstubAllEnvs();
-    rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
+    // Unter Windows blockiert ein noch laufender Prozess das Löschen seines
+    // Arbeitsverzeichnisses, weil es dessen aktuelles Verzeichnis ist.
+    await removeTempTree(root, () => waitForProcessExit(lastPid));
   }
 }, 40_000);

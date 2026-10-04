@@ -1,16 +1,17 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, expect, test, vi } from "vitest";
 import { TerminalDatabase } from "./database.js";
 import { TerminalManager } from "./Manager.js";
+import { removeTempTree } from "./terminalTestCleanup.js";
 
-const cleanup: Array<() => void> = [];
-afterEach(() => { for (const dispose of cleanup.splice(0).reverse()) dispose(); });
+const cleanup: Array<() => void | Promise<void>> = [];
+afterEach(async () => { for (const dispose of cleanup.splice(0).reverse()) await dispose(); });
 
 async function setup() {
   const root = mkdtempSync(join(tmpdir(), "wrapt-persistent-terminal-"));
-  cleanup.push(() => rmSync(root, { recursive: true, force: true }));
+  cleanup.push(() => removeTempTree(root));
   const database = new TerminalDatabase(join(root, "terminal.sqlite"));
   cleanup.push(() => database.close());
   const spawn = vi.fn(() => ({ pid: 0, write() {}, resize() {}, kill() {}, onData: () => ({ dispose() {} }), onExit: () => ({ dispose() {} }) }));
@@ -32,7 +33,9 @@ test("startet nur ausdrücklich persistente Terminals erlaubter Nutzer automatis
   const restored = new TerminalManager({ ...options, persistentSessionOwners: ["owner"] });
   cleanup.push(() => restored.shutdown());
   expect(spawn).toHaveBeenCalledOnce();
-  expect(restored.getSessionMetadata("owner", persistent.id)).toMatchObject({ status: "running", epoch: 1, cwd: options.defaultCwd });
+  // Der Manager legt das Arbeitsverzeichnis über den echten Pfad an. Auf macOS
+  // ist `/var` ein Symlink auf `/private/var`, deshalb `tmpdir()` allein nicht.
+  expect(restored.getSessionMetadata("owner", persistent.id)).toMatchObject({ status: "running", epoch: 1, cwd: realpathSync(options.defaultCwd) });
   expect(database.findSessionById("owner", normal.id)?.status).toBe("interrupted");
   expect(database.getWorkspace("owner").document.entries[0]).toMatchObject({ name: "Terminal 0", persistent: true });
 });
