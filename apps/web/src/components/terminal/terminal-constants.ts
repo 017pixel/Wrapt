@@ -6,22 +6,18 @@ export const compactTerminalFontSize = 13;
 export const minimumCompensatedRenderScale = 0.1;
 export const maximumCompensatedRenderScale = 2.2;
 
-// Bei versteckten Tabs und geparkten Flächen bleibt die Verbindung offen;
-// der Puffer hält die Ausgabe für die Rückkehr (1 MB statt 256 KB).
+// Größere geparkte Puffer werden vollständig an xterm übergeben, damit
+// Speicher begrenzt bleibt, ohne ANSI-Sequenzen oder Ausgabe abzuschneiden.
 export const maximumParkedOutputBytes = 1_000_000;
 
-// Fehler, die ein automatisches Wiederverbinden behebt (z. B. Spawn-Race nach
-// dem Aufwachen) statt die rote Box "Das Terminal läuft nicht" auszulösen.
-export const recoverableTerminalErrorCodes = new Set([
-  "PTY_SPAWN_FAILED",
-  "PTY_WRITE_FAILED",
-  "PTY_RESIZE_FAILED",
-  "TERMINAL_NOT_RUNNING",
-  "SESSION_INTERRUPTED",
-  "INTERNAL_ERROR",
-]);
-
 export const mouseReportingModes = ["1000", "1002", "1003"];
+
+/** Grenzen für Verbindungsaufbau und Erholung eines gemeinsamen Sockets. */
+export const terminalConnectTimeoutMs = 8_000;
+export const terminalReconnectDelayMs = 250;
+export const terminalMaxReconnectDelayMs = 3_000;
+export const terminalHeartbeatIntervalMs = 15_000;
+export const terminalHeartbeatTimeoutMs = 10_000;
 
 /** Sondertasten der mobilen Bedienleiste und ihre Terminalsequenzen. */
 export const terminalSpecialKeys: Record<string, string> = {

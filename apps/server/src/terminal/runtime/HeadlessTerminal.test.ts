@@ -54,6 +54,7 @@ describe("HeadlessTerminal", () => {
     expect(terminal.parsedSequence).toBe(0);
     await waitForParse();
     expect(terminal.parsedSequence).toBe(0);
+    expect(terminal.snapshot().serialized).not.toContain("alt");
     terminal.write("neu", 1);
     await waitForParse();
     expect(terminal.parsedSequence).toBe(1);

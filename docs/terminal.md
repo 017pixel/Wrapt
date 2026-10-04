@@ -1,45 +1,118 @@
 # Browser-Terminal
 
-Das Terminal verwendet eine echte `node-pty`-Sitzung mit `/bin/bash --login`; es ist kein Command-Runner. Es ist nur über den privaten Tailscale-HTTPS-Endpunkt der Wrapt erreichbar und akzeptiert WebSockets ausschließlich, wenn Tailscale eine Benutzeridentität übermittelt und diese explizit erlaubt ist.
+Das Terminal verwendet echte PTYs. Linux und macOS starten standardmäßig
+`/bin/bash --login`, natives Windows startet PowerShell über ConPTY.
+Auf POSIX-Systemen laufen die Shells im dedizierten tmux-Supervisor.
+`node-pty` verbindet den Prozess mit dem Browser. Terminalzugriffe verlangen eine ausdrücklich erlaubte
+Tailscale-Identität und mutierende Zugriffe dieselbe Origin.
 
-Codex und Claude Code verwenden denselben abgesicherten PTY-Transport. Der Browser übermittelt dabei nur den typisierten Werkzeugnamen. Das Backend ordnet diese Auswahl festen ausführbaren Dateien zu und akzeptiert weder freie Befehle noch Argumente. Die CLIs starten normal im gewählten Projektordner und behalten ihre eigenen Freigabe- und Sicherheitsdialoge. OpenCode wird in der Wrapt als offizielle Web-UI unter `/opencode` betrieben; vorhandene OpenCode-PTY-Sessions bleiben für Kompatibilität im Backend erhalten.
+## Betriebssysteme
 
-Jeder Terminal-Bereich verwaltet bis zu fünf nummerierte Tabs. Jeder Tab besitzt eine stabile `runtimeId`, eine eigene beaufsichtigte tmux-Sitzung und bleibt beim Wechsel zu anderen Werkzeugen aktiv. `node-pty` dient als Ein-/Ausgabe-Gateway zum Supervisor; der eigentliche Shell-, Codex- oder OpenCode-Prozess hängt nicht an der Lebenszeit des Backendprozesses. Auch der WebSocket bleibt im Hintergrund offen: Geparkte Tabs puffern ihre Ausgabe statt neu zu verbinden, sodass der Inhalt beim Zurückwechseln sofort da ist und die Statuskugel grün bleibt. Die Tab- und Area-Struktur wird serverseitig pro Tailscale-Benutzer synchronisiert. **Split** erzeugt auf Desktop eine neue unabhängige Sitzung rechts neben dem aktiven Terminal und übernimmt dessen aktuelles Arbeitsverzeichnis. Die beiden Pane-Positionen bleiben stabil; ein Tabwechsel ersetzt nur das gerade fokussierte Pane. Mobile zeigt bewusst nur ein Pane, bewahrt den Split aber für die Rückkehr zur breiten Ansicht. Das Schließen eines Browserfensters oder ein Backend-Neustart trennt nur das Gateway: Die Session läuft weiter und kann auf einem anderen Gerät wieder geöffnet werden. Erst ein explizit geschlossener Tab beendet die tmux-Sitzung und entfernt die Registry-Zeile.
+| Server | Shell und Prozessbetrieb |
+| --- | --- |
+| Linux | Bash oder konfigurierte Login-Shell; tmux mit eigener systemd-User-Unit |
+| macOS | Bash oder konfigurierte Login-Shell, etwa zsh; tmux aus PATH/Homebrew, ohne systemd |
+| Windows | PowerShell oder konfigurierte Shell; direkte ConPTY-Sitzung, Windows 10 ab 1903 oder Windows 11 |
 
-Die Werkzeugaktion **In neuem Tab öffnen** verbindet ausschließlich die aktive laufende Sitzung in einer reduzierten Terminalseite ohne Wrapt-Navigation. Mehrere Browser-Tabs dürfen dieselbe Sitzung gleichzeitig bedienen. **Vollbild** ist ein interner Fokusmodus: Sidebar, Topbar, Statusleiste und mobile Navigation verschwinden, während der Browser selbst im normalen Fenstermodus bleibt. `Escape` oder die Schaltfläche oben rechts beendet den Fokusmodus.
+Browser und Server dürfen auf unterschiedlichen Betriebssystemen laufen.
+POSIX-, Windows-Laufwerks- und UNC-Pfade bleiben durch API, Layout und Sidebar
+im Format des Servers. PowerShell behält das vorhandene Profil und den Prompt;
+CWD-Meldungen ergänzen nur die aktuelle Sitzung. npm-CLI-Shims mit `.cmd` lassen
+sich ebenfalls ausführen. Native Windows-Prozesse erhalten beim Beenden kein
+POSIX-Signal.
 
-Die Wrapt führt eine laufende Session-Liste. Dort können Sessions auf einem anderen Gerät geöffnet, beendet oder bewusst neu gestartet werden. Mehrere Geräte dürfen dieselbe Session gleichzeitig verbinden; Output wird an alle Geräte verteilt und Eingaben werden gemeinsam an tmux weitergeleitet. Beim Backendstart gleicht die Registry ihre Einträge mit den real laufenden tmux-Sitzungen ab. Bei exakt einem erlaubten Tailscale-Benutzer werden auch bereits vorhandene tmux-Sitzungen erkannt und als Shell oder Codex angeboten; ältere OpenCode-PTY-Sessions bleiben serverseitig erhalten. Unbeaufsichtigte Rohprozesse ohne PTY-Supervisor können technisch nicht nachträglich an ein neues interaktives Terminal gebunden werden; neue Wrapt-Läufe sind deshalb standardmäßig immer beaufsichtigt.
+Im direkten Betrieb, insbesondere unter nativem Windows, beendet ein
+Backend-Neustart auch den PTY-Prozess. Persistente Einträge starten anschließend
+als neue Prozesse mit dem gespeicherten CWD. Laufende Befehle überleben diesen
+Neustart nur mit tmux; dafür lässt sich Wrapt unter Windows in WSL betreiben.
+Browser-Neuladen und Netzunterbrechungen lassen auch direkte PTYs weiterlaufen.
+Die Prozessgrundlage und CWD-Sequenzen sind in
+[node-pty](https://github.com/microsoft/node-pty) und der
+[Windows-Terminal-Dokumentation](https://learn.microsoft.com/en-us/windows/terminal/tutorials/new-tab-same-directory) beschrieben.
 
-Eine PTY besitzt immer genau eine gemeinsame Spalten-/Zeilen-Geometrie. Das zuerst
-verbundene Gerät ist deshalb der Primary für Größenänderungen. Weitere Geräte sehen und
-bedienen dieselbe Ausgabe, ihre lokalen Größen werden nur vorgemerkt. Erst wenn der Primary
-trennt, übernimmt ein verbleibendes Gerät seine zuletzt gemeldete Größe. So bleibt eine
-TUI-Sitzung bei paralleler Nutzung stabil, statt bei jedem Resize zwischen zwei Viewports
-umzubrechen.
+## Arbeiten mit Terminals
 
-`terminal.resize` meldet ausschließlich den lokalen Wunsch-Viewport und übernimmt den
-Primary-Status nicht: Ein ResizeObserver allein ist keine Benutzeraktivität. Der Primary
-wechselt nur über echte Eingabe (`terminal.input`) oder beim Trennen. Beim Verbinden trägt
-`terminal.attach` die gemessene Wunschgröße mit, damit der Server die PTY **vor** dem
-Snapshot auf dieses Raster setzt. Der Snapshot liefert die gemeinsame Geometrie
-(`cols`/`rows`) und `ownsGeometry` zurück; der Client spielt ihn exakt in dieses Raster ein,
-statt ihn in ein anders großes xterm umbrechen zu lassen. Fullscreen-TUIs werden im
-Alternate Screen erfasst (ohne `-J`, das umgebrochene Pane-Zeilen zusammenfügen würde) und
-beim Wiedergeben wieder in den Alternate Screen geschaltet. Secondaries rendern im
-gemeinsamen Raster und merken ihre Wunschgröße nur vor; sie passen ihr xterm-Grid nicht an
-das eigene Fenster an.
+Neue Terminals starten im konfigurierten Standardverzeichnis. Die Terminalseite
+hat keine Projekt- oder Pfadauswahl. Das Arbeitsverzeichnis wechselt mit `cd`;
+der aktuelle Pfad erscheint in der Sidebar. Ein neues Split-Terminal übernimmt
+das aktuelle Arbeitsverzeichnis des fokussierten Terminals.
 
-Die Projektwahl sendet ausschließlich eine Projekt-ID. Der Server löst daraus den konfigurierten, verfügbaren Projektpfad auf und prüft ihn zusätzlich gegen `TERMINAL_ALLOWED_ROOTS`, bevor die neue Shell direkt im Projektordner startet. Laufende Sitzungen wechseln ihr Arbeitsverzeichnis nie ungefragt.
+Die Sidebar verwaltet benannte Terminals, Ordner und Unterordner. Neue Ordner
+können sofort benannt werden. Über die Aktionsschaltflächen oder das Kontextmenü
+lassen sich Einträge öffnen, teilen, umbenennen, pinnen, persistent markieren,
+neu verbinden, neu starten und beenden. Enter und Leertaste öffnen einen
+fokussierten Eintrag. Suche und Sammelaktionen berücksichtigen die Ordnerstruktur.
 
-Der Projekt-Picker im Terminal zeigt immer das Projekt des aktiven Terminal-Tabs. Beim
-Wechsel wird ein vorhandener Tab dieses Projekts wieder aktiviert; nur bei einem bislang
-nicht geöffneten Projekt entsteht ein neuer Tab. Dadurch können mehrere Projektordner
-parallel laufen, ohne dass eine bestehende Session stillschweigend ihr Arbeitsverzeichnis
-ändert.Der Terminalverlauf hält bis zu 10.000 Zeilen. Mausrad und Trackpad verwenden das native xterm-Scrolling mit einer linearen Empfindlichkeit; Touch-Gesten werden anhand der echten Zeilenhöhe in ganze Terminalzeilen umgesetzt. Programme im Alternate Screen erhalten ihre eigenen Mausereignisse weiterhin unverändert. Auf Touch-Shells (Mobile und iPad) rendert das Terminal mit 8-Pixel-Schrift, damit Fullscreen-TUIs im schmalen Viewport vollständig sichtbar bleiben.
+Auf Desktop lassen sich bis zu vier Terminals nebeneinander anzeigen. Vorhandene
+Terminals können per Drag & Drop in einen Ordner oder auf die rechte Seite der
+Terminalfläche gezogen werden. Sidebar und Split-Trenner passen die PTY-Größe
+bei jeder Änderung an. Auf kleinen Displays wird auch im Querformat ein Terminal
+angezeigt; die anderen Sitzungen bleiben erhalten. Die mobile Sidebar schließt nach einer
+Auswahl und bietet Touch-Aktionen. Eine Sondertastenleiste liefert unter anderem
+Esc, Tab, Pfeiltasten und Strg-Kombinationen.
 
-## Aktivierung
+Zuletzt verwendete Terminals bleiben als Renderer im Hintergrund geladen.
+Weitere Prozesse laufen im Supervisor weiter und werden beim Öffnen wieder
+synchronisiert. Ein Wechsel zu einem anderen Werkzeug beendet die Sitzung nicht.
 
-In der privaten `.env` müssen die Tailscale-Loginnamen berechtigt werden, etwa:
+**In neuem Tab öffnen** verbindet die aktive Sitzung in einer reduzierten
+Terminalseite. Mehrere Browser können dieselbe Sitzung bedienen. Der
+Werkzeug-Fokusmodus blendet die Workbench-Navigation aus; Escape beendet ihn.
+
+## Verbindung und Wiederherstellung
+
+Ein gemeinsamer WebSocket transportiert die Terminalnachrichten. Aufbau und
+Wiederverbindung erscheinen als sichtbarer Status. Fehlgeschlagene Start- und
+Neustartanfragen werden dem betroffenen Terminal zugeordnet. Heartbeats erkennen
+einen hängenden Transport; die Verbindung wird automatisch erneut aufgebaut.
+Layout-Ladefehler werden angezeigt und erneut versucht. Noch nicht gespeicherte
+Layoutänderungen bleiben im lokalen Puffer und werden nach einem Reload erneut
+mit dem Server abgeglichen.
+
+Der Server hält den gerenderten Bildschirm einschließlich Cursor, Alternate
+Screen und Mausmodus in einer Headless-xterm-Emulation. Ein neu verbundener
+Browser bekommt diesen Snapshot und noch ausstehende Ausgabe in Reihenfolge.
+Ein bekannter, aktueller Bildschirm benötigt nur Deltas. Wenn der Delta-Puffer
+bei einem großen Ausgabeschub überläuft, wird ein vollständiger geparster
+Snapshot geliefert. Der Verlauf umfasst bis zu 10.000 Zeilen.
+
+Eine PTY hat eine gemeinsame Zeilen- und Spaltenzahl. Das zuerst verbundene Gerät
+übernimmt die Geometrie. Weitere Geräte merken ihre Wunschgröße vor. Echte
+Eingabe oder Fokusübernahme überträgt die Kontrolle; beim Trennen übernimmt ein
+verbleibendes Gerät. Reine ResizeObserver-Ereignisse wechseln die Kontrolle
+nicht. Snapshots werden zuerst im gemeinsamen Raster wiedergegeben.
+
+Mit tmux trennt ein Backend-Neustart nur das Gateway. Der tmux-Prozess läuft weiter;
+der nächste Subscribe verbindet ihn wieder und übernimmt den vorhandenen
+Bildschirm. **Neu starten** beendet dagegen den Terminalprozess bewusst und
+startet dieselbe Sitzung mit einer neuen Bildschirmgeneration.
+
+**Persistent machen** speichert die Markierung zusammen mit Name, Ordner und Pin
+im serverseitigen Workspace. Nach einem Host-Neustart werden unterbrochene,
+persistente Sitzungen erlaubter Nutzer automatisch im gespeicherten
+Arbeitsverzeichnis gestartet. Bereits laufende tmux-Prozesse werden dabei nicht
+neu gestartet. Ein nicht mehr erlaubtes oder verschwundenes Verzeichnis bleibt
+als unterbrochene Sitzung erhalten. Ein Host-Neustart kann den vorherigen
+Prozess, laufende Befehle und ungespeicherte Programmdaten nicht erhalten.
+
+**Alle normalen Terminals schließen** bewahrt gepinnte und persistente Einträge.
+Ein einzelnes **Beenden** schließt auch deren Prozess; bei geschützten Einträgen
+wird dies bestätigt. Das Entfernen eines Panes aus dem Split beendet die Sitzung
+nicht. Das Schließen eines Browserfensters beendet ebenfalls keinen Prozess.
+
+Das Sitzungslimit zählt laufende Terminals, Prozesse mit lebendem Supervisor und
+Sitzungen mit Workspace-Eintrag. Unterbrochene Sitzungen ohne Eintrag belegen
+kein Limit; alte verwaiste Sitzungszeilen entfernt die Registry nach einer Woche.
+
+## Konfiguration
+
+Terminaleinstellungen liegen in `config/wrapt.local.json` oder den entsprechenden
+Umgebungsvariablen. Das Shell-Home stammt aus `system.homeDirectory`.
+`terminal.shell.file` wählt eine andere Shell; `terminal.shell.args` ersetzt deren
+Startargumente. `TERMINAL_SHELL_PATH` überschreibt die Shell-Datei.
+Ohne eigene Argumente erhalten Bash, andere POSIX-Login-Shells, PowerShell und
+cmd jeweils passende Startargumente. Eigene Shell-Profile können OSC 7 oder
+OSC 9;9 für den aktuellen CWD senden; tmux liest den CWD zusätzlich aus dem Pane.
 
 ```dotenv
 TERMINAL_ALLOWED_USERS=user@example.com
@@ -49,33 +122,41 @@ TERMINAL_MAX_SESSIONS=5
 TERMINAL_SUPERVISOR=tmux
 TMUX_PATH=/usr/bin/tmux
 CODEX_CLI_PATH=/home/your-user/.local/bin/codex
-OPENCODE_CLI_PATH=/home/your-user/.npm-global/bin/opencode
 CODEX_MAX_SESSIONS=4
-OPENCODE_MAX_SESSIONS=4
+CLAUDE_MAX_SESSIONS=4
 ```
 
-Danach Backend neu starten. Ohne `TERMINAL_ALLOWED_USERS` bleibt der Endpunkt absichtlich gesperrt. Das schützt vor einer versehentlichen Terminalfreigabe, solange die bestehende Wrapt keine eigene Login-Schicht besitzt.
+Unter nativem Windows ist `TERMINAL_SUPERVISOR=direct` der Standard; tmux bleibt
+Linux und macOS vorbehalten. Windows-Roots sind beispielsweise
+`C:\Users\test,C:\Users\test\projects`. Linux und macOS behalten `tmux` als Standard.
 
-Die eigenständigen Codex- und Claude-Code-Seiten halten jeweils bis zu vier Instanzen geladen. Desktop ordnet sie automatisch als Einzelansicht, zwei Spalten, Fokuslayout oder 2×2-Bento an. Mobile zeigt jeweils nur die aktive Instanz; die übrigen Prozesse und Verbindungen bleiben geparkt. OpenCode verwendet stattdessen die separate Web-UI-Fläche.
+Ohne erlaubte Benutzer bleibt der Endpunkt gesperrt. Codex und Claude Code nutzen
+denselben PTY-Transport mit fest zugeordneten Programmen und behalten ihre eigenen
+Freigabedialoge. OpenCode verwendet die separate Web-UI; alte OpenCode-PTYs bleiben
+kompatibel. Die Registry wird beim Backendstart mit den tmux-Sitzungen abgeglichen.
+Bei genau einem erlaubten Benutzer können bereits verwaltete tmux-Sitzungen
+importiert werden. Rohprozesse ohne PTY-Supervisor lassen sich nicht nachträglich
+als interaktives Terminal übernehmen.
 
 ## Zwischenablage
 
-Auf Windows und Linux kopiert `Ctrl+Shift+C` die aktuelle Terminalauswahl; `Ctrl+Shift+V` fügt Text ein. Auf macOS gelten `Cmd+C` und `Cmd+V`. `Ctrl+C` bleibt auf allen Systemen das Terminalsignal zum Unterbrechen eines Prozesses. Shell, Codex, OpenCode und Claude Code verwenden dieselbe Tastaturbehandlung.
+Windows und Linux verwenden `Ctrl+Shift+C` und `Ctrl+Shift+V`, macOS `Cmd+C` und
+`Cmd+V`. `Ctrl+C` unterbricht weiterhin den Terminalprozess. Tastatur-Paste läuft
+über das native Paste-Ereignis. Die mobile Einfügeaktion nutzt die Clipboard API
+und zeigt abgelehnte Zugriffe an. xterm normalisiert Zeilenenden und respektiert
+Bracketed Paste. Ab 10.000 Zeichen wird vor dem Einfügen gefragt; große Inhalte
+werden anschließend verlustfrei in Protokollblöcke aufgeteilt.
 
-Tastatur-Paste läuft über das native `paste`-Ereignis und benötigt keine dauerhafte Leseberechtigung für die Zwischenablage. Der mobile Einfügen-Button verwendet die Clipboard API und zeigt einen Fehler, wenn der Browser den Zugriff ablehnt. xterm normalisiert Zeilenenden und respektiert Bracketed Paste. Ab 10.000 Zeichen verlangt die Wrapt eine Bestätigung; anschließend werden große Inhalte verlustfrei in protokollkonforme Blöcke geteilt.
+## Prüfung
 
-## Manueller Abnahmetest
-
-1. Wrapt über `https://…:8443/wrapt/` öffnen und **Terminal** wählen.
-2. Prüfen: `echo hello`, `pwd`, `ls --color=auto`, `git status`, `node`, `python3`.
-3. Interaktive Programme prüfen: `htop`, `nano test.txt`, `vim test.txt`, `tmux new -s browser-test`.
-4. Mit dem Mausrad und einem Trackpad durch eine lange Ausgabe scrollen; es dürfen keine Zeilenblöcke übersprungen werden.
-5. **Aktionen → Split** wählen: Rechts muss eine neue Sitzung im aktuellen `pwd` starten; beide Seiten müssen unabhängig bedienbar sein.
-6. Tabs in beiden Panes wechseln, den Trenner mit Maus und Tastatur verschieben und ein Pane schließen; Seiten und Fokus müssen stabil bleiben.
-7. **Werkzeugaktionen → In neuem Tab öffnen** wählen und prüfen, dass nur die aktive Sitzung ohne Wrapt-Navigation erscheint.
-8. **Werkzeugaktionen → Vollbild** wählen: Sidebar, Topbar und Statusleiste müssen verschwinden; `Escape` stellt sie wieder her.
-9. `Ctrl+C`, die plattformüblichen Copy/Paste-Kürzel, `Ctrl+D`, `Ctrl+L`, Pfeiltasten und Tab-Completion testen; Fenstergröße und Smartphone-Ausrichtung ändern.
-10. Seite neu laden bzw. Netzwerk kurz trennen: die laufende Sitzung muss mit Snapshot wieder erscheinen.
-11. Backend neu starten und auf einem zweiten Gerät dieselbe Session aus **Sessions** öffnen; Prozess und Verlauf müssen weiter vorhanden sein.
-12. Eine externe tmux-Sitzung starten und kontrollieren, dass sie bei Einzelbenutzerkonfiguration in der Session-Liste erscheint.
-13. **Schließen** klicken und kontrollieren, dass die tmux-Sitzung beendet ist.
+Die Unit- und Integrationstests unter `apps/server/src/terminal` und
+`apps/web/src/components/terminal` prüfen Ausgabe, Snapshot/Delta-Sync,
+Wiederanhängen an tmux, Persistenz, Transporterholung und mobile Renderer.
+`pnpm test:terminal:platform` prüft Shell-/Pfadverträge und den Prozesszyklus
+aller drei Plattformen sowie eine echte, isolierte PTY auf dem ausführenden Host.
+Die CI-Matrix `terminal-platforms.yml` führt denselben Befehl auf Linux, macOS
+und Windows aus. Lokale Linux-Läufe ersetzen keine nativen Windows-/macOS-Läufe.
+`tests/e2e/terminal-reliability.spec.ts` prüft echte PTYs, Resize, Split,
+Socket-Abbruch, Layout-Erholung und Touch-Bedienung. Die bestehenden Terminal-E2Es
+prüfen zusätzlich Fullscreen-TUIs, Scrollback, mehrere Geräte und Sammelaktionen.
+Alle Browserprüfungen laufen in einer ausdrücklich isolierten Testinstanz.

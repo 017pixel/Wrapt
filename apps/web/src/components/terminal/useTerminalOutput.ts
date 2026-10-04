@@ -16,6 +16,7 @@ export interface TerminalOutput {
   lastCommand: string;
   currentLineRef: MutableRefObject<string>;
   flushOutput(force?: boolean): void;
+  resetOutput(): void;
   queueOutput(data: string): void;
   flushReplayBuffer(): void;
   rememberTyping(data: string): void;
@@ -30,10 +31,10 @@ export function useTerminalOutput(options: TerminalOutputOptions): TerminalOutpu
   const currentLineRef = useRef("");
   const [lastCommand, setLastCommand] = useState("");
 
-  // xterm emuliert jeden write synchron. Bei Build-Ausgaben kommen jedoch
+  // xterm parst asynchron. Bei Build-Ausgaben kommen jedoch
   // häufig sehr viele kleine WebSocket-Nachrichten hintereinander an. Die
   // Bytes bleiben unverändert, werden aber höchstens einmal pro Frame an xterm
-  // übergeben. Geparkte Knoten halten nur einen begrenzten Schwanz der Ausgabe.
+  // übergeben. Auch geparkte Ausgabe bleibt vollständig und geordnet.
   const flushOutput = useCallback((force = false) => {
     if (outputFlushRef.current !== null) {
       window.cancelAnimationFrame(outputFlushRef.current);
@@ -52,7 +53,7 @@ export function useTerminalOutput(options: TerminalOutputOptions): TerminalOutpu
     outputBufferRef.current += data;
     if (!activeRef.current) {
       if (outputBufferRef.current.length > maximumParkedOutputBytes) {
-        outputBufferRef.current = outputBufferRef.current.slice(-maximumParkedOutputBytes);
+        flushOutput(true);
       }
       return;
     }
@@ -60,6 +61,12 @@ export function useTerminalOutput(options: TerminalOutputOptions): TerminalOutpu
       outputFlushRef.current = window.requestAnimationFrame(() => flushOutput(!activeRef.current));
     }
   }, [activeRef, flushOutput]);
+
+  const resetOutput = useCallback(() => {
+    if (outputFlushRef.current !== null) window.cancelAnimationFrame(outputFlushRef.current);
+    outputFlushRef.current = null;
+    outputBufferRef.current = "";
+  }, []);
 
   /**
    * Verfolgt die Eingabe zeichenweise mit. Nur so viel Terminal-Emulation wie
@@ -109,5 +116,5 @@ export function useTerminalOutput(options: TerminalOutputOptions): TerminalOutpu
     outputBufferRef.current = "";
   }, []);
 
-  return { lastCommand, currentLineRef, flushOutput, queueOutput, flushReplayBuffer, rememberTyping };
+  return { lastCommand, currentLineRef, flushOutput, resetOutput, queueOutput, flushReplayBuffer, rememberTyping };
 }

@@ -1,5 +1,6 @@
+import { isAbsoluteFilesystemPath } from "@wrapt/contracts";
 import type { TerminalEntry, TerminalFolder, TerminalWorkspaceV2 } from "@wrapt/contracts";
-import { ChevronDownIcon, ChevronRightIcon, FolderIcon, FolderOpenIcon, PinIcon, TerminalIcon } from "../../icons";
+import { ChevronDownIcon, ChevronRightIcon, FolderIcon, FolderOpenIcon, MoreIcon, PinIcon, TerminalIcon } from "../../icons";
 import { childrenOfFolder, entryByRuntime, layoutRuntimeIds } from "../workspace/terminalWorkspaceModel";
 import type { TerminalStatus } from "../terminal-types";
 import type { DndDropTarget, RowHandlers } from "./useTerminalDnd";
@@ -94,6 +95,10 @@ export function TerminalTree({ document, folderId, depth, areaId, meta, cwds, se
       <li key={entry.id} className="terminal-tree-entry">
         <div
           data-dnd={`entry:${entry.id}`}
+          role="button"
+          tabIndex={isEditing ? -1 : 0}
+          aria-label={entry.name}
+          aria-pressed={isFocused}
           className={`terminal-tree-row is-entry ${isOpen ? "is-open" : ""} ${isFocused ? "is-focused" : ""} ${isDropBefore || isDropAfter ? "is-drop-sibling" : ""}`}
           style={{ paddingLeft: level * 14 + 22 }}
           {...rowHandlers}
@@ -101,6 +106,10 @@ export function TerminalTree({ document, folderId, depth, areaId, meta, cwds, se
           onMouseEnter={(event) => callbacks.onHoverStart(entry.id, event.currentTarget)}
           onMouseLeave={() => callbacks.onHoverEnd(entry.id)}
           onClick={() => { if (entry.runtimeId) callbacks.onOpenEntry(entry.runtimeId); }}
+          onKeyDown={(event) => {
+            if (event.target !== event.currentTarget || !entry.runtimeId || !["Enter", " "].includes(event.key)) return;
+            event.preventDefault(); callbacks.onOpenEntry(entry.runtimeId);
+          }}
         >
           <span className={`terminal-tree-status is-${status}`} aria-hidden />
           <span className="terminal-tree-icon">{entry.kind === "shell" ? <TerminalIcon className="h-4 w-4" /> : <TerminalIcon className="h-4 w-4" />}</span>
@@ -119,11 +128,12 @@ export function TerminalTree({ document, folderId, depth, areaId, meta, cwds, se
           ) : (
             <span className="terminal-tree-label-wrap">
               <span className="terminal-tree-label">{entry.name}</span>
-              {cwd && cwd.startsWith("/") ? <span className="terminal-tree-cwd" title={cwd}>{cwd}</span> : null}
+              {cwd && isAbsoluteFilesystemPath(cwd) ? <span className="terminal-tree-cwd" title={cwd}>{cwd}</span> : null}
             </span>
           )}
           {entry.pinned ? <PinIcon className="terminal-tree-pin h-3 w-3" aria-label="Gepinnt" /> : null}
           {entry.persistent ? <span className="terminal-tree-persistent" title="Persistent">24/7</span> : null}
+          <button type="button" className="terminal-tree-actions" aria-label={`Aktionen für ${entry.name}`} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); callbacks.onContextMenu(event, "entry", entry.id); }}><MoreIcon className="h-4 w-4" /></button>
         </div>
       </li>
     );
@@ -178,6 +188,7 @@ export function TerminalTree({ document, folderId, depth, areaId, meta, cwds, se
             <button type="button" className="terminal-tree-label" onClick={() => callbacks.onToggleCollapse(folder.id)}>{folder.name}</button>
           )}
           <span className="terminal-tree-count">{children.entries.length + children.folders.length}</span>
+          <button type="button" className="terminal-tree-actions" aria-label={`Aktionen für ${folder.name}`} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); callbacks.onContextMenu(event, "folder", folder.id); }}><MoreIcon className="h-4 w-4" /></button>
         </div>
         {!isCollapsed ? <ul className="terminal-tree-children">
           {children.entries.map((entry) => renderEntry(entry, level + 1))}

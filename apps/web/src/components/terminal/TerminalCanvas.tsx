@@ -7,6 +7,11 @@ export interface TerminalCanvasPane {
   runtimeId: string;
 }
 
+export function layoutPanes(layout: TerminalPaneLayout | null): TerminalCanvasPane[] {
+  if (!layout) return [];
+  return layout.type === "pane" ? [{ id: layout.id, runtimeId: layout.runtimeId }] : layout.children;
+}
+
 interface TerminalCanvasProps {
   areaId: string;
   bento: boolean;
@@ -39,7 +44,10 @@ export function TerminalCanvas({ areaId, bento, isMobile, showSingleMobilePane, 
   if (paneLayout?.type === "split") {
     if (showSingleMobilePane) {
       const focusedPane = panes.find((pane) => pane.runtimeId === focusedRuntimeId) ?? panes[0]!;
-      return <div className="terminal-canvas is-mobile-single-pane">{renderPane(focusedPane, true)}</div>;
+      return <div className="terminal-canvas is-mobile-single-pane">
+        {panes.map((pane) => renderPane(pane, pane.runtimeId === focusedPane.runtimeId))}
+        {parkedPanes.map((pane) => renderPane(pane, false))}
+      </div>;
     }
     return (
       <div className="terminal-canvas">

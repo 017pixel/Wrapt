@@ -3,6 +3,7 @@ import { CloseIcon, RefreshIcon } from "../icons";
 import { ConfirmDialog } from "../ModalDialog";
 import type { WebTerminalHandle, WebTerminalProps } from "./terminal-types";
 import { useTerminalRenderer } from "./engine/useTerminalRenderer";
+import "./terminal-core.css";
 
 /**
  * Browser-Terminal für eine stabile Runtime-ID (V2). Nutzt den gemeinsamen
@@ -43,7 +44,11 @@ export const WebTerminal = forwardRef<WebTerminalHandle, WebTerminalProps>(funct
   const { error, restartBanner, lastCommand, terminalIsDead, pendingPaste, resolvePendingPaste } = renderer;
 
   return (
-    <section className="terminal-session" onKeyDown={(event) => event.stopPropagation()}>
+    <section className="terminal-session" data-status={renderer.status} onKeyDown={(event) => event.stopPropagation()}>
+      {renderer.status === "connecting" || renderer.status === "disconnected" ? <div className="terminal-connection-banner" role="status">
+        <span>{renderer.status === "connecting" ? "Terminal wird verbunden…" : "Verbindung unterbrochen"}</span>
+        {renderer.status === "disconnected" ? <button type="button" onClick={renderer.resync}>Verbinden</button> : null}
+      </div> : null}
       {restartBanner ? <div className="terminal-restart-banner" role="status"><span>{restartBanner.message}</span><button type="button" onClick={() => renderer.setRestartBanner(null)} aria-label="Banner schliessen"><CloseIcon className="h-3.5 w-3.5" /></button></div> : null}
       {error && !terminalIsDead ? <div className="terminal-error" role="alert"><span>{error}</span><button type="button" onClick={() => renderer.setError(null)} aria-label="Fehlermeldung schließen" title="Schließen"><CloseIcon className="h-3.5 w-3.5" /></button></div> : null}
       {terminalIsDead ? (

@@ -44,6 +44,9 @@
     "claude": "/home/your-user/.local/bin/claude",
     "tmux": "/usr/bin/tmux"
   },
+  "terminal": {
+    "shell": {}
+  },
   "codexbar": {
     "configPath": "/home/your-user/.config/codexbar/config.json",
     "oauthProfileHomes": []
@@ -99,17 +102,16 @@
   },
   "notifications": {
     "preferences": {
-      "toastsEnabled": true,
       "pushEnabled": false,
       "sources": {
-        "hermes": { "toast": false, "push": false },
-        "t3": { "toast": true, "push": true },
-        "opencode": { "toast": true, "push": false },
-        "codex": { "toast": true, "push": false },
-        "claude": { "toast": true, "push": false },
-        "terminal": { "toast": true, "push": false },
-        "wrapt": { "toast": true, "push": true },
-        "update": { "toast": false, "push": false }
+        "hermes": { "push": false },
+        "t3": { "push": true },
+        "opencode": { "push": false },
+        "codex": { "push": false },
+        "claude": { "push": false },
+        "terminal": { "push": false },
+        "wrapt": { "push": true },
+        "update": { "push": false }
       }
     },
     "pollSeconds": 5,
@@ -212,6 +214,8 @@
     "installTimeoutSeconds": 300,
     "stopTimeoutSeconds": 20,
     "portTimeoutSeconds": 30,
-    "healthTimeoutSeconds": 60
+    "healthTimeoutSeconds": 60,
+    "websocketPendingBytes": 4194304,
+    "websocketBufferedBytes": 16777216
   }
 }

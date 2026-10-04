@@ -1,9 +1,9 @@
+import { terminalCwdFromOsc } from "@wrapt/contracts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { writeClipboardText } from "../../../lib/clipboard";
-import { showUiToast } from "../../../lib/uiToasts";
 import { applyTerminalRenderScale, attachTerminalAppearance, createTerminalScaleResizeScheduler } from "../terminal-appearance";
 import { attachTerminalInput } from "../terminal-input";
 import { useTerminalOutput } from "../useTerminalOutput";
@@ -42,7 +42,6 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
   const closedRef = useRef(false);
   const createRetriesRef = useRef(0);
   const subscriptionRef = useRef<TerminalSubscription | null>(null);
-  const resizeFrameRef = useRef<number | null>(null);
   const revealFrameRef = useRef<number | null>(null);
   const scaleResizeSchedulerRef = useRef<ReturnType<typeof createTerminalScaleResizeScheduler> | null>(null);
   const renderScaleRef = useRef(renderScale);
@@ -78,7 +77,7 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
     send: (message) => sendMessage(message as ClientMessage),
     setError: setErrorState,
   });
-  const { lastCommand, queueOutput, flushReplayBuffer, rememberTyping } = output;
+  const { lastCommand, flushOutput, queueOutput, resetOutput, flushReplayBuffer, rememberTyping } = output;
 
   const reportMeta = useCallback((patch: Partial<TerminalMeta>) => {
     onMetaChange?.({
@@ -93,7 +92,7 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
 
   const reportSize = useCallback((cols: number, rows: number) => {
     const sessionId = sessionRef.current;
-    if (sessionId && ownsGeometryRef.current) sendMessage({ type: "terminal.resize", sessionId, cols, rows });
+    if (sessionId) sendMessage({ type: "terminal.resize", sessionId, cols, rows });
   }, [sendMessage]);
 
   const fitAndReport = useCallback(() => {
@@ -133,13 +132,13 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
     terminalRef, fitRef, activeRef, kindRef, sessionRef, epochRef, sequenceRef,
     ownsGeometryRef, hasLiveStateRef, snapshotReplayRef, replayBufferRef,
     mouseTrackingRef, mouseEncodingRef, disposedRef, closedRef, createRetriesRef,
-    subscriptionRef, resizeFrameRef, cwdRef,
+    subscriptionRef, cwdRef,
   };
 
   const core = createRendererCore(refs, {
     instanceId, kind, projectId, initialCwd, mode, accountId, sendMessage,
     setStatus, setCwd: setCwdState, setError: setErrorState, setRestartBanner: setRestartBannerState,
-    reportMeta, queueOutput, flushReplayBuffer, fitAndReport,
+    reportMeta, queueOutput, resetOutput, flushReplayBuffer, fitAndReport,
   });
   const { attach, detach, resync } = core;
 
@@ -147,6 +146,7 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
   // unsichtbar → detach (kein Parsen im Hintergrund).
   useEffect(() => {
     if (active) {
+      flushOutput(true);
       attach();
       revealTerminal();
     }
@@ -184,12 +184,13 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
     terminalRef.current = terminal;
     fitRef.current = fit;
 
-    const cwdHandler = terminal.parser.registerOscHandler(7, (value) => {
-      try {
-        const next = new URL(value).pathname;
-        if (next.startsWith("/")) { cwdRef.current = decodeURIComponent(next); setCwdState(cwdRef.current); reportMeta({}); }
-      } catch { /* ungültig */ }
-      return true;
+    const cwdHandlers = ([7, 9] as const).map((identifier) => terminal.parser.registerOscHandler(identifier, (value) => {
+      const next = terminalCwdFromOsc(identifier, value);
+      if (next) { cwdRef.current = next; setCwdState(next); reportMeta({}); }
+      return next !== null;
+    }));
+    const parsedHandler = terminal.onWriteParsed(() => {
+      mouseTrackingRef.current = terminal.modes.mouseTrackingMode !== "none";
     });
 
     const pasteIntoTerminal = (text: string) => {
@@ -201,7 +202,6 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
       const selection = terminal.getSelection();
       if (!selection) { setErrorState("Wähle zuerst Text im Terminal aus."); return; }
       void writeClipboardText(selection)
-        .then(() => showUiToast({ title: "Kopiert", severity: "success" }))
         .catch((copyError) => setErrorState(copyError instanceof Error ? copyError.message : "Kopieren wurde vom Browser nicht erlaubt."));
     };
     const receivePastedText = (text: string) => {
@@ -241,11 +241,6 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
     const scaleResizeScheduler = createTerminalScaleResizeScheduler(fitAndReport);
     scaleResizeSchedulerRef.current = scaleResizeScheduler;
 
-    const observer = new ResizeObserver(() => {
-      if (resizeFrameRef.current !== null) return;
-      resizeFrameRef.current = window.requestAnimationFrame(fitAndReport);
-    });
-    observer.observe(mount);
     const onVisibility = () => { if (document.visibilityState === "visible") revealTerminal(); };
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("resize", fitAndReport);
@@ -255,16 +250,15 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
 
     return () => {
       disposedRef.current = true;
-      observer.disconnect();
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("resize", fitAndReport);
-      if (resizeFrameRef.current !== null) window.cancelAnimationFrame(resizeFrameRef.current);
       if (revealFrameRef.current !== null) window.cancelAnimationFrame(revealFrameRef.current);
       scaleResizeScheduler.cancel();
       if (scaleResizeSchedulerRef.current === scaleResizeScheduler) scaleResizeSchedulerRef.current = null;
       disposeInput();
       disposeAppearance();
-      cwdHandler.dispose();
+      for (const handler of cwdHandlers) handler.dispose();
+      parsedHandler.dispose();
       detach();
       terminal.dispose();
       terminalRef.current = null;
@@ -313,15 +307,13 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
 
   const restart = useCallback(() => {
     const sessionId = sessionRef.current;
-    if (!sessionId) { setErrorState("Die Verbindung wird noch aufgebaut. Bitte gleich erneut versuchen."); return; }
+    if (!sessionId) { setErrorState(null); setStatus("connecting"); core.createSession(); return; }
     sendMessage({ type: "terminal.restart", sessionId });
-    sequenceRef.current = 0;
-    epochRef.current += 1;
-    hasLiveStateRef.current = false;
-    terminalRef.current?.reset();
+    // Erst der bestätigte Server-Snapshot ersetzt den bisherigen Zustand.
+    // Bei einem Fehler bleibt der noch sichtbare Verlauf erhalten.
     setStatus("connecting");
     reportMeta({ status: "connecting" });
-  }, [reportMeta, sendMessage, setStatus]);
+  }, [core, reportMeta, sendMessage, setStatus]);
 
   const action = useCallback((type: "terminal.clear" | "terminal.restart" | "terminal.close") => {
     const sessionId = sessionRef.current;
@@ -350,7 +342,8 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
     terminalRef.current?.focus();
     // Fokus ist echte Nutzerinteraktion: Geometrie-Controlling übernehmen.
     if (sessionRef.current && !ownsGeometryRef.current) {
-      sendMessage({ type: "terminal.takeControl", runtimeId: instanceId });
+      const size = fitRef.current?.proposeDimensions();
+      sendMessage({ type: "terminal.takeControl", runtimeId: instanceId, ...(size ?? {}) });
     }
   }, [instanceId, sendMessage]);
 

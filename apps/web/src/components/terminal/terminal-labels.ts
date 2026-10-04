@@ -8,14 +8,6 @@ export const kindLabels: Record<TerminalKind, string> = {
   claude: "Claude Code",
 };
 
-/** Kurzform für die Tab-Leiste, gesetzt in Mono wie in einem Terminal-Emulator. */
-export const tabKindLabels: Record<TerminalKind, string> = {
-  shell: "shell",
-  codex: "codex",
-  opencode: "opencode",
-  claude: "claude",
-};
-
 export const statusLabel: Record<TerminalStatus, string> = {
   connecting: "Verbindung wird hergestellt",
   connected: "Verbunden",

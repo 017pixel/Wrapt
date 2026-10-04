@@ -3,6 +3,7 @@ import {
   apiErrorSchema,
   createProjectFileRequestSchema,
   hermesClientMessageSchema,
+  notificationPreferencesSchema,
   orbitNodeSchema,
   orbitWorkspaceSchema,
   operationalMetricsSchema,
@@ -19,6 +20,23 @@ import {
 } from "./index.js";
 
 describe("öffentliche API-Verträge", () => {
+  it("ignoriert veraltete Benachrichtigungsfelder und erhält Push-Präferenzen", () => {
+    const preferences = notificationPreferencesSchema.parse({
+      legacyEnabled: false,
+      legacyDurationSeconds: 9,
+      pushEnabled: true,
+      sources: { t3: { legacyChannel: false, push: true } },
+    });
+    expect(preferences).toEqual({
+      pushEnabled: true,
+      sources: {
+        hermes: { push: false }, t3: { push: true }, opencode: { push: false },
+        codex: { push: false }, claude: { push: false }, terminal: { push: false },
+        wrapt: { push: true }, workbench: { push: true }, update: { push: false },
+      },
+    });
+  });
+
   it("requires a correlatable error envelope", () => {
     expect(apiErrorSchema.safeParse({
       error: {

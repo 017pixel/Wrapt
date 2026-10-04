@@ -1,4 +1,5 @@
 import type { ClientMessage, ServerMessage } from "../terminal-types";
+import { terminalConnectTimeoutMs, terminalReconnectDelayMs, terminalMaxReconnectDelayMs, terminalHeartbeatIntervalMs, terminalHeartbeatTimeoutMs } from "../terminal-constants";
 
 export interface TerminalSubscription {
   runtimeId: string;
@@ -35,6 +36,7 @@ class TerminalTransport {
   private reconnectTimer: number | null = null;
   private retries = 0;
   private heartbeat: number | null = null;
+  private deadline: number | null = null;
 
   subscribe(runtimeId: string, initial: { sessionId?: string } = {}): TerminalSubscription {
     const state = this.subscriptions.get(runtimeId) ?? {
@@ -89,6 +91,8 @@ class TerminalTransport {
 
   private ensureSocket(): void {
     if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) return;
+    if (this.reconnectTimer !== null) window.clearTimeout(this.reconnectTimer);
+    this.reconnectTimer = null;
     this.openSocket();
   }
 
@@ -97,23 +101,29 @@ class TerminalTransport {
     url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
     const socket = new WebSocket(url.toString());
     this.socket = socket;
+    this.deadline = window.setTimeout(() => socket.close(), terminalConnectTimeoutMs);
     socket.onopen = () => {
       if (this.socket !== socket) return;
+      this.clearDeadline();
       this.retries = 0;
       this.emitStatus(true);
       this.heartbeat = window.setInterval(() => {
-        if (this.socket?.readyState === WebSocket.OPEN) this.send({ type: "terminal.ping" });
-      }, 25_000);
+        if (this.socket !== socket || socket.readyState !== WebSocket.OPEN) return;
+        this.deadline = window.setTimeout(() => socket.close(), terminalHeartbeatTimeoutMs);
+        this.send({ type: "terminal.ping" });
+      }, terminalHeartbeatIntervalMs);
     };
     socket.onmessage = (event) => {
       if (this.socket !== socket) return;
       let message: ServerMessage;
       try { message = JSON.parse(String(event.data)) as ServerMessage; } catch { return; }
+      if (message.type === "terminal.pong") { this.clearDeadline(); return; }
       this.route(message);
     };
     socket.onclose = () => {
       if (this.socket !== socket) return;
       this.socket = null;
+      this.clearDeadline();
       if (this.heartbeat !== null) window.clearInterval(this.heartbeat);
       this.heartbeat = null;
       this.emitStatus(false);
@@ -121,7 +131,7 @@ class TerminalTransport {
       this.reconnectTimer = window.setTimeout(() => {
         this.reconnectTimer = null;
         this.openSocket();
-      }, Math.min(10_000, 500 * (2 ** this.retries++)));
+      }, Math.min(terminalMaxReconnectDelayMs, terminalReconnectDelayMs * (2 ** this.retries++)));
     };
     socket.onerror = () => socket.close();
   }
@@ -129,9 +139,18 @@ class TerminalTransport {
   private closeSocket(): void {
     if (this.reconnectTimer !== null) window.clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
-    this.socket?.close();
+    if (this.heartbeat !== null) window.clearInterval(this.heartbeat);
+    this.heartbeat = null;
+    this.clearDeadline();
+    const socket = this.socket;
     this.socket = null;
+    socket?.close();
     this.sessionToRuntime.clear();
+  }
+
+  private clearDeadline(): void {
+    if (this.deadline !== null) window.clearTimeout(this.deadline);
+    this.deadline = null;
   }
 
   private route(message: ServerMessage): void {
@@ -145,7 +164,13 @@ class TerminalTransport {
       : "sessionId" in message && typeof message.sessionId === "string"
         ? this.sessionToRuntime.get(message.sessionId)
         : undefined;
-    if (!runtimeId) return;
+    if (!runtimeId) {
+      // Authentifizierungs- und Protokollfehler betreffen den ganzen Socket.
+      if (message.type === "terminal.error" && !message.sessionId && !message.runtimeId) {
+        for (const state of this.subscriptions.values()) for (const client of state.clients) for (const listener of client.listeners) listener(message);
+      }
+      return;
+    }
     // Jede Nachricht, die beide IDs trägt (Snapshot, Deltas, Created),
     // frischt die Session-Zuordnung auf. Ohne das bliebe die Map nach einem
     // Socket-Neuaufbau mit Fast Reconnect (nur Deltas, kein Created) leer und

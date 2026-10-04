@@ -1,3 +1,4 @@
+import { isAbsoluteFilesystemPath } from "@wrapt/contracts";
 import type { MouseEvent } from "react";
 import type { TerminalEntry, TerminalSession } from "@wrapt/contracts";
 import { PinIcon, TerminalIcon } from "../../icons";
@@ -37,7 +38,7 @@ export function TerminalPinnedEntries({ entries, meta, sessions, createRowHandle
               >
                 <span className={`terminal-tree-status is-${runtimeStatus}`} aria-hidden />
                 <span className="terminal-tree-icon"><TerminalIcon className="h-4 w-4" /></span>
-                <span className="terminal-tree-label-wrap"><span className="terminal-tree-label">{entry.name}</span>{cwd?.startsWith("/") ? <span className="terminal-tree-cwd" title={cwd}>{cwd}</span> : null}</span>
+                <span className="terminal-tree-label-wrap"><span className="terminal-tree-label">{entry.name}</span>{(cwd && isAbsoluteFilesystemPath(cwd)) ? <span className="terminal-tree-cwd" title={cwd}>{cwd}</span> : null}</span>
                 <PinIcon className="terminal-tree-pin h-3 w-3" aria-label="Gepinnt" />
               </div>
             </li>

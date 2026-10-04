@@ -36,13 +36,14 @@ export function snapshotForClient(session: TerminalSession, supervisor: TmuxSupe
  *  serialisierte Zustand stammt aus dem autoritativen Headless-Terminal und
  *  wird nur dann aus tmux/History zurückgebaut, wenn kein Headless-Zustand
  *  vorliegt (etwa direkt nach einem Backend-Neustart). */
-export function snapshotMessage(session: TerminalSession, clientId: string, supervisor: TmuxSupervisor | undefined): ServerTerminalMessage {
+export function snapshotMessage(session: TerminalSession, clientId: string, supervisor: TmuxSupervisor | undefined): Extract<ServerTerminalMessage, { type: "terminal.snapshot" }> {
   const serialized = session.headless?.snapshot() ?? null;
   // Die Snapshot-Sequenz ist der zuletzt lückenlos geparste Stand des
   // Headless-Terminals in Session-Sequenz-Basis, damit Inhalt und Sequenz
   // immer zusammenpassen (xterm puffert asynchron). Der Client fordert alles
   // danach per Deltas oder Resync an — dieselbe Basis wie die Live-Outputs.
-  const sequence = session.headless ? session.headless.parsedSequence : session.sequence;
+  const sequence = session.headless && session.headless.parsedSequence < session.headless.queuedSequence
+    ? session.headless.parsedSequence : session.sequence;
   return {
     type: "terminal.snapshot",
     sessionId: session.id,
@@ -63,7 +64,7 @@ export function snapshotMessage(session: TerminalSession, clientId: string, supe
 }
 
 export function broadcastSnapshot(session: TerminalSession, supervisor: TmuxSupervisor | undefined): void {
-  for (const [clientId, client] of session.clients) client(snapshotMessage(session, clientId, supervisor));
+  for (const [clientId, client] of session.clients) sendSync(session, clientId, client, supervisor, null);
 }
 
 /**
@@ -79,7 +80,7 @@ export function sendSync(
   supervisor: TmuxSupervisor | undefined,
   sync: { epoch: number; lastSequence: number } | null | undefined,
 ): void {
-  if (sync && sync.epoch === session.epoch) {
+  if (session.status === "running" && sync && sync.epoch === session.epoch) {
     const deltas = session.journal.deltasAfter(sync.lastSequence);
     // Leere Deltas bestätigen einen aktuellen Stand nur, wenn der Client
     // wirklich auf der Session-Sequenz steht. Dahinter und bei leerem Journal
@@ -96,10 +97,23 @@ export function sendSync(
         startSequence: sync.lastSequence + 1,
         deltas,
       });
+      client({ type: "terminal.geometry", sessionId: session.id, cols: session.cols, rows: session.rows, ownsGeometry: session.primaryClientId === clientId });
       return;
     }
   }
-  client(snapshotMessage(session, clientId, supervisor));
+  const snapshot = snapshotMessage(session, clientId, supervisor);
+  // xterm parst asynchron. Bereits vor dem Attach empfangene Bytes können
+  // noch hinter dem Snapshot liegen und würden ohne Nachlieferung fehlen.
+  const pending = snapshot.sequence === session.sequence ? [] : session.journal.deltasAfter(snapshot.sequence);
+  if (pending === null && session.headless) {
+    const headless = session.headless;
+    headless.afterParsed(headless.queuedSequence, () => {
+      if (session.headless === headless && session.clients.get(clientId) === client) sendSync(session, clientId, client, supervisor, null);
+    });
+    return;
+  }
+  client(snapshot);
+  if (pending?.length) client({ type: "terminal.deltas", sessionId: session.id, runtimeId: session.runtimeId, epoch: session.epoch, startSequence: snapshot.sequence + 1, deltas: pending });
 }
 
 /** Verteilt die gemeinsame Geometrie an alle Clients. Der Primary bekommt

@@ -86,7 +86,10 @@ export async function createSessionWithContext(
     geometry: new GeometryLease(input.cols, input.rows, input.clientId ?? null),
   };
   if (context.database) {
-    reserveSessionSlot(context.database, session, { overall: context.maxSessions, kind: kindLimit }, context.process.kindLabel(kind));
+    // Lebende Supervisor-Prozesse zählen mit, auch wenn ihre Zeile als
+    // unterbrochen gilt (z. B. fehlgeschlagenes Anhängen nach dem Aufwachen).
+    const activeSupervisorNames = new Set(context.supervisor?.list().map((entry) => entry.name) ?? []);
+    reserveSessionSlot(context.database, session, { overall: context.maxSessions, kind: kindLimit }, context.process.kindLabel(kind), activeSupervisorNames);
     // Die Reservierung hat den Datensatz bereits geschrieben.
     session.lastPersistedAt = session.updatedAt;
   }
@@ -110,7 +113,7 @@ export async function createSessionWithContext(
   }
 }
 
-function reattachSession(context: SessionCreationContext, existing: TerminalSession, input: SessionCreationInput): TerminalSession {
+export function reattachSession(context: Pick<SessionCreationContext, "allowedRoots" | "persist" | "process" | "supervisor">, existing: TerminalSession, input: SessionCreationInput): TerminalSession {
   if (existing.kind !== (input.kind ?? "shell") || existing.projectId !== (input.projectId ?? null)) {
     throw new TerminalFailure("SESSION_RUNTIME_CONFLICT", "Diese Werkzeuginstanz ist bereits an eine andere Session gebunden.");
   }
@@ -139,6 +142,9 @@ function reattachSession(context: SessionCreationContext, existing: TerminalSess
       // Spawn wird der CWD erneut kanonisch geprüft; eine Session mit
       // unzulässigem Pfad wird sichtbar stillgelegt statt gestartet.
       existing.cwd = requireValidCwd(existing, context.allowedRoots, (session) => context.persist(session));
+      // Eine neue Emulation hat eine neue Sequenzbasis. Ein Browser darf
+      // seinen alten Stand deshalb nicht mit einem leeren Delta-Sync bestätigen.
+      if (!existing.headless) existing.epoch += 1;
       existing.status = "starting";
       context.process.spawn(existing);
     } else if (existing.status === "running") {

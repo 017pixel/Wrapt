@@ -125,6 +125,48 @@ export class TerminalDatabase {
     }
   }
 
+  /** Runtime-IDs, die im Workspace eines Nutzers sichtbar sind; null bei defektem Dokument. */
+  private readReferencedRuntimeIds(userId: string): string[] | null {
+    try {
+      return this.getWorkspace(userId).document.entries.flatMap((entry) => entry.runtimeId ? [entry.runtimeId] : []);
+    } catch {
+      return null;
+    }
+  }
+
+  private referencedRuntimeIds(userId: string): string[] {
+    // Ein defektes Workspace-Dokument fällt auf die reine Live-Zählung zurück.
+    return this.readReferencedRuntimeIds(userId) ?? [];
+  }
+
+  /**
+   * Entfernt alte Sitzungen, die weder im Workspace sichtbar noch an einen
+   * laufenden Supervisor-Prozess gebunden sind. Solche verwaisten Zeilen
+   * bleiben sonst unsichtbar in der Registry; die Quote zählt sie zwar nicht
+   * mehr, aber ohne Bereinigung wächst der Bestand unbegrenzt.
+   */
+  purgeStaleSessions(activeSupervisorNames: ReadonlySet<string>, olderThanMs: number): number {
+    const owners = this.db.prepare("SELECT DISTINCT owner_id ownerId FROM terminal_sessions WHERE status <> 'closed'").all() as unknown as Array<{ ownerId: string }>;
+    const remove = this.db.prepare("DELETE FROM terminal_sessions WHERE owner_id = ? AND id = ?");
+    const threshold = Date.now() - olderThanMs;
+    let removed = 0;
+    for (const { ownerId } of owners) {
+      const referencedIds = this.readReferencedRuntimeIds(ownerId);
+      // Ein defektes Workspace-Dokument darf keine Sitzungen verwerfen.
+      if (referencedIds === null) continue;
+      const referenced = new Set(referencedIds);
+      const rows = this.db.prepare("SELECT id, runtime_id runtimeId, status, supervisor_name supervisorName FROM terminal_sessions WHERE owner_id = ? AND status <> 'closed' AND updated_at < ?").all(ownerId, threshold) as unknown as Array<{ id: string; runtimeId: string; status: TerminalSessionStatus; supervisorName: string | null }>;
+      for (const row of rows) {
+        if (row.status === "running" || row.status === "starting") continue;
+        if (referenced.has(row.runtimeId)) continue;
+        if (row.supervisorName && activeSupervisorNames.has(row.supervisorName)) continue;
+        remove.run(ownerId, row.id);
+        removed += 1;
+      }
+    }
+    return removed;
+  }
+
   findSession(userId: string, runtimeId: string): StoredTerminalSession | undefined {
     const row = this.db.prepare(`SELECT id, owner_id userId, runtime_id runtimeId, kind, mode,
       project_id projectId, profile_path profilePath, supervisor_name supervisorName, cwd, pid, cols, rows, status,
@@ -181,14 +223,29 @@ export class TerminalDatabase {
    * Die Quote hängt damit nicht mehr an der In-Memory-Map eines Prozesses:
    * Auch nach einem Neustart oder bei parallelen Startanfragen zählt der
    * persistierte Bestand, und der Check ist atomar gegen das Limit.
+   *
+   * Gezählt werden nur echte Plätze: laufende Sessions, solche mit lebendem
+   * Supervisor-Prozess und solche, die im Workspace sichtbar sind.
+   * Unterbrochene oder beendete Sitzungen ohne Workspace-Eintrag und ohne
+   * lebenden Prozess sind abrufbare Altlasten und dürfen keine neuen
+   * Terminalstarts dauerhaft blockieren.
    */
-  tryReserveSession(session: StoredTerminalSession, limits: { overall: number; kind: number }): "reserved" | "kind-limit" | "overall-limit" {
+  tryReserveSession(session: StoredTerminalSession, limits: { overall: number; kind: number }, activeSupervisorNames: ReadonlySet<string> = new Set()): "reserved" | "kind-limit" | "overall-limit" {
+    // Referenzen vor der Transaktion lesen: getWorkspace() kann ein V1-Dokument
+    // migrieren und würde innerhalb der laufenden Transaktion rekursiv schreiben.
+    // json_each statt einer variablen IN-Liste hält die Abfragen auch bei sehr
+    // vielen Einträgen unter dem Parameterlimit von SQLite.
+    const activeFilter = `AND (status IN ('starting', 'running')
+      OR runtime_id IN (SELECT value FROM json_each(?))
+      OR supervisor_name IN (SELECT value FROM json_each(?)))`;
+    const referencedJson = JSON.stringify(this.referencedRuntimeIds(session.userId));
+    const supervisorJson = JSON.stringify([...activeSupervisorNames]);
     let committed = false;
     this.db.exec("BEGIN IMMEDIATE");
     try {
-      const overall = (this.db.prepare("SELECT COUNT(*) count FROM terminal_sessions WHERE owner_id = ? AND status <> 'closed'").get(session.userId) as { count: number }).count;
+      const overall = (this.db.prepare(`SELECT COUNT(*) count FROM terminal_sessions WHERE owner_id = ? AND status <> 'closed' ${activeFilter}`).get(session.userId, referencedJson, supervisorJson) as { count: number }).count;
       if (overall >= limits.overall) return "overall-limit";
-      const ofKind = (this.db.prepare("SELECT COUNT(*) count FROM terminal_sessions WHERE owner_id = ? AND status <> 'closed' AND kind = ?").get(session.userId, session.kind) as { count: number }).count;
+      const ofKind = (this.db.prepare(`SELECT COUNT(*) count FROM terminal_sessions WHERE owner_id = ? AND status <> 'closed' AND kind = ? ${activeFilter}`).get(session.userId, session.kind, referencedJson, supervisorJson) as { count: number }).count;
       if (ofKind >= limits.kind) return "kind-limit";
       this.saveSession(session);
       this.db.exec("COMMIT");
@@ -201,6 +258,16 @@ export class TerminalDatabase {
 
   deleteSession(userId: string, sessionId: string) {
     this.db.prepare("DELETE FROM terminal_sessions WHERE owner_id = ? AND id = ?").run(userId, sessionId);
+  }
+
+  persistentSessions(userId: string): StoredTerminalSession[] {
+    const runtimeIds = new Set(this.getWorkspace(userId).document.entries
+      .filter((entry) => entry.persistent)
+      .flatMap((entry) => entry.runtimeId ? [entry.runtimeId] : []));
+    return [...runtimeIds].flatMap((runtimeId) => {
+      const session = this.findSession(userId, runtimeId);
+      return session?.status === "interrupted" && session.mode === "agent" ? [session] : [];
+    });
   }
 
   getWorkspace(userId: string) {

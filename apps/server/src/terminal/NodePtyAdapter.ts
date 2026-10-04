@@ -38,7 +38,7 @@ export interface PtyProcess {
 }
 
 export interface PtyAdapter {
-  spawn(shell: string, args: string[], options: nodePty.IPtyForkOptions): PtyProcess;
+  spawn(shell: string, args: string[], options: nodePty.IPtyForkOptions & nodePty.IWindowsPtyForkOptions): PtyProcess;
 }
 
 export const nodePtyAdapter: PtyAdapter = {

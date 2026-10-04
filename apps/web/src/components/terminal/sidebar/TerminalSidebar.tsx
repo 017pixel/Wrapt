@@ -1,8 +1,7 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import type { TerminalEntry, TerminalKind, TerminalSession } from "@wrapt/contracts";
 import { useTerminalWorkspaceStore } from "../../../stores/terminalWorkspace";
-import { useWraptNotice } from "../../../stores/wraptNotice";
 import { ChevronLeftIcon, CloseIcon, ColumnsIcon, FolderTreeIcon, PinIcon, PlusIcon, SearchIcon, TerminalIcon } from "../../icons";
 import type { TerminalMeta } from "../terminal-types";
 import {
@@ -62,7 +61,7 @@ export function TerminalSidebar({ areaId, kind, meta, sessions, cwds, isMobile, 
   const [confirmDelete, setConfirmDelete] = useState<{ kind: "entry" | "folder" | "bulk"; id: string; name: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [bulkClosing, setBulkClosing] = useState(false);
-  const pendingNewFolderRef = useRef<string | null>(null);
+  const [bulkCloseError, setBulkCloseError] = useState<string | null>(null);
   const hoverPreview = useTerminalHoverPreview(!isMobile);
 
   const drop = useMemo(() => (drag: { kind: "entry" | "folder"; id: string }, target: DndDropTarget | null) => {
@@ -154,9 +153,7 @@ export function TerminalSidebar({ areaId, kind, meta, sessions, cwds, isMobile, 
     },
     onNewTerminal: (folderId) => onNewTerminalInFolder(folderId),
     onNewFolder: (parentFolderId) => {
-      if (!document) return;
-      queueOps(createFolderOps(document, parentFolderId, "Neuer Ordner"));
-      pendingNewFolderRef.current = parentFolderId;
+      createFolder(parentFolderId);
     },
     onRenameFolder: (folderId) => {
       const folder = document?.folders.find((candidate) => candidate.id === folderId);
@@ -186,11 +183,14 @@ export function TerminalSidebar({ areaId, kind, meta, sessions, cwds, isMobile, 
     onHoverEnd: (entryId) => hoverPreview.end(entryId),
   };
 
-  const createRootFolder = () => {
+  const createFolder = (parentId: string | null) => {
     if (!document) return;
-    queueOps(createFolderOps(document, null, "Neuer Ordner"));
-    pendingNewFolderRef.current = null;
+    const ops = createFolderOps(document, parentId, "Neuer Ordner");
+    queueOps(parentId ? [{ type: "updateFolder", id: parentId, patch: { collapsed: false } }, ...ops] : ops);
+    const created = ops.find((operation) => operation.type === "createFolder");
+    if (created?.type === "createFolder") { setEditing({ kind: "folder", id: created.folder.id }); setEditingValue(created.folder.name); }
   };
+  const createRootFolder = () => createFolder(null);
 
   const openTerminalMenu = (event: { clientX: number; clientY: number; preventDefault?: () => void; stopPropagation?: () => void }, title: string, actions: GlobalContextMenuAction[]) => {
     openGlobalContextMenu(event, { surface: "host.context-menu.terminal", title, actions });
@@ -242,9 +242,9 @@ export function TerminalSidebar({ areaId, kind, meta, sessions, cwds, isMobile, 
     const visit = (parentId: string) => {
       if (visited.has(parentId)) return;
       visited.add(parentId);
+      ops.push({ type: "updateFolder", id: parentId, patch: { collapsed } });
       for (const child of doc.folders.filter((candidate) => candidate.parentFolderId === parentId)) {
         if (visited.has(child.id)) continue;
-        ops.push({ type: "updateFolder", id: child.id, patch: { collapsed } });
         visit(child.id);
       }
     };
@@ -267,11 +267,13 @@ export function TerminalSidebar({ areaId, kind, meta, sessions, cwds, isMobile, 
     if (!confirmDelete || !document) return;
     if (confirmDelete.kind === "bulk") {
       if (bulkClosing) return;
+      setBulkCloseError(null);
       setBulkClosing(true);
       void closeNormalTerminalEntries(document.entries, sessions, queueOps)
-        .then((result) => {
-          if (result.failedNames.length > 0) useWraptNotice.getState().show(`${result.failedNames.length} Terminal${result.failedNames.length === 1 ? " konnte" : "e konnten"} nicht geschlossen werden.`);
+        .then(({ failedNames }) => {
+          if (failedNames.length) setBulkCloseError(`Terminals konnten nicht geschlossen werden: ${failedNames.join(", ")}.`);
         })
+        .catch(() => setBulkCloseError("Die Terminals konnten nicht geschlossen werden."))
         .finally(() => { setBulkClosing(false); setConfirmDelete(null); });
       return;
     }
@@ -294,11 +296,14 @@ export function TerminalSidebar({ areaId, kind, meta, sessions, cwds, isMobile, 
         className={`terminal-sidebar ${isMobile ? "is-drawer" : ""} ${open ? "is-open" : ""}`}
         style={{ "--terminal-sidebar-width": `${sidebarWidth}px` } as CSSProperties}
         aria-label="Terminal-Sidebar"
+        aria-hidden={isMobile && !open ? true : undefined}
+        inert={isMobile && !open}
         onContextMenu={(event) => {
           if ((event.target as Element).closest("[data-dnd]")) return;
           openTerminalMenu(event, "Terminals", buildRootMenu());
         }}
       >
+        {bulkCloseError ? <p className="px-3 py-2 text-sm text-bad" role="alert">{bulkCloseError}</p> : null}
         <div className="terminal-sidebar-header">
           <button type="button" className="terminal-sidebar-title-button" onClick={onToggleSidebar} aria-label="Terminal-Sidebar ausblenden" title="Terminal-Sidebar ausblenden">
             <TerminalIcon className="h-4 w-4" />

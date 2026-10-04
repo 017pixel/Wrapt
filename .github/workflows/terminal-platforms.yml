@@ -1,0 +1,64 @@
+name: Terminal-Plattformen
+
+on:
+  pull_request:
+    paths:
+      - "apps/server/src/terminal/**"
+      - "apps/server/src/config/**"
+      - "config/**"
+      - "apps/server/src/app/runtime-dependencies.ts"
+      - "apps/web/src/components/terminal/**"
+      - "apps/web/src/stores/terminalWorkspace*"
+      - "packages/contracts/**"
+      - "packages/extension-contracts/package.json"
+      - "apps/server/package.json"
+      - "apps/web/package.json"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/terminal-platforms.yml"
+  push:
+    branches: [master, main]
+    paths:
+      - "apps/server/src/terminal/**"
+      - "apps/server/src/config/**"
+      - "config/**"
+      - "apps/server/src/app/runtime-dependencies.ts"
+      - "apps/web/src/components/terminal/**"
+      - "apps/web/src/stores/terminalWorkspace*"
+      - "packages/contracts/**"
+      - "packages/extension-contracts/package.json"
+      - "apps/server/package.json"
+      - "apps/web/package.json"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/terminal-platforms.yml"
+
+concurrency:
+  group: terminal-platforms-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  terminal:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6.0.10
+        with:
+          version: 10.29.2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tmux
+      - if: runner.os == 'macOS'
+        run: brew install tmux
+      - run: pnpm test:terminal:platform

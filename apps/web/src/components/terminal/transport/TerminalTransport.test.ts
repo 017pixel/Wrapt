@@ -38,6 +38,45 @@ afterEach(() => {
   FakeWebSocket.instances.length = 0;
   vi.unstubAllGlobals();
   vi.resetModules();
+  vi.useRealTimers();
+});
+
+test("räumt beim letzten Detach sämtliche Transport-Timer auf", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("WebSocket", FakeWebSocket);
+  const { terminalTransport } = await import("./TerminalTransport");
+  const subscription = terminalTransport.subscribe("runtime-timers");
+  FakeWebSocket.instances[0]!.open();
+  expect(vi.getTimerCount()).toBe(1);
+  subscription.dispose();
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+test("verbindet einen Socket ohne Pong selbstständig erneut", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("WebSocket", FakeWebSocket);
+  const { terminalTransport } = await import("./TerminalTransport");
+  const { terminalHeartbeatIntervalMs, terminalHeartbeatTimeoutMs, terminalReconnectDelayMs } = await import("../terminal-constants");
+  const subscription = terminalTransport.subscribe("runtime-stalled");
+  FakeWebSocket.instances[0]!.open();
+  vi.advanceTimersByTime(terminalHeartbeatIntervalMs + terminalHeartbeatTimeoutMs + terminalReconnectDelayMs);
+  expect(FakeWebSocket.instances).toHaveLength(2);
+  subscription.dispose();
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+test("meldet socketweite Anmeldefehler allen betroffenen Terminals", async () => {
+  vi.stubGlobal("WebSocket", FakeWebSocket);
+  const { terminalTransport } = await import("./TerminalTransport");
+  const first = terminalTransport.subscribe("runtime-auth-a");
+  const second = terminalTransport.subscribe("runtime-auth-b");
+  const listener = vi.fn();
+  first.onMessage(listener);
+  second.onMessage(listener);
+  FakeWebSocket.instances[0]!.open();
+  FakeWebSocket.instances[0]!.emit({ type: "terminal.error", code: "FORBIDDEN", message: "Kein Zugriff" });
+  expect(listener).toHaveBeenCalledTimes(2);
+  first.dispose(); second.dispose();
 });
 
 test("teilt eine Runtime-Subscription zwischen Renderer und Preview", async () => {

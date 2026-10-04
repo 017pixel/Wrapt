@@ -2,6 +2,7 @@ import { createRequire } from "node:module";
 import type * as HeadlessModule from "@xterm/headless";
 import type * as SerializeModule from "@xterm/addon-serialize";
 import type { Terminal as BrowserTerminal } from "@xterm/xterm";
+import { terminalCwdFromOsc } from "@wrapt/contracts";
 
 // @xterm/headless und @xterm/addon-serialize sind CommonJS-Bundles ohne
 // benannte ESM-Exports. Der createRequire-Weg lädt sie zuverlässig im
@@ -32,12 +33,18 @@ export interface HeadlessSnapshot {
  * Snapshot lückenlos mit Deltas fortfahren.
  */
 export class HeadlessTerminal {
-  private readonly terminal: InstanceType<typeof Terminal>;
-  private readonly serialize: InstanceType<typeof SerializeAddon>;
+  private terminal!: InstanceType<typeof Terminal>;
+  private serialize!: InstanceType<typeof SerializeAddon>;
   private parsed = 0;
+  private queued = 0;
   private generation = 0;
+  private readonly parsedListeners = new Map<number, Set<() => void>>();
 
-  constructor(cols: number, rows: number) {
+  constructor(cols: number, rows: number, private readonly onCwd?: (cwd: string) => void) {
+    this.initialize(cols, rows);
+  }
+
+  private initialize(cols: number, rows: number): void {
     this.terminal = new Terminal({
       cols,
       rows,
@@ -49,6 +56,13 @@ export class HeadlessTerminal {
     // Das Serialize-Addon ist gegen das Browser-xterm typisiert; der Headless-
     // Terminal ist strukturell ausreichend (buffer, modes, options).
     this.serialize.activate(this.terminal as unknown as BrowserTerminal);
+    for (const identifier of [7, 9] as const) {
+      this.terminal.parser.registerOscHandler(identifier, (value) => {
+        const cwd = terminalCwdFromOsc(identifier, value);
+        if (cwd) this.onCwd?.(cwd);
+        return cwd !== null;
+      });
+    }
   }
 
   get cols(): number { return this.terminal.cols; }
@@ -60,23 +74,50 @@ export class HeadlessTerminal {
    *  Sequenz enthält garantiert genau diesen Zustand — xterm puffert `write`
    *  asynchron, die Callbacks feuern aber in Write-Reihenfolge. */
   get parsedSequence(): number { return this.parsed; }
+  get queuedSequence(): number { return this.queued; }
 
   write(data: string, sequence: number): void {
+    this.queued = Math.max(this.queued, sequence);
     const generation = this.generation;
     this.terminal.write(data, () => {
       // Callbacks aus einer älteren Generation (vor reset/restart) dürfen den
       // Stand nicht mehr verändern, sonst läuft die Sequenz der Session davon.
       if (generation !== this.generation) return;
       if (sequence > this.parsed) this.parsed = sequence;
+      for (const [target, listeners] of this.parsedListeners) {
+        if (target > this.parsed) continue;
+        this.parsedListeners.delete(target);
+        for (const listener of listeners) listener();
+      }
     });
+  }
+
+  /** Wartet bei einem überlaufenen Delta-Journal auf einen vollständigen Stand. */
+  afterParsed(sequence: number, listener: () => void): void {
+    if (this.parsed >= sequence) { listener(); return; }
+    const listeners = this.parsedListeners.get(sequence) ?? new Set();
+    listeners.add(listener);
+    this.parsedListeners.set(sequence, listeners);
   }
 
   resize(cols: number, rows: number): void { this.terminal.resize(cols, rows); }
 
   reset(sequence: number): void {
+    const { cols, rows } = this.terminal;
     this.generation += 1;
-    this.terminal.reset();
+    // reset() leert den Bildschirm, aber nicht xterms asynchrone Write-Queue.
+    // Eine frische Emulation verhindert Ausgabe aus der alten Generation.
+    this.dispose();
+    this.initialize(cols, rows);
     this.parsed = sequence;
+    this.queued = sequence;
+  }
+
+  dispose(): void {
+    this.generation += 1;
+    this.parsedListeners.clear();
+    this.serialize.dispose();
+    this.terminal.dispose();
   }
 
   /** Serialisiert den kompletten Terminalzustand inklusive Cursor. */
@@ -95,8 +136,8 @@ export class HeadlessTerminal {
 }
 
 /** Erstellt einen Headless-Terminal mit sicheren Standard-Geometrien. */
-export function createHeadlessTerminal(cols: number, rows: number): HeadlessTerminal {
+export function createHeadlessTerminal(cols: number, rows: number, onCwd?: (cwd: string) => void): HeadlessTerminal {
   const safeCols = Math.max(2, Math.min(500, Math.trunc(cols || 120)));
   const safeRows = Math.max(1, Math.min(300, Math.trunc(rows || 30)));
-  return new HeadlessTerminal(safeCols, safeRows);
+  return new HeadlessTerminal(safeCols, safeRows, onCwd);
 }

@@ -19,6 +19,7 @@ export interface RendererCore {
  *  Snapshot/Deltas-Logik ist isoliert testbar. */
 export function createRendererCore(refs: RendererRefs, deps: RendererCoreDeps): RendererCore {
   const { terminalRef, fitRef, sessionRef, epochRef, sequenceRef, ownsGeometryRef, hasLiveStateRef, snapshotReplayRef, mouseTrackingRef, disposedRef, closedRef, createRetriesRef, subscriptionRef, cwdRef } = refs;
+  let snapshotGeneration = 0;
 
   /** Liest den tatsächlichen Maus-Modus direkt aus der xterm-Emulation. */
   const syncMouseModes = () => {
@@ -36,6 +37,8 @@ export function createRendererCore(refs: RendererRefs, deps: RendererCoreDeps): 
   };
 
   const resync = () => {
+    if (!subscriptionRef.current) attach();
+    if (!sessionRef.current) { createSession(); return; }
     deps.sendMessage({ type: "terminal.sync", runtimeId: deps.instanceId, state: { epoch: epochRef.current, lastSequence: sequenceRef.current } });
   };
 
@@ -76,7 +79,6 @@ export function createRendererCore(refs: RendererRefs, deps: RendererCoreDeps): 
         sessionRef.current = message.sessionId;
         cwdRef.current = message.cwd;
         deps.setCwd(message.cwd);
-        deps.reportMeta({ status: "connected" });
         subscribeNow();
         break;
       }
@@ -89,28 +91,37 @@ export function createRendererCore(refs: RendererRefs, deps: RendererCoreDeps): 
         cwdRef.current = message.cwd;
         deps.setCwd(message.cwd);
         createRetriesRef.current = 0;
-        applyGeometry(message.cols, message.rows, message.ownsGeometry);
-        if (message.status === "exited") { deps.setStatus("exited"); deps.reportMeta({ status: "exited" }); break; }
-        deps.setStatus("connected");
+        deps.setError(null);
+        deps.resetOutput();
         snapshotReplayRef.current = true;
-        terminal.reset();
+        const generation = ++snapshotGeneration;
+        // Das Snapshot-Raster zuerst unverändert wiedergeben. Ein Fit vor
+        // write würde den alten Bildschirm in die neue Breite umbrechen.
+        ownsGeometryRef.current = message.ownsGeometry;
+        terminal.resize(message.cols, message.rows);
         // Der serialisierte Zustand enthält den exakten Bildschirm inklusive
         // Alternate Screen, Maus-Modi und Cursor — kein manuelles Raten mehr.
         const finishSnapshot = () => {
+          if (disposedRef.current || terminalRef.current !== terminal || epochRef.current !== message.epoch || snapshotGeneration !== generation) return;
           snapshotReplayRef.current = false;
           syncMouseModes();
+          applyGeometry(message.cols, message.rows, message.ownsGeometry);
           deps.flushReplayBuffer();
-          deps.reportMeta({ status: "connected" });
+          const status = message.status === "running" ? "connected" : "exited";
+          deps.setStatus(status);
+          deps.reportMeta({ status });
         };
         // Ein frisch gestartetes PTY kann noch ohne Ausgabe sein. xterm ruft
         // den Write-Callback für einen leeren String nicht zuverlässig auf;
         // der Renderer darf dann trotzdem nicht im Status „connecting“ hängen.
-        if (message.serialized) terminal.write(message.serialized, finishSnapshot);
-        else finishSnapshot();
+        // RIS wird zusammen mit dem Snapshot geordnet geparst. Ein direkter
+        // reset() würde bereits eingereihte alte Writes nicht entfernen.
+        terminal.write(`\x1bc${message.serialized}`, finishSnapshot);
         break;
       }
       case "terminal.deltas": {
         if (!terminal) return;
+        sessionRef.current = message.sessionId;
         epochRef.current = message.epoch;
         let output = "";
         for (const delta of message.deltas) {
@@ -118,10 +129,13 @@ export function createRendererCore(refs: RendererRefs, deps: RendererCoreDeps): 
           sequenceRef.current = delta.sequence;
           output += delta.data;
         }
-        if (output) terminal.write(output);
-        syncMouseModes();
+        if (output) deps.queueOutput(output);
         hasLiveStateRef.current = true;
-        deps.reportMeta({ status: "connected" });
+        deps.setError(null);
+        if (!snapshotReplayRef.current) {
+          deps.setStatus("connected");
+          deps.reportMeta({ status: "connected" });
+        }
         break;
       }
       case "terminal.output": {
@@ -136,7 +150,8 @@ export function createRendererCore(refs: RendererRefs, deps: RendererCoreDeps): 
       case "terminal.cwd": cwdRef.current = message.cwd; deps.setCwd(message.cwd); deps.reportMeta({}); break;
       case "terminal.cleared": {
         sequenceRef.current = Math.max(sequenceRef.current, message.sequence);
-        terminal?.reset();
+        deps.resetOutput();
+        terminal?.write("\x1bc", syncMouseModes);
         break;
       }
       case "terminal.exited": {

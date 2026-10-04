@@ -1,7 +1,7 @@
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { TerminalManager } from "./Manager.js";
 import type { PtyProcess } from "./NodePtyAdapter.js";
 import type { ServerTerminalMessage, TerminalDelta } from "./protocol.js";
@@ -10,12 +10,14 @@ class FakePty implements PtyProcess {
   pid = 4242;
   writes: string[] = [];
   private data: ((data: string) => void) | undefined;
+  private exit: ((event: { exitCode: number }) => void) | undefined;
   write(data: string) { this.writes.push(data); }
   resize() {}
   kill() {}
   onData(callback: (data: string) => void) { this.data = callback; return { dispose: () => { this.data = undefined; } }; }
-  onExit() { return { dispose: () => {} }; }
+  onExit(callback: (event: { exitCode: number }) => void) { this.exit = callback; return { dispose: () => { this.exit = undefined; } }; }
   output(data: string) { this.data?.(data); }
+  end() { this.exit?.({ exitCode: 0 }); }
 }
 
 let manager: TerminalManager | undefined;
@@ -31,6 +33,41 @@ async function setup() {
 }
 
 describe("Terminal V2 Sync-Protokoll", () => {
+  it("liefert nach Journalüberlauf und anschließendem Exit einen vollständigen Endzustand", async () => {
+    const { pty, session, manager: terminal } = await setup();
+    for (let index = 0; index < 500; index += 1) pty.output(`exit-burst-${index}\r\n`);
+    pty.end();
+    const received: ServerTerminalMessage[] = [];
+    terminal.attachSession("owner", session.id, (message) => received.push(message), "ended");
+    await vi.waitFor(() => {
+      const snapshot = received.find((message) => message.type === "terminal.snapshot");
+      expect(snapshot).toMatchObject({ sequence: 501, status: "exited" });
+      if (snapshot?.type === "terminal.snapshot") expect(snapshot.serialized).toContain("exit-burst-499");
+    });
+  });
+  it("liefert einen vollständigen Snapshot nach einem Burst über die Journalgrenze", async () => {
+    const { pty, session, manager: terminal } = await setup();
+    for (let index = 0; index < 500; index += 1) pty.output(`burst-${index}\r\n`);
+    const received: ServerTerminalMessage[] = [];
+    terminal.attachSession("owner", session.id, (message) => received.push(message), "burst");
+    await vi.waitFor(() => {
+      const snapshot = received.find((message) => message.type === "terminal.snapshot");
+      expect(snapshot).toMatchObject({ sequence: 500 });
+      if (snapshot?.type === "terminal.snapshot") expect(snapshot.serialized).toContain("burst-499");
+    });
+  });
+
+  it("liefert Ausgabe vor dem ersten Attach auch bei noch ungeparstem Headless-Zustand", async () => {
+    const { pty, session, manager: terminal } = await setup();
+    pty.output("sofortiger-prompt\r\n");
+    const received: ServerTerminalMessage[] = [];
+    terminal.attachSession("owner", session.id, (message) => received.push(message), "first");
+    const snapshot = received.find((message) => message.type === "terminal.snapshot");
+    expect(snapshot).toBeDefined();
+    const output = received.filter((message) => message.type === "terminal.deltas").flatMap((message) => message.deltas);
+    expect(output).toEqual([{ sequence: 1, data: "sofortiger-prompt\r\n" }]);
+  });
+
   it("liefert einem Client mit konsistentem Zustand Deltas statt eines vollen Snapshots", async () => {
     const { pty, session, manager: terminal } = await setup();
     const first: ServerTerminalMessage[] = [];

@@ -18,6 +18,21 @@ afterEach(async () => {
 });
 
 describe("terminal websocket route", () => {
+  it("ordnet asynchrone Startfehler der auslösenden Runtime zu", async () => {
+    const app = Fastify();
+    apps.push(app);
+    const manager = new TerminalManager({ allowedRoots: ["/tmp"], defaultCwd: "/tmp", maxSessions: 1 });
+    await app.register(websocket);
+    await app.register(registerTerminalRoutes, { prefix: "/api/v1", manager, allowedUsers: ["terminal-test@example.com"] });
+    await app.ready();
+    const socket = await app.injectWS("/api/v1/terminal", { headers: { "tailscale-user-login": "terminal-test@example.com", origin: "http://localhost", host: "localhost", "x-forwarded-proto": "http" } });
+    const reply = new Promise((resolve) => socket.once("message", (data: Buffer) => resolve(JSON.parse(data.toString()))));
+    const runtimeId = "00000000-0000-4000-8000-000000000019";
+    socket.send(JSON.stringify({ type: "terminal.create", requestId: "invalid-cwd", runtimeId, cwd: "/", cols: 80, rows: 24 }));
+    await expect(reply).resolves.toMatchObject({ type: "terminal.error", code: "INVALID_CWD", runtimeId });
+    socket.terminate(); manager.shutdown();
+  });
+
   it("uses the direct WebSocket API exposed by @fastify/websocket v11", async () => {
     const app = Fastify();
     apps.push(app);

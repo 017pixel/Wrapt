@@ -214,7 +214,7 @@ function ToolNode({ id, selected }: { id: string; selected: boolean }) {
           isFocused={selected}
           minimal
           terminalRenderScale={zoom}
-          terminalSessionId={node.runtimeId}
+          terminalRuntimeId={node.runtimeId}
           onFocus={() => focusNode(id)}
         />
       </div>

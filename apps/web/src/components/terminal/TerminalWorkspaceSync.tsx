@@ -51,6 +51,7 @@ export function TerminalWorkspaceSync() {
 
   useEffect(() => {
     let active = true;
+    let retry: number | null = null;
     const load = async () => {
       try {
         const response = await loadWorkspaceV2();
@@ -64,10 +65,11 @@ export function TerminalWorkspaceSync() {
       } catch (error: unknown) {
         if (!active) return;
         useTerminalWorkspaceStore.getState().markSyncError(error instanceof Error ? error.message : "Terminal-Layout konnte nicht geladen werden.");
+        retry = window.setTimeout(() => { retry = null; void load(); }, POLL_INTERVAL_MS);
       }
     };
     void load();
-    return () => { active = false; };
+    return () => { active = false; if (retry !== null) window.clearTimeout(retry); };
   }, []);
 
   useEffect(() => {

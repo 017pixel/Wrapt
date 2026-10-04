@@ -115,7 +115,21 @@ export async function registerTerminalRoutes(app: FastifyInstance, options: {
     }
     const service = new TerminalWorkspaceService();
     const updated = service.applyOperations(current.document, parsed.operations);
-    return options.database.saveWorkspace(userId, updated, parsed.expectedRevision);
+    const saved = options.database.saveWorkspace(userId, updated, parsed.expectedRevision);
+    // Ein gelöschter Eintrag beendet seine Sitzung. Nur das Layout zu löschen
+    // ließ bislang unsichtbare Prozesse und belegte Quoten zurück.
+    for (const operation of parsed.operations) {
+      if (operation.type !== "deleteEntry") continue;
+      const entry = current.document.entries.find((candidate) => candidate.id === operation.id);
+      if (!entry?.runtimeId || updated.entries.some((candidate) => candidate.runtimeId === entry.runtimeId)) continue;
+      try {
+        const session = options.manager.resolveRuntime(userId, entry.runtimeId);
+        options.manager.closeSession(userId, session.id);
+      } catch (error) {
+        if (!(error instanceof TerminalFailure && error.code === "SESSION_NOT_FOUND")) throw error;
+      }
+    }
+    return saved;
   });
   app.post("/terminal/sessions/:sessionId/restart", async (request) => {
     const userId = httpIdentity(request, identityOptions);
@@ -173,7 +187,12 @@ export async function registerTerminalRoutes(app: FastifyInstance, options: {
                 ...(message.cwd !== undefined ? { cwd: message.cwd } : projectCwd !== undefined ? { cwd: projectCwd } : {}),
               });
             })();
-            void session.then((created) => send({ type: "terminal.created", requestId: message.requestId, sessionId: created.id, runtimeId: created.runtimeId, kind: created.kind, projectId: created.projectId, status: created.status, cwd: created.cwd, pid: created.pid })).catch((error) => send({ type: "terminal.error", ...errorMessage(error) }));
+            void session.then((created) => {
+              send({ type: "terminal.created", requestId: message.requestId, sessionId: created.id, runtimeId: created.runtimeId, kind: created.kind, projectId: created.projectId, status: created.status, cwd: created.cwd, pid: created.pid });
+              // Eine während des Starts geschlossene Verbindung darf keine
+              // verwaiste Geometrie-Eigentümerschaft zurücklassen.
+              if (socket.readyState !== 1) options.manager.detachClient(userId, clientId);
+            }).catch((error) => send({ type: "terminal.error", ...(message.runtimeId ? { runtimeId: message.runtimeId } : {}), ...errorMessage(error) }));
             break;
           }
           case "terminal.attach": {
@@ -214,7 +233,7 @@ export async function registerTerminalRoutes(app: FastifyInstance, options: {
             options.manager.resizeSession(userId, message.sessionId, message.cols, message.rows, clientId);
             break;
           case "terminal.clear": options.manager.clearSessionHistory(userId, message.sessionId); break;
-          case "terminal.restart": void options.manager.restartSession(userId, message.sessionId).catch((error) => send({ type: "terminal.error", ...errorMessage(error) })); break;
+          case "terminal.restart": void options.manager.restartSession(userId, message.sessionId).catch((error) => send({ type: "terminal.error", sessionId: message.sessionId, ...errorMessage(error) })); break;
           case "terminal.close": {
             const session = options.manager.resolveSession(userId, message.sessionId);
             const runtimeId = session.runtimeId;
@@ -229,13 +248,15 @@ export async function registerTerminalRoutes(app: FastifyInstance, options: {
         // auslösenden Clients, damit der Transport ihn der richtigen
         // Subscription zuordnen kann (z. B. SESSION_NOT_FOUND beim Subscribe).
         let runtimeId: string | undefined;
+        let sessionId: string | undefined;
         try {
           const rawMessage = typeof raw === "string" ? JSON.parse(raw) : Buffer.isBuffer(raw) ? JSON.parse(raw.toString()) : null;
           if (rawMessage && typeof rawMessage === "object" && "runtimeId" in rawMessage && typeof (rawMessage as { runtimeId?: unknown }).runtimeId === "string") {
             runtimeId = (rawMessage as { runtimeId: string }).runtimeId;
           }
+          if (typeof rawMessage?.sessionId === "string") sessionId = rawMessage.sessionId;
         } catch { /* Ohne Runtime-ID bleibt der Fehler socketweit. */ }
-        send({ type: "terminal.error", ...(runtimeId ? { runtimeId } : {}), ...errorMessage(error) });
+        send({ type: "terminal.error", ...(runtimeId ? { runtimeId } : {}), ...(sessionId ? { sessionId } : {}), ...errorMessage(error) });
       }
     });
     socket.on("close", () => {

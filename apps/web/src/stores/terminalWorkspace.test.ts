@@ -134,3 +134,18 @@ describe("terminalAreaView", () => {
     expect(second.tabs).toBe(first.tabs);
   });
 });
+
+it("übernimmt nur absolute Arbeitsverzeichnisse und bewahrt den letzten gültigen Pfad", () => {
+  const store = useTerminalWorkspaceStore.getState();
+  store.setRuntimeCwd("cwd-test", "/tmp/agenten");
+  store.setRuntimeCwd("cwd-test", "–");
+  store.setRuntimeCwd("cwd-test", "relativ");
+  expect(useTerminalWorkspaceStore.getState().runtimeCwds["cwd-test"]).toBe("/tmp/agenten");
+});
+
+it.each(["C:\\Users\\test\\Projekt", "D:/Arbeit/Projekt", "\\\\server\\share\\Projekt"])("bewahrt Windows-CWD %s für neue Split-Terminals", (cwd) => {
+  const store = useTerminalWorkspaceStore.getState();
+  store.setRuntimeCwd("windows-runtime", cwd);
+  store.setRuntimeCwd("windows-runtime", "C:relativ");
+  expect(useTerminalWorkspaceStore.getState().runtimeCwds["windows-runtime"]).toBe(cwd);
+});

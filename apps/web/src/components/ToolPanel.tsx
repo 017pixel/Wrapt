@@ -3,8 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
 import { ExternalLinkIcon, WarningIcon } from "./icons";
 import type { Panel, Project, ServiceMode } from "@wrapt/contracts";
-import { WRAPT_LIMITS } from "@wrapt/contracts";
-import { useWraptNotice } from "../stores/wraptNotice";
 import { useLayoutStore } from "../stores/layout";
 import { DevicePreviewFrame } from "./DevicePreviewFrame";
 import type { DeviceOrientation, DevicePresetId } from "../config/devicePresets";
@@ -52,11 +50,11 @@ interface ToolPanelProps {
   onClose?: () => void;
   minimal?: boolean;
   terminalRenderScale?: number;
-  terminalSessionId?: string | null;
+  terminalRuntimeId?: string | null;
   actionPlacement?: "overlay" | "topbar" | "hidden";
 }
 
-export function ToolPanel({ panel, project, isFocused, codeServerMode = "external", codeServerState, onFocus, standalone = false, externalMaximized, onMaximizedChange, onReload, onClose, minimal = false, terminalRenderScale = 1, terminalSessionId = null, actionPlacement = "overlay" }: ToolPanelProps) {
+export function ToolPanel({ panel, project, isFocused, codeServerMode = "external", codeServerState, onFocus, standalone = false, externalMaximized, onMaximizedChange, onReload, onClose, minimal = false, terminalRenderScale = 1, terminalRuntimeId = null, actionPlacement = "overlay" }: ToolPanelProps) {
   const openPanel = useLayoutStore((s) => s.openPanel);
   const reloadPanel = useLayoutStore((s) => s.reloadPanel);
   const closePanel = useLayoutStore((s) => s.closePanel);
@@ -123,13 +121,11 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
         window.location.assign(`/code-editor/?${params.toString()}`);
         return;
       }
-      if (openPanel({
+      openPanel({
         type: "code-server",
         projectId: panel.projectId,
         ...(folder ? { codeServerFolder: folder } : {}),
-      }) === null) {
-        useWraptNotice.getState().show(`Es können höchstens ${WRAPT_LIMITS.maxResidentTools} Werkzeuge gleichzeitig geöffnet sein. Schließe zuerst ein Panel.`);
-      }
+      });
     };
     window.addEventListener("message", handleT3EditorRequest);
     return () => window.removeEventListener("message", handleT3EditorRequest);
@@ -320,7 +316,7 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
               kind={panel.type === "terminal" ? "shell" : panel.type}
               renderScale={terminalRenderScale}
               minimal={minimal}
-              requestedSessionId={terminalSessionId}
+              requestedRuntimeId={terminalRuntimeId}
             />
           </div>
         ) : panel.type === "hermes" ? (

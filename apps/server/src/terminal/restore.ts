@@ -6,7 +6,7 @@ import type { TerminalDatabase, StoredTerminalSession } from "./database.js";
 import type { TmuxSupervisor } from "./TmuxSupervisor.js";
 import { GeometryLease } from "./runtime/GeometryLease.js";
 import { OutputJournal } from "./runtime/OutputJournal.js";
-import { TerminalFailure, type TerminalSession } from "./session.js";
+import { STALE_SESSION_TTL_MS, TerminalFailure, type TerminalSession } from "./session.js";
 
 /**
  * Kanonisiert einen Pfad und verlangt, dass das realpath-Ziel in einer der
@@ -53,11 +53,15 @@ export function reconcileTerminalSessionsOnStartup(deps: {
   defaultCwd: string;
   allowedRoots: string[];
 }): void {
+  const activeSupervisorNames = new Set(deps.supervisor?.list().map((session) => session.name) ?? []);
   if (deps.supervisor) {
-    deps.database?.reconcileSupervisorSessions(new Set(deps.supervisor.list().map((session) => session.name)));
+    deps.database?.reconcileSupervisorSessions(activeSupervisorNames);
   } else {
     deps.database?.markRunningSessionsInterrupted();
   }
+  // Alte, unsichtbare Zeilen ohne Workspace-Bezug und ohne lebenden Supervisor
+  // sammeln sich sonst unbegrenzt in der Registry an.
+  deps.database?.purgeStaleSessions(activeSupervisorNames, STALE_SESSION_TTL_MS);
   if (deps.externalSessionOwnerId) {
     importSupervisorSessions(deps.externalSessionOwnerId, {
       supervisor: deps.supervisor,
@@ -93,8 +97,9 @@ export function reserveSessionSlot(
   session: TerminalSession,
   limits: { overall: number; kind: number },
   kindLabel: string,
+  activeSupervisorNames: ReadonlySet<string> = new Set(),
 ): void {
-  const reservation = database.tryReserveSession(session, limits);
+  const reservation = database.tryReserveSession(session, limits, activeSupervisorNames);
   if (reservation === "reserved") return;
   throw new TerminalFailure(
     "TOO_MANY_SESSIONS",

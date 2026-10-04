@@ -154,12 +154,6 @@ export function themeFromDashboard(mount: HTMLElement | null): ITheme {
   };
 }
 
-export function websocketUrl(): string {
-  const url = new URL("/api/v1/terminal", window.location.origin);
-  url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-  return url.toString();
-}
-
 export function createUuid(): string {
   try {
     return crypto.randomUUID();

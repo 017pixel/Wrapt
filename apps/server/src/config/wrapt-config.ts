@@ -4,11 +4,12 @@ import { ensureWraptLocalConfig, migrateLegacyConfigValue, migrateLegacyPersiste
 import { join } from "node:path";
 import { appearanceThemeSchema, codexResetHistorySettingsSchema, contextMenuConfigSchema, dashboardConfigSchema, defaultAppearanceTheme, mascotConfigSchema, notificationPreferencesSchema, t3ChannelSchema, usageMonitoringSchema, type AppearanceTheme, type CodexResetHistorySettings, type ContextMenuConfig, type MascotConfig, type NotificationPreferences, type T3Channel, type UsageMonitoring } from "@wrapt/contracts";
 import { z } from "zod";
+import { absoluteFilesystemPathSchema } from "@wrapt/contracts";
 import { persistLocalConfig } from "./config-persistence.js";
 import { resolveInstanceName } from "./instance-name.js";
 import { isLoopbackHost } from "./loopback.js";
 
-const absolutePath = z.string().startsWith("/");
+const absolutePath = absoluteFilesystemPathSchema;
 
 function defaultLocalUsername(): string {
   try { return userInfo().username.trim() || "local-user"; }
@@ -64,6 +65,9 @@ export const wraptConfigSchema = z.object({
     claude: z.string().min(1),
     tmux: absolutePath,
   }),
+  terminal: z.object({
+    shell: z.object({ file: z.string().min(1).optional(), args: z.array(z.string()).optional() }).prefault({}),
+  }).prefault({}),
   codexbar: z.object({
     configPath: absolutePath,
     oauthProfileHomes: z.array(absolutePath),
@@ -88,7 +92,7 @@ export const wraptConfigSchema = z.object({
     agentRunIdleSeconds: z.number().int().min(5).max(3_600).default(45),
     // Ein finaler T3-Turn wird erst gemeldet, wenn sein Zustand so lange
     // unverändert bleibt. T3 korrigiert transiente Fehler innerhalb weniger
-    // Sekunden; ohne dieses Fenster entstehen falsche „fehlgeschlagen"-Toasts.
+    // Sekunden; ohne dieses Fenster entstehen falsche Fehlermeldungen.
     finalSettleSeconds: z.number().int().min(0).max(300).default(10),
     // Weitere T3-Instanzen, deren Thread-Status über SSH mitgelesen wird. Jede
     // Quelle braucht passwortlosen SSH-Zugang (Key) und python3 auf dem Ziel.
@@ -206,6 +210,11 @@ export const wraptConfigSchema = z.object({
     stopTimeoutSeconds: z.number().int().positive().default(20),
     portTimeoutSeconds: z.number().int().positive().default(30),
     healthTimeoutSeconds: z.number().int().positive().default(60),
+    // Puffer des /t3-WebSocket-Proxys. Die Orchestrierung V2 schickt beim
+    // Verbindungsaufbau große Snapshots; zu enge Grenzen kappen die Verbindung
+    // und lösen eine Reconnect-/Sync-Schleife aus.
+    websocketPendingBytes: z.number().int().min(65_536).max(268_435_456).default(4 * 1024 * 1024),
+    websocketBufferedBytes: z.number().int().min(131_072).max(536_870_912).default(16 * 1024 * 1024),
     // prefault statt default: Fehlt der Abschnitt ganz, wird ein leeres Objekt geparst
     // und die Feld-Defaults greifen — sonst müsste hier jeder Wert ausgeschrieben werden.
   }).prefault({}),

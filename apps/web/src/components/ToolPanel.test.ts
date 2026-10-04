@@ -9,6 +9,9 @@ import { ToolPanel } from "./ToolPanel";
 import { RouteActivityProvider } from "../lib/routeActivity";
 import { useLayoutStore } from "../stores/layout";
 
+// Diese Suite prüft Werkzeug-Routing; xterms Canvas wird separat verifiziert.
+vi.mock("./terminal/TerminalArea", () => ({ TerminalArea: () => null }));
+
 const queryClients = new Set<QueryClient>();
 
 function render(ui: Parameters<typeof renderWithTestingLibrary>[0]) {

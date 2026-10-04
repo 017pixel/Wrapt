@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { expect, test, vi } from "vitest";
 import type { Terminal } from "@xterm/xterm";
 import type { RendererCoreDeps, RendererRefs } from "./rendererTypes";
@@ -19,7 +20,7 @@ function setupCore() {
     modes: { mouseTrackingMode: "none" },
     reset: vi.fn(),
     resize: vi.fn(),
-    write: vi.fn(),
+    write: vi.fn((_data: string, callback?: () => void) => callback?.()),
   } as unknown as Terminal;
   const refs = {
     terminalRef: ref<Terminal | null>(terminal),
@@ -39,7 +40,6 @@ function setupCore() {
     closedRef: ref(false),
     createRetriesRef: ref(0),
     subscriptionRef: ref(null),
-    resizeFrameRef: ref<number | null>(null),
     cwdRef: ref("–"),
   } as RendererRefs;
   const deps = {
@@ -56,6 +56,7 @@ function setupCore() {
     setRestartBanner: vi.fn(),
     reportMeta: vi.fn(),
     queueOutput: vi.fn(),
+    resetOutput: vi.fn(),
     flushReplayBuffer: vi.fn(),
     fitAndReport: vi.fn(),
   } satisfies RendererCoreDeps;
@@ -107,8 +108,32 @@ test("beendet die Snapshot-Wiedergabe auch bei leerem Startzustand", () => {
     serialized: "",
   });
 
-  expect(terminal.write).not.toHaveBeenCalled();
+  expect(terminal.write).toHaveBeenCalledWith("\x1bc", expect.any(Function));
   expect(refs.snapshotReplayRef.current).toBe(false);
   expect(deps.flushReplayBuffer).toHaveBeenCalledOnce();
   expect(deps.setStatus).toHaveBeenCalledWith("connected");
+});
+
+test("bestätigt einen leeren Delta-Sync als verbunden und übernimmt die Session", () => {
+  const { core, refs, deps } = setupCore();
+  core.handleMessage({ type: "terminal.deltas", sessionId: "session-1", runtimeId: "runtime-1", epoch: 0, startSequence: 1, deltas: [] });
+  expect(refs.sessionRef.current).toBe("session-1");
+  expect(deps.setStatus).toHaveBeenCalledWith("connected");
+  expect(deps.setError).toHaveBeenCalledWith(null);
+});
+
+test("hält nachgelieferte und live empfangene Ausgabe im selben geordneten Puffer", () => {
+  const { core, deps } = setupCore();
+  core.handleMessage({ type: "terminal.output", sessionId: "session-1", sequence: 1, data: "eins" });
+  core.handleMessage({ type: "terminal.deltas", sessionId: "session-1", runtimeId: "runtime-1", epoch: 0, startSequence: 2, deltas: [{ sequence: 2, data: "zwei" }] });
+  expect(deps.queueOutput.mock.calls).toEqual([["eins"], ["zwei"]]);
+});
+
+ test("ordnet Clear hinter bereits eingereihter Ausgabe ein", () => {
+  const { core, terminal, deps } = setupCore();
+  terminal.write("alte Ausgabe");
+  core.handleMessage({ type: "terminal.cleared", sessionId: "session-1", sequence: 2 });
+  expect(deps.resetOutput).toHaveBeenCalledOnce();
+  expect(terminal.reset).not.toHaveBeenCalled();
+  expect(vi.mocked(terminal.write).mock.calls.map(([data]) => data)).toEqual(["alte Ausgabe", "\x1bc"]);
 });

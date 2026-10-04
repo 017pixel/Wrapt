@@ -17,6 +17,6 @@ export function useTerminalResponsiveLayout() {
     hasTouchControls: responsive.isTouchShell,
     sidebarVisible,
     setSidebarVisible,
-    showSingleMobilePane: isMobile && responsive.orientation === "portrait",
+    showSingleMobilePane: isMobile,
   };
 }

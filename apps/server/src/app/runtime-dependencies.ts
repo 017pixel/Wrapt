@@ -22,6 +22,8 @@ export function createRuntimeDependencies(options: RuntimeDependencyOptions) {
   const terminals = new TerminalManager({
     allowedRoots: settings.terminalAllowedRoots,
     defaultCwd: settings.terminalDefaultCwd,
+    homeDirectory: settings.systemHomeDirectory,
+    shell: settings.terminalShell,
     maxSessions: settings.terminalMaxSessions + settings.codexMaxSessions + settings.opencodeMaxSessions + settings.claudeMaxSessions,
     maxSessionsByKind: {
       shell: settings.terminalMaxSessions,
@@ -31,6 +33,7 @@ export function createRuntimeDependencies(options: RuntimeDependencyOptions) {
     },
     cliPaths: { codex: settings.codexCliPath, opencode: settings.opencodeCliPath, claude: settings.claudeCliPath },
     database: options.terminalDatabase,
+    persistentSessionOwners: settings.terminalAllowedUsers,
     onOutput: (session, data) => options.terminalStatusSync.noteOutput(session, data),
     onInput: (session) => options.terminalStatusSync.resolveWaiting(session.kind, session.id),
     ...(terminalSupervisor ? { supervisor: terminalSupervisor } : {}),

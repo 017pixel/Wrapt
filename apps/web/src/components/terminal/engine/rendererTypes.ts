@@ -58,7 +58,6 @@ export interface RendererRefs {
   closedRef: MutableRefObject<boolean>;
   createRetriesRef: MutableRefObject<number>;
   subscriptionRef: MutableRefObject<TerminalSubscription | null>;
-  resizeFrameRef: MutableRefObject<number | null>;
   cwdRef: MutableRefObject<string>;
 }
 
@@ -77,6 +76,7 @@ export interface RendererCoreDeps {
   setRestartBanner(banner: { message: string } | null): void;
   reportMeta(patch: Partial<TerminalMeta>): void;
   queueOutput(data: string): void;
+  resetOutput(): void;
   flushReplayBuffer(): void;
   fitAndReport(): void;
 }

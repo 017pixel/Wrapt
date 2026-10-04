@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { absoluteFilesystemPathSchema } from "@wrapt/contracts";
 
 export const integerFromEnvironment = (fallback: number) =>
   z.preprocess(
@@ -20,7 +21,7 @@ export const booleanFromEnvironment = (fallback: boolean) =>
 
 export const profileHomesFromEnvironment = z.preprocess(
   (value) => (typeof value === "string" && value.length > 0 ? value.split(",").map((path) => path.trim()).filter(Boolean) : []),
-  z.array(z.string().startsWith("/")),
+  z.array(absoluteFilesystemPathSchema),
 );
 
 export const commaSeparatedValues = z.preprocess(

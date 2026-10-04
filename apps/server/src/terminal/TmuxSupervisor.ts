@@ -119,8 +119,10 @@ export class TmuxSupervisor {
     return spawnSync(this.executable, this.socketArgs(["has-session", "-t", name]), { stdio: "ignore", timeout: 3_000 }).status === 0;
   }
 
-  ensure(input: { runtimeId: string; kind: TerminalKind; projectId: string | null; cwd: string; command: SupervisedCommand }) {
-    const name = this.sessionName(input.runtimeId);
+  ensure(input: { runtimeId: string; supervisorName?: string | null; kind: TerminalKind; projectId: string | null; cwd: string; command: SupervisedCommand }) {
+    // Gespeicherte und importierte Sitzungen behalten ihren Namen, auch
+    // im älteren workbench-Namespace. Sonst entstünde eine zweite Shell.
+    const name = input.supervisorName ?? this.sessionName(input.runtimeId);
     if (!this.has(name)) {
       const environment = Object.entries(input.command.environment).map(([key, value]) => `${key}=${value}`);
       const command = ["/usr/bin/env", ...environment, input.command.file, ...input.command.args].map(shellQuote).join(" ");
@@ -130,28 +132,29 @@ export class TmuxSupervisor {
     // Optionen gelten für neue und bestehende Sessions: So übernimmt eine
     // laufende Session nach einem Server-Neustart automatisch die aktuelle
     // Konfiguration (unsichtbare Statusleiste, normaler Puffer, Maus).
-    this.applySessionOptions(name);
-    this.run(["set-option", "-t", name, "@wrapt_runtime_id", input.runtimeId]);
-    this.run(["set-option", "-t", name, "@wrapt_kind", input.kind]);
-    this.run(["set-option", "-t", name, "@wrapt_project_id", input.projectId ?? ""]);
+    this.applySessionOptions(name, input);
     return name;
   }
 
-  private applySessionOptions(name: string) {
-    this.run(["set-option", "-t", name, "history-limit", "100000"]);
-    this.run(["set-option", "-t", name, "remain-on-exit", "on"]);
+  private applySessionOptions(name: string, input: { runtimeId: string; kind: TerminalKind; projectId: string | null }) {
     // tmux bleibt im normalen Puffer statt in den Alternate Screen zu wechseln.
     // Sonst hätte xterm keinen Scrollback und das Mausrad würde zu Pfeiltasten
     // an die Shell — Scrollen wäre nur über tmux-Mausmodi möglich.
-    this.run(["set-option", "-t", name, "alternate-screen", "off"]);
     // tmux bleibt als Supervisor aktiv, darf für den Nutzer aber unsichtbar
     // sein: keine Statusleiste und keine störenden Meldungsfarben.
-    this.run(["set-option", "-t", name, "status", "off"]);
-    this.run(["set-option", "-t", name, "message-style", "fg=default,bg=default"]);
     // Maus-Scrollen: Apps mit Maus-Reporting (z. B. OpenCode) bekommen Wheel-
     // Events nur mit aktivierter Maus durchgereicht. Ohne dieses Flag schluckt
     // tmux die SGR-Sequenzen und die App kann nicht per Mausrad scrollen.
-    this.run(["set-option", "-t", name, "mouse", "on"]);
+    // Ein tmux-Aufruf übernimmt sämtliche Optionen und Metadaten. Neun
+    // synchrone Unterprozesse pro Attach blockierten zuvor den Server.
+    const options = [
+      ["history-limit", "100000"], ["remain-on-exit", "on"],
+      ["alternate-screen", "off"], ["status", "off"],
+      ["message-style", "fg=default,bg=default"], ["mouse", "on"],
+      ["@wrapt_runtime_id", input.runtimeId], ["@wrapt_kind", input.kind],
+      ["@wrapt_project_id", input.projectId ?? ""],
+    ];
+    this.run(options.flatMap(([key, value], index) => [...(index ? [";"] : []), "set-option", "-t", name, key!, value!]));
   }
 
   attachCommand(name: string) { return { file: this.executable, args: this.socketArgs(["attach-session", "-t", name]) }; }

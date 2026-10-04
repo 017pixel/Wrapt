@@ -1,15 +1,7 @@
 import { create } from "zustand";
-import { useShallow } from "zustand/react/shallow";
 import type { TerminalKind, TerminalWorkspaceOperation, TerminalWorkspaceV2 } from "@wrapt/contracts";
+import { isAbsoluteFilesystemPath } from "@wrapt/contracts";
 import { applyWorkspaceOperations, createTerminalOps, layoutRuntimeIds, openEntryOps, paneForRuntime, sanitizeWorkspaceDocument } from "../components/terminal/workspace/terminalWorkspaceModel";
-import { generateId } from "../lib/id";
-
-export const CLI_INSTANCE_LIMITS: Record<"codex" | "opencode" | "claude", number> = {
-  codex: 12,
-  opencode: 12,
-  claude: 4,
-};
-export const TERMINAL_STORAGE_KEY = "wrapt.terminals.v1";
 
 /** Kompatibilitäts-Sicht auf eine Terminalfläche (für Presence, Picker,
  *  Standalone-Aktionen): Der aktive Tab ist die fokussierte Runtime-ID. */
@@ -153,7 +145,7 @@ export const useTerminalWorkspaceStore = create<TerminalWorkspaceStore>()((set, 
       syncError: null,
     };
   }),
-  setRuntimeCwd: (runtimeId, cwd) => set((state) => state.runtimeCwds[runtimeId] === cwd
+  setRuntimeCwd: (runtimeId, cwd) => set((state) => !isAbsoluteFilesystemPath(cwd) || state.runtimeCwds[runtimeId] === cwd
     ? state
     : { runtimeCwds: { ...state.runtimeCwds, [runtimeId]: cwd } }),
   addTab: (areaId, projectId = null, kind = "shell") => {
@@ -183,30 +175,5 @@ export const useTerminalWorkspaceStore = create<TerminalWorkspaceStore>()((set, 
     return entry.runtimeId;
   },
 }));
-
-// ---------------------------------------------------------------------------
-// Kompatibilitäts-Selectors für bestehende Konsumenten
-// ---------------------------------------------------------------------------
-
-export function useTerminalAreaView(areaId: string): TerminalAreaView {
-  return useTerminalWorkspaceStore(useShallow((state) => terminalAreaView(state, areaId)));
-}
-
-/** Runtime-ID der fokussierten Entry einer Fläche (für Presence & Picker). */
-export function useTerminalFocusedRuntime(areaId: string): string | null {
-  return useTerminalWorkspaceStore((state) => {
-    const layout = state.document?.areaLayouts[areaId]?.paneLayout ?? null;
-    const focusedPaneId = state.document?.areaLayouts[areaId]?.focusedPaneId ?? null;
-    if (!layout) return null;
-    if (layout.type === "pane") return layout.runtimeId;
-    const pane = layout.children.find((candidate) => candidate.id === focusedPaneId) ?? layout.children[0]!;
-    return pane.runtimeId;
-  });
-}
-
-/** Erzeugt eine neue Runtime-ID für ein noch nicht gestartetes Terminal. */
-export function newRuntimeId(): string {
-  return generateId();
-}
 
 export { paneForRuntime };

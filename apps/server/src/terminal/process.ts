@@ -1,4 +1,4 @@
-import { homedir, userInfo } from "node:os";
+import { homedir } from "node:os";
 import { isAbsolute, resolve } from "node:path";
 import { kill } from "node:process";
 import type { PtyAdapter } from "./NodePtyAdapter.js";
@@ -7,10 +7,14 @@ import type { ServerTerminalMessage, TerminalKind } from "./protocol.js";
 import { createHeadlessTerminal } from "./runtime/HeadlessTerminal.js";
 import { TerminalFailure, type TerminalSession } from "./session.js";
 import { broadcastSnapshot, limitHistory } from "./snapshots.js";
+import { resolveTerminalCliCommand, resolveTerminalShell, terminalShellEnvironment, type TerminalShellConfiguration } from "./shell.js";
 
 export interface ProcessRuntimeDependencies {
   adapter: PtyAdapter;
   supervisor: TmuxSupervisor | undefined;
+  homeDirectory: string | undefined;
+  shell?: TerminalShellConfiguration;
+  platform?: NodeJS.Platform;
   cliPaths: Partial<Record<Exclude<TerminalKind, "shell">, string>> | undefined;
   onOutput: ((session: Readonly<TerminalSession>, data: string) => void) | undefined;
   persist(session: TerminalSession): void;
@@ -37,27 +41,21 @@ export interface ProcessRuntime {
  *  bleibt und keine zirkulären Imports entstehen. */
 export function createProcessRuntime(deps: ProcessRuntimeDependencies): ProcessRuntime {
   const { adapter, supervisor, cliPaths, onOutput, persist, emit, cwdRefreshTimers, validateCwd } = deps;
+  const platform = deps.platform ?? process.platform;
+  const shell = resolveTerminalShell(deps.shell, platform);
 
   function kindLabel(kind: TerminalKind) {
     return kind === "codex" ? "Codex" : kind === "opencode" ? "OpenCode" : kind === "claude" ? "Claude Code" : "Terminal";
   }
 
   function launchCommand(kind: TerminalKind, mode: "agent" | "login"): { file: string; args: string[] } {
-    if (kind === "shell") return { file: "/bin/bash", args: ["--login"] };
-    return { file: cliPaths?.[kind] ?? kind, args: mode === "login" ? (kind === "codex" ? ["login", "--device-auth"] : ["auth", "login"]) : [] };
+    if (kind === "shell") return shell;
+    return resolveTerminalCliCommand(cliPaths?.[kind] ?? kind, mode === "login" ? (kind === "codex" ? ["login", "--device-auth"] : ["auth", "login"]) : [], platform);
   }
 
   function environment(session: TerminalSession): Record<string, string> {
-    const env: Record<string, string> = {
-      TERM: "xterm-256color",
-      COLORTERM: "truecolor",
-      HOME: process.env.HOME ?? homedir(),
-      USER: process.env.USER ?? userInfo().username,
-      SHELL: "/bin/bash",
-      PATH: process.env.PATH ?? "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-      LANG: process.env.LANG ?? "C.UTF-8",
-      ...(session.kind === "shell" ? { PROMPT_COMMAND: `printf '\\e]7;file://%s%s\\e\\' "$HOSTNAME" "$PWD"` } : {}),
-    };
+    const env = terminalShellEnvironment(shell, deps.homeDirectory, platform);
+    if (session.kind !== "shell") { delete env.PROMPT_COMMAND; delete env.PROMPT; }
     if (session.profilePath && session.kind === "codex") return { ...env, CODEX_HOME: session.profilePath };
     if (session.profilePath && session.kind === "opencode") return { ...env, XDG_DATA_HOME: session.profilePath };
     if (session.profilePath && session.kind === "claude" && resolve(session.profilePath) !== resolve(homedir(), ".claude")) return { ...env, CLAUDE_CONFIG_DIR: session.profilePath };
@@ -69,7 +67,23 @@ export function createProcessRuntime(deps: ProcessRuntimeDependencies): ProcessR
     session.exitListener?.dispose();
     // Der autoritative Terminalzustand muss vor dem Spawn in der Zielgeometrie
     // stehen, damit der erste Output bereits korrekt eingeordnet wird.
-    if (!session.headless) session.headless = createHeadlessTerminal(session.cols, session.rows);
+    if (!session.headless) {
+      session.headless = createHeadlessTerminal(session.cols, session.rows, (cwd) => {
+        if (session.status !== "running" || cwd === session.cwd) return;
+        session.cwd = cwd;
+        session.updatedAt = Date.now();
+        session.lastPersistedAt = undefined;
+        persist(session);
+        emit(session, { type: "terminal.cwd", sessionId: session.id, cwd });
+      });
+      // Der Gateway-Neustart muss den bereits vorhandenen tmux-Bildschirm
+      // ebenfalls in die neue Emulation übernehmen, bevor Live-Ausgabe folgt.
+      if (session.history) {
+        session.sequence += 1;
+        session.headless.write(session.history, session.sequence);
+        session.journal.push({ sequence: session.sequence, data: session.history });
+      }
+    }
     else if (session.headless.cols !== session.cols || session.headless.rows !== session.rows) session.headless.resize(session.cols, session.rows);
     const pty = adapter.spawn(command.file, command.args, {
       name: "xterm-256color",
@@ -77,6 +91,7 @@ export function createProcessRuntime(deps: ProcessRuntimeDependencies): ProcessR
       cols: session.cols,
       rows: session.rows,
       env: environment,
+      ...(platform === "win32" ? { useConpty: true } : {}),
     });
     session.pty = pty;
     session.pid = pty.pid;
@@ -156,7 +171,7 @@ export function createProcessRuntime(deps: ProcessRuntimeDependencies): ProcessR
       const launch = launchCommand(session.kind, session.mode);
       const nextEnvironment = environment(session);
       const command = supervisor ? (() => {
-        session.supervisorName = supervisor.ensure({ runtimeId: session.runtimeId, kind: session.kind, projectId: session.projectId, cwd: session.cwd, command: { ...launch, environment: nextEnvironment } });
+        session.supervisorName = supervisor.ensure({ runtimeId: session.runtimeId, supervisorName: session.supervisorName, kind: session.kind, projectId: session.projectId, cwd: session.cwd, command: { ...launch, environment: nextEnvironment } });
         session.history = limitHistory(supervisor.capture(session.supervisorName));
         return supervisor.attachCommand(session.supervisorName);
       })() : launch;
@@ -176,8 +191,8 @@ export function createProcessRuntime(deps: ProcessRuntimeDependencies): ProcessR
     session.exitListener?.dispose();
     session.dataListener = null;
     session.exitListener = null;
-    try { session.pty?.kill("SIGTERM"); } catch { /* already exited */ }
-    if (process.platform === "linux" && pid > 0) {
+    try { session.pty?.kill(platform === "win32" ? undefined : "SIGTERM"); } catch { /* already exited */ }
+    if ((platform === "linux" || platform === "darwin") && pid > 0) {
       try { kill(-pid, "SIGTERM"); } catch { /* process group already exited */ }
       const forceKill = setTimeout(() => { try { kill(-pid, "SIGKILL"); } catch { /* process group exited */ } }, 1_000);
       forceKill.unref();

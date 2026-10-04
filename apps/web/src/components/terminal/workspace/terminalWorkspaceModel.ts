@@ -245,15 +245,6 @@ export function openRuntimeInLayout(layout: TerminalPaneLayout | null, runtimeId
   return openRuntimeInArea(layout, runtimeId);
 }
 
-/** Ersetzt den fokussierten Pane eines Layouts durch eine andere Runtime. */
-export function replaceFocusedPane(layout: TerminalPaneLayout | null, focusedPaneId: string | null, runtimeId: string): TerminalPaneLayout {
-  const pane = paneForRuntime(runtimeId);
-  if (layout === null || layout.type === "pane") return pane;
-  const index = layout.children.findIndex((child) => child.id === focusedPaneId);
-  const children = layout.children.map((child, childIndex) => childIndex === (index >= 0 ? index : 0) ? pane : child);
-  return { ...layout, children };
-}
-
 /** Sortierte Kinder eines Ordners (Entries und Unterordner getrennt);
  *  `null` steht für die Root-Ebene. */
 export function childrenOfFolder(document: TerminalWorkspaceV2, folderId: string | null): { entries: TerminalEntry[]; folders: TerminalFolder[] } {
@@ -270,13 +261,6 @@ export function childrenOfFolder(document: TerminalWorkspaceV2, folderId: string
 export function pinnedEntries(document: TerminalWorkspaceV2): TerminalEntry[] {
   return document.entries
     .filter((entry) => entry.pinned)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
-}
-
-/** Root-Ordner (ohne Parent) in Sortierreihenfolge. */
-export function rootFolders(document: TerminalWorkspaceV2): TerminalFolder[] {
-  return document.folders
-    .filter((folder) => folder.parentFolderId === null)
     .sort((a, b) => a.sortOrder - b.sortOrder);
 }
 
@@ -304,7 +288,7 @@ export function createFolderOps(document: TerminalWorkspaceV2, parentFolderId: s
 
 /** Erstellt die Ops für ein neues Terminal (Entry + in der Fläche öffnen). */
 export function createTerminalOps(document: TerminalWorkspaceV2, areaId: string, partial: Partial<TerminalEntry> & { kind: TerminalEntry["kind"] }): { ops: TerminalWorkspaceOperation[]; runtimeId: string } {
-  const runtimeId = generateId();
+  const runtimeId = partial.runtimeId ?? generateId();
   // Alte beziehungsweise manuell angelegte V2-Dokumente können ohne den
   // Standardordner existieren. In diesem Fall muss ein Root-Terminal auch
   // wirklich auf Root angelegt werden, sonst weist der Server die Operation

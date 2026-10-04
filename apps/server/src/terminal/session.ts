@@ -56,5 +56,7 @@ const HISTORY_LIMIT = 3 * 1024 * 1024;
 const SNAPSHOT_LIMIT = 512 * 1024;
 /** Beendete Sessions räumen sich nach dieser Zeit von selbst auf. */
 const EXITED_SESSION_TTL_MS = 30 * 60 * 1_000;
+/** Nicht sichtbare, nicht laufende Sessions werden nach dieser Zeit endgültig entfernt. */
+const STALE_SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1_000;
 
-export { EXITED_SESSION_TTL_MS, HISTORY_LIMIT, SNAPSHOT_LIMIT };
+export { EXITED_SESSION_TTL_MS, HISTORY_LIMIT, SNAPSHOT_LIMIT, STALE_SESSION_TTL_MS };

@@ -43,7 +43,7 @@ test("keeps a Wrapt terminal running while another device resumes it", async ({ 
   });
   const secondPage = await secondContext.newPage();
   await secondPage.goto(`${workbench}/terminal`);
-  await expect(secondPage.locator(".terminal-tree-status.is-connected").first()).toBeVisible({ timeout: 20_000 });
+  await expect(secondPage.locator(".terminal-session-pane.is-visible .terminal-session")).toHaveAttribute("data-status", "connected", { timeout: 20_000 });
   await expect.poll(() => secondPage.locator(".xterm-rows").textContent()).toContain(marker);
 
   const measureTerminal = async (page: typeof firstPage) => page.locator(".terminal-session-pane.is-visible").evaluate((pane) => {

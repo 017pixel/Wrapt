@@ -1,23 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { TerminalArea } from "../components/terminal/TerminalArea";
 import { wraptQueries } from "../lib/queryOptions";
-import { useLayoutStore } from "../stores/layout";
-import { useRouteActivity } from "../lib/routeActivity";
 import { useParams, useSearchParams } from "react-router";
 import { WebTerminal } from "../components/terminal/WebTerminal";
 
 export function TerminalView() {
-  const routeActive = useRouteActivity();
   const [search] = useSearchParams();
-  const selectedProjectId = useLayoutStore((state) => state.selectedProjectId);
-  const projects = useQuery({ ...wraptQueries.projects(), enabled: routeActive });
-  const projectId = projects.data?.projects.find((project) => project.id === selectedProjectId)?.id
-    ?? projects.data?.projects.find((project) => project.availability === "available")?.id
-    ?? null;
-
-  if (projects.isLoading) return <div className="terminal-area-loading">Terminal wird vorbereitet…</div>;
   const kind = search.get("kind") === "claude" ? "claude" as const : "shell" as const;
-  return <div className="terminal-route"><TerminalArea areaId="standalone" initialProjectId={projectId} kind={kind} requestedSessionId={search.get("session")} /></div>;
+  return <div className="terminal-route"><TerminalArea areaId="standalone" kind={kind} requestedSessionId={search.get("session")} /></div>;
 }
 
 /** Eigenständiges Browserfenster für genau eine bereits laufende Sitzung. */

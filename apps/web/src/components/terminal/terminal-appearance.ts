@@ -78,15 +78,21 @@ export function attachTerminalAppearance(terminal: Terminal, mount: HTMLElement,
   if (shellRoot) shellObserver.observe(shellRoot, { attributes: true, attributeFilter: ["data-shell-mode", "data-input-mode", "data-orientation"] });
 
   const observer = new ResizeObserver(() => {
-    if (resizeRef.current) window.clearTimeout(resizeRef.current);
-    resizeRef.current = window.setTimeout(resize, 75);
+    if (resizeRef.current !== null) return;
+    resizeRef.current = window.requestAnimationFrame(() => {
+      resizeRef.current = null;
+      resize();
+    });
   });
   observer.observe(mount);
 
   const viewport = window.visualViewport;
   const onViewportChange = () => {
-    if (resizeRef.current) window.clearTimeout(resizeRef.current);
-    resizeRef.current = window.setTimeout(resize, 50);
+    if (resizeRef.current !== null) return;
+    resizeRef.current = window.requestAnimationFrame(() => {
+      resizeRef.current = null;
+      resize();
+    });
   };
   viewport?.addEventListener("resize", onViewportChange);
   viewport?.addEventListener("scroll", onViewportChange);
@@ -107,7 +113,8 @@ export function attachTerminalAppearance(terminal: Terminal, mount: HTMLElement,
     viewport?.removeEventListener("scroll", onViewportChange);
     themes.disconnect();
     shellObserver.disconnect();
-    if (resizeRef.current) window.clearTimeout(resizeRef.current);
+    if (resizeRef.current !== null) window.cancelAnimationFrame(resizeRef.current);
+    resizeRef.current = null;
     if (themeRefreshRef.current) window.clearTimeout(themeRefreshRef.current);
     themeRefreshRef.current = null;
   };

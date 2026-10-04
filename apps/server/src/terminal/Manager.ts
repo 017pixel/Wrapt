@@ -6,9 +6,11 @@ import type { TmuxSupervisor } from "./TmuxSupervisor.js";
 import type { ServerTerminalMessage, TerminalKind } from "./protocol.js";
 import { createProcessRuntime, type ProcessRuntime } from "./process.js";
 import { assertValidViewport, fromStored, importSupervisorSessions, reconcileTerminalSessionsOnStartup, requireValidCwd, validateCwdSync } from "./restore.js";
-import { createSessionWithContext, type SessionCreationInput } from "./sessionCreation.js";
+import { createSessionWithContext, reattachSession, type SessionCreationInput } from "./sessionCreation.js";
 import { TerminalFailure, type TerminalClientViewport, type TerminalSession } from "./session.js";
-import { applyResize, broadcastSnapshot, sendSync } from "./snapshots.js";
+import { restorePersistentSessions } from "./persistentSessions.js";
+import type { TerminalShellConfiguration } from "./shell.js";
+import { announceGeometry, applyResize, broadcastSnapshot, sendSync } from "./snapshots.js";
 
 // Behält den öffentlichen Export bei, damit bestehende Importe stabil bleiben.
 export { TerminalFailure } from "./session.js";
@@ -22,6 +24,9 @@ export class TerminalManager {
   constructor(private readonly options: {
     allowedRoots: string[];
     defaultCwd: string;
+    homeDirectory?: string;
+    shell?: TerminalShellConfiguration;
+    platform?: NodeJS.Platform;
     maxSessions: number;
     cliPaths?: Partial<Record<Exclude<TerminalKind, "shell">, string>>;
     maxSessionsByKind?: Partial<Record<TerminalKind, number>>;
@@ -29,6 +34,7 @@ export class TerminalManager {
     database?: TerminalDatabase;
     supervisor?: TmuxSupervisor;
     externalSessionOwnerId?: string;
+    persistentSessionOwners?: readonly string[];
     reconnectGraceMs?: number;
     onOutput?: (session: Readonly<TerminalSession>, data: string) => void;
     onInput?: (session: Readonly<TerminalSession>, data: string) => void;
@@ -38,6 +44,9 @@ export class TerminalManager {
       adapter: this.adapter,
       supervisor: this.options.supervisor,
       cliPaths: this.options.cliPaths,
+      homeDirectory: this.options.homeDirectory,
+      ...(this.options.shell ? { shell: this.options.shell } : {}),
+      ...(this.options.platform ? { platform: this.options.platform } : {}),
       onOutput: this.options.onOutput,
       persist: (session) => this.persist(session),
       emit: (session, message) => this.emit(session, message),
@@ -50,6 +59,14 @@ export class TerminalManager {
       externalSessionOwnerId: this.options.externalSessionOwnerId,
       defaultCwd: this.options.defaultCwd,
       allowedRoots: this.options.allowedRoots,
+    });
+    restorePersistentSessions({
+      database: this.options.database,
+      owners: this.options.persistentSessionOwners ?? [],
+      allowedRoots: this.options.allowedRoots,
+      sessions: this.sessions,
+      spawn: (session) => this.process.spawn(session),
+      persist: (session) => this.persist(session),
     });
   }
 
@@ -79,6 +96,15 @@ export class TerminalManager {
 
   attachSession(userId: string, sessionId: string, client: (message: ServerTerminalMessage) => void, clientId: string = randomUUID(), viewport?: TerminalClientViewport, sync?: { epoch: number; lastSequence: number } | null): () => void {
     const session = this.owned(userId, sessionId);
+    if (viewport) assertValidViewport(viewport.cols, viewport.rows);
+    // Nach einem Backend-Neustart lebt tmux weiter, aber das PTY-Gateway
+    // fehlt. Auch Subscribe/Attach muss es wieder verbinden können.
+    if (!session.pty && session.supervisorName && this.options.supervisor?.has(session.supervisorName)) {
+      reattachSession({ allowedRoots: this.options.allowedRoots, process: this.process, supervisor: this.options.supervisor, persist: (value) => this.persist(value) }, session, {
+        kind: session.kind, projectId: session.projectId, clientId,
+        cols: viewport?.cols ?? session.cols, rows: viewport?.rows ?? session.rows,
+      });
+    }
     session.clients.set(clientId, client);
     if (viewport) {
       assertValidViewport(viewport.cols, viewport.rows);
@@ -119,10 +145,15 @@ export class TerminalManager {
     const session = this.running(userId, sessionId);
     if (!session.clients.has(clientId)) return;
     if (cols !== undefined && rows !== undefined) assertValidViewport(cols, rows);
+    const changedOwner = session.primaryClientId !== clientId;
     session.primaryClientId = clientId;
     const target = cols !== undefined && rows !== undefined ? { cols, rows } : session.clientViewports.get(clientId);
     if (!target) return;
-    try { applyResize(session, target.cols, target.rows, (s) => this.persist(s)); }
+    try {
+      const unchangedSize = session.cols === target.cols && session.rows === target.rows;
+      applyResize(session, target.cols, target.rows, (s) => this.persist(s));
+      if (changedOwner && unchangedSize) announceGeometry(session);
+    }
     catch { throw new TerminalFailure("PTY_RESIZE_FAILED", "Die Terminalgröße konnte nicht angepasst werden."); }
   }
 
@@ -158,7 +189,11 @@ export class TerminalManager {
     session.primaryClientId = clientId;
     const target = viewport ?? (changedOwner ? session.clientViewports.get(clientId) : undefined);
     if (!target) return;
-    try { applyResize(session, target.cols, target.rows, (s) => this.persist(s)); }
+    try {
+      const unchangedSize = session.cols === target.cols && session.rows === target.rows;
+      applyResize(session, target.cols, target.rows, (s) => this.persist(s));
+      if (changedOwner && unchangedSize) announceGeometry(session);
+    }
     catch { throw new TerminalFailure("PTY_RESIZE_FAILED", "Die Terminalgröße konnte nicht angepasst werden."); }
   }
 
@@ -223,7 +258,7 @@ export class TerminalManager {
     const stored = this.options.database?.listSessions(userId, (id) => this.sessions.get(id)?.clients.size ?? 0) ?? [];
     return stored.map((item) => {
       const session = this.sessions.get(item.id);
-      return { ...item, connectedClients: session?.clients.size ?? item.connectedClients };
+      return session ? { ...item, ...this.getSessionMetadata(userId, session.id) } : item;
     });
   }
 
@@ -239,7 +274,9 @@ export class TerminalManager {
       if (session.status === "closed") continue;
       this.process.stopProcess(session, false);
       session.status = this.options.supervisor && session.supervisorName && this.options.supervisor.has(session.supervisorName) ? "running" : "interrupted";
+      session.lastPersistedAt = undefined;
       session.updatedAt = Date.now(); this.persist(session); session.clients.clear(); session.clientViewports.clear(); session.primaryClientId = null;
+      session.headless?.dispose();
     }
     this.sessions.clear();
   }
@@ -290,13 +327,20 @@ export class TerminalManager {
     session.primaryClientId = next ?? null;
     const viewport = next ? session.clientViewports.get(next) : undefined;
     if (!viewport || session.status !== "running" || !session.pty) return;
-    try { applyResize(session, viewport.cols, viewport.rows, (s) => this.persist(s)); } catch { /* Der neue Primary passt beim nächsten Resize erneut an. */ }
+    try {
+      const unchangedSize = session.cols === viewport.cols && session.rows === viewport.rows;
+      applyResize(session, viewport.cols, viewport.rows, (s) => this.persist(s));
+      if (unchangedSize) announceGeometry(session);
+    } catch { /* Der neue Primary passt beim nächsten Resize erneut an. */ }
   }
 
   private close(session: TerminalSession) {
     if (session.status === "closed") return;
     session.status = "closed";
+    session.sequence += 1;
+    this.emit(session, { type: "terminal.exited", sessionId: session.id, exitCode: session.exitCode, signal: session.exitSignal, sequence: session.sequence });
     this.process.stopProcess(session, true);
+    session.headless?.dispose();
     session.clients.clear();
     session.clientViewports.clear();
     session.primaryClientId = null;

@@ -22,7 +22,7 @@ async function openFirstTerminal(page: Page) {
   const entries = page.locator(".terminal-tree-entry");
   await expect.poll(async () => (await emptyButton.count()) + (await entries.count()), { timeout: 20_000 }).toBeGreaterThan(0);
   if (await emptyButton.count() > 0 && await emptyButton.isVisible().catch(() => false)) await emptyButton.click();
-  await expect(page.locator(".terminal-tree-status.is-connected").first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator(".terminal-session-pane.is-visible .terminal-session").first()).toHaveAttribute("data-status", "connected", { timeout: 20_000 });
 }
 
 async function runFixture(page: Page, mode: string) {
@@ -262,6 +262,9 @@ test("uses a touch drawer, focused pane and safe bottom controls on phone portra
 
   const reopen = page.getByRole("button", { name: "Terminal-Sidebar einblenden" });
   await expect(reopen).toBeVisible();
+  const reopenBox = await reopen.boundingBox();
+  const viewportBox = await page.locator(".terminal-session-pane.is-visible .terminal-viewport").boundingBox();
+  expect(viewportBox!.y).toBeGreaterThanOrEqual(reopenBox!.y + reopenBox!.height);
   await reopen.click();
   const drawer = page.getByRole("complementary", { name: "Terminal-Sidebar" });
   await expect(drawer).toHaveClass(/is-open/);
@@ -283,13 +286,12 @@ test("uses a touch drawer, focused pane and safe bottom controls on phone portra
   expect(keyButtonBox?.width).toBeGreaterThanOrEqual(44);
   expect(keyButtonBox?.height).toBeGreaterThanOrEqual(44);
 
-  await drawer.getByRole("button", { name: "Terminal-Sidebar ausblenden" }).click();
-  await expect(drawer).not.toHaveClass(/is-open/);
+  await expect(drawer).not.toBeVisible();
 
   // Das Schrumpfen des sichtbaren Viewports durch die Bildschirmtastatur darf
   // die Geräteorientierung und damit die xterm-Instanz nicht neu aufbauen.
-  const terminalInput = page.locator(".xterm-helper-textarea").last();
-  await page.locator(".terminal-viewport").click();
+  const terminalInput = page.locator(".terminal-session-pane.is-visible .xterm-helper-textarea");
+  await page.locator(".terminal-session-pane.is-visible .terminal-viewport").click();
   await expect(terminalInput).toBeFocused();
   await page.evaluate(() => {
     Object.defineProperty(window, "innerHeight", { configurable: true, value: 320 });
