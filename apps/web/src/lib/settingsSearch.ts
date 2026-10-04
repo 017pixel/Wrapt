@@ -120,11 +120,11 @@ export const settingsSearchCatalog: readonly SettingsSearchEntry[] = [
   {
     id: "notifications",
     title: "Benachrichtigungen",
-    description: "Toasts, Push und Quellen einzeln verwalten",
+    description: "Push und Quellen einzeln verwalten",
     category: "Benachrichtigungen",
     tab: "benachrichtigungen",
     anchor: "settings-notifications",
-    aliases: ["Meldungen", "Alerts", "Hinweise", "Toast", "Push", "Systemmeldungen"],
+    aliases: ["Meldungen", "Alerts", "Hinweise", "Push", "Systemmeldungen"],
   },
   {
     id: "system",

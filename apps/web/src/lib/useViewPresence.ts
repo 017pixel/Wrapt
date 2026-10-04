@@ -13,9 +13,7 @@ import { t3ThreadIdFromPath } from "./t3Thread";
  * Meldet dem Server, welche Quelle und welcher Chat gerade sichtbar sind:
  * die aktive Route (T3-Thread, Hermes-Sitzung, CLI-Terminal) plus alle offenen
  * T3-/Hermes-/Terminal-Panels des Layouts. Der Server markiert passende
- * bereits sichtbare Vorgänge gelten als gesehen, und Push wird während aktiver Nutzung
- * unterdrückt Push, solange die Workbench aktiv genutzt wird. Der Toast
- * erscheint in beiden Fällen.
+ * Vorgänge als gelesen. Ereignisse anderer Chats können weiter per Push erscheinen.
  *
  * Die Referenzen kommen aus drei Quellen:
  *  - T3: Route-Bridge des T3-Proxys (`wrapt-t3`), meldet den
@@ -25,8 +23,8 @@ import { t3ThreadIdFromPath } from "./t3Thread";
  *  - Terminals: der aktive Tab des Terminal-Stores (seine id ist die
  *    `runtimeId` der Server-Sitzung), ersatzweise der `session`-URL-Parameter.
  *
- * Jede Meldung ist zugleich Aktiv-Heartbeat: Der Server sieht die Workbench
- * als aktiv genutzt, solange ein sichtbares Fenster regelmäßig meldet.
+ * Der Heartbeat erneuert die gemeldeten Ansichten, solange ein sichtbares
+ * Fenster regelmäßig meldet.
  */
 export function deriveViewPresence(
   pathname: string,
@@ -159,10 +157,9 @@ export function useViewPresence() {
     return () => window.removeEventListener("focus", onFocus);
   }, [report]);
 
-  // Aktiv-Heartbeat: hält die Workbench serverseitig als „genutzt" frisch,
-  // solange ein Fenster sichtbar ist. Im Hintergrund meldet der Ticker nicht
-  // weiter, damit die TTL nach dem Verlassen des Tabs ausläuft und Push wieder
-  // an die Geräte geht.
+  // Sichtbare Chats bleiben über den Heartbeat als gesehen gemeldet.
+  // Im Hintergrund läuft die Presence-TTL aus; neue Ereignisse gelten
+  // dann wieder als ungelesen und können per Push zugestellt werden.
   useEffect(() => {
     const heartbeat = window.setInterval(() => {
       if (document.visibilityState === "visible") report(true);

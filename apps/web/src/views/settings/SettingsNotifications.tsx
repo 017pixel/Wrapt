@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { NotificationPreferences, NotificationSource } from "@wrapt/contracts";
 import { Badge } from "../../components/primitives";
@@ -38,7 +38,7 @@ export function SettingsNotifications() {
     <div id="settings-notifications">
       <Card
         title="Benachrichtigungen"
-        subtitle="Toast- und Push-Mitteilungen pro Quelle"
+        subtitle="Push-Mitteilungen pro Quelle"
       >
         <NotificationControls />
       </Card>
@@ -76,33 +76,6 @@ function NotificationControls() {
 
   return (
     <div className="notification-settings">
-      <div className="toast-duration-setting">
-        <label htmlFor="notification-toast-duration">Anzeigedauer der Toasts</label>
-        <ToastDurationField
-          value={preferences.toastDurationSeconds}
-          disabled={saving}
-          onSave={(toastDurationSeconds) => save({ ...preferences, toastDurationSeconds })}
-        />
-        <small>Nach dieser Zeit schließen sich Toasts automatisch. Standard: 3 Sekunden.</small>
-      </div>
-      <button
-        type="button"
-        className="settings-toggle-row"
-        disabled={saving}
-        onClick={() => void save({ ...preferences, toastsEnabled: !preferences.toastsEnabled })}
-      >
-        <span>
-          <strong>Toasts</strong>
-          <small>Wichtige Ereignisse erscheinen oben rechts und lassen sich schließen oder nach rechts wischen.</small>
-        </span>
-        <span
-          className={`settings-toggle-switch ${preferences.toastsEnabled ? "is-on" : ""}`}
-          role="switch"
-          aria-checked={preferences.toastsEnabled}
-        >
-          <span className="settings-toggle-thumb" />
-        </span>
-      </button>
       <section className="push-device-settings" aria-labelledby="push-device-title">
         <header>
           <div>
@@ -169,75 +142,37 @@ function NotificationControls() {
       <div className="notification-source-settings">
         <header>
           <span>Quelle</span>
-          <span>Toast</span>
           <span>Push</span>
         </header>
         {(Object.keys(preferences.sources) as NotificationSource[]).map((source) => (
           <div key={source}>
             <strong>{notificationSourceLabels[source]}</strong>
-            {(["toast", "push"] as const).map((channel) => (
-              <button
-                key={channel}
-                type="button"
-                disabled={saving || (channel === "push" && !preferences.pushEnabled)}
-                onClick={() => void save({
-                  ...preferences,
-                  sources: {
-                    ...preferences.sources,
-                    [source]: {
-                      ...preferences.sources[source],
-                      [channel]: !preferences.sources[source][channel],
-                    },
+            <button
+              type="button"
+              disabled={saving || !preferences.pushEnabled}
+              onClick={() => void save({
+                ...preferences,
+                sources: {
+                  ...preferences.sources,
+                  [source]: {
+                    push: !preferences.sources[source].push,
                   },
-                })}
-                aria-label={`${notificationSourceLabels[source]} ${channel}`}
+                },
+              })}
+              aria-label={`${notificationSourceLabels[source]} Push`}
+            >
+              <span
+                className={`settings-toggle-switch is-compact ${preferences.sources[source].push ? "is-on" : ""}`}
+                role="switch"
+                aria-checked={preferences.sources[source].push}
               >
-                <span
-                  className={`settings-toggle-switch is-compact ${preferences.sources[source][channel] ? "is-on" : ""}`}
-                  role="switch"
-                  aria-checked={preferences.sources[source][channel]}
-                >
-                  <span className="settings-toggle-thumb" />
-                </span>
-              </button>
-            ))}
+                <span className="settings-toggle-thumb" />
+              </span>
+            </button>
           </div>
         ))}
       </div>
       {message ? <p className="text-[12px] text-muted" role="status">{message}</p> : null}
     </div>
   );
-}
-
-function ToastDurationField({ value, disabled, onSave }: { value: number; disabled: boolean; onSave: (seconds: number) => Promise<boolean> }) {
-  const [draft, setDraft] = useState(String(value));
-
-  useEffect(() => setDraft(String(value)), [value]);
-
-  const commit = async () => {
-    const seconds = Number(draft.trim());
-    if (!draft.trim() || !Number.isFinite(seconds) || seconds < 1) {
-      setDraft(String(value));
-      return;
-    }
-    if (seconds === value) return;
-    if (!await onSave(seconds)) setDraft(String(value));
-  };
-
-  return <div className="toast-duration-input">
-    <input
-      id="notification-toast-duration"
-      type="number"
-      min="1"
-      step="any"
-      inputMode="decimal"
-      value={draft}
-      disabled={disabled}
-      aria-label="Anzeigedauer in Sekunden"
-      onChange={(event) => setDraft(event.currentTarget.value)}
-      onBlur={() => void commit()}
-      onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
-    />
-    <span>Sekunden</span>
-  </div>;
 }

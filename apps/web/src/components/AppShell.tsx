@@ -22,7 +22,6 @@ import { addBreadcrumb } from "../lib/crashReport";
 import type { ProjectsResponse, TerminalKind } from "@wrapt/contracts";
 import { ToolActionMenu } from "./ToolActionMenu";
 import { NotificationCenter } from "./NotificationCenter";
-import { WraptNotice } from "./WraptNotice";
 import { useViewPresence } from "../lib/useViewPresence";
 import { recordToolUsage } from "../stores/toolUsage";
 import { PluginTopbar } from "./plugins/PluginTopbar";
@@ -298,7 +297,6 @@ export function AppShell() {
       <TerminalSessionsSync />
       <NotificationCenter />
       <ViewPresenceReporter />
-      <WraptNotice />
       {showsNavigationSidebar ? <Sidebar
         collapsed={sidebar.collapsed}
         width={hasTabletSidebar ? Math.max(208, Math.min(sidebar.width, Math.round(responsive.width * 0.22))) : sidebar.width}
@@ -333,7 +331,7 @@ export function AppShell() {
             </span>
           </div>
           <div className="topbar-right-actions">
-            {!isStandaloneT3 && !isStandaloneOpenCode ? <ContextProjectPicker /> : null}
+            {!isStandaloneT3 && !isStandaloneOpenCode && location.pathname !== "/terminal" ? <ContextProjectPicker /> : null}
             <PluginTopbar />
             {(isStandaloneT3 || isStandaloneOpenCode || location.pathname === "/code-editor") ? <div id="topbar-tool-actions" className="topbar-tool-actions" aria-label={`${title} Aktionen`} /> : hasStandaloneToolMenu ? <StandaloneRouteActions terminalFocus={terminalFocus} onTerminalFocusChange={setTerminalFocus} /> : null}
           </div>

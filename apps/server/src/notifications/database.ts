@@ -59,7 +59,7 @@ const selection = `id, source, category, source_icon sourceIcon, kind, severity,
  * Nur flüchtige Anforderungen dürfen nach dem Erledigen erneut aufleben.
  * Finale Meldungen (fertig, fehlgeschlagen) gehören zu genau einem Durchlauf:
  * Ein neuer Durchlauf bekommt von der Quelle eine neue remoteId. Ohne diese
- * Sperre würden alte Chats nach einem Cursor-Reset erneut als Toast erscheinen.
+ * Sperre würden alte Chats nach einem Cursor-Reset erneut gemeldet.
  */
 const renewableKinds = new Set(["agent.input-required", "agent.plan-ready"]);
 
@@ -69,8 +69,6 @@ export class NotificationDatabase {
   private readonly retentionMilliseconds: number;
   private readonly presenceTtlMilliseconds: number;
   private presence: PresenceEntry[] = [];
-  /** Letzter Presence-Heartbeat, auch mit leerer Chat-Liste. */
-  private lastActiveAt = 0;
 
   constructor(path: string, retentionHours = 48, presenceTtlMilliseconds = 90_000) {
     mkdirSync(dirname(path), { recursive: true });
@@ -132,7 +130,7 @@ export class NotificationDatabase {
       // Finale Meldungen gehören zu genau einem Ereignis, nicht zu einem
       // einzelnen Kind: Liefert dieselbe Quelle zum selben Remote-Zustand
       // erst einen Fehler und später einen Abschluss, bleibt die erste
-      // finale Meldung bestehen und es entsteht kein zweiter Toast.
+      // finale Meldung bestehen und es entsteht kein zweiter Eintrag.
       if (!existing && !renewableKinds.has(parsed.kind)) {
         const sameEvent = this.findByRemoteIdAnyKind(parsed.source, parsed.remoteId);
         if (sameEvent) return sameEvent;
@@ -205,14 +203,12 @@ export class NotificationDatabase {
    * dieser Ansicht, gilt sie als gesehen und wird gelesen. Ein Eintrag ohne
    * konkrete Referenz (threadId/sessionId) passt zu nichts.
    *
-   * Jede Meldung ist zugleich ein Aktiv-Heartbeat: Sie hält die Workbench als
-   * „aktiv genutzt" frisch, was den Push-Versand unterdrückt. Nach
+   * Der Heartbeat erneuert nur die gemeldeten Ansichten. Nach
    * `presenceTtlMilliseconds` ohne Meldung gilt die Ansicht als verlassen.
    */
   setPresence(input: NotificationPresenceItem | NotificationPresenceItem[] | null): number {
     const items = Array.isArray(input) ? input : input ? [input] : [];
     this.presence = items.map((item) => ({ ...item, lastSeenAt: Date.now() }));
-    this.lastActiveAt = Date.now();
     if (this.presence.length === 0) return 0;
     const at = new Date().toISOString();
     const ids = new Set<string>();
@@ -226,11 +222,6 @@ export class NotificationDatabase {
     this.db.prepare(`UPDATE notifications SET read_at = ? WHERE id IN (${placeholders})`).run(at, ...ids);
     this.emit({ type: "notification.sync" });
     return ids.size;
-  }
-
-  /** Ist die Workbench in einem sichtbaren Browserfenster aktiv genutzt worden? */
-  hasActiveWorkbench(): boolean {
-    return Date.now() - this.lastActiveAt < this.presenceTtlMilliseconds;
   }
 
   resolveByRemoteId(source: NotificationSource, kind: string, remoteId: string): boolean {

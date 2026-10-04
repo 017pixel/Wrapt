@@ -27,7 +27,7 @@ async function fixture() {
   const sendNotification = vi.fn(async () => ({ statusCode: 201, body: "", headers: {} })) as unknown as typeof webPush.sendNotification;
   const push = new NotificationPushService({
     databasePath, dataDirectory: directory, subject: "mailto:test@example.com", notifications, sendNotification,
-    preferences: notificationPreferencesSchema.parse({ pushEnabled: true, sources: { wrapt: { toast: true, push: true } } }),
+    preferences: notificationPreferencesSchema.parse({ pushEnabled: true, sources: { wrapt: { push: true } } }),
     validateEndpoint: () => undefined,
   });
   const app = Fastify(); apps.push(app);

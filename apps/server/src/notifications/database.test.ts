@@ -49,7 +49,7 @@ describe("Benachrichtigungsdatenbank", () => {
     database.resolveByRemoteId("t3", "agent.completed", "thread:9:complete:turn-1");
     database.resolveByRemoteId("t3", "agent.failed", "thread:9:failed:turn-2");
     database.subscribe((event) => { if (event.type === "notification.created") events.push(event.notification.id); });
-    // Alte Chats nach einem Cursor-Reset: dieselbe remoteId, kein neuer Toast.
+    // Alte Chats nach einem Cursor-Reset: dieselbe remoteId, kein neuer Eintrag.
     const repeatedDone = database.create({ source: "t3", category: "coding-agent", sourceIcon: "t3", kind: "agent.completed", severity: "success", title: "Fertig", body: "fertig", remoteId: "thread:9:complete:turn-1" });
     const repeatedFailed = database.create({ source: "t3", category: "coding-agent", sourceIcon: "t3", kind: "agent.failed", severity: "error", title: "Fehler", body: "fehlgeschlagen", remoteId: "thread:9:failed:turn-2" });
     expect(repeatedDone.id).toBe(done.id);
@@ -170,27 +170,10 @@ describe("Benachrichtigungsdatenbank", () => {
       vi.advanceTimersByTime(20_000);
       const stale = database.create({ source: "t3", category: "coding-agent", sourceIcon: "t3", kind: "agent.completed", severity: "success", title: "Später", body: "fertig", meta: { threadId: "thread-a" } });
       expect(stale.readAt).toBeNull();
-      expect(database.hasActiveWorkbench()).toBe(false);
       database.close();
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it("zählt jeden Presence-Heartbeat als aktive Workbench, auch ohne Chat", () => {
-    vi.useFakeTimers();
-    try {
-      const directory = mkdtempSync(join(tmpdir(), "wrapt-notifications-"));
-      temporaryDirectories.push(directory);
-      const database = new NotificationDatabase(join(directory, "wrapt.sqlite"), 48, 10_000);
-      expect(database.hasActiveWorkbench()).toBe(false);
-      database.setPresence([]);
-      expect(database.hasActiveWorkbench()).toBe(true);
-      vi.advanceTimersByTime(10_001);
-      expect(database.hasActiveWorkbench()).toBe(false);
-      database.close();
-    } finally {
-      vi.useRealTimers();
-    }
-  });
 });

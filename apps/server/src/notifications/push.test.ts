@@ -38,7 +38,7 @@ function fixture(options: {
   const notifications = new NotificationDatabase(databasePath, 48, options.presenceTtlMilliseconds);
   const preferences = notificationPreferencesSchema.parse({
     pushEnabled: options.pushEnabled ?? true,
-    sources: { t3: { toast: true, push: options.sourcePush ?? true }, wrapt: { toast: true, push: true } },
+    sources: { t3: { push: options.sourcePush ?? true }, wrapt: { push: true } },
   });
   const sendNotification = options.sendNotification ?? (vi.fn(async () => ({ statusCode: 201, body: "", headers: {} })) as unknown as typeof webPush.sendNotification);
   const push = new NotificationPushService({
@@ -137,26 +137,51 @@ describe("NotificationPushService", () => {
     await push.close(); notifications.close();
   });
 
-  it("unterdrückt Push, solange die Workbench aktiv gemeldet wird", async () => {
+  it("sendet Push auch bei aktiver Workbench ohne offene Thread-Presence", async () => {
     const { notifications, push, sendNotification } = fixture();
-    await push.register("user@example.com", subscription("handy"));
-    notifications.setPresence([{ source: "t3", threadId: "thread-1" }]);
-    await expect(push.deliver(notification({ kind: "agent.completed", meta: { threadId: "thread-1" } }))).resolves.toMatchObject({ attempted: 0 });
-    await expect(push.deliver(notification({ kind: "agent.completed", meta: { threadId: "thread-2" } }))).resolves.toMatchObject({ attempted: 0 });
-    expect(sendNotification).not.toHaveBeenCalled();
-    await push.close(); notifications.close();
+    await push.register("user@example.com", subscription("dashboard"));
+    notifications.setPresence([]);
+    notifications.create(notification({ kind: "agent.completed", meta: { threadId: "thread-1" } }));
+    await push.close();
+    expect(sendNotification).toHaveBeenCalledOnce();
+    notifications.close();
   });
 
-  it("sendet wieder, sobald die Presence abgelaufen ist", async () => {
+  it("sendet Push für einen anderen Thread trotz aktiver Thread-Presence", async () => {
+    const { notifications, push, sendNotification } = fixture();
+    await push.register("user@example.com", subscription("anderer-thread"));
+    notifications.setPresence([{ source: "t3", threadId: "thread-1" }]);
+    notifications.create(notification({ kind: "agent.completed", meta: { threadId: "thread-2" } }));
+    await push.close();
+    expect(sendNotification).toHaveBeenCalledOnce();
+    notifications.close();
+  });
+
+  it("sendet keinen Push für einen beim Erstellen bereits gelesenen offenen Thread", async () => {
+    const { notifications, push, sendNotification } = fixture();
+    await push.register("user@example.com", subscription("offener-thread"));
+    notifications.setPresence([{ source: "t3", threadId: "thread-1" }]);
+    const created = notifications.create(notification({ kind: "agent.completed", meta: { threadId: "thread-1" } }));
+    expect(created.readAt).not.toBeNull();
+    await push.close();
+    expect(sendNotification).not.toHaveBeenCalled();
+    notifications.close();
+  });
+
+  it("sendet nach Ablauf der Presence wieder für denselben Thread", async () => {
     vi.useFakeTimers();
     try {
-      const { notifications, push } = fixture({ presenceTtlMilliseconds: 10_000 });
+      const { notifications, push, sendNotification } = fixture({ presenceTtlMilliseconds: 10_000 });
       await push.register("user@example.com", subscription("handy"));
       notifications.setPresence([{ source: "t3", threadId: "thread-1" }]);
-      await expect(push.deliver(notification({ kind: "agent.completed", meta: { threadId: "thread-1" } }))).resolves.toMatchObject({ attempted: 0 });
+      const seen = notifications.create(notification({ kind: "agent.completed", meta: { threadId: "thread-1" } }));
+      expect(seen.readAt).not.toBeNull();
       vi.advanceTimersByTime(10_001);
-      await expect(push.deliver(notification({ kind: "agent.completed", meta: { threadId: "thread-1" } }))).resolves.toMatchObject({ attempted: 1, sent: 1 });
-      await push.close(); notifications.close();
+      const unseen = notifications.create(notification({ kind: "agent.completed", meta: { threadId: "thread-1" } }));
+      expect(unseen.readAt).toBeNull();
+      await push.close();
+      expect(sendNotification).toHaveBeenCalledOnce();
+      notifications.close();
     } finally {
       vi.useRealTimers();
     }

@@ -1,9 +1,8 @@
 import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { editorOpenEventSchema, WRAPT_LIMITS } from "@wrapt/contracts";
+import { editorOpenEventSchema } from "@wrapt/contracts";
 import { useLayoutStore } from "../stores/layout";
 import { wraptQueries } from "../lib/queryOptions";
-import { useWraptNotice } from "../stores/wraptNotice";
 
 /**
  * „Open in Editor" aus T3 Code: Das Server-Shim `code` meldet einen Pfad über
@@ -51,13 +50,11 @@ export function EditorOpenBridge() {
           window.location.assign(`/code-editor/?${params.toString()}`);
           return;
         }
-        if (openPanel({
+        openPanel({
           type: "code-server",
           projectId: project.id,
           codeServerFolder: path,
-        }) === null) {
-          useWraptNotice.getState().show(`Es können höchstens ${WRAPT_LIMITS.maxResidentTools} Werkzeuge gleichzeitig geöffnet sein. Schließe zuerst ein Panel.`);
-        }
+        });
       };
       socket.onclose = () => { if (!closed) timer = window.setTimeout(connect, Math.min(15_000, 1_000 * 2 ** retry++)); };
     };

@@ -134,7 +134,6 @@ export class NotificationPushService {
   private readonly keys: StoredKeys;
   private readonly sendNotification: typeof webPush.sendNotification;
   private readonly logger: PushLogger;
-  private readonly notifications: NotificationDatabase;
   private readonly validateEndpoint: PushEndpointValidator;
   private readonly timeoutMilliseconds: number;
   private preferences: NotificationPreferences;
@@ -158,7 +157,6 @@ export class NotificationPushService {
     webPush.setVapidDetails(options.subject, this.keys.publicKey, this.keys.privateKey);
     this.sendNotification = options.sendNotification ?? webPush.sendNotification.bind(webPush);
     this.logger = options.logger ?? noopLogger;
-    this.notifications = options.notifications;
     this.validateEndpoint = options.validateEndpoint ?? assertPublicHttpEndpoint;
     this.timeoutMilliseconds = options.timeoutMilliseconds ?? 10_000;
     this.db = new DatabaseSync(options.databasePath);
@@ -304,14 +302,10 @@ export class NotificationPushService {
   }
 
   private shouldPush(notification: Notification): boolean {
-    // Die Workbench ist aktiv genutzt (frischer Heartbeat eines sichtbaren
-    // Fensters): Toasts decken den Desktop ab, Push an Handy und
-    // Hintergrund-Fenster wäre doppelt. Erst wenn kein Fenster mehr aktiv
-    // meldet, gehen Push-Benachrichtigungen an alle Geräte.
     return this.preferences.pushEnabled
       && (this.preferences.sources[notification.source] ?? this.preferences.sources.wrapt).push
       && isPushCandidate(notification)
-      && !this.notifications.hasActiveWorkbench();
+      && notification.readAt === null;
   }
 
   private async sendToSubscription(

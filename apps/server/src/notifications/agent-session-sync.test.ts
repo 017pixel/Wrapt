@@ -250,7 +250,7 @@ describe("Agent-Session-Synchronisation", () => {
     expect(matchesT3Directory({ directory: "/workspace", timeCreated: now - 7_200_000, timeUpdated: now - 7_200_000 }, { directory: "/workspace", activeSince: now - 3_600_000 })).toBe(false);
   });
 
-  it("setzt beim ersten Lauf nur den Cursor und erzeugt keine Toast-Kandidaten für den Bestand", () => {
+  it("setzt beim ersten Lauf nur den Cursor und erzeugt keine Meldungen für den Bestand", () => {
     const { opencodePath, cursorPath, notifications, sync } = fixture();
     addSession(opencodePath, "normal-session", { directory: "/home/bbecker/projects/anderes" });
     appendAssistantCompletion(opencodePath, "normal-session", "old-message");
