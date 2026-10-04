@@ -54,13 +54,17 @@ test("resizes selected Orbit nodes and keeps properties collapsed", async ({ pag
 
   await page.goto(`${workbench}/orbit`);
   await expect(page.locator(".orbit-page")).toBeVisible();
-  const syncStatus = page.getByRole("button", { name: /Server gespeichert/ });
+  const syncStatus = page.getByRole("status", { name: "Auf Server gespeichert", exact: true });
   await expect(syncStatus).toBeVisible({ timeout: 20_000 });
-  await syncStatus.click();
-  await expect(page.getByText("Alle Änderungen sind gespeichert.")).toBeVisible();
-  await expect(page.getByText("Änderungen warten oder werden gespeichert.")).toBeVisible();
-  await expect(page.getByText("Die Synchronisierung benötigt Aufmerksamkeit.")).toBeVisible();
-  await syncStatus.click();
+  await page.getByRole("button", { name: "Orbit-Information öffnen", exact: true }).click();
+  const orbitInfo = page.getByRole("dialog", { name: "Arbeitsbereich-Info", exact: true });
+  await expect(orbitInfo).toBeVisible();
+  const synchronization = orbitInfo.getByRole("region", { name: "Arbeitsfläche und Synchronisierung", exact: true });
+  await expect(synchronization.locator("dl > div").filter({ has: page.getByText("Speicherstatus", { exact: true }) }).locator("dd")).toHaveText("Gespeichert");
+  await expect(synchronization.locator("dl > div").filter({ has: page.getByText("Synchronisierung", { exact: true }) }).locator("dd")).toHaveText("Aktueller Serverstand bestätigt");
+  await expect(synchronization.locator("dl > div").filter({ has: page.getByText("Sync-Modus", { exact: true }) }).locator("dd")).toHaveText("Asynchroner Serverabgleich");
+  await orbitInfo.getByRole("button", { name: "Info schließen", exact: true }).click();
+  await expect(orbitInfo).toHaveCount(0);
 
   await page.locator(".orbit-palette-item").filter({ hasText: "Neue Notiz" }).click();
   const noteCandidate = page.locator(".react-flow__node-orbit").filter({ has: page.locator(".orbit-node-shell") }).last();

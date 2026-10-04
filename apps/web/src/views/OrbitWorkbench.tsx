@@ -463,24 +463,6 @@ function OrbitCanvas() {
   useEffect(() => { setInspectorOpen(false); }, [document.focusedNodeId]);
 
   useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (globalThis.document.visibilityState === "hidden") endCanvasInteraction();
-    };
-    globalThis.window.addEventListener("pointerup", endCanvasInteraction, true);
-    globalThis.window.addEventListener("pointercancel", endCanvasInteraction, true);
-    globalThis.window.addEventListener("lostpointercapture", endCanvasInteraction, true);
-    globalThis.window.addEventListener("blur", endCanvasInteraction);
-    globalThis.document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      globalThis.window.removeEventListener("pointerup", endCanvasInteraction, true);
-      globalThis.window.removeEventListener("pointercancel", endCanvasInteraction, true);
-      globalThis.window.removeEventListener("lostpointercapture", endCanvasInteraction, true);
-      globalThis.window.removeEventListener("blur", endCanvasInteraction);
-      globalThis.document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [endCanvasInteraction]);
-
-  useEffect(() => {
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
     const pinch = (event: WheelEvent) => {
@@ -1224,7 +1206,7 @@ function OrbitCanvas() {
           <Background variant={BackgroundVariant.Dots} gap={24} size={1.2} color={orbitMinimapToken("--orbit-canvas-dot", "#343434")} />
         </ReactFlow>
       </OrbitNodeRuntimeProvider>
-      {canvasInteraction === "node" ? <div className="orbit-interaction-shield" aria-hidden onPointerUp={endCanvasInteraction} onPointerCancel={endCanvasInteraction} /> : null}
+      {canvasInteraction === "node" ? <div className="orbit-interaction-shield" aria-hidden onPointerCancel={endCanvasInteraction} /> : null}
       <OrbitMiniMap board={board} wrapper={wrapperRef} />
       <div className="orbit-drop-cue" aria-hidden><PlusIcon className="h-5 w-5" /><span>Auf dem Orbit ablegen</span></div>
       {snapPreview && snapTarget ? <div className="orbit-snap-cue is-visible" role="status" aria-live="polite"><FrameIcon className="h-4 w-4" /><div><strong>{snapPreview.action === "swap" ? "Slot tauschen" : "Preview einordnen"}</strong><span>{snapSlot ? `${snapSlot.title} in ${snapTarget.title}` : snapTarget.title}</span></div></div> : null}
