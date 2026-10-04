@@ -603,9 +603,8 @@ notifications.t3MiniTaskSeconds
 notifications.terminalMinimumSeconds
 notifications.agentMinimumSeconds
 notifications.hermesCompletionMinimumSeconds
-notifications.preferences.toastsEnabled
 notifications.preferences.pushEnabled
-notifications.preferences.sources.<hermes|t3|opencode|codex|claude|terminal|workbench|update>.<toast|push>
+notifications.preferences.sources.<hermes|t3|opencode|codex|claude|terminal|wrapt|workbench|update>.push
 ```
 
 Extension-Plattformwerte kommen später in denselben zentralen Config-Baum oder in serverseitige

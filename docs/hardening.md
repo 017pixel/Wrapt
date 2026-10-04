@@ -83,9 +83,15 @@ Bearbeiten und Veröffentlichen sind getrennte Fähigkeiten.
 
 ## E2E-Isolation und Flake-Budget
 
-- `pnpm test:e2e` startet einen eigenen Server auf freiem Port mit temporären Daten-,
-  Konfigurations- und Web-Build-Verzeichnissen, eigenem tmux-Socket und deaktivierten
-  Host-Integrationen. Nutzer-Previews und produktive Dienste werden nicht berührt.
+- Playwright startet ohne `WRAPT_E2E_PORT` auf Port 3010. Für einen isolierten Lauf einen freien
+  Port setzen und vorher den gesamten Bereich von `WRAPT_E2E_PORT` bis `WRAPT_E2E_PORT + 130`
+  prüfen, zum Beispiel `WRAPT_E2E_PORT=13100 pnpm test:e2e`.
+- Der Testserver verwendet temporäre Daten-, Konfigurations- und Web-Build-Verzeichnisse, einen
+  eigenen tmux-Socket und deaktivierte Host-Integrationen. `pnpm build` schreibt jedoch
+  `apps/server/dist` im aktuellen Checkout. E2E-Läufe deshalb vorzugsweise aus einer separaten
+  Arbeitskopie starten, damit ein aktiver Server-Build im normalen Checkout unverändert bleibt.
+- `WRAPT_E2E_URL` ist nur für eine eigens eingerichtete Testinstanz gedacht. Nutzer-Previews
+  dürfen weder als E2E-URL noch als Testziel verwendet werden.
 - Der Audit-Reporter schreibt `test-results/e2e-summary.json` und `-summary.md` mit
   Skip-Gründen, Retry-Erfolgen und Projektmatrix. Das Flake-Budget beträgt 1 pro Lauf;
   darüber schlägt der Lauf sichtbar fehl.

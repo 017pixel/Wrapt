@@ -236,6 +236,11 @@ function bindReleaseFilters() {
 
 function bindControls() {
   for (const dialog of [searchDialog, navigationDialog]) {
+    dialog.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      closeDialog(dialog);
+    });
     dialog.addEventListener("cancel", (event) => {
       event.preventDefault();
       closeDialog(dialog);

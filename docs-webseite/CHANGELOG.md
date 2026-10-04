@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.8] - 2026-10-02
+
+### Verändert
+- Produkt- und Konfigurationsdokumentation an die entfernten Kurzmeldungen und die aktuelle Account-Übersicht angepasst
+- Isolierte E2E-Prüfung und verbleibende Extension-Registries beschrieben
+- Escape schließt Such- und Navigationsdialog zuverlässig
+
 ## [0.1.7] - 2026-10-01
 
 ### Erstellt

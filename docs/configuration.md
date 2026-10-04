@@ -18,7 +18,7 @@ Konfigurationsquelle für alles Umgebungsspezifische:
 - `appearance` — projektweite Akzent-, Hintergrund-, Sidebar-, Topbar- und Bottom-Bar-Farben. Lokale Plugins lesen dieselben semantischen Theme-Tokens.
 - `contextMenu` — globale Rechtsklick-Menüs, Schnellaktionen, Surface-Schalter und Statusleisten-Darstellung.
 - `plugins` — optionale lokale Dateiquellen für Plugin-Werkzeuge, insbesondere `wraptPluginsSkillPath` für die in der Oberfläche lesbare und herunterladbare `$wrapt-plugins`-Anleitung.
-- `notifications` — Aufbewahrung, Erkennungsschwellen sowie Toast- und Push-Regeln pro Quelle.
+- `notifications` — Aufbewahrung, Erkennungsschwellen sowie Push-Regeln pro Quelle.
 - `previews` — interne Loopback-Listener, zugehörige öffentliche Tailscale-HTTPS-Ports und die Feature-Flags der Preview-Laufzeit (siehe unten).
 - `hermes` — Loopback-Dashboard, ACP-Chat, User-Units, Updatezeit und serverseitige Betriebsgrenzen.
 - `opencodeWeb` — offizielle OpenCode-Web-UI als Loopback-Dienst hinter `/opencode`.
@@ -146,14 +146,15 @@ Mindestlaufzeiten stehen in `terminalMinimumSeconds`, `agentMinimumSeconds`,
 und `hermesCompletionMinimumSeconds`. Aktive ungelesene bleiben erhalten; gelesene, erledigte
 und verworfene Einträge entfernt die Datenbank nach `pruneAfterHours`.
 
-Die Oberfläche zeigt passende neue Einträge als Benachrichtigungen; eine Inbox-Seite gibt es
-nicht, `/inbox` leitet zum Startbereich weiter.
+Neue Einträge werden serverseitig gespeichert und können per Web-Push zugestellt werden. Eine
+Inbox-Seite gibt es nicht; `/inbox` leitet zum Startbereich weiter.
 
-Unter `notifications.preferences` lassen sich Toasts und Web-Push global sowie pro Quelle
-schalten. `pushEnabled` ist ausschließlich der globale Server-Master-Schalter. Ob das gerade
+Unter `notifications.preferences` lässt sich Web-Push global sowie pro Quelle schalten.
+`pushEnabled` ist ausschließlich der globale Server-Master-Schalter. Ob das gerade
 verwendete Gerät abonniert ist, entscheidet dessen lokale Push-Subscription und nicht dieser
 Konfigurationswert. Geräte werden in den Einstellungen unabhängig aktiviert, getestet und
-deaktiviert; das Entfernen eines Endpoints verändert keine anderen Geräte.
+deaktiviert; das Entfernen eines Endpoints verändert keine anderen Geräte. Ältere
+Präferenzdateien bleiben lesbar; nicht mehr unterstützte Felder werden beim Einlesen verworfen.
 
 Hermes meldet neben dem Ergebnis (`hermes.result`) auch den kompletten Task-Lebenszyklus:
 `hermes.started` beim Start einer geplanten Cron-Aufgabe, `hermes.approval`, sobald eine
@@ -303,9 +304,9 @@ Projekt-Previews können entweder eine öffentliche `url` oder einen lokalen `ta
 Der Preview Hub erkennt die Projektlaufzeit aus Paketmanager, Workspaces, `package.json`-Scripts
 und bekannten Framework-Abhängigkeiten. Frontend, Backend, API, WebSocket, lokale Datenbank und
 Worker können als getrennte Prozesse gemeinsam in einer benutzer- und projektgebundenen
-tmux-Sitzung laufen. Diese Sitzung bleibt bei einem Backend-Neustart aktiv. Reicht die Erkennung
-nicht aus, beschreibt `preview.config.json` im Projektroot die Dienste explizit; das vollständige
-Format steht im Agenten-Skill `preview-config`.
+tmux-Sitzung laufen. Diese Sitzung bleibt bei einem Backend-Neustart aktiv; alle Dienstfenster
+werden einzeln überwacht. Reicht die Erkennung nicht aus, beschreibt `preview.config.json` im
+Projektroot die Dienste explizit; das Format steht im Agenten-Skill `preview-config-json`.
 
 Der Hub hält mehrere Projekt-Tabs gleichzeitig offen. Automatisch erkannte Browserdienste erhalten
 beim Start freie Ports aus `previews.allowedProjectPorts`; die tatsächliche Zuordnung liegt an der
@@ -334,7 +335,7 @@ Bei Multi-Page-Apps kann `path` direkt auf den gewünschten Einstieg zeigen, zum
 - `self`: Backendprozess gilt nach erfolgreichem Request als aktiv.
 - `none`: klarer inaktiver Zustand mit Begründung.
 
-Interne Healthcheck-URLs werden nie an den Browser gesendet. Öffentliche URLs dürfen nicht localhost sein. Beim Dienst `t3-code` folgt die offizielle Hosted-App automatisch dem Kanal: `https://app.t3.codes` für Stable und `https://nightly.app.t3.codes` für Nightly. Eigene T3-URLs bleiben unverändert. Manuell gekoppelte Hosted-App-Umgebungen sind browserlokal; für geräteübergreifende Einträge muss der Server über T3 Connect verknüpft und der Browser dort angemeldet sein.
+Interne Healthcheck-URLs werden nie an den Browser gesendet. Öffentliche URLs dürfen nicht localhost sein. Beim Dienst `t3-code` folgt die offizielle Hosted-App automatisch dem Kanal: `https://app.t3.codes` für Stable und `https://nightly.app.t3.codes` für Nightly. Eigene T3-URLs bleiben unverändert. Manuell gekoppelte Hosted-App-Umgebungen sind browserlokal; für geräteübergreifende Einträge muss der Server über T3 Connect verknüpft und der Browser dort angemeldet sein. Der eingebettete `/t3`-Proxy puffert den WebSocket getrennt von den übrigen Brücken: `t3.websocketPendingBytes` (Standard 4 MB) und `t3.websocketBufferedBytes` (Standard 16 MB) begrenzen den Rückstau, damit der Orchestrierungs-Sync nach einem Reconnect die Verbindung nicht kappt.
 
 ## Commands
 

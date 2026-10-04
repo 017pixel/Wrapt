@@ -33,6 +33,12 @@ pnpm architecture:extensions
 pnpm architecture:file-lines
 ```
 
+Für `pnpm test:e2e` einen freien `WRAPT_E2E_PORT` setzen und prüfen, dass auch die folgenden 130
+Ports frei sind. Der Lauf baut `apps/server/dist` im aktuellen Checkout neu; führe ihn deshalb
+vorzugsweise aus einer separaten Arbeitskopie aus. Nutzer-Previews dürfen weder als
+`WRAPT_E2E_URL` noch als Testziel verwendet werden. Details stehen in der
+[Prüfungsdokumentation](https://github.com/017pixel/Wrapt/blob/master/docs/hardening.md).
+
 Bei UI-Änderungen sollte der echte Ablauf im Browser geprüft werden. Nutze für Screenshot-Änderungen eine isolierte Instanz mit neutralen Beispieldaten. Echte Konten, Hostnamen, lokale Pfade, Tokens oder andere persönliche Inhalte dürfen nicht in Screenshots oder Dokumentation gelangen.
 
 ## Projektkonventionen

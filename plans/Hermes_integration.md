@@ -40,7 +40,7 @@ Jeder Punkt ist am laufenden System oder im Quellcode belegt. Die Quelle steht d
 | 7 | Chat über „`hermes serve` / TUI-Gateway-WebSocket" | Es gibt kein `hermes serve`. Der Dashboard-Chat (`/api/pty`) ist eine **PTY-Brücke auf die TUI** und nur mit `--tui` aktiv — genau das, was der Chat laut Anforderung nicht sein darf. Stattdessen existiert `hermes acp`: ein vollständiger **Agent-Client-Protocol-Server** (`acp_adapter/`) mit `session/new`, `session/load`, `session/prompt`, `session/cancel`, `fork_session`, `list_sessions`, Streaming-Updates, Tool-Call-Updates, `session/request_permission` und Modellwahl. Sessions werden in dieselbe `~/.hermes/state.db` geschrieben wie Telegram und Cron. | **ACP ist der Chat-Transport.** Der Dashboard-PTY-Chat bleibt deaktiviert. Siehe [Phase 6.3](#63-acp-manager--der-chat-transport). |
 | 8 | Orbit: neue Knotentypen per `baseNodeSchema.extend({ type: z.literal(...) })` | `orbitNodeSchema` (`packages/contracts/src/index.ts:1148`) ist ein **flaches** Objekt mit `superRefine`, keine diskriminierte Union. Ein Werkzeugknoten ist `type: "tool"` + `toolType: PanelType` und rendert direkt `<ToolPanel>` (`OrbitNodeView.tsx:177`). | Der Hermes-**Chat**-Knoten braucht **keinen** neuen Knotentyp — er entsteht automatisch aus `panelTypeSchema += "hermes"`. Nur vier neue Typen sind nötig: `hermesStatus`, `hermesTasks`, `hermesCron`, `hermesResults`. Siehe [Phase 11](#phase-11-orbit-integration). |
 | 9 | Panel-Metadaten als verschachteltes `hermesPanelStateSchema` | `panelSchema` ist flach; `browserUrl` ist als **optionales** Feld angehängt, damit gespeicherte Arbeitsflächen kompatibel bleiben. `apps/web/src/stores/workspace.ts:159` hält eine **zweite, eigene Kopie** des Schemas für die v2-Migration. | Flache optionale Felder statt Unterobjekt. **Beide** Schemata anpassen. Siehe [Phase 4](#phase-4-gemeinsame-contracts). |
-| 10 | „Prüfe, ob es schon ein Benachrichtigungssystem gibt" | Es gibt **keins** — weder Toasts noch persistente Benachrichtigungen. Treffer auf „notification" nur in `crashReport.ts`. | Vollständige Neuentwicklung, bewusst generisch (nicht hermes-spezifisch) geschnitten. Siehe [Phase 12](#phase-12-benachrichtigungen). |
+| 10 | Benachrichtigungssystem | Das generische System ist umgesetzt. Es speichert Einträge dauerhaft und unterstützt Web-Push. | Aktuellen Stand siehe [Phase 12](#phase-12-benachrichtigungen). |
 | 11 | „intelligenter Approval-Modus" konfigurieren | `approvals.mode` kennt laut Dashboard-Schema nur `ask`, `yolo`, `deny` (aktuell steht `manual` als Altwert in `~/.hermes/config.yaml`). Es gibt **keinen** intelligenten Modus. Normale Dateiänderungen lösen ohnehin keine Freigabe aus — nur Treffer der `DANGEROUS_PATTERNS` (`tools/approval.py`). | Zielzustand: `approvals.mode: ask`. **Zusätzlicher, in Fassung 1 fehlender Befund:** `command_allowlist` enthält aktuell dauerhaft freigegebene Muster für *rekursives Löschen*, *Löschen im Root-Pfad*, *`sudo` mit Privilegien-Flag* und *Überschreiben von Projekt-Env/Config*. Das widerspricht den Anforderungen direkt. Siehe [Phase 13](#phase-13-sicherheit-und-approvals). |
 | 12 | Dashboard-Theme ggf. per CSS-Injektion | Offizielles Theme-System vorhanden: YAML-Dateien in `$HERMES_HOME/dashboard-themes/*.yaml`, gelesen von `/api/dashboard/themes`, mit `palette`, `typography`, `layout`, `colorOverrides` (19 erlaubte Schlüssel), `components` (9 Buckets), `assets` und `customCSS` (≤ 32 KiB). | Theme als YAML **außerhalb** des Checkouts → übersteht `hermes update` unbeschadet. Keine CSS-Injektion. Siehe [Phase 14](#phase-14-theme-und-icon). |
 | 13 | „Offizielles Hermes-Icon suchen" (ohne Fundort) | Gefunden: `~/.hermes/hermes-agent/acp_registry/icon.svg` — Caduceus, `viewBox="0 0 16 16"`, bereits vollständig auf `currentColor`. Lizenz: MIT, © 2025 Nous Research. | Konkretes Asset, konkrete Lizenzlage. Anpassung an das Icon-System der Workbench (das `var(--icon-*)`-Token statt `currentColor` verwendet). Siehe [Phase 14](#phase-14-theme-und-icon). |
@@ -164,8 +164,8 @@ einem Wert aus `tailscale.allowedUsers`. Mutierende Anfragen brauchen zusätzlic
 (`requireMutationOrigin`). WebSockets prüfen zusätzlich `isSameOriginRequest`.
 CSP erlaubt `frameSrc: ['self', …]` — ein Iframe auf `/hermes/` ist damit zulässig.
 
-**Was fehlt.** Kein Toast-System, kein persistentes Benachrichtigungssystem, keine
-Notification-Tabelle. Alles neu zu bauen.
+**Benachrichtigungen.** Hermes-Ergebnisse und Update-Fehler werden als dauerhafte
+Einträge erfasst. Push kann in den Benachrichtigungseinstellungen pro Quelle aktiviert werden.
 
 ### 2.2 Hermes Agent
 
@@ -396,9 +396,9 @@ Die offizielle Cron-Oberfläche bleibt die primäre Bearbeitungsfläche.
 
 ### 4.6 Benachrichtigungen
 
-Neue Ergebnisse aus Web-Chat, Telegram, Cron und dem Update-Dienst erzeugen einen Toast **und**
-einen dauerhaften Eintrag mit Ungelesen-Zähler in der Hauptnavigation. Fehler bleiben sichtbar,
-bis sie bewusst bestätigt wurden. Ein fehlgeschlagenes Update erscheint nie nur als Toast.
+Neue Ergebnisse aus Web-Chat, Telegram, Cron und dem Update-Dienst erscheinen als dauerhafte
+Benachrichtigung mit Ungelesen-Zähler. Fehler bleiben bis zum Lesen oder Bestätigen erfasst.
+Für abonnierte Geräte kann der Server Push senden.
 
 ### 4.7 Responsive Design
 
@@ -1588,70 +1588,16 @@ Werkzeugdarstellung zurück.
 
 ### Phase 12: Benachrichtigungen
 
-Es existiert **nichts** — weder Toasts noch Persistenz. Beides wird bewusst **generisch**
-gebaut (Quelle `hermes` ist nur die erste), damit spätere Bereiche es mitnutzen können.
+Das generische Benachrichtigungssystem ist umgesetzt. Einträge werden in SQLite
+gespeichert und nach einer Aufbewahrungsfrist bereinigt. Der Contract enthält Quelle,
+Kategorie, Icon, Schweregrad, Zustand, Lese- und Bestätigungszeitpunkte, Link, Metadaten
+und optionale redigierte Fehlerberichte. Deduplizierung erfolgt über Quelle, Art und
+Remote-ID.
 
-#### 12.1 Persistenz
-
-**Datei:** `apps/server/src/notifications/database.ts`, in der bestehenden SQLite-Datei
-(`settings.databasePath`), nach dem Muster von `OrbitDatabase`/`TerminalDatabase`
-(`better-sqlite3`, Migration beim Konstruktor, `close()` im `onClose`-Hook von `app.ts`).
-
-```sql
-CREATE TABLE IF NOT EXISTS notifications (
-  id               TEXT PRIMARY KEY,
-  source           TEXT NOT NULL,
-  kind             TEXT NOT NULL,
-  severity         TEXT NOT NULL,
-  title            TEXT NOT NULL,
-  body             TEXT NOT NULL,
-  link             TEXT,
-  remote_id        TEXT,
-  created_at       TEXT NOT NULL,
-  read_at          TEXT,
-  acknowledged_at  TEXT,
-  metadata_json    TEXT NOT NULL DEFAULT '{}'
-);
-CREATE UNIQUE INDEX IF NOT EXISTS notifications_remote_unique
-  ON notifications(source, kind, remote_id) WHERE remote_id IS NOT NULL;
-CREATE INDEX IF NOT EXISTS notifications_created_at ON notifications(created_at DESC);
-CREATE INDEX IF NOT EXISTS notifications_unread ON notifications(read_at) WHERE read_at IS NULL;
-```
-
-Anforderungen: Deduplizierung über `remote_id`, Ungelesen-Zähler, Cursor-Pagination, Filter
-nach Quelle/Schweregrad, `mark as read`, `mark all as read`, Fehler bestätigen, Linkziel,
-Vorschau auf 400 Zeichen begrenzt, **keine Secrets** (dieselbe Redigierungsfunktion wie im
-HTTP-Client), Aufräumen: gelesene Einträge älter als 30 Tage und mehr als 500 Einträge je
-Quelle werden beim Schreiben gestutzt.
-
-#### 12.2 Erkennung neuer Ergebnisse
-
-**Datei:** `apps/server/src/hermes/result-sync.ts` — **ein** zentraler Poller im Server, nicht
-pro Client.
-
-1. Cursor `<dataDir>/hermes/result-cursor.json`: letzte gesehene `updatedAt` je Quelle plus
-   die letzten 200 gesehenen Session-IDs.
-2. Beim **ersten** Lauf wird der Cursor auf „jetzt" gesetzt und **nichts** gemeldet — sonst
-   würde die gesamte Historie als neue Toasts hereinbrechen (ausdrückliche Anforderung).
-3. Intervall `resultPollSeconds` (Default 20 s), ausgesetzt, solange kein Client verbunden ist.
-4. Quellen: Web-Chat (ACP-Manager meldet Abschlüsse direkt, ohne Polling), Telegram und Cron
-   (aus `/api/sessions` mit `source`-Feld), Update-Dienst (Zustandsdatei), Dashboard- und
-   Gateway-Fehler (Zustandswechsel `active` → `failed`).
-5. Erfolg und Fehler werden unterschieden; laufende Aufgaben erzeugen **keine**
-   Benachrichtigung (sie erscheinen im Aufgaben-Knoten).
-6. Der Poller überlebt Prozessneustarts über den Cursor.
-
-#### 12.3 Oberfläche
-
-- **Glocke** in der Topbar von `AppShell.tsx` mit Ungelesen-Zähler; auf Mobil zusätzlich in
-  `MobileNav.tsx`. Bei unbestätigten Fehlern ist der Zähler in der Fehlerfarbe.
-- **Panel** (Popover auf Desktop, Bottom-Sheet auf Mobil) mit Liste, Filter, „Alle gelesen",
-  Sprung zum Ziel.
-- **Toasts** über einen neuen `ToastProvider` (`apps/web/src/components/Toast.tsx`):
-  oben rechts auf Desktop, oben mittig auf Mobil, `aria-live="polite"` (Fehler `assertive`),
-  Auto-Dismiss 6 s (Fehler bleiben, bis geschlossen), maximal 3 gleichzeitig, gestapelt.
-  Ein Ereignis erzeugt **genau einen** Toast — die `id` der Benachrichtigung ist der Schlüssel.
-- Nach einem Browser-Neustart sind die dauerhaften Einträge weiterhin da; Toasts nicht.
+Die API unterstützt Filtern, Cursor-Paginierung, Lesen, Bestätigen, Presence, Push-Abos
+und einen WebSocket für Änderungen. Die Oberfläche hält ihre Abfrage über diesen Kanal
+aktuell. Push lässt sich serverweit, pro Quelle und pro Gerät steuern. Kurzlebige
+Toast-Oberflächen und zugehörige Einstellungen sind entfernt; es gibt keinen Popup-Ersatz.
 
 ---
 
@@ -2198,7 +2144,7 @@ letzte Verwaltungsseite wird wiederhergestellt · Theme angewandt.
 ### 10.4 Integration
 
 Telegram funktioniert weiter · Cron funktioniert weiter · Web und Telegram sehen denselben
-Sessionbestand (`state.db`) · Ergebnisse werden synchronisiert · Toasts funktionieren ·
+Sessionbestand (`state.db`) · Ergebnisse werden synchronisiert · Benachrichtigungen bleiben erhalten ·
 dauerhafter Benachrichtigungsbereich funktioniert · Ergebnis-Widget funktioniert ·
 aktive Aufgaben werden angezeigt.
 
@@ -2219,7 +2165,7 @@ Dienststeuerung akzeptiert keine freien Unitnamen.
 Täglicher Check um 04:15 `Europe/Berlin` (explizite Zone im Timer) · automatische Installation ·
 keine Installation während aktiver Aufgaben · Retry bei Beschäftigung · Pre-Update-Snapshot ·
 wöchentliches vollständiges Backup · SPA-Rebuild nach dem Update · Post-Update-Diagnose ·
-Toast · dauerhafte Benachrichtigung · Fehler bleiben sichtbar · Version vorher/nachher sichtbar.
+dauerhafte Benachrichtigung · Fehler bleiben sichtbar · Version vorher/nachher sichtbar.
 
 ### 10.8 Qualität
 

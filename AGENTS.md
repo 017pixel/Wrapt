@@ -297,4 +297,4 @@ Ziel sind kleine, fachlich klar abgegrenzte Module, normalerweise 100 bis 300 Ze
 - Aufteilen immer nach fachlicher Verantwortung, nicht nach Zeilennummer. Namen wie `part1`, `part2`, `misc`, `helpers2` sind nicht zulässig.
 - Feature-spezifische UI, Hooks, State, API-Zugriffe, Server-Routen und Services gehören zum jeweiligen Feature. `shared` enthält nur tatsächlich gemeinsam verwendete Funktionalität.
 - Neue Änderungen dürfen keine Datei über 400 Zeilen bringen.
-- Vor Abschluss muss `pnpm architecture:file-lines` erfolgreich sein. Die Struktur ist in `docs/architecture/project-structure.md` beschrieben.
+- Vor Abschluss muss `pnpm architecture:file-lines` erfolgreich sein. Die Struktur ist in `docs/architecture.md` beschrieben.

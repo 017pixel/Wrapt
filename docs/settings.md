@@ -16,11 +16,17 @@ Einstellungen, das lokale Layout und verbundene Wrapt-Instanzen:
   Verbindungsstatus und wechselt zwischen erreichbaren Instanzen. Derselbe Wechsel ist über den
   Workspace-Wechsler in der Seitenleiste verfügbar. Die Liste bleibt browserlokal und wird beim
   Wechsel per URL-Fragment zur Zielinstanz übertragen; Layout und Darstellung bleiben je Instanz.
-- **Easter Eggs** enthält das optionale Capybara-Maskottchen, das standardmäßig deaktiviert ist.
-  Es läuft in der Statusleiste zufällig umher, wird nach längerer Ruhe müde (nachts schneller) und
-  feiert selten mit Partyhut und Konfetti, nach einem gelungenen Neustart sofort. Die Größe lässt
-  sich zwischen 50 und 200 Prozent einstellen; die Vorschau im Bereich löst Gähnen, Party und
-  Nickerchen direkt aus und schläft dort schon nach einer kurzen Frist ein.
+- **Easter Eggs** enthält zwei optionale Extras, beide standardmäßig deaktiviert.
+  Das Capybara-Maskottchen läuft in der Statusleiste zufällig umher, wird nach längerer Ruhe müde
+  (nachts schneller) und feiert selten mit Partyhut und Konfetti, nach einem gelungenen Neustart
+  sofort. Die Größe lässt sich zwischen 50 und 200 Prozent einstellen; die Vorschau im Bereich löst
+  Gähnen, Party und Nickerchen direkt aus und schläft dort schon nach einer kurzen Frist ein.
+  Der Dashboard-Hintergrund blendet eines von 19 Doku-Motiven hinter die Systemwidgets. Alle 19
+  Motive werden für die Workbench in zwei kleineren Bildgrößen vorgehalten, damit das Bild ohne
+  sichtbare Verzögerung erscheint: 1280 × 720 für den Hintergrund und 320 × 180 für die Auswahl.
+  Originale in voller Auflösung bleiben für die Dokumentationsseite erhalten; die kleineren Varianten
+  erzeugt `pnpm build:artwork`, `pnpm build:artwork: --check` prüft, ob sie zu den aktuellen
+  Parametern passen.
 - **Start-App** legt fest, welche sichtbare Seite beim Öffnen des Root-Pfads geladen wird. Eine
   ausgeblendete Seite kann nicht als Startseite ausgewählt werden.
 

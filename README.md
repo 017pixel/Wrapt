@@ -4,7 +4,7 @@ Die selbst gehostete Remote-Development-Workbench für den privaten Arbeitsplatz
 Wrapt verbindet Projekte, Terminals, Editoren, Coding-Agenten, Previews, Dateien,
 Automatisierungen und Systemdiagnose in einer Oberfläche.
 
-**Aktuelle Version 1.25.2 · MIT · Node.js 22+ · pnpm 10 · [Changelog](CHANGELOG.md)**
+**Aktuelle Version 2.1.2 · MIT · Node.js 22+ · pnpm 10 · [Changelog](CHANGELOG.md)**
 
 ![Wrapt-Dashboard mit anonymisiertem Beispielserver](docs-webseite/assets/01-dashboard.png)
 
@@ -25,7 +25,9 @@ vorgesehen; öffentliche Freigaben per Funnel gehören bewusst nicht zum Betrieb
 
 Für den Server benötigt Wrapt Node.js 22+ und pnpm 10. Linux mit systemd ist der
 empfohlene Weg für den dauerhaften Serverbetrieb; lokal lässt sich Wrapt auf macOS
-im Vordergrund starten. Persistente Terminals benötigen tmux. Ein Coding-Agent auf
+im Vordergrund starten. Der Terminalkern verwendet auf Linux/macOS tmux und unter
+nativem Windows ConPTY. Die Unterschiede bei Neustart und Persistenz stehen in der
+[Terminal-Anleitung](docs/terminal.md). Ein Coding-Agent auf
 dem Zielserver richtet den Linux-Dienst ein; Skripte und Handarbeit führen zum selben Ergebnis.
 Die vollständigen Wege und Prüfungen stehen in der
 [Installationsanleitung](docs/installation.md).
@@ -206,8 +208,14 @@ pnpm lint
 pnpm test
 pnpm build
 pnpm architecture:file-lines
-pnpm test:e2e
+WRAPT_E2E_PORT=13100 pnpm test:e2e
 ```
+
+Wähle für `WRAPT_E2E_PORT` einen freien Port und prüfe, dass auch die folgenden 130 Ports frei
+sind. Der Lauf baut `apps/server/dist` im aktuellen Checkout neu; führe ihn deshalb vorzugsweise
+aus einer separaten Arbeitskopie aus. E2E-Tests gehören auf ihre eigene Instanz und dürfen weder
+eine Nutzer-Preview als `WRAPT_E2E_URL` verwenden noch gegen Preview-Ports laufen. Details stehen
+in [Hardening und Prüfungen](docs/hardening.md).
 
 Wichtige Regeln:
 

@@ -27,6 +27,42 @@ offiziellen Hermes-Pfad an die Wrapt, `route.navigate` nimmt Deep-Links aus der 
 entgegen. Die Brücke prüft Origin und Pfadform. Fällt sie aus, lädt der iframe den offiziellen
 Pfad direkt neu.
 
+**Cache der eingebetteten Oberfläche.** Der Proxy schreibt JavaScript um (Präfix und
+Versionsmarker) und muss deshalb Längen- und Kompressionsheader entfernen. Er darf dabei die
+Cache-Zusage des Upstreams nicht zerstören: Hermes deklariert seine gebauten, inhaltsgehashten
+Module als `immutable`, und mit `no-store` lud die Wrapt vor dieser Änderung bei jedem Öffnen
+des Hermes-Fensters rund 500 KB erneut. Grundregel: **der Proxy überschreibt nur, was Hermes
+nicht selbst gesagt hat.** Eine fehlende `cache-control`-Angabe gilt als Stille, jede
+vorhandene Angabe — auch eine ungewohnte wie `private, max-age=0` — wird respektiert.
+
+| Antwort | Cache-Control | Grund |
+| --- | --- | --- |
+| HTML | immer `no-store` | trägt das Session-Token, das Hermes pro Prozessstart neu injiziert |
+| JavaScript, Upstream `immutable` | `immutable` | Dateiname ist der Inhalts-Hash |
+| JavaScript, Upstream `no-store` (Plugin-Bundles) | `no-store` | ausdrückliche Upstream-Zusage |
+| JavaScript ohne Upstream-Angabe | `private, max-age=3600`, sonst `no-store` | der Proxy kann die Zusage durch sein Umschreiben nicht garantieren |
+| Unveränderter Body ohne Upstream-Angabe, mit `etag`, lesend, nicht `/api` | `private, max-age=3600` | betrifft Fonts, Favicon und `hermes-build.json` |
+| Body unverändert mit Upstream-Angabe | unverändert | Zustandsfreigabe ist wichtiger als Bytes |
+| `/api/...`, `/api` und schreibende Methoden | unverändert | dito |
+
+Die Bedingungen der 3600er-Regel sind der eigentliche Schutz und keine Kosmetik: ein `etag`
+nur bei echten Dateien, eine lesende Methode und ausgeschlossen alle API-Pfade. Ohne diese drei
+Grenzen würde auch eine Nutzlast zwischengespeichert.
+
+Warum `max-age=3600` und nicht `must-revalidate`: Starlettes `FileResponse` beantwortet
+`If-None-Match` nicht, ein 304 kann bei diesen Pfaden also nie zustande kommen.
+`must-revalidate` würde damit nur den vollen Body kosten.
+
+Weil JavaScript `immutable` ausgeliefert wird, ist `assetRewriteVersion` in
+`dashboard-proxy.ts` die Invalidierung: jede Änderung an der Umschreibung muss den Marker
+erhöhen, sonst liefert der Browser ein Jahr lang die alte Fassung aus dem Cache.
+
+`immutable` ist nur zusammen mit der Kompression sicher, weil `@fastify/compress` bei jeder
+Kompression `Vary: accept-encoding` setzt. Fällt dieses `Vary` einmal weg, darf die
+`immutable`-Regel nicht mehr verwendet werden — sonst bekäme ein Client ohne Brotli
+komprimierte Bytes aus dem Cache. `dashboard-proxy-cache.test.ts` sichert genau diese
+Eigenschaft ab.
+
 **Markenzeichen.** Die Wrapt verwendet das offizielle Hermes-Agent-Icon (MIT © 2025 Nous
 Research) aus `apps/desktop/assets/icon.png` des Hermes-Checkouts. `scripts/build-hermes-icon.mjs`
 leitet daraus `apps/web/public/icons/hermes-agent.png` ab; `HermesIcon` bettet es ein, damit alle
@@ -121,10 +157,12 @@ erlaubte relative Wrapt-Deep-Links. Der Service Worker zeigt jeden empfangenen P
 markiert den Eintrag beim Klick nach Möglichkeit als gelesen und fokussiert oder öffnet die PWA.
 Quellen-Synchronisierer (`agent-session-sync`, `t3-status-sync`, `terminal-status-sync`) binden
 den Gelesen-/Erledigt-Zustand an den tatsächlichen Status der zugehörigen Aufgabe. Schwellen und
-Zustellwege sind pro Quelle zentral konfigurierbar. Die Browseroberfläche zeigt passende neue
-Einträge als Toasts und erlaubt den Sprung über deren Deep-Link. Eine separate Inbox- oder
+Zustellwege sind pro Quelle zentral konfigurierbar. Neue Einträge bleiben im serverseitigen
+Verlauf gespeichert und können über Web-Push zugestellt werden. Eine separate Inbox- oder
 Verlaufsseite gibt es derzeit nicht; `/inbox` leitet zum Startbereich weiter. Die gespeicherten
 Einträge und Benachrichtigungs-API bleiben davon unberührt.
+Eine aktive Workbench unterdrückt Push nicht pauschal. Die Presence-Meldungen markieren nur
+Ereignisse gerade sichtbarer Chats als gelesen; diese werden nicht zusätzlich per Push zugestellt.
 
 ## KI-Skills
 
