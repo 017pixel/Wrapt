@@ -158,15 +158,15 @@ export function filterLanes(lanes: TimelineLane[], filter: UsageFilterState): Ti
   return lanes.filter((lane) => {
     if (filter.providerFilter !== "all" && lane.providerId !== filter.providerFilter) return false;
     if (filter.onlyActive && !lane.active) return false;
+    if (filter.hiddenAccountIds.includes(lane.accountId)) return false;
+    if (filter.hideAccountsWithoutData && lane.limits.length === 0) return false;
     if (filter.onlyProblematic) {
       const level = lane.limits.length > 0 ? limitLevel(Math.min(...lane.limits.map((limit) => limit.remaining)), filter.warningThreshold) : null;
-      // Problematsch: kritisches/niedriges Limit oder ein Account ohne Daten.
+      // Problematisch: kritisches/niedriges Limit oder ein Account ohne Daten.
       if (level === "low" || level === "critical") return true;
       if (lane.status === "unavailable" || lane.status === "disabled") return true;
       return false;
     }
-    if (filter.hiddenAccountIds.includes(lane.accountId)) return false;
-    if (filter.hideAccountsWithoutData && lane.limits.length === 0) return false;
     return true;
   });
 }

@@ -1,110 +1,94 @@
-import { expect, test } from "@playwright/test";
-import { hasPrivateWrapt, privateWraptReason, workbenchUrl } from "./helpers/environment";
+import { expect, test, type Locator } from "@playwright/test";
+import { workbenchUrl } from "./helpers/environment";
+import { mockUsageData, scarceAccountLabel } from "./helpers/usage";
 
-// Braucht echte Nutzungsdaten und verbundene Accounts (CodexBar, Profile).
-test.skip(() => !hasPrivateWrapt, privateWraptReason);
-
-const workbench = workbenchUrl;
-
-test("renders usage analytics, charts and account discovery", async ({page}) => {
-  const errors: string[] = [];
-  page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
-  await page.goto(`${workbench}/usage`);
-  await expect(page.getByRole("heading", {name:"Nutzung und Limits"})).toBeVisible();
-  // Neue Standardansicht: Limit-Statuszeile und kompakte Account-Tabelle.
-  await expect(page.getByLabel("Zusammenfassung der Limits")).toBeVisible({timeout:20_000});
-  await expect(page.getByRole("table", {name:"Aktuelle Limits je Account"})).toBeVisible();
-  await expect(page.getByRole("heading", {name:"Quota-Timeline"})).toHaveCount(0);
-  // Analyse-Preset aktiviert die Detailbereiche (KPIs, Provider-Karten, Prognosen).
-  await page.getByRole("button", {name:"Ansichtseinstellungen"}).click();
-  await page.getByRole("button", {name:/Analyse/}).click();
-  await expect(page.getByText("Tokens heute")).toBeVisible();
-  await expect(page.getByRole("heading", {name:"Claude Code"})).toBeVisible();
-  const codex = page.locator(".usage-provider").filter({has:page.getByRole("heading", {name:"Codex"})});
-  await expect(codex.locator(".usage-provider-kicker")).toHaveText("Aktuell");
-  await expect(codex.locator(".usage-alert")).toHaveCount(0);
-  const resetCredits = page.locator(".usage-forecast").filter({has:page.getByRole("heading", {name:"Reset-Guthaben"})});
-  await expect(resetCredits.getByText(/\d+ verfügbar/)).toBeVisible();
-  await page.getByRole("button", {name:"Verlauf"}).click();
-  await expect(page.getByRole("img", {name:"Tokenverbrauch nach Tag"})).toBeVisible();
-  await page.getByRole("button", {name:"Projekte & Modelle"}).click();
-  await expect(page.getByRole("heading", {name:"Projekte"})).toBeVisible();
-  await expect(page.getByRole("heading", {name:"Modelle"})).toBeVisible();
-  await page.getByRole("button", {name:"Accounts"}).click();
-  await expect(page.getByRole("heading", {name:"Profile verwalten"})).toBeVisible();
-  await page.getByRole("button", {name:"Hinzufügen"}).click();
-  await expect(page.getByRole("heading", {name:"Account verbinden"})).toBeVisible();
-  await expect(page.getByRole("option", {name:"Claude Code"})).toBeAttached();
-  const firstProfile = page.locator(".managed-account").first();
-  await expect(firstProfile).toBeVisible();
-  await expect(firstProfile.locator("code")).not.toBeEmpty();
-  await expect(page.getByRole("button", {name:"Mit Gerätecode anmelden"})).toBeVisible();
-  await expect(page.getByRole("button", {name:"Entfernen"}).first()).toBeVisible();
-  expect(errors).toEqual([]);
+test.use({
+  extraHTTPHeaders: { "tailscale-user-login": "user@example.com" },
+  serviceWorkers: "block",
+  viewport: { width: 1440, height: 960 },
 });
 
-test("keeps usage controls usable on mobile", async ({page}) => {
-  await page.setViewportSize({width:390,height:844});
-  await page.goto(`${workbench}/usage`);
-  await expect(page.getByRole("heading", {name:"Nutzung und Limits"})).toBeVisible();
-  const pageWidth = await page.locator(".usage-page").evaluate((element) => ({scroll:element.scrollWidth,client:element.clientWidth}));
-  expect(pageWidth.scroll).toBeLessThanOrEqual(pageWidth.client);
-
-  const table = page.getByRole("table", {name:"Aktuelle Limits je Account"});
-  await expect(table).toBeVisible({timeout:20_000});
-  const firstLimitRow = table.locator(".uat-row").first();
-  await expect(firstLimitRow).toBeVisible();
-  await expect(firstLimitRow.locator(".uat-cell-limits")).toBeVisible();
-  const rowBox = await firstLimitRow.boundingBox();
-  expect(rowBox).not.toBeNull();
-  expect(rowBox!.height).toBeLessThanOrEqual(180);
-  const tableWidth = await table.evaluate((element) => ({scroll:element.scrollWidth,client:element.clientWidth}));
-  expect(tableWidth.scroll).toBeLessThanOrEqual(tableWidth.client);
-
-  await firstLimitRow.locator(".uat-row-main").click();
-  const detailDialog = page.locator(".uat-dialog");
-  await expect(detailDialog).toBeVisible();
-  await expect(detailDialog.locator(".uat-details-limits")).toBeVisible();
-  const detailWidth = await detailDialog.evaluate((element) => ({scroll:element.scrollWidth,client:element.clientWidth}));
-  expect(detailWidth.scroll).toBeLessThanOrEqual(detailWidth.client);
-  await detailDialog.getByRole("button", {name:"Dialog schließen"}).click();
-  await expect(detailDialog).toBeHidden();
-
-  await page.getByRole("button", {name:"Accounts"}).click();
-  await page.getByRole("button", {name:"Hinzufügen"}).click();
-  await expect(page.getByRole("button", {name:"Mit Gerätecode anmelden"})).toBeVisible();
-  const accountManagerWidth = await page.locator(".account-manager").evaluate((element) => ({scroll:element.scrollWidth,client:element.clientWidth}));
-  expect(accountManagerWidth.scroll).toBeLessThanOrEqual(accountManagerWidth.client);
+test.beforeEach(async ({ page }) => {
+  await mockUsageData(page);
 });
 
-test("starts Codex with the remote device login flow", async ({page, browserName}) => {
-  test.skip(browserName !== "chromium", "The PTY command only needs one production browser verification.");
-  test.skip(workbench.startsWith("http://127.0.0.1"), "The production PTY requires the Tailscale user identity.");
-  await page.goto(`${workbench}/usage`);
-  await page.getByRole("button", {name:"Accounts"}).click();
-  const workAccount = page.locator(".managed-account").filter({hasText:"work@example.com"});
-  await workAccount.getByRole("button", {name:"Geräte-Anmeldung"}).click();
-  const dialog = page.getByRole("dialog", {name:"work@example.com anmelden"});
-  await expect(dialog).toContainText("keinen localhost-Rückruf");
-  await expect(dialog.locator(".xterm-rows")).toContainText(/device|Gerät|Code/i, {timeout:15_000});
-  await dialog.locator(".xterm-helper-textarea").press("Control+C");
-  await dialog.getByRole("button", {name:"Anmeldung schließen"}).click();
-  await expect(dialog).toBeHidden();
+async function expectNoHorizontalOverflow(locator: Locator): Promise<void> {
+  const width = await locator.evaluate((element) => {
+    const boundary = element.getBoundingClientRect();
+    const outside = [...element.querySelectorAll("*")]
+      .filter((child) => child.getBoundingClientRect().right > boundary.right + 1)
+      .slice(0, 8)
+      .map((child) => ({ element: child.tagName, class: child.getAttribute("class"), right: child.getBoundingClientRect().right }));
+    return { client: element.clientWidth, scroll: element.scrollWidth, outside };
+  });
+  expect.soft(width.scroll, JSON.stringify(width.outside)).toBeLessThanOrEqual(width.client + 1);
+}
+
+test("zeigt aktuelle Demo-Limits und erklärt fehlende Daten im Detaildialog", async ({ page }) => {
+  await page.goto(`${workbenchUrl}/usage`);
+  await expect(page.getByRole("heading", { name: "Nutzung und Limits" })).toBeVisible();
+  const table = page.getByRole("table", { name: "Aktuelle Limits je Account" });
+  await expect(table).toBeVisible();
+  await expect(table.getByRole("button", { name: /Details$/ })).toHaveCount(4);
+  await expect(table.getByText("75 %", { exact: true })).toBeVisible();
+  await expect(table.getByText("15 %", { exact: true })).toBeVisible();
+  await expect(table.getByText("Keine Limitdaten", { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Zusammenfassung der Limits")).toContainText("4 Accounts · 1 niedrig");
+
+  await table.getByRole("button", { name: "Demo Ohne Daten Details" }).click();
+  const details = page.getByRole("dialog", { name: "Demo Ohne Daten · Limits" });
+  await expect(details.getByText("Nicht verfügbar", { exact: true })).toBeVisible();
+  await expect(details.getByText("Für das Demokonto sind keine Limitdaten verfügbar.")).toBeVisible();
+  await expect(details.getByText("Für diesen Account liegen keine Limitfenster vor.")).toBeVisible();
+  await details.getByRole("button", { name: "Dialog schließen" }).click();
+  await expect(details).toBeHidden();
 });
 
-test("removes a registered account from the unified account list", async ({page}) => {
-  const accountId = "10000000-0000-4000-8000-000000000001";
-  let removed = false;
-  const account = {id:accountId,provider:"codex",label:"Test Account",email:null,profilePath:"/home/user/.codex-test",source:"local",enabled:true,createdAt:"2026-07-16T16:00:00.000Z",updatedAt:"2026-07-16T16:00:00.000Z"};
-  await page.route("**/api/v1/accounts", async (route) => route.fulfill({json:{accounts:removed?[]:[account]}}));
-  await page.route("**/api/v1/accounts/discover", async (route) => route.fulfill({json:{accounts:removed?[]:[{accountId,provider:"codex",label:"Test Account",profilePath:"/home/user/.codex-test",registered:true,authenticated:true,enabled:true,source:"local"}]}}));
-  await page.route(`**/api/v1/accounts/${accountId}`, async (route) => {removed=true;await route.fulfill({status:204});});
-  await page.goto(`${workbench}/usage`);
-  await page.getByRole("button", {name:"Accounts"}).click();
-  const card = page.locator(".managed-account").filter({hasText:"Test Account"});
-  await card.getByRole("button", {name:"Entfernen"}).click();
-  await page.getByRole("dialog", {name:"Account entfernen?"}).getByRole("button", {name:"Account entfernen"}).click();
-  await expect(card).toBeHidden();
-  await expect(page.getByRole("status")).toContainText("wurde aus Wrapt und CodexBar entfernt");
-  expect(removed).toBe(true);
+test("kombiniert Problemfilter und ausgeblendete Accounts und stellt die Liste wieder her", async ({ page }) => {
+  await page.goto(`${workbenchUrl}/usage`);
+  const table = page.getByRole("table", { name: "Aktuelle Limits je Account" });
+  await expect(table).toBeVisible();
+  await page.getByRole("button", { name: "Nur problematische" }).click();
+  await expect(table.getByRole("button", { name: /Details$/ })).toHaveCount(2);
+  await page.getByRole("button", { name: "Ohne Daten ausblenden" }).click();
+  await expect(table.getByRole("button", { name: /Details$/ })).toHaveCount(1);
+  await expect(table.getByRole("button", { name: `${scarceAccountLabel} Details` })).toBeVisible();
+
+  await page.getByRole("button", { name: "Accounts ausblenden", exact: true }).click();
+  const picker = page.getByRole("dialog", { name: "Accounts ausblenden" });
+  await picker.getByRole("checkbox", { name: new RegExp(scarceAccountLabel) }).uncheck();
+  await expect(table).toHaveCount(0);
+  await expect(page.getByText("Keine Accounts entsprechen den gewählten Filtern.")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(picker).toBeHidden();
+  await page.getByRole("button", { name: "Filter zurücksetzen" }).click();
+  await expect(table.getByRole("button", { name: /Details$/ })).toHaveCount(4);
+  await expect(page.getByRole("button", { name: "Nur problematische" })).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByRole("button", { name: "Ohne Daten ausblenden" })).toHaveAttribute("aria-pressed", "false");
+});
+
+test("hält Limits, Detaildialog und Filter auf einem kleinen Display bedienbar", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto(`${workbenchUrl}/usage`);
+  const table = page.getByRole("table", { name: "Aktuelle Limits je Account" });
+  await expect(table).toBeVisible();
+  await expectNoHorizontalOverflow(table);
+
+  await table.getByRole("button", { name: `${scarceAccountLabel} Details` }).click();
+  const details = page.getByRole("dialog", { name: `${scarceAccountLabel} · Limits` });
+  await expect(details.getByText("15 % verbleibend")).toBeVisible();
+  await expectNoHorizontalOverflow(details);
+  await details.getByRole("button", { name: "Dialog schließen" }).click();
+  await expect(details).toBeHidden();
+
+  await page.getByRole("button", { name: "Filter", exact: true }).click();
+  const filters = page.getByRole("dialog", { name: "Filter und Sortierung" });
+  await expect(filters).toBeVisible();
+  await expectNoHorizontalOverflow(filters);
+  await filters.getByRole("combobox", { name: "Provider", exact: true }).selectOption("claude");
+  await filters.getByRole("button", { name: "Filter schließen" }).click();
+  await expect(filters).toBeHidden();
+  await expect(table.getByRole("button", { name: /Details$/ })).toHaveCount(1);
+  await expect(table.getByRole("button", { name: "Demo Claude Details" })).toBeVisible();
+  await expectNoHorizontalOverflow(page.locator(".usage-page"));
 });

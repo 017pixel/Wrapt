@@ -128,7 +128,7 @@ export function UsageAccountTable({ views, showProvider, showActiveBadge, showDa
                 aria-label={`${lane.accountLabel} Details`}
               >
                 <span className="uat-account-cell">
-                  <span className={`uat-provider-dot qt-provider-${providerLabel[lane.providerId]}`} aria-hidden="true" />
+                  <span className={`uat-provider-dot uat-provider-${providerLabel[lane.providerId]}`} aria-hidden="true" />
                   <span className="uat-account-copy">
                     <strong title={lane.accountLabel}>{lane.accountLabel}</strong>
                     <small>{[showProvider ? providerName[lane.providerId] : null, lane.email && lane.email !== lane.accountLabel ? lane.email : null, lane.plan].filter(Boolean).join(" · ") || providerName[lane.providerId]}</small>

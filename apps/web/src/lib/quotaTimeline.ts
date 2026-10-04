@@ -1,28 +1,6 @@
 import type { UsageTimelineLane as ApiTimelineLane, UsageTimelineStatus, UsageWindow } from "@wrapt/contracts";
 
-/**
- * Quota-Timeline: Lanes und Fensterprojektion.
- *
- * Pure Funktionen über den bestehenden Usage-Daten — kein React, keine eigene
- * Uhr (`now` wird immer übergeben), dadurch direkt testbar. Das Modell ist an
- * der QuotaTimeline aus dem MIT-Projekt "Cli-Proxy-API-Management-Center"
- * (Router-for.ME) orientiert, nutzt aber ausschließlich die UsageWindow- und
- * UsageTimelineLane-Strukturen von Wrapt und rechnet in
- * Millisekunden statt in Prozent-Brüchen.
- */
-
-export const DAY_MS = 86_400_000;
-export const HOUR_MS = 3_600_000;
-const SESSION_PERIOD_HOURS = 5;
-
-/** Wochenansicht: 14 Tage ab Wochenbeginn. 5-Stunden-Ansicht: ca. drei Tage. */
-export type TimelineMode = "weekly" | "session";
-
-export const TIMELINE_SPAN_DAYS: Record<TimelineMode, number> = {
-  weekly: 14,
-  session: 3,
-};
-
+/** Account-Limits und Reset-Zeitpunkte aus den bestehenden Usage-Daten. */
 export interface TimelineLimit {
   label: string;
   remaining: number;
@@ -32,10 +10,6 @@ export interface TimelineResetCredit {
   id: string;
   grantedAtMs: number | null;
   expiresAtMs: number;
-}
-
-export interface TimelineResetCreditMark extends TimelineResetCredit {
-  leftPercent: number;
 }
 
 /** Eine Account-Zeile der Timeline, abgeleitet aus den bestehenden Usage-Daten. */
@@ -57,114 +31,6 @@ export interface TimelineLane {
   limits: TimelineLimit[];
   resetCredits: TimelineResetCredit[];
   updatedAt: string | null;
-}
-
-/** Ein gezeichneter Balken: ein Fenster innerhalb des sichtbaren Bereichs. */
-export interface TimelineWindow {
-  startMs: number;
-  endMs: number;
-  leftPercent: number;
-  widthPercent: number;
-  state: "past" | "live" | "next";
-  /** Verbleibender Prozentsatz nur beim API-gemeldeten aktuellen Fenster. */
-  remaining: number | null;
-}
-
-/**
- * Alle Fenstergrenzen von `periodMs` ausgerichtet an `anchorMs` für
- * [fromMs, toMs]. Der Anker ist ein bekannter Reset, von dem aus vorwärts und
- * rückwärts in ganzen Perioden projiziert wird.
- */
-export function windowsIn(anchorMs: number, periodMs: number, fromMs: number, toMs: number): Array<{ startMs: number; endMs: number }> {
-  if (!Number.isFinite(anchorMs) || !(periodMs > 0)) return [];
-  if (!(toMs > fromMs)) return [];
-
-  const maxWindows = Math.ceil((toMs - fromMs) / periodMs) + 2;
-  if (maxWindows > 1_000) return [];
-
-  let end = anchorMs + Math.ceil((fromMs - anchorMs) / periodMs) * periodMs;
-  const out: Array<{ startMs: number; endMs: number }> = [];
-  while (end - periodMs < toMs) {
-    out.push({ startMs: end - periodMs, endMs: end });
-    end += periodMs;
-  }
-  return out;
-}
-
-/** Beginn des lokalen Tages, der `ms` enthält. */
-export function startOfDay(ms: number): number {
-  const d = new Date(ms);
-  d.setHours(0, 0, 0, 0);
-  return d.getTime();
-}
-
-/** Beginn der lokalen Woche (Sonntag), die `ms` enthält. */
-export function startOfWeek(ms: number): number {
-  const d = new Date(startOfDay(ms));
-  d.setDate(d.getDate() - d.getDay());
-  return d.getTime();
-}
-
-/**
- * Sichtbarer Bereich für einen Modus und Offset. Die Wochenansicht schreitet
- * in ganzen Wochen ab dem enthaltenen Sonntag, die 5-Stunden-Ansicht in Tagen
- * ab heute. Datumsarithmetik statt fester Millisekunden, damit eine
- * DST-Umstellung innerhalb des Bereichs keinen Tag verschiebt.
- */
-export function timelineSpan(mode: TimelineMode, offset: number, now: number): { startMs: number; endMs: number; days: number } {
-  const days = TIMELINE_SPAN_DAYS[mode];
-  const base = new Date(mode === "weekly" ? startOfWeek(now) : startOfDay(now));
-  base.setDate(base.getDate() + offset * (mode === "weekly" ? 7 : 1));
-  const startMs = base.getTime();
-  const end = new Date(startMs);
-  end.setDate(end.getDate() + days);
-  return { startMs, endMs: end.getTime(), days };
-}
-
-/**
- * Projiziert die Fenster einer Lane auf den sichtbaren Bereich, beschnitten
- * und positioniert. Fenster außerhalb des Bereichs werden verworfen.
- */
-export function projectLane(lane: TimelineLane, spanStartMs: number, spanEndMs: number, now: number, mode: TimelineMode): TimelineWindow[] {
-  const periodHours = lane.periodHours;
-  if (lane.anchorMs === null || !periodHours) return [];
-  if (mode === "session" && periodHours !== SESSION_PERIOD_HOURS) return [];
-
-  const span = spanEndMs - spanStartMs;
-  if (span <= 0) return [];
-
-  const toPercent = (ms: number) => ((ms - spanStartMs) / span) * 100;
-
-  return windowsIn(lane.anchorMs, periodHours * HOUR_MS, spanStartMs, spanEndMs)
-    .map((window): TimelineWindow | null => {
-      const left = Math.max(0, toPercent(window.startMs));
-      const right = Math.min(100, toPercent(window.endMs));
-      if (right <= 0 || left >= 100 || right <= left) return null;
-
-      const state: TimelineWindow["state"] = window.endMs <= now ? "past" : window.startMs <= now ? "live" : "next";
-
-      return {
-        startMs: window.startMs,
-        endMs: window.endMs,
-        leftPercent: left,
-        widthPercent: right - left,
-        state,
-        // `lane.remaining` gilt ausschließlich für das aktuell gemessene
-        // Fenster, das am Anker endet. Nach dem Reset wird es nicht weitergereicht.
-        remaining: state === "live" && window.endMs === lane.anchorMs ? lane.remaining : null,
-      };
-    })
-    .filter((window): window is TimelineWindow => window !== null);
-}
-
-/** Projiziert nicht abgelaufene Reset-Credit-Ablaufzeitpunkte auf den Bereich. */
-export function projectResetCredits(lane: TimelineLane, spanStartMs: number, spanEndMs: number, now: number): TimelineResetCreditMark[] {
-  const span = spanEndMs - spanStartMs;
-  if (span <= 0) return [];
-
-  return lane.resetCredits
-    .filter((credit) => credit.expiresAtMs > now && credit.expiresAtMs >= spanStartMs && credit.expiresAtMs < spanEndMs)
-    .map((credit) => ({ ...credit, leftPercent: ((credit.expiresAtMs - spanStartMs) / span) * 100 }));
 }
 
 /**
@@ -241,25 +107,4 @@ export function buildTimelineLane(lane: ApiTimelineLane, maxPeriodHours?: number
       .filter((credit): credit is TimelineResetCredit => credit !== null),
     updatedAt: lane.updatedAt,
   };
-}
-
-/** Hat die Lane einen Anker und kann also überhaupt einen Balken zeichnen? */
-export function laneHasWindow(lane: TimelineLane): boolean {
-  return lane.anchorMs !== null;
-}
-
-/** Nächster anstehender Reset über alle Lanes (nur Fenster, keine Credits). */
-export function nextWindowResetMs(lanes: readonly TimelineLane[], now: number): number | null {
-  let best: number | null = null;
-  for (const lane of lanes) {
-    if (lane.anchorMs === null) continue;
-    if (lane.anchorMs <= now) continue;
-    if (best === null || lane.anchorMs < best) best = lane.anchorMs;
-  }
-  return best;
-}
-
-/** Anzahl Lanes mit einem verbleibenden Wert unter der Schwelle (z. B. 20 %). */
-export function countLanesBelow(lanes: readonly TimelineLane[], threshold: number): number {
-  return lanes.filter((lane) => lane.remaining !== null && lane.remaining < threshold).length;
 }

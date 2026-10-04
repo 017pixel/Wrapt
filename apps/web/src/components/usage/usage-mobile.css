@@ -1,7 +1,7 @@
 /* Smartphone-Layout der Nutzungsübersicht.
    Desktop bleibt bewusst in index.css. Auf kleinen Displays wird die Liste zu
-   einer dichten Notion-artigen Tabelle. Detaildaten öffnen in einem eigenen
-   Vollbilddialog, statt die Liste vertikal aufzublähen. */
+   einer kompakten Tabelle. Detaildaten öffnen in einem eigenen Dialog,
+   damit die Liste übersichtlich bleibt. */
 @media (max-width: 640px) {
   .usage-page {
     padding-inline: 12px;
@@ -16,24 +16,21 @@
     font-size: 24px;
   }
 
-  .usage-tabs {
-    margin-inline: -12px;
-    padding-inline: 12px;
-    gap: 2px;
-    overflow-x: auto;
-    scrollbar-width: none;
+  .usage-page .tab-bar {
+    margin-inline: 0;
+    padding-inline: 0;
   }
 
-  .usage-tabs::-webkit-scrollbar {
-    display: none;
+  .uat-dialog .uat-details-meta > div {
+    max-width: 100%;
   }
 
-  .usage-tabs button {
-    min-height: 38px;
-    flex: 0 0 auto;
-    padding-inline: 12px;
-    font-size: 12px;
-    white-space: nowrap;
+  .uat-dialog .uat-details-meta dd {
+    min-width: 0;
+    max-width: 100%;
+    margin: 0;
+    overflow-wrap: anywhere;
+    white-space: normal;
   }
 
   .usage-toolbar {
@@ -167,21 +164,6 @@
 
   .uvs-trigger span {
     display: none;
-  }
-
-  .usage-view-switcher-row {
-    justify-content: flex-end;
-    margin-top: 6px;
-  }
-
-  .usage-view-switcher {
-    padding: 2px;
-  }
-
-  .usage-view-switcher button {
-    min-height: 30px;
-    padding-inline: 10px;
-    font-size: 10px;
   }
 
   .usage-accounts-now {
@@ -336,36 +318,6 @@
     display: none;
   }
 
-  .uat-mobile-summary {
-    display: grid;
-    grid-row: 1 / 3;
-    grid-column: 2;
-    justify-items: end;
-    align-content: center;
-    min-width: 58px;
-    gap: 1px;
-    color: var(--color-muted);
-    font-size: 9px;
-    line-height: 1.15;
-    white-space: nowrap;
-  }
-
-  .uat-mobile-summary strong {
-    color: var(--color-text);
-    font-family: var(--font-mono);
-    font-size: 13px;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .uat-row.is-low .uat-mobile-summary strong {
-    color: var(--color-warn);
-  }
-
-  .uat-row.is-critical .uat-mobile-summary strong {
-    color: var(--color-bad);
-  }
-
   .uat-cell-expand {
     position: static;
     display: grid;
@@ -380,10 +332,6 @@
   .uat-cell-expand svg {
     width: 14px;
     height: 14px;
-  }
-
-  .uat-details-wrap {
-    display: none;
   }
 
   .uat-group {
@@ -405,178 +353,5 @@
     margin: 0;
     padding: 18px 12px;
     font-size: 11px;
-  }
-
-  .uat-mobile-dialog-backdrop {
-    place-items: stretch;
-    padding: 0;
-    background: var(--color-ink-950);
-  }
-
-  .modal-sheet.uat-mobile-dialog {
-    display: flex;
-    width: 100%;
-    height: var(--app-viewport-height, 100dvh);
-    max-height: none;
-    flex-direction: column;
-    overflow: hidden;
-    border: 0;
-    border-radius: 0;
-    background: var(--color-ink-950);
-    box-shadow: none;
-    padding-bottom: env(safe-area-inset-bottom);
-  }
-
-  .modal-sheet.uat-mobile-dialog > header {
-    min-height: 64px;
-    flex: 0 0 auto;
-    align-items: center;
-    padding: calc(10px + env(safe-area-inset-top)) 10px 10px 14px;
-    background: var(--color-ink-900);
-  }
-
-  .modal-sheet.uat-mobile-dialog > header h2 {
-    overflow: hidden;
-    font-size: 16px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .modal-sheet.uat-mobile-dialog > header p {
-    margin-top: 3px;
-    overflow: hidden;
-    font-size: 11px;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .uat-mobile-dialog-body {
-    min-height: 0;
-    flex: 1;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    padding: 12px 12px 24px;
-  }
-
-  .uat-mobile-dialog .uat-details {
-    display: grid;
-    gap: 16px;
-    padding: 0;
-  }
-
-  .uat-mobile-dialog .uat-details-title {
-    color: var(--color-faint);
-    font-family: var(--font-mono);
-    font-size: 9px;
-    font-weight: 600;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-  }
-
-  .uat-mobile-dialog .uat-details-limits {
-    display: grid !important;
-    grid-template-columns: 1fr;
-    gap: 0 !important;
-    overflow: hidden;
-    border: 1px solid var(--color-line);
-    border-radius: var(--radius-sm);
-    background: var(--color-ink-900);
-  }
-
-  .uat-mobile-dialog .uat-details-limits > div {
-    display: grid !important;
-    grid-template-columns: minmax(74px, auto) minmax(0, 1fr);
-    align-items: center;
-    gap: 10px !important;
-    min-height: 58px;
-    border: 0;
-    border-top: 1px solid var(--color-line-soft);
-    border-radius: 0;
-    background: transparent;
-    padding: 8px 10px;
-  }
-
-  .uat-mobile-dialog .uat-details-limits > div:first-child {
-    border-top: 0;
-  }
-
-  .uat-mobile-dialog .uat-details-limits dt {
-    color: var(--color-muted);
-    font-size: 10px;
-  }
-
-  .uat-mobile-dialog .uat-details-limits dd {
-    display: grid;
-    grid-template-columns: auto auto;
-    justify-content: end;
-    align-items: baseline;
-    gap: 2px 8px;
-    min-width: 0;
-    text-align: right;
-  }
-
-  .uat-mobile-dialog .uat-details-limits dd strong {
-    color: var(--color-text);
-    font-family: var(--font-mono);
-    font-size: 14px;
-  }
-
-  .uat-mobile-dialog .uat-details-limits dd span,
-  .uat-mobile-dialog .uat-details-limits dd small {
-    color: var(--color-faint);
-    font-size: 10px;
-  }
-
-  .uat-mobile-dialog .uat-details-limits dd small {
-    grid-column: 1 / -1;
-  }
-
-  .uat-mobile-dialog .uat-details-meta {
-    display: grid !important;
-    gap: 0 !important;
-    overflow: hidden;
-    border: 1px solid var(--color-line);
-    border-radius: var(--radius-sm);
-    background: var(--color-ink-900);
-  }
-
-  .uat-mobile-dialog .uat-details-meta > div {
-    display: grid;
-    grid-template-columns: 78px minmax(0, 1fr);
-    gap: 10px;
-    min-width: 0;
-    min-height: 42px;
-    align-items: center;
-    border-top: 1px solid var(--color-line-soft);
-    padding: 8px 10px;
-    font-size: 11px;
-  }
-
-  .uat-mobile-dialog .uat-details-meta > div:first-child {
-    border-top: 0;
-  }
-
-  .uat-mobile-dialog .uat-details-meta dt {
-    color: var(--color-faint);
-  }
-
-  .uat-mobile-dialog .uat-details-meta dd {
-    min-width: 0;
-    overflow: hidden;
-    color: var(--color-text);
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .uat-mobile-dialog .uat-detail-error,
-  .uat-mobile-dialog .uat-detail-credits {
-    grid-template-columns: auto minmax(0, 1fr);
-    color: var(--color-warn);
-  }
-}
-
-@media (min-width: 641px) {
-  .uat-mobile-summary {
-    display: none;
   }
 }
