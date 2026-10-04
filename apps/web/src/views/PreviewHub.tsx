@@ -10,7 +10,6 @@ import {
   CopyIcon,
   FolderCodeIcon,
   MoreIcon,
-  PlayIcon,
   PlusIcon,
   PowerIcon,
   ServerIcon,
@@ -162,29 +161,28 @@ export function PreviewHub() {
   }, [projectManagerOpen]);
 
   const bulkMutation = useMutation({
-    mutationFn: async (action: "start" | "stop") => {
+    mutationFn: async () => {
       const candidates = openProjects.filter((project) => {
         const state = statusByProjectId.get(project.id)?.state;
-        return action === "start" ? state !== "running" : state === "running" || state === "failed";
+        return state === "running" || state === "failed";
       });
       const succeeded: string[] = [];
       const failed: Array<{ name: string; message: string }> = [];
       for (const project of candidates) {
         try {
-          const status = action === "start" ? await apiClient.startPreviewDevServer(project.id) : await apiClient.stopPreviewDevServer(project.id);
+          const status = await apiClient.stopPreviewDevServer(project.id);
           if (status) queryClient.setQueryData(["preview-dev-server", project.id], status);
           succeeded.push(project.name);
         } catch (error) {
           failed.push({ name: project.name, message: error instanceof Error ? error.message : "Aktion fehlgeschlagen" });
         }
       }
-      return { action, succeeded, failed };
+      return { succeeded, failed };
     },
-    onSuccess: async ({ action, succeeded, failed }) => {
-      const verb = action === "start" ? "gestartet" : "gestoppt";
+    onSuccess: async ({ succeeded, failed }) => {
       setBulkMessage(failed.length
-        ? `${succeeded.length} ${verb}, ${failed.length} fehlgeschlagen: ${failed.map((item) => `${item.name}: ${item.message}`).join(" · ")}`
-        : `${succeeded.length} ${succeeded.length === 1 ? "Projekt" : "Projekte"} ${verb}.`);
+        ? `${succeeded.length} gestoppt, ${failed.length} fehlgeschlagen: ${failed.map((item) => `${item.name}: ${item.message}`).join(" · ")}`
+        : `${succeeded.length} ${succeeded.length === 1 ? "Projekt" : "Projekte"} gestoppt.`);
       setConfirmStopAll(false);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["preview-dev-server"] }),
@@ -195,7 +193,6 @@ export function PreviewHub() {
   });
 
   const runningCount = openProjects.filter((project) => statusByProjectId.get(project.id)?.state === "running").length;
-  const startableCount = openProjects.length - runningCount;
   const filteredProjects = projects.filter((project) => `${project.name} ${project.path}`.toLocaleLowerCase("de-DE").includes(projectSearch.trim().toLocaleLowerCase("de-DE")));
 
   if (projectsQuery.isLoading) return <div className="route-skeleton" aria-label="Previews werden geladen"><span /><span /><span /></div>;
@@ -252,19 +249,17 @@ export function PreviewHub() {
 
         <button type="button" className="preview-hub-mobile-project" onClick={() => setProjectManagerOpen(true)}>
           <span className={`preview-hub-state is-${statusByProjectId.get(activeProjectId ?? "")?.state ?? "unknown"}`}><i /></span>
-          <span><strong>{activeProject?.name ?? "Projekt auswählen"}</strong><small>{runningCount} von {openProjects.length} laufen</small></span>
+          <span><strong>{activeProject?.name ?? "Projekt auswählen"}</strong></span>
           <ChevronDownIcon />
         </button>
 
         <div className="preview-hub-tabs-summary">
-          <span>{runningCount} von {openProjects.length} laufen</span>
-          <button type="button" className="preview-hub-secondary" disabled={!startableCount || bulkMutation.isPending} onClick={() => bulkMutation.mutate("start")}><PlayIcon />{bulkMutation.isPending && bulkMutation.variables === "start" ? "Startet" : "Alle starten"}</button>
           <details className="preview-hub-more">
             <summary aria-label="Projekt-Sammelaktionen"><MoreIcon /></summary>
             <div>
               <button type="button" disabled={!runningCount || bulkMutation.isPending} onClick={() => {
                 if (!confirmStopAll) { setConfirmStopAll(true); return; }
-                bulkMutation.mutate("stop");
+                bulkMutation.mutate();
               }}><PowerIcon /><span><strong>{confirmStopAll ? "Wirklich alle stoppen" : "Alle stoppen"}</strong><small>{confirmStopAll ? "Erneut anklicken, um zu bestätigen" : "Nur geöffnete Projektlaufzeiten"}</small></span></button>
               <button type="button" onClick={() => setProjectManagerOpen(true)}><FolderCodeIcon /><span><strong>Projekte verwalten</strong><small>Tabs öffnen oder wieder aktivieren</small></span></button>
             </div>

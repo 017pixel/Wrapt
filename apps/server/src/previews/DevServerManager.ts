@@ -187,10 +187,9 @@ export class PreviewDevServerManager {
     const project = await this.resolveProject(projectId);
     const detectedProfile = await this.profile(projectId);
     const name = this.sessionName(userId, projectId);
-    if (this.panes(name).some((pane) => !pane.dead)) {
-      return this.status(userId, projectId);
-    }
-    if (this.panes(name).length > 0) this.execute(["kill-session", "-t", name]);
+    const panes = this.panes(name);
+    if (panes.length > 0 && !panes.some((pane) => pane.dead)) return this.status(userId, projectId);
+    if (panes.length) this.execute(["kill-session", "-t", name]);
     const profile = await this.assignRuntimePorts(name, detectedProfile);
     if (profile.setupCommand) this.runSetup(project, name, profile.setupCommand);
 
@@ -475,7 +474,8 @@ export class PreviewDevServerManager {
   }
 
   private panes(name: string): PaneState[] {
-    const result = this.run(["list-panes", "-t", name, "-F", "#{window_name}\t#{pane_dead}\t#{pane_dead_status}\t#{pane_pid}\t#{session_created}"], 4_000);
+    // `-s`: alle Fenster der Sitzung; sonst nur das aktuelle (Dienste fehlen).
+    const result = this.run(["list-panes", "-s", "-t", name, "-F", "#{window_name}\t#{pane_dead}\t#{pane_dead_status}\t#{pane_pid}\t#{session_created}"], 4_000);
     if (result.status !== 0) return [];
     return result.stdout.trim().split("\n").filter(Boolean).map((line) => {
       const [serviceId, dead, exitCode, pid, created] = line.split("\t");

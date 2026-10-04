@@ -201,8 +201,8 @@ describe("Preview-Hub-Routensynchronisierung", () => {
     };
     renderHub(configuredProject, "/previews?preview=docs");
 
-    const targetSelect = await screen.findByRole("combobox", { name: "Preview-Ziel auswählen" });
-    expect((targetSelect as HTMLSelectElement).value).toBe("docs");
+    const targetSelect = await screen.findByRole("button", { name: "Preview-Ziel auswählen" });
+    expect(targetSelect.textContent).toContain("Dokumentation");
     expect(screen.getByText("https://docs.example.test/guide").textContent).toBe("https://docs.example.test/guide");
     fireEvent.click(screen.getByLabelText("Weitere Optionen"));
     expect(screen.queryByRole("button", { name: /Im Orbit öffnen/ })).toBeNull();

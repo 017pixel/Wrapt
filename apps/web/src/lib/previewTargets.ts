@@ -43,17 +43,6 @@ export function normalizePreviewTarget(value: string): NormalizedPreviewTarget |
   }
 }
 
-// Kurzform der Quelle für die Anzeige im Geräterahmen.
-export function previewTargetOrigin(target: NormalizedPreviewTarget | null): string | null {
-  if (!target) return null;
-  if (target.kind === "local") return `localhost:${target.port}`;
-  try {
-    return new URL(target.url).host;
-  } catch {
-    return null;
-  }
-}
-
 export function previewSlotUrl(publicUrl: string, path: string): string {
   const base = new URL(publicUrl);
   const resolved = new URL(normalizedPath(path), base);

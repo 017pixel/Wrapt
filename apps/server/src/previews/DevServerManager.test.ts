@@ -39,40 +39,52 @@ async function harness() {
     return value;
   };
   const ports: LocalPort[] = [];
+  interface FakePane { name: string; dead: boolean; exitCode: number | null }
+  const createSession = (panes: FakePane[]) => ({
+    options: {} as Record<string, string>,
+    panes,
+    get dead() { return panes.every((pane) => pane.dead); },
+    set dead(value: boolean) { for (const pane of panes) { pane.dead = value; if (!value) pane.exitCode = null; } },
+    get exitCode(): number | null { return panes.find((pane) => pane.dead)?.exitCode ?? null; },
+    set exitCode(value: number | null) { for (const pane of panes) if (pane.dead) pane.exitCode = value; },
+  });
   const supervisor = {
     exists: false,
     dead: false,
     exitCode: null as number | null,
     output: "\u001b[31merror\u001b[0m\nready on http://localhost:5173\n",
     commands: [] as string[][],
-    sessions: new Map<string, { options: Record<string, string>; dead: boolean; exitCode: number | null; windows: string[] }>(),
+    sessions: new Map<string, ReturnType<typeof createSession>>(),
   };
   const runner = (args: string[]) => {
     supervisor.commands.push(args);
+    const target = () => args[args.indexOf("-t") + 1] ?? "";
     if (args[0] === "list-sessions") {
       return { status: 0, stdout: [...supervisor.sessions.keys()].join("\n"), stderr: "" };
     }
     if (args[0] === "list-panes") {
-      const session = supervisor.sessions.get(args[2] ?? "");
+      const session = supervisor.sessions.get(target());
       if (!session) return { status: 1, stdout: "", stderr: "missing" };
-      return { status: 0, stdout: session.windows.map((window) => `${window}\t${session.dead ? 1 : 0}\t${session.exitCode ?? ""}\t4242\t1700000000`).join("\n") + "\n", stderr: "" };
+      // tmux listet ohne `-s` nur das aktuelle Fenster (im Fake das erste).
+      const panes = args.includes("-s") ? session.panes : session.panes.slice(0, 1);
+      return { status: 0, stdout: panes.map((pane) => `${pane.name}\t${pane.dead ? 1 : 0}\t${pane.dead ? pane.exitCode ?? "" : ""}\t4242\t1700000000`).join("\n") + "\n", stderr: "" };
     }
     if (args[0] === "new-session") {
       const name = args[3]!;
-      supervisor.sessions.set(name, { options: {}, dead: false, exitCode: null, windows: [args[5] ?? "frontend"] });
+      supervisor.sessions.set(name, createSession([{ name: args[5] ?? "frontend", dead: false, exitCode: null }]));
       supervisor.exists = true;
       supervisor.dead = false;
       supervisor.exitCode = null;
       return { status: 0, stdout: "", stderr: "" };
     }
     if (args[0] === "kill-session") {
-      supervisor.sessions.delete(args[2] ?? "");
+      supervisor.sessions.delete(target());
       supervisor.exists = false;
       return { status: 0, stdout: "", stderr: "" };
     }
     if (args[0] === "new-window") {
-      const session = supervisor.sessions.get(args[3] ?? "");
-      if (session) session.windows.push(args[5] ?? `dienst-${session.windows.length + 1}`);
+      const session = supervisor.sessions.get(target());
+      if (session) session.panes.push({ name: args[5] ?? `dienst-${session.panes.length + 1}`, dead: false, exitCode: null });
       return { status: 0, stdout: "", stderr: "" };
     }
     if (args[0] === "capture-pane") return { status: 0, stdout: supervisor.output, stderr: "" };
@@ -107,8 +119,10 @@ describe("PreviewDevServerManager", () => {
     const { create, supervisor } = await harness();
     expect((await create().start("user@example.test", "projekt")).state).toBe("running");
     const paneQuery = supervisor.commands.find((args) => args[0] === "list-panes");
-    expect(paneQuery?.[4]).toContain("\t");
-    expect(paneQuery?.[4]).not.toContain("\\t");
+    expect(paneQuery).toContain("-s");
+    const format = paneQuery?.[paneQuery.indexOf("-F") + 1];
+    expect(format).toContain("\t");
+    expect(format).not.toContain("\\t");
     const command = supervisor.commands.find((args) => args[0] === "new-session");
     expect(command?.at(-1)).toContain("npm run dev -- --port 1234");
     expect((await create().status("user@example.test", "projekt")).state).toBe("running");
@@ -139,7 +153,7 @@ describe("PreviewDevServerManager", () => {
     }));
     const status = await create().start("user@example.test", "projekt");
     const session = [...supervisor.sessions.values()][0];
-    expect(session?.windows).toEqual(["frontend", "api", "database"]);
+    expect(session?.panes.map((pane) => pane.name)).toEqual(["frontend", "api", "database"]);
     expect(status.services.map((service) => [service.role, service.port, service.state])).toEqual([
       ["frontend", 1234, "running"],
       ["api", 1223, "running"],
@@ -256,6 +270,53 @@ describe("PreviewDevServerManager", () => {
 
     await create(publish).tick();
     expect(publications).toBe(2);
+  });
+
+  it("überwacht alle Fenster einer Sitzung, nicht nur das erste", async () => {
+    const { create, supervisor, project } = await harness();
+    await writeFile(join(project.path, "preview.config.json"), JSON.stringify({
+      version: 1,
+      services: [
+        { id: "frontend", name: "Frontend", role: "frontend", command: "npm run dev:web", port: 1234, portMode: "environment" },
+        { id: "api", name: "API", role: "api", command: "npm run dev:api", port: 1223, portMode: "environment" },
+      ],
+    }));
+    const manager = create();
+    const status = await manager.start("user@example.test", "projekt");
+    expect(status.services.map((service) => service.state)).toEqual(["running", "running"]);
+
+    const name = [...supervisor.sessions.keys()][0]!;
+    const session = supervisor.sessions.get(name)!;
+    session.panes[1]!.dead = true;
+    session.panes[1]!.exitCode = 1;
+    const afterCrash = await manager.status("user@example.test", "projekt");
+    expect(afterCrash.state).toBe("failed");
+    expect(afterCrash.services.map((service) => service.state)).toEqual(["running", "failed"]);
+    expect(afterCrash.services[1]?.exitCode).toBe(1);
+
+    await manager.tick();
+    expect(supervisor.sessions.get(name)?.panes.every((pane) => !pane.dead)).toBe(true);
+    const starts = supervisor.commands.filter((command) => command[0] === "new-session");
+    expect(starts).toHaveLength(2);
+  });
+
+  it("baut eine teilweise fehlgeschlagene Sitzung beim Start vollständig neu auf", async () => {
+    const { create, supervisor, project } = await harness();
+    await writeFile(join(project.path, "preview.config.json"), JSON.stringify({
+      version: 1,
+      services: [
+        { id: "frontend", name: "Frontend", role: "frontend", command: "npm run dev:web", port: 1234, portMode: "environment" },
+        { id: "api", name: "API", role: "api", command: "npm run dev:api", port: 1223, portMode: "environment" },
+      ],
+    }));
+    const manager = create();
+    await manager.start("user@example.test", "projekt");
+    const name = [...supervisor.sessions.keys()][0]!;
+    supervisor.sessions.get(name)!.panes[1]!.dead = true;
+    supervisor.sessions.get(name)!.panes[1]!.exitCode = 1;
+    const status = await manager.start("user@example.test", "projekt");
+    expect(status.services.map((service) => service.state)).toEqual(["running", "running"]);
+    expect(supervisor.commands.filter((command) => command[0] === "new-session")).toHaveLength(2);
   });
 
   it("entfernt Terminal-Steuersequenzen aus Logs und speichert den Öffnungsmodus", async () => {

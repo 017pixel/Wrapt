@@ -3,8 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router";
 import type { OrbitBoard, Project, PreviewDevServerState, PreviewRuntimeLogLevel, PreviewRuntimeServiceRole } from "@wrapt/contracts";
 import {
-  ActivityIcon, CheckIcon, ChevronDownIcon, CopyIcon, DatabaseIcon, ExternalLinkIcon,
-  MoreIcon, PlayIcon, PowerIcon, RefreshIcon, ServerIcon, ServicesIcon, TerminalIcon, WarningIcon, WorkbenchIcon,
+  ActivityIcon, CopyIcon, DatabaseIcon, ExternalLinkIcon,
+  MoreIcon, PlayIcon, RefreshIcon, ServerIcon, ServicesIcon, TerminalIcon, WarningIcon, WorkbenchIcon,
 } from "../components/icons";
 import { apiClient } from "../lib/apiClient";
 import { writeClipboardText } from "../lib/clipboard";
@@ -16,6 +16,8 @@ import { previewSlotUrl } from "../lib/previewTargets";
 import { wraptQueries } from "../lib/queryOptions";
 import { withPreviewSlotRecovery, type PreviewSlotRecoveryPhase } from "../lib/previewSlotRecovery";
 import { useSidebarPreferences } from "../stores/sidebarPreferences";
+
+import { PreviewTargetMenu } from "./PreviewTargetMenu";
 
 type LogFilter = "all" | PreviewRuntimeLogLevel;
 type DirectOpenMode = "tab" | "window";
@@ -127,6 +129,13 @@ export function PreviewHubProject({ project, routeActive, orbitBoards }: { proje
     onError: (error) => setActionError(error instanceof Error ? error.message : "Der Hauptport konnte nicht gespeichert werden."),
   });
 
+  // Eine gespeicherte Veröffentlichung ist nur gültig, solange der gewählte
+  // Dienst wirklich läuft. Sonst würde ein toter Slot-Link geöffnet, statt die
+  // Projektlaufzeit neu aufzubauen.
+  const targetServiceRunning = targetPort !== null && targetPort !== undefined
+    && status?.services.some((service) => service.port === targetPort && service.state === "running") === true;
+  const existingPublicUrl = status?.mainPort === targetPort && targetServiceRunning ? status.publicUrl : null;
+
   const openDirect = async (mode: DirectOpenMode) => {
     setActionError(null);
     if (externalUrl) {
@@ -140,7 +149,7 @@ export function PreviewHubProject({ project, routeActive, orbitBoards }: { proje
       return;
     }
     try {
-      const existingUrl = status?.mainPort === targetPort ? status.publicUrl : null;
+      const existingUrl = existingPublicUrl;
       const launch = existingUrl ? null : await withPreviewSlotRecovery(() => apiClient.launchPreviewRuntime(projectId), setLaunchPhase);
       const baseUrl = existingUrl ?? launch?.url;
       if (!baseUrl) throw new Error("Die Preview-URL wurde nicht bereitgestellt.");
@@ -163,7 +172,7 @@ export function PreviewHubProject({ project, routeActive, orbitBoards }: { proje
         return;
       }
       if (!targetPort) return;
-      const existingUrl = status?.mainPort === targetPort ? status.publicUrl : null;
+      const existingUrl = existingPublicUrl;
       const launch = existingUrl ? null : await withPreviewSlotRecovery(() => apiClient.launchPreviewRuntime(projectId), setLaunchPhase);
       const baseUrl = existingUrl ?? launch?.url;
       if (!baseUrl) throw new Error("Die Preview-URL wurde nicht bereitgestellt.");
@@ -218,7 +227,6 @@ export function PreviewHubProject({ project, routeActive, orbitBoards }: { proje
       : status?.state === "running"
         ? `${runningServices} von ${status.services.length} Diensten aktiv${status.startedAt ? ` · seit ${new Date(status.startedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}` : ""}`
         : `${sourceLabel} · ${status?.services.length ?? 0} Dienste`;
-  const logsLive = status?.state === "running" && !logsQuery.isError;
   const publicTargetUrl = externalUrl ?? (status?.publicUrl && targetPort === mainPort
     ? selectedPreview ? previewSlotUrl(status.publicUrl, targetPath) : status.publicUrl
     : null);
@@ -229,11 +237,11 @@ export function PreviewHubProject({ project, routeActive, orbitBoards }: { proje
 
   return <>
     <header className="preview-hub-command">
-      <div className="preview-hub-server-state"><span className={`preview-hub-state is-${visibleState}`}><i />{stateLabels[visibleState]}</span><div><strong>{project.name}</strong><span>{runtimeSummary}</span></div></div>
+      <div className="preview-hub-server-state"><span className={`preview-hub-state is-${visibleState}`} role="status" aria-label={stateLabels[visibleState]} title={stateLabels[visibleState]}><i aria-hidden="true" />{visibleState === "running" ? null : stateLabels[visibleState]}</span><div><strong>{project.name}</strong><span>{runtimeSummary}</span></div></div>
       <div className="preview-hub-process-actions">
-        {status?.state === "running" ? <button type="button" className="preview-hub-secondary" disabled={processMutation.isPending || Boolean(launchPhase)} onClick={() => processMutation.mutate("restart")}><RefreshIcon />Neu starten</button> : null}
+        {status?.state === "running" ? <button type="button" className="preview-hub-secondary preview-hub-restart" aria-label="Neu starten" title="Neu starten" disabled={processMutation.isPending || Boolean(launchPhase)} onClick={() => processMutation.mutate("restart")}><RefreshIcon /></button> : null}
         <button type="button" className={status?.state === "running" ? "preview-hub-stop" : "preview-hub-primary"} data-pending={processMutation.isPending} disabled={processMutation.isPending || Boolean(launchPhase) || statusQuery.isLoading || !status?.services.length} onClick={() => processMutation.mutate(status?.state === "running" ? "stop" : "start")}>
-          {processMutation.isPending ? <ActivityIcon /> : status?.state === "running" ? <PowerIcon /> : <PlayIcon />}{processAction === "stop" ? "Wird gestoppt" : processAction ? "Wird gestartet" : status?.state === "running" ? "Alles stoppen" : "Alles starten"}
+          {processMutation.isPending ? <ActivityIcon /> : status?.state === "running" ? null : <PlayIcon />}{processAction === "stop" ? "Wird gestoppt" : processAction ? "Wird gestartet" : status?.state === "running" ? "Alles stoppen" : "Alles starten"}
         </button>
       </div>
     </header>
@@ -243,33 +251,32 @@ export function PreviewHubProject({ project, routeActive, orbitBoards }: { proje
     <div className="preview-hub-grid">
       <div className="preview-hub-overview">
         <section className="preview-hub-runtime">
-          <header><div><ServicesIcon /><div><strong>Projektlaufzeit</strong><span>{runtimeSummary}</span></div></div><span className="preview-hub-source">{sourceLabel}</span></header>
           <div className="preview-hub-services">
             {status?.services.map((service) => <article className="preview-hub-service" key={service.id} data-state={service.state}>
               <div className="preview-hub-service-icon">{serviceIcon(service.role)}</div><div className="preview-hub-service-main">
                 <div><strong>{service.name}</strong>{service.name.toLocaleLowerCase("de-DE") !== roleLabels[service.role].toLocaleLowerCase("de-DE") ? <span>{roleLabels[service.role]}</span> : null}</div>
                 <code title={service.command}>{service.command}</code>{service.frameworkHints.length ? <small>{service.frameworkHints.join(" · ")}</small> : null}
-              </div><div className="preview-hub-service-status"><span className={`preview-hub-state is-${service.state}`}><i />{stateLabels[service.state]}</span>{service.port ? <code>:{service.port}</code> : <span>Kein Port</span>}</div>
+              </div><div className="preview-hub-service-status">{service.state !== "running" ? <span className={`preview-hub-state is-${service.state}`}><i />{stateLabels[service.state]}</span> : null}{service.port ? <code>:{service.port}</code> : <span>Kein Port</span>}</div>
             </article>)}
             {!statusQuery.isLoading && !status?.services.length ? <div className="preview-hub-services-empty"><WarningIcon /><strong>Keine startbare Projektlaufzeit erkannt</strong><span>Lege bei Bedarf eine preview.config.json im Projekt an.</span></div> : null}
           </div>
         </section>
         <section className="preview-hub-target">
-          <header><div><ExternalLinkIcon /><div><strong>Preview öffnen</strong><span>Direkte Projekt-URL ohne Orbit-Oberfläche</span></div></div></header>
+          <header><div><ExternalLinkIcon /><div><strong>Preview öffnen</strong></div></div></header>
           <div className="preview-hub-target-body">
-            <label className="preview-hub-port-field" style={{ marginBottom: "var(--space-2)" }}><span>Preview-Ziel</span><div className="preview-hub-port-select">
-              <select value={selectedPreview?.id ?? "__preview_hub_runtime__"} onChange={(event) => choosePreview(event.target.value)} aria-label="Preview-Ziel auswählen">
-                <option value="__preview_hub_runtime__">Projektlaufzeit-Hauptziel{mainPort ? ` · ${mainPort}` : ""}</option>
-                {project.previews.map((preview) => <option key={preview.id} value={preview.id}>{preview.name} · {preview.targetPort ?? preview.url ?? "Kein Ziel"}{preview.targetPort ? preview.path : ""}</option>)}
-              </select><ChevronDownIcon aria-hidden="true" />
-            </div></label>
-            <label className="preview-hub-port-field"><span>Hauptziel</span><div className="preview-hub-port-select">
-              <select value={mainPort ?? ""} disabled={!servicePorts.length || savePort.isPending} onChange={(event) => savePort.mutate(Number(event.target.value))} aria-label="Hauptport auswählen">
-                {!servicePorts.length ? <option value="">Kein Browser-Ziel erkannt</option> : null}
-                {servicePorts.map((service) => <option key={service.id} value={service.port ?? undefined}>{service.port} · {service.name} ({roleLabels[service.role]})</option>)}
-              </select><ChevronDownIcon aria-hidden="true" />
-            </div></label>
-            <div className="preview-hub-urlbar"><span className="preview-hub-url-status" data-ready={Boolean(publicTargetUrl)} data-active={Boolean(launchPhase)} /><code title={publicTargetUrl ?? undefined}>{targetUrlLabel}</code><button type="button" disabled={!hasTarget || Boolean(launchPhase)} aria-label="Preview-URL kopieren" onClick={() => void copyDirectUrl()}><CopyIcon /><span>{copied ? "Kopiert" : "URL kopieren"}</span></button></div>
+            <div className="preview-hub-port-field">
+              <span>Preview-Ziel</span>
+              <PreviewTargetMenu label="Preview-Ziel auswählen" value={selectedPreview?.id ?? "__preview_hub_runtime__"} onChange={choosePreview}
+                options={[{ value: "__preview_hub_runtime__", label: `Projektlaufzeit-Hauptziel${mainPort ? ` · ${mainPort}` : ""}` },
+                  ...project.previews.map((preview) => ({ value: preview.id, label: `${preview.name} · ${preview.targetPort ?? preview.url ?? "Kein Ziel"}${preview.targetPort ? preview.path : ""}` }))]} />
+            </div>
+            <div className="preview-hub-port-field">
+              <span>Hauptziel</span>
+              <PreviewTargetMenu label="Hauptport auswählen" value={String(mainPort ?? "")} disabled={!servicePorts.length} placeholder="Ziel wählen"
+                onChange={(value) => { if (!savePort.isPending) savePort.mutate(Number(value)); }}
+                options={servicePorts.map((service) => ({ value: String(service.port), label: `${service.port} · ${service.name}${service.name.toLocaleLowerCase("de-DE") === roleLabels[service.role].toLocaleLowerCase("de-DE") ? "" : ` (${roleLabels[service.role]})`}` }))} />
+            </div>
+            <div className="preview-hub-urlbar"><code title={publicTargetUrl ?? undefined}>{targetUrlLabel}</code><button type="button" disabled={!hasTarget || Boolean(launchPhase)} aria-label="Preview-URL kopieren" onClick={() => void copyDirectUrl()}><CopyIcon /><span>{copied ? "Kopiert" : "URL kopieren"}</span></button></div>
             <div className="preview-hub-launchbar">
               <button type="button" className="preview-hub-primary" disabled={!hasTarget || Boolean(launchPhase) || processMutation.isPending} onClick={() => void openDirect("tab")}><ExternalLinkIcon />{launchPhase ? "Preview wird vorbereitet" : "Im neuen Tab öffnen"}</button>
               <details className="preview-hub-more"><summary aria-label="Weitere Optionen"><MoreIcon /></summary><div>
@@ -285,11 +292,10 @@ export function PreviewHubProject({ project, routeActive, orbitBoards }: { proje
         </section>
       </div>
       <section className="preview-hub-logs">
-        <header><div><TerminalIcon /><div><strong>Dev-Server-Logs</strong><span>{logsQuery.data?.capturedAt ? `Aktualisiert ${new Date(logsQuery.data.capturedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Noch keine Ausgabe"}</span></div></div><div className="preview-hub-log-counts">{logsLive ? <span className="is-live"><i />Live</span> : null}{logsQuery.data?.errorCount ? <span className="is-error">{logsQuery.data.errorCount} Fehler</span> : null}{logsQuery.data?.warningCount ? <span className="is-warning">{logsQuery.data.warningCount} {logsQuery.data.warningCount === 1 ? "Warnung" : "Warnungen"}</span> : null}{logsQuery.data?.truncated ? <span>Gekürzt</span> : null}</div></header>
+        <header><div><TerminalIcon /><div><strong>Dev-Server-Logs</strong><span>{logsQuery.data?.capturedAt ? `Aktualisiert ${new Date(logsQuery.data.capturedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Noch keine Ausgabe"}</span></div></div><div className="preview-hub-log-counts">{logsQuery.data?.errorCount ? <span className="is-error">{logsQuery.data.errorCount} Fehler</span> : null}{logsQuery.data?.warningCount ? <span className="is-warning">{logsQuery.data.warningCount} {logsQuery.data.warningCount === 1 ? "Warnung" : "Warnungen"}</span> : null}{logsQuery.data?.truncated ? <span>Gekürzt</span> : null}</div></header>
         <div className="preview-hub-log-services" role="tablist" aria-label="Dienst auswählen"><button type="button" className={serviceFilter === "all" ? "is-active" : ""} onClick={() => setServiceFilter("all")}>Alle Dienste</button>{logsQuery.data?.services.map((service) => <button type="button" key={service.serviceId} className={serviceFilter === service.serviceId ? "is-active" : ""} onClick={() => setServiceFilter(service.serviceId)}>{service.name}<span>{service.port ? `:${service.port}` : "ohne Port"}</span></button>)}</div>
         <div className="preview-hub-log-toolbar"><nav aria-label="Log-Level filtern">{(["all", "error", "warning", "success", "info"] as const).map((value) => <button type="button" key={value} className={filter === value ? "is-active" : ""} onClick={() => setFilter(value)}>{logFilterLabels[value]}</button>)}</nav><button type="button" className="preview-hub-copy-logs" disabled={!selectedLogs.length} onClick={() => void writeClipboardText(selectedLogs.map((line) => `[${line.serviceName}] ${line.text}`).join("\n"))}><CopyIcon />Logs kopieren</button></div>
         <div className="preview-hub-log-output" ref={logRef} role="log" aria-live="polite">{selectedLogs.map((line, index) => <div className="preview-hub-log-line" data-level={line.level} key={`${line.serviceId}-${index}-${line.text}`}><span>{line.serviceName}</span><code>{line.text}</code></div>)}{!selectedLogs.length ? <div className="preview-hub-log-empty">{visibleState === "starting" ? <><ActivityIcon /><strong>Dev-Server werden gestartet</strong><span>Die erste Ausgabe erscheint automatisch, sobald der Prozess antwortet.</span></> : status?.state === "running" ? <><ActivityIcon /><strong>Dev-Server läuft</strong><span>Der gewählte Dienst oder Filter hat momentan keine passenden Einträge.</span></> : <><TerminalIcon /><strong>Die Projektlaufzeit ist nicht aktiv</strong><span>Nach dem Start erscheinen die Ausgaben hier getrennt nach Dienst und Log-Level.</span></>}</div> : null}</div>
-        <footer><CheckIcon /><span>Kontrollzeichen und ANSI-Farbcodes werden automatisch entfernt.</span></footer>
       </section>
     </div>
   </>;

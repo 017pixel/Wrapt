@@ -53,7 +53,7 @@ Preview-Sessions, Slots und Devserver gehören dem Nutzer und laufen oft über S
 Regeln gelten für Coding-Agenten, die neben aktiven Previews arbeiten.
 
 - Laufende Preview-Devserver sind auf dem eigenen tmux-Socket `wrapt-previews`
-  laufende Sessions mit Namen `workbench-preview-<hash>` und dem
+  laufende Sessions mit Namen `wrapt-preview-<hash>` und dem
   Marker `@wrapt_kind=preview-dev-server`. Sie werden **niemals** gestoppt, neu gestartet
   oder gekillt — weder über tmux, `kill`/`pkill`/`fuser` noch über die Devserver-API
   (`POST /api/v1/previews/dev-servers/:projectId/stop|restart`). Stirbt ein Devserver,
@@ -155,11 +155,13 @@ localStorage-App und eine fehlerhafte App. Die Ports stehen in
 ausgeführt und nichts zurückgelassen.
 
 ```bash
-WRAPT_E2E_USER=<erlaubte-adresse> pnpm test:e2e
+WRAPT_E2E_PORT=13100 WRAPT_E2E_USER=<erlaubte-adresse> pnpm test:e2e
 ```
 
-Ohne `WRAPT_E2E_USER` überspringen sich die Preview-Szenarien, statt an `401`
-zu scheitern.
+Vorher prüfen, dass `13100` bis `13230` frei sind. Der E2E-Lauf baut
+`apps/server/dist` im aktuellen Checkout neu; führe ihn vorzugsweise aus einer separaten
+Arbeitskopie aus. Ohne `WRAPT_E2E_USER` überspringen sich die Preview-Szenarien, statt an `401`
+zu scheitern. Nutzer-Previews dürfen nicht als `WRAPT_E2E_URL` oder Testziel verwendet werden.
 
 ## Manuelle Tailscale-Abnahme
 
