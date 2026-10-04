@@ -31,8 +31,9 @@ const desktopTestIgnore = [
 
 export default defineConfig({
   testDir: "./tests/e2e",
-  // Der erste Firefox-Navigationsaufruf kann in CI mehr als 30 Sekunden brauchen.
-  // Der Retry läuft dann nur wegen des Standardlimits erneut durch.
+  // Der erste Navigationsaufruf lädt das komplette Workbench-Bundle. Auf dem
+  // CI-Runner reicht dafür das Standardlimit nicht, ein Retry liefe dann nur
+  // wieder ins selbe Limit.
   timeout: 60_000,
   fullyParallel: false,
   workers: 1,
@@ -44,7 +45,9 @@ export default defineConfig({
     { name: "chromium", testIgnore: desktopTestIgnore, use: { ...devices["Desktop Chrome"] } },
     // Playwrights Firefox-Transport verliert bei page.reload() gelegentlich die
     // Service-Worker-Response-Bindung. Diese Suite prüft Desktop-UI, nicht PWA-Caching.
-    { name: "firefox", testIgnore: desktopTestIgnore, use: { ...devices["Desktop Firefox"], serviceWorkers: "block" } },
+    // Firefox braucht außerdem das doppelte Zeitbudget: `page.goto` scheitert
+    // hier wiederholt am globalen Limit, während Chromium und WebKit durchlaufen.
+    { name: "firefox", testIgnore: desktopTestIgnore, timeout: 150_000, use: { ...devices["Desktop Firefox"], serviceWorkers: "block" } },
     { name: "webkit", testIgnore: desktopTestIgnore, use: { ...devices["Desktop Safari"] } },
     { name: "phone-touch", testMatch: /responsive-shell\.spec\.ts/, use: { ...devices["iPhone 13"], browserName: "chromium" } },
     { name: "phone-landscape", testMatch: /responsive-shell\.spec\.ts/, use: { ...devices["iPhone 13"], browserName: "chromium", viewport: { width: 844, height: 390 } } },
