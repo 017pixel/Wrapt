@@ -29,7 +29,10 @@ test("native PTY-Shell antwortet, verfolgt cd, resizet und startet erneut", asyn
       ? "Write-Output ('__NATIVE_' + 'READY__'); Set-Location -LiteralPath 'mit Leerzeichen'\r"
       : "printf '__NATIVE_%s__\\n' 'READY'; cd 'mit Leerzeichen'\r");
     await vi.waitFor(() => expect(output()).toContain("__NATIVE_READY__"), { timeout: 15_000 });
-    await vi.waitFor(() => expect(session.cwd).toBe(realpathSync(nested)), { timeout: 15_000 });
+    // Beide Seiten werden auf den echten Pfad gebracht. Die Shell meldet unter
+    // Windows den Kurzpfad (`C:\Users\RUNNER~1\...`), `tmpdir()` liefert ihn
+    // ebenfalls, `realpathSync` loest ihn aber zum Langpfad auf.
+    await vi.waitFor(() => expect(realpathSync(session.cwd)).toBe(realpathSync(nested)), { timeout: 15_000 });
     manager.resizeSession("owner", session.id, 110, 32);
     expect(session).toMatchObject({ cols: 110, rows: 32, status: "running" });
     const previousPid = session.pid;
@@ -39,7 +42,7 @@ test("native PTY-Shell antwortet, verfolgt cd, resizet und startet erneut", asyn
     received.length = 0;
     manager.writeToSession("owner", session.id, process.platform === "win32" ? "Write-Output ('__NATIVE_' + 'RESTARTED__')\r" : "printf '__NATIVE_%s__\\n' 'RESTARTED'\r");
     await vi.waitFor(() => expect(output()).toContain("__NATIVE_RESTARTED__"), { timeout: 15_000 });
-    expect(session.cwd).toBe(realpathSync(nested));
+    expect(realpathSync(session.cwd)).toBe(realpathSync(nested));
     manager.closeSession("owner", session.id);
     expect(session.status).toBe("closed");
   } finally {

@@ -43,8 +43,6 @@ test.skipIf(!tmuxAvailable).each(["wrapt", "workbench"])("hängt nach einem Back
     session.supervisorName = legacyName;
   }
   const panePid = () => spawnSync("tmux", ["-S", socket, "display-message", "-p", "-t", session.supervisorName!, "#{pane_pid}"], { encoding: "utf8" }).stdout.trim();
-  const beforePid = panePid();
-  const before = supervisor.list().find((candidate) => candidate.name === session.supervisorName)?.createdAt;
   // Die Login-Shell startet unter macOS sichtbar langsamer, weil /etc/profile
   // dort erst den Zsh-Hinweis ausgibt. Eingaben, die vor dem Startbanner
   // ankommen, verwirft bash wieder, deshalb wird die Marke so lange erneut
@@ -53,6 +51,12 @@ test.skipIf(!tmuxAvailable).each(["wrapt", "workbench"])("hängt nach einem Back
     first.writeToSession("owner", session.id, "printf '__BEFORE_RECONNECT__\\n'\r");
     expect(supervisor.capture(session.supervisorName!)).toContain("__BEFORE_RECONNECT__");
   }, { timeout: 30_000, interval: 500 });
+  // Der Ausgangswert wird erst nach der Marke genommen. Direkt nach dem
+  // Anlegen meldet tmux auf macOS noch den Starter des Panes, der beim
+  // Shell-Start einmal wechselt. Gemessen werden soll der Wiederverbindungs-
+  // fall, nicht der Start der Shell.
+  const beforePid = panePid();
+  const before = supervisor.list().find((candidate) => candidate.name === session.supervisorName)?.createdAt;
   first.shutdown();
   const second = new TerminalManager(options);
   cleanup.push(() => second.shutdown());
