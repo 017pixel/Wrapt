@@ -312,7 +312,7 @@ Der Hub hält mehrere Projekt-Tabs gleichzeitig offen. Automatisch erkannte Brow
 beim Start freie Ports aus `previews.allowedProjectPorts`; die tatsächliche Zuordnung liegt an der
 tmux-Sitzung und bleibt bei einem Backend-Neustart erhalten. Explizite Konfigurationen der Version 1
 behalten feste Zahlenports. Version 2 erlaubt `"port": "auto"`, wenn auch ein manuell beschriebener
-Dienst konfliktfrei neben anderen Projekten laufen soll. Das Schließen eines Tabs stoppt keine Laufzeit.
+Dienst konfliktfrei neben anderen Projekten laufen soll. Das Schließen eines Tabs gibt seine Preview-Veröffentlichung frei und beendet deren Erneuerung; die Projektlaufzeit bleibt aktiv. Gemeinsam genutzte Slots bleiben bis zur letzten zugehörigen Session belegt.
 
 Das Hauptziel wird pro Benutzer gespeichert und beim Öffnen zusammen mit seinen HTTP- und
 WebSocket-Abhängigkeiten über Preview-Slots veröffentlicht. „Im neuen Tab öffnen“ verwendet die
@@ -320,7 +320,7 @@ direkte Tailscale-/Slot-URL. Die Wrapt-Hülle mit Gerätewerkzeugen bleibt eine 
 Option. Als Dienstport ist nur ein Wert aus `previews.allowedProjectPorts` oder die Auto-Zuweisung
 einer Version-2-Konfiguration zulässig.
 
-Die Arrays `previews.slotPorts` und `previews.publicPorts` müssen gleich lang und jeweils eindeutig sein. Nach einer Änderung muss `deploy/proxy/configure-tailscale-serve.sh` einmal mit sudo ausgeführt werden. Die voreingestellten zwölf Paare sind `3901–3912` intern und `8451–8462` öffentlich. Bestätigte Begleitdienste eines Projekts erhalten eigene HTTPS-Slots; die Haupt-Preview schreibt lokale HTTP-, Fetch-, XHR-, EventSource- und WebSocket-Ziele auf diese Tailscale-Adressen um. Web Storage ist portgetrennt; Cookies kennen keine Ports und bleiben auf demselben Host geteilt.
+Die Arrays `previews.slotPorts` und `previews.publicPorts` müssen gleich lang und jeweils eindeutig sein. Nach einer Änderung muss `deploy/proxy/configure-tailscale-serve.sh` einmal mit sudo ausgeführt werden. Der Projektportpool enthält die zehn bisherigen Ports plus `16000–16039`. Die voreingestellten 60 Paare sind `3901–3960` intern und `8451–8462` sowie `8511–8558` öffentlich; die ersten zwölf Zuordnungen bleiben erhalten. Bestätigte Begleitdienste eines Projekts erhalten eigene HTTPS-Slots; die Haupt-Preview schreibt lokale HTTP-, Fetch-, XHR-, EventSource- und WebSocket-Ziele auf diese Tailscale-Adressen um. Web Storage ist portgetrennt; Cookies kennen keine Ports und bleiben auf demselben Host geteilt.
 
 Bei Multi-Page-Apps kann `path` direkt auf den gewünschten Einstieg zeigen, zum Beispiel
 `/anmeldung/`. Der Devserver bleibt trotzdem am Root des jeweiligen Slot-Origins erreichbar.
@@ -399,12 +399,12 @@ lassen sich einzeln aktivieren und wieder zurückrollen, ohne Daten zu verlieren
 ```json
 {
   "previews": {
-    "allowedProjectPorts": [1234, 1223, 8000, 8080, 8888, 4444, 1233, 6000, 6060, 4040],
+    "allowedProjectPorts": [1234, 1223, 8000, 8080, 8888, 4444, 1233, 6000, 6060, 4040, 16000, 16001, 16002, 16003, 16004, 16005, 16006, 16007, 16008, 16009, 16010, 16011, 16012, 16013, 16014, 16015, 16016, 16017, 16018, 16019, 16020, 16021, 16022, 16023, 16024, 16025, 16026, 16027, 16028, 16029, 16030, 16031, 16032, 16033, 16034, 16035, 16036, 16037, 16038, 16039],
     "npmExecutable": "npm",
     "devServerLogBytes": 131072,
     "devServerStartTimeoutMs": 15000,
-    "slotPorts": [3901, 3902, 3903, 3904, 3905, 3906, 3907, 3908, 3909, 3910, 3911, 3912],
-    "publicPorts": [8451, 8452, 8453, 8454, 8455, 8456, 8457, 8458, 8459, 8460, 8461, 8462],
+    "slotPorts": [3901, 3902, 3903, 3904, 3905, 3906, 3907, 3908, 3909, 3910, 3911, 3912, 3913, 3914, 3915, 3916, 3917, 3918, 3919, 3920, 3921, 3922, 3923, 3924, 3925, 3926, 3927, 3928, 3929, 3930, 3931, 3932, 3933, 3934, 3935, 3936, 3937, 3938, 3939, 3940, 3941, 3942, 3943, 3944, 3945, 3946, 3947, 3948, 3949, 3950, 3951, 3952, 3953, 3954, 3955, 3956, 3957, 3958, 3959, 3960],
+    "publicPorts": [8451, 8452, 8453, 8454, 8455, 8456, 8457, 8458, 8459, 8460, 8461, 8462, 8511, 8512, 8513, 8514, 8515, 8516, 8517, 8518, 8519, 8520, 8521, 8522, 8523, 8524, 8525, 8526, 8527, 8528, 8529, 8530, 8531, 8532, 8533, 8534, 8535, 8536, 8537, 8538, 8539, 8540, 8541, 8542, 8543, 8544, 8545, 8546, 8547, 8548, 8549, 8550, 8551, 8552, 8553, 8554, 8555, 8556, 8557, 8558],
     "gatewayV2Enabled": false,
     "bridgeEnabled": false,
     "diagnosticsEnabled": false,

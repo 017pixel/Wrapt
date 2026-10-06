@@ -183,8 +183,9 @@ export function renderMarkdown(markdown, source, pageIds, contentRoot, assetName
       continue;
     }
 
-    if (/^#{1,6}\s/.test(line)) {
-      const match = line.match(/^(#{1,6})\s+(.+?)\s*#*$/);
+    const heading = line.match(/^(#{1,6})\s+(.+?)\s*#*$/);
+    if (heading) {
+      const match = heading;
       const level = Math.min(6, match[1].length + (options.headingOffset ?? 0));
       const title = match[2];
       const baseId = slugify(title) || "abschnitt";

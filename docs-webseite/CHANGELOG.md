@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.9] - 2026-10-04
+
+### Verändert
+- Leere Markdown-Überschriften brechen den Build nicht mehr ab.
+
+### Erstellt
+- Regressionstest für leere Überschriften und den danach folgenden Inhalt.
+
 ## [0.1.8] - 2026-10-02
 
 ### Verändert

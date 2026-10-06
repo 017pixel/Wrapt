@@ -2,6 +2,48 @@
 
 Alle relevanten Änderungen werden in kurzen Stichpunkten dokumentiert.
 
+## [Unreleased]
+
+### Verändert
+- Serverwechsel über Workspaces behält die offene Seite: Wer z. B. auf Notizen oder Hermes wechselt den Server, landet dort auf derselben Seite statt auf dem Dashboard. Query-Parameter bleiben erhalten.
+
+## [2.2.0] - 2026-10-05
+
+### Erstellt
+- Eigene Notizordner mit Umbenennen, Verschieben und Auflösen ohne Verlust der Seiten.
+- Sortierbare Notizabschnitte und Seiten sowie direkte Erstellung neuer Favoritenseiten.
+- Aufklappbare Übersicht über die Nutzungslimits in der Fußleiste: Beim Überfahren erscheint eine Karte mit allen Zeitfenstern je Anbieter (5 Stunden, 7 Tage, 30 Tage), dem Verbrauch als Balken, dem Zeitpunkt des nächsten Reset und – sofern vorhanden – den verfügbaren Reset-Guthaben. Mehrere Konten eines Anbieters stehen untereinander. Auf Touch-Geräten öffnet sich die Karte per Tipp.
+
+### Verändert
+- Preview-Kapazität von zwölf auf 60 Slots und den Projektportpool von zehn auf 50 erweitert; bestehende Portzuordnungen bleiben erhalten.
+- Notizgruppen, Favoriten und Suche reagieren mit kurzen Animationen. „Privat“ heißt jetzt „Alle Notizen“.
+- Der Limits-Bereich der Fußzeile hat drei klar unterscheidbare Zustände: ruhend, beim Überfahren und geöffnet. Der bisherige nasse Browser-Tooltip entfällt, weil er neben der neuen Karte doppelt und schlechter dargestellt hätte.
+- Unbekannte Zeitfenster eines Anbieters werden nicht mehr verworfen, sondern aus ihrer Länge abgeleitet.
+
+### Behoben
+- Geschlossene Preview-Tabs geben ihre ungenutzten Slots frei und öffnen sich nicht sofort erneut. Sitzungserneuerung und Freigabe behandeln abgelaufene und noch laufende Anfragen.
+- Vollbildaktionen stehen in der Kopfzeile nebeneinander.
+- Blockgriffe bleiben auch bei hohen Bildern am Inhalt. Klicks auf freie Editorfläche setzen den Cursor an die letzte Schreibzeile.
+- Mausrad-Scrollen funktioniert über Seitentiteln und Einträgen im Verschiebedialog.
+
+## [2.1.7] - 2026-10-04
+
+### Verändert
+- Notizen behalten beim schnellen Tippen, Löschen und Weiterschreiben ihren Inhalt und die Cursorposition, auch wenn Speicherantworten verspätet eintreffen.
+- Notiztitel und KI-Skills speichern aufeinanderfolgende Änderungen ohne Überschreiben durch ältere Bestätigungen oder unnötige Konflikte.
+- Zu große Uploads werden vollständig abgewiesen, statt abgeschnittene Dateien zu veröffentlichen. Fehlgeschlagene Uploads hinterlassen weniger temporäre Dateien.
+- Textvorschauen zeigen nach gleichzeitiger Dateikürzung keine zusätzlichen Nullzeichen; leere Dateien beantworten ungültige Bytebereiche kontrolliert.
+- Benachrichtigungsfilter, veraltete Dateimanager-Antworten und die Aktualisierung der Nutzungsanzeige verarbeiten ihre Zustände korrekt.
+- Projektdateien legen über symbolische Verweise keine Verzeichnisse außerhalb des Projekts an. Der Schutz externer HTTP-Zugriffe blockiert zusätzlich private NAT64-Adressen.
+- Verstellbare Seitenbereiche und die PWA-Updateüberwachung entfernen ihre Listener beim Verlassen zuverlässig.
+- Leere Überschriften brechen den Build der Dokumentation nicht mehr ab.
+- Der Desktop-Launcher zeigt seinen Status und verbindet seine Bedienelemente wieder korrekt.
+- Sicherheitskorrekturen in Abhängigkeiten eingespielt und ungenutzte Bibliotheken und Symbole entfernt.
+
+### Erstellt
+- Regressionstests für schnelle Editoränderungen, Uploadgrenzen, Cache-Aktualisierungen, Dateizugriffe und Launcher-Bedienung.
+- Anleitung für mehrere T3-Codex-Accounts ergänzt: feste Work-Anmeldung, Unterschiede der ChatGPT-Anmeldewege und Prüfung von Modellen und Subagenten.
+
 ## [2.1.6] - 2026-10-04
 
 ### Behoben
