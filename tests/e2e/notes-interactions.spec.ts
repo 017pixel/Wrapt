@@ -92,12 +92,22 @@ test("Ordner, Favoriten, Drag-and-drop und gespeicherte Abschnittsreihenfolge", 
   await page.getByRole("button", { name: `Neue Seite in ${folderName}`, exact: true }).click();
   await page.getByLabel("Notiztitel").fill(`Idee ${unique}`);
   await page.getByLabel("Notiztitel").blur();
+  // Der Titel landet erst per PATCH auf dem Server; auf kalten Runnern dauert
+  // das länger als das Standardlimit — erst die Speicherung abwarten.
+  await expect.poll(async () => {
+    const list = await (await request.get("/api/v1/notes", { headers })).json() as { notes: { title: string }[] };
+    return list.notes.some((note) => note.title === `Idee ${unique}`);
+  }, { timeout: 15_000 }).toBe(true);
   await expect(page.locator(".notes-note-current")).toHaveText(`Idee ${unique}`);
   const first = new URL(page.url()).searchParams.get("note");
   await page.getByRole("button", { name: "Neue Seite in Favoriten", exact: true }).click();
   await expect(page.getByRole("button", { name: "Favorit entfernen", exact: true })).toBeVisible();
   await page.getByLabel("Notiztitel").fill(`Favorit ${unique}`);
   await page.getByLabel("Notiztitel").blur();
+  await expect.poll(async () => {
+    const list = await (await request.get("/api/v1/notes", { headers })).json() as { notes: { title: string }[] };
+    return list.notes.some((note) => note.title === `Favorit ${unique}`);
+  }, { timeout: 15_000 }).toBe(true);
   await expect(page.locator(".notes-note-current")).toHaveText(`Favorit ${unique}`);
   const favoriteId = new URL(page.url()).searchParams.get("note");
   await page.locator('[data-section="all"] .notes-group-toggle').click();
