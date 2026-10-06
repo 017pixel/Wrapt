@@ -1,6 +1,6 @@
 {
   "name": "@wrapt/launcher",
-  "version": "1.21.0",
+  "version": "1.21.1",
   "private": true,
   "description": "Lokaler Tauri-Launcher für Wrapt",
   "scripts": {

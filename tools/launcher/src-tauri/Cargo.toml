@@ -1,6 +1,6 @@
 [package]
 name = "wrapt-launcher"
-version = "1.21.0"
+version = "1.21.1"
 description = "Lokaler Launcher für Wrapt"
 authors = ["Wrapt"]
 edition = "2021"

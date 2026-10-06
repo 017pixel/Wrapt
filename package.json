@@ -1,6 +1,6 @@
 {
   "name": "wrapt",
-  "version": "2.1.6",
+  "version": "2.2.0",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@10.29.2",
@@ -15,7 +15,8 @@
     "build": "pnpm build:icons && pnpm --filter @wrapt/extension-contracts build && pnpm --filter @wrapt/contracts build && pnpm --filter @wrapt/server build && pnpm --filter @wrapt/web build",
     "typecheck": "pnpm --filter @wrapt/extension-contracts typecheck && pnpm --filter @wrapt/contracts typecheck && pnpm --parallel --filter @wrapt/server --filter @wrapt/web typecheck",
     "lint": "eslint .",
-    "test": "pnpm --filter @wrapt/extension-contracts build && pnpm --filter @wrapt/contracts build && pnpm -r test",
+    "test": "pnpm --filter @wrapt/extension-contracts build && pnpm --filter @wrapt/contracts build && pnpm -r test && pnpm test:launcher && pnpm test:docs",
+    "test:launcher": "node --test tools/launcher/ui/app.test.mjs",
     "test:coverage": "pnpm -r test:coverage",
     "test:artifact-retention": "node scripts/test-web-artifact-retention.mjs",
     "test:extension-deployment": "node scripts/test-extension-deployment.mjs",
@@ -29,7 +30,8 @@
     "quality": "pnpm architecture:extensions && pnpm architecture:file-lines && pnpm typecheck && pnpm exec eslint . --max-warnings=0 && pnpm test && pnpm build && pnpm security:audit",
     "start": "pnpm --filter @wrapt/server start",
     "extension:create": "node scripts/extensions/create.mjs",
-    "extension:validate": "node scripts/extensions/validate.mjs"
+    "extension:validate": "node scripts/extensions/validate.mjs",
+    "test:docs": "node --test docs-webseite/src/markdown.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

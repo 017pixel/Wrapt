@@ -1,6 +1,6 @@
 {
   "name": "@wrapt/web",
-  "version": "2.1.6",
+  "version": "2.2.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -21,7 +21,6 @@
     "@tiptap/extension-color": "^3.31.3",
     "@tiptap/extension-details": "^3.31.3",
     "@tiptap/extension-drag-handle-react": "^3.31.3",
-    "@tiptap/extension-emoji": "^3.31.3",
     "@tiptap/extension-file-handler": "^3.31.3",
     "@tiptap/extension-highlight": "^3.31.3",
     "@tiptap/extension-image": "^3.31.3",
@@ -43,10 +42,9 @@
     "@wrapt/contracts": "workspace:*",
     "@wrapt/extension-contracts": "workspace:*",
     "@xterm/addon-fit": "^0.11.0",
-    "@xterm/addon-webgl": "0.19.0",
     "@xterm/xterm": "^6.0.0",
     "@xyflow/react": "12.11.6",
-    "dompurify": "^3.4.15",
+    "dompurify": "^3.4.16",
     "highlight.js": "^11.12.0",
     "katex": "^0.18.7",
     "lowlight": "^3.3.0",
