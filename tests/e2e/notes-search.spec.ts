@@ -14,7 +14,11 @@ async function openNotes(page: Page) {
 }
 
 async function createPage(page: Page, title: string, content?: string) {
+  const beforeId = new URL(page.url()).searchParams.get("note");
   await page.locator(".notes-sidebar .notes-sidebar-new").click();
+  // Erst die Navigation zur neuen Seite abwarten (kalte Runner brauchen länger),
+  // dann erst den frischen Standardtitel prüfen.
+  await expect.poll(() => new URL(page.url()).searchParams.get("note"), { timeout: 15_000 }).not.toBe(beforeId);
   await expect(page.getByLabel("Notiztitel")).toHaveValue(/^Notiz – /, { timeout: 10000 });
   await page.getByLabel("Notiztitel").fill(title);
   await page.getByLabel("Notiztitel").blur();

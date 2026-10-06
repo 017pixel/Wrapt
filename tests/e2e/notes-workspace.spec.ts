@@ -1,8 +1,17 @@
-import { expect, test, type Page } from "@playwright/test";
-import { workbenchUrl } from "./helpers/environment";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { apiIdentityHeaders, workbenchUrl } from "./helpers/environment";
 
 const login = "user@example.com";
+const headers = apiIdentityHeaders(login);
 const defaultTitlePattern = /^Notiz – \d{2}\.\d{2}\.\d{4}$/;
+
+/** Titel-Speicherung per PATCH abwarten, bevor die Kopfzeile geprüft wird. */
+async function awaitTitleSaved(request: APIRequestContext, title: string) {
+  await expect.poll(async () => {
+    const list = await (await request.get("/api/v1/notes", { headers })).json() as { notes: { title: string }[] };
+    return list.notes.some((note) => note.title === title);
+  }, { timeout: 15_000 }).toBe(true);
+}
 
 test.use({
   extraHTTPHeaders: { "tailscale-user-login": login },
@@ -15,19 +24,24 @@ async function openNotes(page: Page) {
 }
 
 async function createPage(page: Page): Promise<string> {
+  const beforeId = new URL(page.url()).searchParams.get("note");
   await page.locator(".notes-sidebar .notes-sidebar-new").click();
+  // Erst die Navigation zur neuen Seite abwarten (kalte Runner brauchen länger),
+  // dann erst den frischen Standardtitel prüfen.
+  await expect.poll(() => new URL(page.url()).searchParams.get("note"), { timeout: 15_000 }).not.toBe(beforeId);
   const title = page.getByLabel("Notiztitel");
   await expect(title).toHaveValue(defaultTitlePattern, { timeout: 10000 });
   return (await title.inputValue()).trim();
 }
 
 test.describe("Notizen-Seitenleiste", () => {
-  test("Notizfenster wechselt zu Unterseiten und bleibt auf schmalem Viewport bedienbar", async ({ page }) => {
+  test("Notizfenster wechselt zu Unterseiten und bleibt auf schmalem Viewport bedienbar", async ({ page, request }) => {
     await openNotes(page);
     await createPage(page);
     const parentTitle = `Fenster ${Date.now().toString().slice(-6)}`;
     await page.getByLabel("Notiztitel").fill(parentTitle);
     await page.getByLabel("Notiztitel").blur();
+    await awaitTitleSaved(request, parentTitle);
     await expect(page.locator(".notes-note-current")).toHaveText(parentTitle);
 
     const popupPromise = page.context().waitForEvent("page");
@@ -67,12 +81,13 @@ test.describe("Notizen-Seitenleiste", () => {
     await popup.close();
   });
 
-  test("setzt Favoriten und stellt aus dem Papierkorb wieder her", async ({ page }) => {
+  test("setzt Favoriten und stellt aus dem Papierkorb wieder her", async ({ page, request }) => {
     await openNotes(page);
     await createPage(page);
     const noteTitle = `Favorit ${Date.now().toString().slice(-6)}`;
     await page.getByLabel("Notiztitel").fill(noteTitle);
     await page.getByLabel("Notiztitel").blur();
+    await awaitTitleSaved(request, noteTitle);
     await expect(page.locator(".notes-note-current")).toHaveText(noteTitle);
 
     await page.locator(".notes-note-head").getByRole("button", { name: "Als Favorit markieren" }).click();
