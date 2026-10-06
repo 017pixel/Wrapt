@@ -100,8 +100,8 @@ describe("UsageTimelineService", () => {
             updatedAt: fresh(),
             error: null,
             accounts: [
-              { id: "codex-1", label: "Account", email: "privat@example.com", plan: "plus", windows: [{ id: "secondary", label: "Wochenlimit", usedPercent: 60, remainingPercent: 40, windowMinutes: 10_080, resetsAt: "2026-08-01T20:00:00Z" }] },
-              { id: "codex-2", label: "Account", email: "arbeit@example.com", plan: "team", windows: [{ id: "secondary", label: "Wochenlimit", usedPercent: 90, remainingPercent: 10, windowMinutes: 10_080, resetsAt: "2026-08-01T20:00:00Z" }] },
+              { id: "codex-1", label: "Account", email: "privat@example.com", plan: "plus", windows: [{ id: "secondary", label: "Wochenlimit", usedPercent: 60, remainingPercent: 40, windowMinutes: 10_080, resetsAt: "2026-08-01T20:00:00Z" }], resetCredits: [] },
+              { id: "codex-2", label: "Account", email: "arbeit@example.com", plan: "team", windows: [{ id: "secondary", label: "Wochenlimit", usedPercent: 90, remainingPercent: 10, windowMinutes: 10_080, resetsAt: "2026-08-01T20:00:00Z" }], resetCredits: [] },
             ],
           }],
         })),
@@ -155,7 +155,7 @@ describe("UsageTimelineService", () => {
             updatedAt: fresh(),
             error: null,
             accounts: [
-              { id: "claude-1", label: "Alice", email: "alice@example.com", plan: "pro", windows: [{ id: "secondary", label: "Wochenlimit", usedPercent: 34, remainingPercent: 66, windowMinutes: 10_080, resetsAt: "2026-08-01T20:00:00Z" }] },
+              { id: "claude-1", label: "Alice", email: "alice@example.com", plan: "pro", windows: [{ id: "secondary", label: "Wochenlimit", usedPercent: 34, remainingPercent: 66, windowMinutes: 10_080, resetsAt: "2026-08-01T20:00:00Z" }], resetCredits: [] },
             ],
           }],
         })),
@@ -259,7 +259,7 @@ describe("UsageTimelineService", () => {
             updatedAt: fresh(),
             error: null,
             accounts: [
-              { id: "opencode-1", label: "OpenCode Go", email: "go@example.com", plan: null, windows: [{ id: "tertiary", label: "Monatslimit", usedPercent: 45, remainingPercent: 55, windowMinutes: 43_200, resetsAt: "2026-08-22T04:05:14Z" }] },
+              { id: "opencode-1", label: "OpenCode Go", email: "go@example.com", plan: null, windows: [{ id: "tertiary", label: "Monatslimit", usedPercent: 45, remainingPercent: 55, windowMinutes: 43_200, resetsAt: "2026-08-22T04:05:14Z" }], resetCredits: [] },
             ],
           }],
         })),

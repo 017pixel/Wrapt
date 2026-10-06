@@ -14,6 +14,9 @@ describe("öffentliche HTTP-Ziele", () => {
     "::1",
     "fc00::1",
     "fe80::1",
+    "febf::1",
+    "64:ff9b::7f00:1",
+    "64:ff9b:1::a00:1",
     "::ffff:127.0.0.1",
     "2001:db8::1",
   ])("blockiert private oder reservierte Adresse %s", (address) => {
@@ -32,6 +35,7 @@ describe("öffentliche HTTP-Ziele", () => {
     "http://localhost/admin",
     "http://service.local/internal",
     "http://127.0.0.1/",
+    "http://[64:ff9b:1::7f00:1]/",
     "http://user:password@example.com/",
   ])("lehnt unsicheres Ziel %s vor dem Request ab", (url) => {
     expect(() => assertPublicHttpUrl(url)).toThrow();

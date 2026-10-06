@@ -46,7 +46,6 @@ export const clientTerminalMessageSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("terminal.ping") }),
 ]);
 
-export type ClientTerminalMessage = z.infer<typeof clientTerminalMessageSchema>;
 export type TerminalErrorCode =
   | "UNAUTHORIZED" | "FORBIDDEN" | "SESSION_NOT_FOUND" | "SESSION_NOT_OWNED" | "INVALID_CWD"
   | "CWD_NOT_FOUND" | "CWD_NOT_DIRECTORY" | "PTY_SPAWN_FAILED" | "PTY_WRITE_FAILED"

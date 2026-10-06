@@ -49,6 +49,7 @@ export function createCodexbarUsageService(options: CodexbarCacheOptions): Codex
   let cached: UsageResponse | undefined;
   let pending: Promise<UsageResponse> | undefined;
   let timer: NodeJS.Timeout | undefined;
+  let generation = 0;
   const listeners = new Set<() => void>();
 
   const refreshIntervalMilliseconds = options.refreshIntervalMilliseconds
@@ -65,8 +66,10 @@ export function createCodexbarUsageService(options: CodexbarCacheOptions): Codex
   };
 
   const startRefresh = (): Promise<UsageResponse> => {
+    const loadingGeneration = generation;
     pending = refresh()
       .then((fresh) => {
+        if (loadingGeneration !== generation) return fresh;
         cached = fresh;
         expiresAt = Date.now() + options.ttlMilliseconds;
         notify();
@@ -74,12 +77,14 @@ export function createCodexbarUsageService(options: CodexbarCacheOptions): Codex
       })
       .catch((error: unknown) => {
         if (cached) {
+          if (loadingGeneration !== generation) return cached;
           // Fehler bei vorhandenen Daten: letzten erfolgreichen Stand mit
           // stale-Markierung liefern, statt den Cache zu verwerfen. Der neue
           // Versuch wartet eine Pause, damit ein Ausfall nicht bei jedem
           // Request erneut alle Anbieter abfragt.
           expiresAt = Date.now() + retryDelayMilliseconds(options.ttlMilliseconds);
-          return { ...cached, providers: cached.providers.map(staleProvider), cached: true };
+          cached = { ...cached, providers: cached.providers.map(staleProvider), cached: true };
+          return cached;
         }
         const code = errorCode(error);
         const now = new Date().toISOString();
@@ -93,12 +98,15 @@ export function createCodexbarUsageService(options: CodexbarCacheOptions): Codex
           lastSuccessfulFetchAt: null,
           cached: false,
         };
-        cached = allUnavailable;
-        expiresAt = Date.now() + options.ttlMilliseconds;
+        if (loadingGeneration === generation) {
+          cached = allUnavailable;
+          expiresAt = Date.now() + options.ttlMilliseconds;
+        }
         return allUnavailable;
       })
       .finally(() => {
         pending = undefined;
+        if (loadingGeneration !== generation) void startRefresh();
       });
     return pending;
   };
@@ -142,6 +150,7 @@ export function createCodexbarUsageService(options: CodexbarCacheOptions): Codex
 
   return {
     invalidate() {
+      generation += 1;
       // Cache als abgelaufen markieren und sofort im Hintergrund aktualisieren.
       // Vorhandene Daten bleiben erhalten, damit kein aufrufender Request wartet.
       expiresAt = 0;

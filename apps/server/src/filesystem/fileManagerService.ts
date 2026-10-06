@@ -1,7 +1,7 @@
 import { constants } from "node:fs";
 import type { Dirent, Stats } from "node:fs";
 import { createReadStream, createWriteStream } from "node:fs";
-import { access, copyFile, link, lstat, mkdir, open, readdir, realpath, rename, rmdir, rm, unlink } from "node:fs/promises";
+import { access, lstat, mkdir, readdir, realpath, rename, rmdir, rm, unlink } from "node:fs/promises";
 import { Transform, type Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { join, resolve, sep } from "node:path";
@@ -10,7 +10,6 @@ import {
   fileManagerOperationResponseSchema,
   fileManagerSearchResponseSchema,
   fileManagerStateResponseSchema,
-  fileManagerTextPreviewResponseSchema,
   type FileManagerState,
   type FileManagerStateResponse,
   type FilesystemEntry,
@@ -19,11 +18,11 @@ import {
 } from "@wrapt/contracts";
 import { AppError } from "../utils/errors.js";
 import { canonicalRootCandidates, preserveRootAlias, resolvePathWithinRootAliases, sameFilesystemPath } from "../utils/pathRoots.js";
-import { contained, entryFor, filesystemFailure, mimeTypeFor, sanitizeName, utf8SafeCut } from "./fileSystemHelpers.js";
+import { contained, entryFor, filesystemFailure, mimeTypeFor, sanitizeName } from "./fileSystemHelpers.js";
 
-export { languageForName } from "./fileSystemHelpers.js";
+import { publishFileNoReplace } from "./fileTransfers.js";
+import { openMediaPreview, readTextPreview } from "./filePreviews.js";
 
-const DEFAULT_TEXT_PREVIEW_BYTES = 300 * 1024;
 const SEARCH_LIMIT = 250;
 const SEARCH_MAX_DEPTH = 6;
 const SEARCH_TIMEOUT_MS = 3_000;
@@ -116,100 +115,14 @@ export class FileManagerService {
     return preserveRootAlias(canonical, this.root);
   }
 
-  /** Textinhalt einer Datei lesen (begrenzt, mit Truncation-Marker). */
   async textPreview(input: { path: string }): Promise<FileManagerTextPreviewResponse> {
     const { canonical, details } = await this.resolvePath(input.path, "file");
-    const limit = Math.max(4_096, this.textPreviewBytes || DEFAULT_TEXT_PREVIEW_BYTES);
-    // Bis zu 3 Bytes über die Grenze hinaus lesen, damit ein Multibyte-Zeichen
-    // an der Grenze vervollständigt oder sauber abgeschnitten werden kann.
-    const readSize = Math.min(details.size, limit + 3);
-    const buffer = Buffer.alloc(readSize);
-    const handle = await open(canonical, constants.O_RDONLY | constants.O_NOFOLLOW);
-    try {
-      await handle.read(buffer, 0, readSize, 0);
-    } finally {
-      await handle.close();
-    }
-    const truncated = details.size > limit;
-    let text: string;
-    if (!truncated) {
-      try {
-        text = new TextDecoder("utf-8", { fatal: true }).decode(buffer);
-      } catch {
-        throw new AppError(415, "FILESYSTEM_NOT_TEXT", "Diese Datei ist kein Textdokument und kann nicht als Textvorschau angezeigt werden.");
-      }
-    } else {
-      const cut = utf8SafeCut(buffer, limit);
-      if (cut < 0) {
-        throw new AppError(415, "FILESYSTEM_NOT_TEXT", "Diese Datei ist kein Textdokument und kann nicht als Textvorschau angezeigt werden.");
-      }
-      try {
-        text = new TextDecoder("utf-8", { fatal: true }).decode(buffer.subarray(0, cut));
-      } catch {
-        throw new AppError(415, "FILESYSTEM_NOT_TEXT", "Diese Datei ist kein Textdokument und kann nicht als Textvorschau angezeigt werden.");
-      }
-    }
-    const lineCount = text.split("\n").length;
-    return fileManagerTextPreviewResponseSchema.parse({
-      path: canonical,
-      name: canonical.split(sep).at(-1) ?? input.path,
-      sizeBytes: details.size,
-      modifiedAt: details.mtime.toISOString(),
-      mimeType: mimeTypeFor(canonical),
-      text,
-      truncated,
-      lineCount,
-    });
+    return readTextPreview(canonical, details, this.textPreviewBytes);
   }
 
-  /** Byte-Bereich einer Datei öffnen (Range-Support für Video/Audio/PDF/Bild). */
-  async openMedia(input: { path: string }, rangeHeader: string | undefined): Promise<{
-    stream: Readable;
-    statusCode: 200 | 206;
-    headers: Record<string, string>;
-  }> {
+  async openMedia(input: { path: string }, rangeHeader: string | undefined) {
     const { canonical, details } = await this.resolvePath(input.path, "file");
-    const size = details.size;
-    const mime = mimeTypeFor(canonical);
-    const baseHeaders: Record<string, string> = {
-      "Content-Type": mime,
-      "Accept-Ranges": "bytes",
-      "Content-Disposition": "inline",
-    };
-    if (!rangeHeader) {
-      return { stream: createReadStream(canonical), statusCode: 200, headers: { ...baseHeaders, "Content-Length": String(size) } };
-    }
-    const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
-    if (!match) {
-      throw new AppError(416, "FILESYSTEM_RANGE_INVALID", "Der angeforderte Bereich ist ungültig.", { contentRange: `bytes */${size}` });
-    }
-    let start: number;
-    let end: number;
-    if (match[1] === "" && match[2] === "") {
-      throw new AppError(416, "FILESYSTEM_RANGE_INVALID", "Der angeforderte Bereich ist ungültig.", { contentRange: `bytes */${size}` });
-    }
-    if (match[1] === "") {
-      const suffix = Number(match[2]);
-      if (suffix <= 0) throw new AppError(416, "FILESYSTEM_RANGE_INVALID", "Der angeforderte Bereich ist ungültig.", { contentRange: `bytes */${size}` });
-      start = Math.max(0, size - suffix);
-      end = size - 1;
-    } else {
-      start = Number(match[1]);
-      end = match[2] === "" ? size - 1 : Math.min(Number(match[2]), size - 1);
-      if (start > end || start >= size) {
-        throw new AppError(416, "FILESYSTEM_RANGE_INVALID", "Der angeforderte Bereich ist ungültig.", { contentRange: `bytes */${size}` });
-      }
-    }
-    const chunk = end - start + 1;
-    return {
-      stream: createReadStream(canonical, { start, end }),
-      statusCode: 206,
-      headers: {
-        ...baseHeaders,
-        "Content-Range": `bytes ${start}-${end}/${size}`,
-        "Content-Length": String(chunk),
-      },
-    };
+    return openMediaPreview(canonical, details.size, rangeHeader);
   }
 
   async download(input: { path: string }): Promise<{ stream: Readable; name: string; size: number; mime: string }> {
@@ -346,7 +259,10 @@ export class FileManagerService {
     });
     try {
       await pipeline(input.stream, counter, createWriteStream(temporary, { flags: "wx", mode: 0o600 }));
-      await this.pushFileNoReplace(temporary, target);
+      if ("truncated" in input.stream && input.stream.truncated === true) {
+        throw new AppError(413, "FILE_TOO_LARGE", "Die Datei überschreitet das Upload-Limit.", { limitBytes: byteLimit });
+      }
+      await publishFileNoReplace(temporary, target);
     } catch (error) {
       await rm(temporary, { force: true }).catch(() => undefined);
       if (error instanceof AppError) throw error;
@@ -357,29 +273,6 @@ export class FileManagerService {
   }
 
   /**
-   * Veröffentlicht eine temporäre Datei atomar, ohne ein inzwischen entstandenes
-   * Ziel zu überschreiben. Hardlink + Unlink ersetzt das prüfende Rename; auf
-   * Dateisystemen ohne Hardlinks wird exklusiv kopiert.
-   */
-  private async pushFileNoReplace(temporary: string, target: string): Promise<void> {
-    try {
-      await link(temporary, target);
-      await unlink(temporary).catch(() => undefined);
-      return;
-    } catch (error) {
-      const code = (error as NodeJS.ErrnoException).code;
-      if (code === "EEXIST") throw new AppError(409, "FILE_EXISTS", "Ein Eintrag mit diesem Namen existiert bereits.");
-      if (code !== "EPERM" && code !== "EOPNOTSUPP" && code !== "ENOSYS" && code !== "EXDEV") filesystemFailure(error);
-    }
-    try {
-      await copyFile(temporary, target, constants.COPYFILE_EXCL);
-    } catch (error) {
-      filesystemFailure(error);
-    }
-    await unlink(temporary).catch(() => undefined);
-  }
-
-  /**
    * Verschiebt Dateien atomar per Hardlink und Ordner über eine exklusive
    * Reservierung, sodass kein vorhandenes Ziel überschrieben wird.
    */
@@ -387,7 +280,7 @@ export class FileManagerService {
     let details: Stats;
     try { details = await lstat(source); } catch (error) { filesystemFailure(error); }
     if (!details.isDirectory()) {
-      await this.pushFileNoReplace(source, target);
+      await publishFileNoReplace(source, target);
       return;
     }
     try {

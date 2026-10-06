@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { access, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, it } from "vitest";
@@ -56,4 +56,13 @@ describe("project file service", () => {
     })).rejects.toMatchObject({ code: "FILE_CHANGED" });
     expect(await readFile(join(root, "shared.txt"), "utf8")).toBe("external");
   });
+});
+
+it("erstellt keine Verzeichnisse außerhalb des Projekts über symbolische Verweise", async () => {
+  const { root, files } = await service();
+  const outside = await mkdtemp(join(tmpdir(), "wrapt-outside-"));
+  directories.push(outside);
+  await symlink(outside, join(root, "alias"));
+  await expect(files.create("test", { path: "alias/nested/file.txt", content: "no", overwrite: false })).rejects.toMatchObject({ code: "INVALID_PROJECT_PATH" });
+  await expect(access(join(outside, "nested"))).rejects.toMatchObject({ code: "ENOENT" });
 });

@@ -77,6 +77,8 @@ trap - EXIT
 rm -f "$build_log"
 
 node "$repo_root/scripts/update-hermes-config.mjs" "$config_dir" "$cli" "$home_directory" "$checkout" "$python_path"
+data_directory="$(node -e 'const fs=require("node:fs"); const c=JSON.parse(fs.readFileSync(process.argv[1],"utf8")); process.stdout.write(c.paths.dataDir);' "$local_config_file")"
+node "$repo_root/scripts/build-hermes-tui.mjs" --checkout "$checkout" --out "$data_directory/hermes/tui"
 mkdir -p "$home_directory/dashboard-themes" "$user_unit_directory" "$backup_directory"
 install -m 0644 "$repo_root/deploy/hermes/dashboard-themes/wrapt.yaml" "$home_directory/dashboard-themes/wrapt.yaml"
 

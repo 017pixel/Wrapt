@@ -37,7 +37,7 @@ async function fixture() {
   });
   app.addHook("onClose", async () => { await push.close(); notifications.close(); });
   await app.ready();
-  return { app, sendNotification };
+  return { app, sendNotification, notifications };
 }
 
 describe("Push-Subscription-API", () => {
@@ -71,4 +71,15 @@ describe("Push-Subscription-API", () => {
     expect(tested.json()).toEqual({ sent: true });
     expect(sendNotification).toHaveBeenCalledTimes(1);
   });
+});
+
+it.each([["false", 2], ["0", 2], ["true", 1], ["1", 1]])("wertet unreadOnly=%s korrekt aus", async (value, count) => {
+  const { app, notifications } = await fixture();
+  const entry = { source: "wrapt" as const, category: "terminal" as const, sourceIcon: "wrapt" as const, kind: "test", severity: "info" as const, title: "Test", body: "" };
+  const read = notifications.create({ ...entry, remoteId: "read" });
+  notifications.patch(read.id, { read: true });
+  notifications.create({ ...entry, remoteId: "unread" });
+  const response = await app.inject({ method: "GET", url: "/api/v1/notifications?unreadOnly=" + value });
+  expect(response.statusCode).toBe(200);
+  expect(response.json().notifications).toHaveLength(count);
 });

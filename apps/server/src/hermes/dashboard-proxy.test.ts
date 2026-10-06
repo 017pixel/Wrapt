@@ -1,6 +1,6 @@
 import type { FastifyRequest } from "fastify";
 import { describe, expect, it } from "vitest";
-import { proxyRequestHeaders, proxyWebSocketHeaders, rewriteCookiePath, rewriteHtmlAssetUrls, rewriteJavascriptAssetReferences, rewriteLocation, rewriteResponseHeaders, routeBridgeScript, upstreamPath } from "./dashboard-proxy.js";
+import { proxyRequestHeaders, proxyWebSocketHeaders, rewriteCookiePath, rewriteHtmlAssetUrls, rewriteJavascriptAssetReferences, rewriteLocation, rewriteResponseHeaders, upstreamPath } from "./dashboard-proxy.js";
 
 describe("Hermes-Dashboard-Proxy", () => {
   it("schreibt den Präfixpfad korrekt zum Dashboard um", () => {
@@ -70,28 +70,6 @@ describe("Hermes-Dashboard-Proxy", () => {
   it("bustet den Browser-Cache für präfixierte Dashboard-Assets, aber nicht für CSS", () => {
     expect(rewriteHtmlAssetUrls('<script src="/hermes/assets/index.js"></script><link href="/hermes/assets/app.css?v=2">')).toBe('<script src="/hermes/assets/index.js?rw=3"></script><link href="/hermes/assets/app.css?v=2">');
     expect(rewriteHtmlAssetUrls('<link href="/hermes/assets/index-Abc123.css">')).toBe('<link href="/hermes/assets/index-Abc123.css">');
-  });
-
-  it("meldet Routenwechsel nach oben und nimmt Navigationsbefehle entgegen", () => {
-    const bridge = routeBridgeScript();
-    // Nach oben: die Workbench merkt sich die zuletzt besuchte Hermes-Seite.
-    expect(bridge).toContain("route.changed");
-    expect(bridge).toContain("window.parent.postMessage");
-    // Nach unten: Seitenwechsel ohne Neuladen der SPA.
-    expect(bridge).toContain("route.navigate");
-    expect(bridge).toContain("history.pushState");
-    expect(bridge).toContain("PopStateEvent");
-    // Geparkte Hermes-Flächen behalten WebSockets, pausieren aber Polling.
-    expect(bridge).toContain("host.activity");
-    expect(bridge).toContain("if (hostActive) callback");
-  });
-
-  it("nimmt nur Navigationsbefehle vom eigenen Origin mit unverdächtigem Pfad an", () => {
-    const bridge = routeBridgeScript();
-    expect(bridge).toContain("event.origin !== location.origin");
-    expect(bridge).toContain('data.path.startsWith("/")');
-    expect(bridge).toContain('data.path.includes("..")');
-    expect(bridge).toContain('data.path.startsWith("//")');
   });
 
   it("entfernt auch JavaScript-Längenheader bei einer Asset-Umschreibung", () => {

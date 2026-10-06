@@ -7,6 +7,7 @@ export function createAsyncCache<T>(ttlMilliseconds: number, loader: () => Promi
   let expiresAt = 0;
   let value: T | undefined;
   let pending: Promise<T> | undefined;
+  let generation = 0;
 
   return {
     async get() {
@@ -14,22 +15,26 @@ export function createAsyncCache<T>(ttlMilliseconds: number, loader: () => Promi
       if (value !== undefined && now < expiresAt) return value;
       if (pending !== undefined) return pending;
 
-      pending = loader()
+      const loadingGeneration = generation;
+      const loading = loader()
         .then((loaded) => {
-          value = loaded;
-          expiresAt = Date.now() + ttlMilliseconds;
+          if (loadingGeneration === generation) {
+            value = loaded;
+            expiresAt = Date.now() + ttlMilliseconds;
+          }
           return loaded;
         })
         .finally(() => {
-          pending = undefined;
+          if (pending === loading) pending = undefined;
         });
-
-      return pending;
+      pending = loading;
+      return loading;
     },
     clear() {
+      generation += 1;
+      pending = undefined;
       value = undefined;
       expiresAt = 0;
     },
   };
 }
-

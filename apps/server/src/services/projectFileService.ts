@@ -37,15 +37,32 @@ export function createProjectFileService(projects: Pick<ReturnType<typeof create
       if (!contained(root, target)) {
         throw new AppError(400, "INVALID_PROJECT_PATH", "Der Dateipfad verlässt das Projektverzeichnis.");
       }
-      await mkdir(dirname(target), { recursive: true });
-      const canonicalParent = await realpath(dirname(target));
+      // Vor mkdir den nächsten vorhandenen Vorfahren prüfen, damit ein
+      // Symlink nach außen auch keine leeren Verzeichnisse anlegen kann.
+      let ancestor = dirname(target);
+      let canonicalAncestor: string;
+      for (;;) {
+        try {
+          canonicalAncestor = await realpath(ancestor);
+          break;
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== "ENOENT" || ancestor === root) throw error;
+          ancestor = dirname(ancestor);
+        }
+      }
+      if (canonicalAncestor !== root && !contained(root, canonicalAncestor)) {
+        throw new AppError(400, "INVALID_PROJECT_PATH", "Der Dateipfad führt über einen unsicheren Verweis.");
+      }
+      const parent = resolve(canonicalAncestor, relative(ancestor, dirname(target)));
+      await mkdir(parent, { recursive: true });
+      const canonicalParent = await realpath(parent);
       if (canonicalParent !== root && !canonicalParent.startsWith(`${root}${sep}`)) {
         throw new AppError(400, "INVALID_PROJECT_PATH", "Der Dateipfad führt über einen unsicheren Verweis.");
       }
-      // Ab hier ausschließlich den kanonischen Elternpfad verwenden. Ein
-      // lokaler Prozess kann den ursprünglichen Parent zwischen Prüfung und
-      // Rename gegen einen Symlink austauschen. Ein Ziel unter dem bereits
-      // aufgelösten Parent folgt diesem Verweis beim Commit nicht.
+      // Ab hier den kanonischen Elternpfad verwenden und unmittelbar vor dem
+      // Commit erneut prüfen. Das vermeidet den ursprünglichen Symlink;
+      // konkurrierende Änderungen seiner Vorfahren bleiben ein lokales
+      // Dateisystemrisiko ohne descriptorbasierte Pfadoperationen.
       const canonicalTarget = join(canonicalParent, basename(target));
       let existed = false;
       let currentVersion: string | null = null;

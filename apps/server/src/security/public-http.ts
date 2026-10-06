@@ -28,6 +28,7 @@ for (const [network, prefix] of [
   ["::", 96],
   ["::ffff:0.0.0.0", 96],
   ["64:ff9b::", 96],
+  ["64:ff9b:1::", 48],
   ["100::", 64],
   ["2001::", 32],
   ["2001:2::", 48],
@@ -48,7 +49,7 @@ export function isPublicAddress(address: string): boolean {
 }
 
 export function assertPublicHttpUrl(value: string | URL): URL {
-  const url = value instanceof URL ? new URL(value) : new URL(value);
+  const url = new URL(value);
   if (!["http:", "https:"].includes(url.protocol)) throw new Error("Nur öffentliche HTTP(S)-Ziele sind erlaubt.");
   if (url.username || url.password) throw new Error("URLs mit Zugangsdaten sind nicht erlaubt.");
   const hostname = url.hostname.replace(/^\[|\]$/g, "").toLowerCase();

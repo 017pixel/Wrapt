@@ -124,6 +124,9 @@ export class OrbitAssetRepository {
         }),
         createWriteStream(temporary, { flags: "wx", mode: 0o600 }),
       );
+      if ("truncated" in input.stream && input.stream.truncated === true) {
+        throw new AppError(413, "ORBIT_ASSET_TOO_LARGE", "Die Datei überschreitet die erlaubte Größe.");
+      }
       const handle = await open(temporary, "r");
       try {
         await handle.sync();
@@ -140,7 +143,12 @@ export class OrbitAssetRepository {
     }
     const sha256 = digest.digest("hex");
     const folderId = input.folderId ?? null;
-    this.assertFolder(folderId);
+    try {
+      this.assertFolder(folderId);
+    } catch (error) {
+      await unlink(temporary).catch(() => undefined);
+      throw error;
+    }
     const existing = this.db.prepare(`SELECT id, filename, mime_type mimeType, bytes, sha256, storage_path storagePath, created_at createdAt, folder_id folderId FROM ${this.tableName} WHERE sha256=?`).get(sha256) as AssetRow | undefined;
     if (existing) {
       await unlink(temporary).catch(() => undefined);

@@ -1,0 +1,10 @@
+.panel-standalone-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.panel-standalone-actions .tool-actions-menu.is-inline {
+  position: relative;
+  inset: auto;
+}

@@ -75,6 +75,7 @@ const tokens = {
   __HERMES_HOME__: hermesHome,
   __HERMES_CHECKOUT__: hermesCheckout,
   __HERMES_PYTHON__: hermesPython,
+  __HERMES_TUI__: join(config.paths?.dataDir || join(repoRoot, "data"), "hermes/tui"),
   __HERMES_UPDATE_TIME__: config.hermes?.updateTime || "04:15",
   __HERMES_UPDATE_TZ__: config.hermes?.updateTimezone || "Europe/Berlin",
 };

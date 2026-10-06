@@ -116,13 +116,10 @@ const activityIconNodes = [["path",{"d":"M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 
 const errorIconNodes = [["path",{"d":"M12 16h.01"}],["path",{"d":"M12 8v4"}],["path",{"d":"M15.312 2a2 2 0 0 1 1.414.586l4.688 4.688A2 2 0 0 1 22 8.688v6.624a2 2 0 0 1-.586 1.414l-4.688 4.688a2 2 0 0 1-1.414.586H8.688a2 2 0 0 1-1.414-.586l-4.688-4.688A2 2 0 0 1 2 15.312V8.688a2 2 0 0 1 .586-1.414l4.688-4.688A2 2 0 0 1 8.688 2z"}]] as const;
 const warningIconNodes = [["path",{"d":"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"}],["path",{"d":"M12 9v4"}],["path",{"d":"M12 17h.01"}]] as const;
 const arrowLeftIconNodes = [["path",{"d":"m12 19-7-7 7-7"}],["path",{"d":"M19 12H5"}]] as const;
-const arrowRightIconNodes = [["path",{"d":"M5 12h14"}],["path",{"d":"m12 5 7 7-7 7"}]] as const;
 const uploadIconNodes = [["path",{"d":"M4 15v4a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4"}],["path",{"d":"M12 16V3"}],["path",{"d":"m7 8 5-5 5 5"}]] as const;
 const bookmarkIconNodes = [["path",{"d":"M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z"}]] as const;
 const selectBoxIconNodes = [["path",{"d":"M5 3a2 2 0 0 0-2 2"}],["path",{"d":"M19 3a2 2 0 0 1 2 2"}],["path",{"d":"M21 19a2 2 0 0 1-2 2"}],["path",{"d":"M5 21a2 2 0 0 1-2-2"}],["path",{"d":"M9 3h1"}],["path",{"d":"M9 21h1"}],["path",{"d":"M14 3h1"}],["path",{"d":"M14 21h1"}],["path",{"d":"M3 9v1"}],["path",{"d":"M21 9v1"}],["path",{"d":"M3 14v1"}],["path",{"d":"M21 14v1"}]] as const;
 const servicesIconNodes = [["path",{"d":"M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z"}],["path",{"d":"m7 16.5-4.74-2.85"}],["path",{"d":"m7 16.5 5-3"}],["path",{"d":"M7 16.5v5.17"}],["path",{"d":"M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z"}],["path",{"d":"m17 16.5-5-3"}],["path",{"d":"m17 16.5 4.74-2.85"}],["path",{"d":"M17 16.5v5.17"}],["path",{"d":"M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z"}],["path",{"d":"M12 8 7.26 5.15"}],["path",{"d":"m12 8 4.74-2.85"}],["path",{"d":"M12 13.5V8"}]] as const;
-const bracesIconNodes = [["path",{"d":"M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"}],["path",{"d":"M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"}]] as const;
-const cameraIconNodes = [["path",{"d":"M13.997 4a2 2 0 0 1 1.76 1.05l.486.9A2 2 0 0 0 18.003 7H20a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h1.997a2 2 0 0 0 1.759-1.048l.489-.904A2 2 0 0 1 10.004 4z"}],["circle",{"cx":"12","cy":"13","r":"3"}]] as const;
 const checkIconNodes = [["path",{"d":"M20 6 9 17l-5-5"}]] as const;
 const chevronDownIconNodes = [["path",{"d":"m6 9 6 6 6-6"}]] as const;
 const chevronLeftIconNodes = [["path",{"d":"m15 18-6-6 6-6"}]] as const;
@@ -133,7 +130,6 @@ const coinsIconNodes = [["path",{"d":"M13.744 17.736a6 6 0 1 1-7.48-7.48"}],["pa
 const columnsIconNodes = [["rect",{"width":"18","height":"18","x":"3","y":"3","rx":"2"}],["path",{"d":"M12 3v18"}]] as const;
 const commandIconNodes = [["path",{"d":"M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"}]] as const;
 const copyIconNodes = [["rect",{"width":"14","height":"14","x":"8","y":"8","rx":"2","ry":"2"}],["path",{"d":"M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"}]] as const;
-const cpuIconNodes = [["path",{"d":"M12 20v2"}],["path",{"d":"M12 2v2"}],["path",{"d":"M17 20v2"}],["path",{"d":"M17 2v2"}],["path",{"d":"M2 12h2"}],["path",{"d":"M2 17h2"}],["path",{"d":"M2 7h2"}],["path",{"d":"M20 12h2"}],["path",{"d":"M20 17h2"}],["path",{"d":"M20 7h2"}],["path",{"d":"M7 20v2"}],["path",{"d":"M7 2v2"}],["rect",{"x":"4","y":"4","width":"16","height":"16","rx":"2"}],["rect",{"x":"8","y":"8","width":"8","height":"8","rx":"1"}]] as const;
 const databaseIconNodes = [["ellipse",{"cx":"12","cy":"5","rx":"9","ry":"3"}],["path",{"d":"M3 5V19A9 3 0 0 0 21 19V5"}],["path",{"d":"M3 12A9 3 0 0 0 21 12"}]] as const;
 const downloadIconNodes = [["path",{"d":"M12 15V3"}],["path",{"d":"M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"}],["path",{"d":"m7 10 5 5 5-5"}]] as const;
 const editIconNodes = [["path",{"d":"M13 21h8"}],["path",{"d":"M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"}]] as const;
@@ -144,7 +140,6 @@ const eyeOffIconNodes = [["path",{"d":"M10.733 5.076a10.744 10.744 0 0 1 11.205 
 const fileIconNodes = [["path",{"d":"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"}],["path",{"d":"M14 2v5a1 1 0 0 0 1 1h5"}]] as const;
 const codeFileIconNodes = [["path",{"d":"M4 12.15V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.706.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2h-3.35"}],["path",{"d":"M14 2v5a1 1 0 0 0 1 1h5"}],["path",{"d":"m5 16-3 3 3 3"}],["path",{"d":"m9 22 3-3-3-3"}]] as const;
 const unknownFileIconNodes = [["path",{"d":"M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z"}],["path",{"d":"M12 17h.01"}],["path",{"d":"M9.1 9a3 3 0 0 1 5.82 1c0 2-3 3-3 3"}]] as const;
-const filterIconNodes = [["path",{"d":"M10 20a1 1 0 0 0 .553.895l2 1A1 1 0 0 0 14 21v-7a2 2 0 0 1 .517-1.341L21.74 4.67A1 1 0 0 0 21 3H3a1 1 0 0 0-.742 1.67l7.225 7.989A2 2 0 0 1 10 14z"}]] as const;
 const folderIconNodes = [["path",{"d":"M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"}]] as const;
 const folderCodeIconNodes = [["path",{"d":"M18 19a5 5 0 0 1-5-5v8"}],["path",{"d":"M9 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v5"}],["circle",{"cx":"13","cy":"12","r":"2"}],["circle",{"cx":"20","cy":"19","r":"2"}]] as const;
 const folderOpenIconNodes = [["path",{"d":"m6 14 1.5-2.9A2 2 0 0 1 9.24 10H20a2 2 0 0 1 1.94 2.5l-1.54 6a2 2 0 0 1-1.95 1.5H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H18a2 2 0 0 1 2 2v2"}]] as const;
@@ -154,13 +149,11 @@ const frameIconNodes = [["line",{"x1":"22","x2":"2","y1":"6","y2":"6"}],["line",
 const gitBranchIconNodes = [["path",{"d":"M15 6a9 9 0 0 0-9 9V3"}],["circle",{"cx":"18","cy":"6","r":"3"}],["circle",{"cx":"6","cy":"18","r":"3"}]] as const;
 const gridIconNodes = [["path",{"d":"M12 3v18"}],["path",{"d":"M3 12h18"}],["rect",{"x":"3","y":"3","width":"18","height":"18","rx":"2"}]] as const;
 const handIconNodes = [["path",{"d":"M18 11V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2"}],["path",{"d":"M14 10V4a2 2 0 0 0-2-2a2 2 0 0 0-2 2v2"}],["path",{"d":"M10 10.5V6a2 2 0 0 0-2-2a2 2 0 0 0-2 2v8"}],["path",{"d":"M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15"}]] as const;
-const diskIconNodes = [["path",{"d":"M10 16h.01"}],["path",{"d":"M2.212 11.577a2 2 0 0 0-.212.896V18a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-5.527a2 2 0 0 0-.212-.896L18.55 5.11A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"}],["path",{"d":"M21.946 12.013H2.054"}],["path",{"d":"M6 16h.01"}]] as const;
 const inboxIconNodes = [["polyline",{"points":"22 12 16 12 14 15 10 15 8 12 2 12"}],["path",{"d":"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"}]] as const;
 const infoIconNodes = [["circle",{"cx":"12","cy":"12","r":"10"}],["path",{"d":"M12 16v-4"}],["path",{"d":"M12 8h.01"}]] as const;
 const keyIconNodes = [["path",{"d":"M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.814-.814a6.5 6.5 0 1 0-4-4z"}],["circle",{"cx":"16.5","cy":"7.5","r":".5","fill":"currentColor"}]] as const;
 const layersIconNodes = [["path",{"d":"M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83z"}],["path",{"d":"M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12"}],["path",{"d":"M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17"}]] as const;
 const layoutPanelIconNodes = [["rect",{"width":"7","height":"18","x":"3","y":"3","rx":"1"}],["rect",{"width":"7","height":"7","x":"14","y":"3","rx":"1"}],["rect",{"width":"7","height":"7","x":"14","y":"14","rx":"1"}]] as const;
-const libraryIconNodes = [["path",{"d":"m16 6 4 14"}],["path",{"d":"M12 6v14"}],["path",{"d":"M8 8v12"}],["path",{"d":"M4 4v16"}]] as const;
 const linkIconNodes = [["path",{"d":"M9 17H7A5 5 0 0 1 7 7h2"}],["path",{"d":"M15 7h2a5 5 0 1 1 0 10h-2"}],["line",{"x1":"8","x2":"16","y1":"12","y2":"12"}]] as const;
 const listIconNodes = [["path",{"d":"M3 5h.01"}],["path",{"d":"M3 12h.01"}],["path",{"d":"M3 19h.01"}],["path",{"d":"M8 5h13"}],["path",{"d":"M8 12h13"}],["path",{"d":"M8 19h13"}]] as const;
 const todoIconNodes = [["path",{"d":"M13 5h8"}],["path",{"d":"M13 12h8"}],["path",{"d":"M13 19h8"}],["path",{"d":"m3 17 2 2 4-4"}],["rect",{"x":"3","y":"4","width":"6","height":"6","rx":"1"}]] as const;
@@ -168,7 +161,6 @@ const loaderIconNodes = [["path",{"d":"M21 12a9 9 0 1 1-6.219-8.56"}]] as const;
 const locateIconNodes = [["line",{"x1":"2","x2":"5","y1":"12","y2":"12"}],["line",{"x1":"19","x2":"22","y1":"12","y2":"12"}],["line",{"x1":"12","x2":"12","y1":"2","y2":"5"}],["line",{"x1":"12","x2":"12","y1":"19","y2":"22"}],["circle",{"cx":"12","cy":"12","r":"7"}],["circle",{"cx":"12","cy":"12","r":"3"}]] as const;
 const lockIconNodes = [["rect",{"width":"18","height":"11","x":"3","y":"11","rx":"2","ry":"2"}],["path",{"d":"M7 11V7a5 5 0 0 1 10 0v4"}]] as const;
 const fullscreenIconNodes = [["path",{"d":"M8 3H5a2 2 0 0 0-2 2v3"}],["path",{"d":"M21 8V5a2 2 0 0 0-2-2h-3"}],["path",{"d":"M3 16v3a2 2 0 0 0 2 2h3"}],["path",{"d":"M16 21h3a2 2 0 0 0 2-2v-3"}]] as const;
-const memoryIconNodes = [["path",{"d":"M12 12v-2"}],["path",{"d":"M12 18v-2"}],["path",{"d":"M16 12v-2"}],["path",{"d":"M16 18v-2"}],["path",{"d":"M2 11h1.5"}],["path",{"d":"M20 18v-2"}],["path",{"d":"M20.5 11H22"}],["path",{"d":"M4 18v-2"}],["path",{"d":"M8 12v-2"}],["path",{"d":"M8 18v-2"}],["rect",{"x":"2","y":"6","width":"20","height":"10","rx":"2"}]] as const;
 const menuIconNodes = [["path",{"d":"M4 5h16"}],["path",{"d":"M4 12h16"}],["path",{"d":"M4 19h16"}]] as const;
 const restoreIconNodes = [["path",{"d":"m14 10 7-7"}],["path",{"d":"M20 10h-6V4"}],["path",{"d":"m3 21 7-7"}],["path",{"d":"M4 14h6v6"}]] as const;
 const minusIconNodes = [["path",{"d":"M5 12h14"}]] as const;
@@ -184,7 +176,6 @@ const redoIconNodes = [["path",{"d":"m15 14 5-5-5-5"}],["path",{"d":"M20 9H9.5A5
 const refreshIconNodes = [["path",{"d":"M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"}],["path",{"d":"M21 3v5h-5"}],["path",{"d":"M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"}],["path",{"d":"M8 16H3v5"}]] as const;
 const rocketIconNodes = [["path",{"d":"M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"}],["path",{"d":"M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09"}],["path",{"d":"M9 12a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.4 22.4 0 0 1-4 2z"}],["path",{"d":"M9 12H4s.55-3.03 2-4c1.62-1.08 5 .05 5 .05"}]] as const;
 const retryIconNodes = [["path",{"d":"M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"}],["path",{"d":"M3 3v5h5"}]] as const;
-const rowsIconNodes = [["rect",{"width":"18","height":"18","x":"3","y":"3","rx":"2"}],["path",{"d":"M3 12h18"}]] as const;
 const saveIconNodes = [["path",{"d":"M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"}],["path",{"d":"M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"}],["path",{"d":"M7 3v4a1 1 0 0 0 1 1h7"}]] as const;
 const searchIconNodes = [["path",{"d":"m21 21-4.34-4.34"}],["circle",{"cx":"11","cy":"11","r":"8"}]] as const;
 const sendIconNodes = [["path",{"d":"M14.536 21.686a.5.5 0 0 0 .937-.024l6.5-19a.496.496 0 0 0-.635-.635l-19 6.5a.5.5 0 0 0-.024.937l7.93 3.18a2 2 0 0 1 1.112 1.11z"}],["path",{"d":"m21.854 2.147-10.94 10.939"}]] as const;
@@ -193,9 +184,7 @@ const shieldIconNodes = [["path",{"d":"M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.6
 const smartphoneIconNodes = [["rect",{"width":"14","height":"20","x":"5","y":"2","rx":"2","ry":"2"}],["path",{"d":"M12 18h.01"}]] as const;
 const sparklesIconNodes = [["path",{"d":"M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"}],["path",{"d":"M20 2v4"}],["path",{"d":"M22 4h-4"}],["circle",{"cx":"4","cy":"20","r":"2"}]] as const;
 const splitIconNodes = [["path",{"d":"M8 19H5c-1 0-2-1-2-2V7c0-1 1-2 2-2h3"}],["path",{"d":"M16 5h3c1 0 2 1 2 2v10c0 1-1 2-2 2h-3"}],["line",{"x1":"12","x2":"12","y1":"4","y2":"20"}]] as const;
-const devtoolsIconNodes = [["path",{"d":"m10 9-3 3 3 3"}],["path",{"d":"m14 15 3-3-3-3"}],["rect",{"x":"3","y":"3","width":"18","height":"18","rx":"2"}]] as const;
 const noteIconNodes = [["path",{"d":"M21 9a2.4 2.4 0 0 0-.706-1.706l-3.588-3.588A2.4 2.4 0 0 0 15 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2z"}],["path",{"d":"M15 3v5a1 1 0 0 0 1 1h5"}]] as const;
-const temperatureIconNodes = [["path",{"d":"M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"}]] as const;
 const trashIconNodes = [["path",{"d":"M10 11v6"}],["path",{"d":"M14 11v6"}],["path",{"d":"M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"}],["path",{"d":"M3 6h18"}],["path",{"d":"M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"}]] as const;
 const undoIconNodes = [["path",{"d":"M9 14 4 9l5-5"}],["path",{"d":"M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5a5.5 5.5 0 0 1-5.5 5.5H11"}]] as const;
 const userIconNodes = [["circle",{"cx":"12","cy":"8","r":"5"}],["path",{"d":"M20 21a8 8 0 0 0-16 0"}]] as const;
@@ -205,13 +194,10 @@ export function ActivityIcon(props: IconProps) { return <GlyphIcon nodes={activi
 export function ErrorIcon(props: IconProps) { return <GlyphIcon nodes={errorIconNodes} accent="var(--icon-red, #cf7478)" {...props}/>; }
 export function WarningIcon(props: IconProps) { return <GlyphIcon nodes={warningIconNodes} accent="var(--icon-yellow, #d4a940)" {...props}/>; }
 export function ArrowLeftIcon(props: IconProps) { return <GlyphIcon nodes={arrowLeftIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
-export function ArrowRightIcon(props: IconProps) { return <GlyphIcon nodes={arrowRightIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function UploadIcon(props: IconProps) { return <GlyphIcon nodes={uploadIconNodes} accent="var(--icon-green, #4bb38b)" {...props}/>; }
 export function BookmarkIcon(props: IconProps) { return <GlyphIcon nodes={bookmarkIconNodes} accent="var(--icon-violet, #8f6bc9)" {...props}/>; }
 export function SelectBoxIcon(props: IconProps) { return <GlyphIcon nodes={selectBoxIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function ServicesIcon(props: IconProps) { return <GlyphIcon nodes={servicesIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
-export function BracesIcon(props: IconProps) { return <GlyphIcon nodes={bracesIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
-export function CameraIcon(props: IconProps) { return <GlyphIcon nodes={cameraIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function CheckIcon(props: IconProps) { return <GlyphIcon nodes={checkIconNodes} accent="var(--icon-green, #4bb38b)" {...props}/>; }
 export function ChevronDownIcon(props: IconProps) { return <GlyphIcon nodes={chevronDownIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function ChevronLeftIcon(props: IconProps) { return <GlyphIcon nodes={chevronLeftIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
@@ -222,7 +208,6 @@ export function CoinsIcon(props: IconProps) { return <GlyphIcon nodes={coinsIcon
 export function ColumnsIcon(props: IconProps) { return <GlyphIcon nodes={columnsIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function CommandIcon(props: IconProps) { return <GlyphIcon nodes={commandIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function CopyIcon(props: IconProps) { return <GlyphIcon nodes={copyIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
-export function CpuIcon(props: IconProps) { return <GlyphIcon nodes={cpuIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function DatabaseIcon(props: IconProps) { return <GlyphIcon nodes={databaseIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function DownloadIcon(props: IconProps) { return <GlyphIcon nodes={downloadIconNodes} accent="var(--icon-green, #4bb38b)" {...props}/>; }
 export function EditIcon(props: IconProps) { return <GlyphIcon nodes={editIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
@@ -233,7 +218,6 @@ export function EyeOffIcon(props: IconProps) { return <GlyphIcon nodes={eyeOffIc
 export function FileIcon(props: IconProps) { return <GlyphIcon nodes={fileIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function CodeFileIcon(props: IconProps) { return <GlyphIcon nodes={codeFileIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function UnknownFileIcon(props: IconProps) { return <GlyphIcon nodes={unknownFileIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
-export function FilterIcon(props: IconProps) { return <GlyphIcon nodes={filterIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function FolderIcon(props: IconProps) { return <GlyphIcon nodes={folderIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function FolderCodeIcon(props: IconProps) { return <GlyphIcon nodes={folderCodeIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function FolderOpenIcon(props: IconProps) { return <GlyphIcon nodes={folderOpenIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
@@ -243,13 +227,11 @@ export function FrameIcon(props: IconProps) { return <GlyphIcon nodes={frameIcon
 export function GitBranchIcon(props: IconProps) { return <GlyphIcon nodes={gitBranchIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function GridIcon(props: IconProps) { return <GlyphIcon nodes={gridIconNodes} accent="var(--icon-violet, #8f6bc9)" {...props}/>; }
 export function HandIcon(props: IconProps) { return <GlyphIcon nodes={handIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
-export function DiskIcon(props: IconProps) { return <GlyphIcon nodes={diskIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function InboxIcon(props: IconProps) { return <GlyphIcon nodes={inboxIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function InfoIcon(props: IconProps) { return <GlyphIcon nodes={infoIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function KeyIcon(props: IconProps) { return <GlyphIcon nodes={keyIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function LayersIcon(props: IconProps) { return <GlyphIcon nodes={layersIconNodes} accent="var(--icon-violet, #8f6bc9)" {...props}/>; }
 export function LayoutPanelIcon(props: IconProps) { return <GlyphIcon nodes={layoutPanelIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
-export function LibraryIcon(props: IconProps) { return <GlyphIcon nodes={libraryIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function LinkIcon(props: IconProps) { return <GlyphIcon nodes={linkIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function ListIcon(props: IconProps) { return <GlyphIcon nodes={listIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function TodoIcon(props: IconProps) { return <GlyphIcon nodes={todoIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
@@ -257,7 +239,6 @@ export function LoaderIcon(props: IconProps) { return <GlyphIcon nodes={loaderIc
 export function LocateIcon(props: IconProps) { return <GlyphIcon nodes={locateIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function LockIcon(props: IconProps) { return <GlyphIcon nodes={lockIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function FullscreenIcon(props: IconProps) { return <GlyphIcon nodes={fullscreenIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
-export function MemoryIcon(props: IconProps) { return <GlyphIcon nodes={memoryIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function MenuIcon(props: IconProps) { return <GlyphIcon nodes={menuIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function RestoreIcon(props: IconProps) { return <GlyphIcon nodes={restoreIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function MinusIcon(props: IconProps) { return <GlyphIcon nodes={minusIconNodes} accent="var(--icon-yellow, #d4a940)" {...props}/>; }
@@ -273,7 +254,6 @@ export function RedoIcon(props: IconProps) { return <GlyphIcon nodes={redoIconNo
 export function RefreshIcon(props: IconProps) { return <GlyphIcon nodes={refreshIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function RocketIcon(props: IconProps) { return <GlyphIcon nodes={rocketIconNodes} accent="var(--icon-yellow, #d4a940)" {...props}/>; }
 export function RetryIcon(props: IconProps) { return <GlyphIcon nodes={retryIconNodes} accent="var(--icon-yellow, #d4a940)" {...props}/>; }
-export function RowsIcon(props: IconProps) { return <GlyphIcon nodes={rowsIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function SaveIcon(props: IconProps) { return <GlyphIcon nodes={saveIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function SearchIcon(props: IconProps) { return <GlyphIcon nodes={searchIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function SendIcon(props: IconProps) { return <GlyphIcon nodes={sendIconNodes} accent="var(--icon-green, #4bb38b)" {...props}/>; }
@@ -282,9 +262,7 @@ export function ShieldIcon(props: IconProps) { return <GlyphIcon nodes={shieldIc
 export function SmartphoneIcon(props: IconProps) { return <GlyphIcon nodes={smartphoneIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function SparklesIcon(props: IconProps) { return <GlyphIcon nodes={sparklesIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function SplitIcon(props: IconProps) { return <GlyphIcon nodes={splitIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
-export function DevtoolsIcon(props: IconProps) { return <GlyphIcon nodes={devtoolsIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function NoteIcon(props: IconProps) { return <GlyphIcon nodes={noteIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
-export function TemperatureIcon(props: IconProps) { return <GlyphIcon nodes={temperatureIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function TrashIcon(props: IconProps) { return <GlyphIcon nodes={trashIconNodes} accent="var(--icon-red, #cf7478)" {...props}/>; }
 export function UndoIcon(props: IconProps) { return <GlyphIcon nodes={undoIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
 export function UserIcon(props: IconProps) { return <GlyphIcon nodes={userIconNodes} accent="var(--icon-blue-bright, #79a5df)" {...props}/>; }
@@ -297,8 +275,4 @@ const extensionsIconNodes = [
 ] as const;
 export function ExtensionsIcon(props: IconProps) { return <GlyphIcon nodes={extensionsIconNodes} accent="var(--icon-violet, #8f6bc9)" {...props}/>; }
 
-export const GalleryMediaIcon = GalerieIcon;
-export const GalleryFilesIcon = FolderIcon;
-export const PreviewIcon = PreviewsIcon;
 export const ProjectIcon = ProjekteIcon;
-export const DeviceIcon = SmartphoneIcon;

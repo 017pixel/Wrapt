@@ -140,6 +140,12 @@ if ! run_quiet "${npm_cmd[@]}" --prefix "$checkout" install --workspace web --no
   exit 1
 fi
 
+if ! run_quiet node "$repo_root/scripts/build-hermes-tui.mjs" --checkout "$checkout" --out "$data_dir/hermes/tui"; then
+  safe_tail "$log_file"
+  state "phase=failed" "lastFinishedAt=$(now)" "lastResult=failed" "pending=false" "HERMES_UPDATE_LOG_TAIL_FILE=$log_file"
+  exit 1
+fi
+
 restart_services
 healthy=false
 for _ in {1..120}; do

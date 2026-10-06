@@ -5,6 +5,7 @@ import replyFrom from "@fastify/reply-from";
 import WebSocket from "ws";
 import { settings } from "../config/settings.js";
 import { isSameOriginRequest } from "../security/same-origin.js";
+import { routeBridgeScript } from "./route-bridge.js";
 import { hermesAuthority } from "./token.js";
 
 const prefix = settings.hermes.proxyPrefix;
@@ -191,53 +192,6 @@ export function rewriteHtmlAssetUrls(source: string, proxyPrefix = prefix): stri
   const escapedPrefix = proxyPrefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const assetPattern = new RegExp(`(["'])(${escapedPrefix}/assets/[^"']+)(["'])`, "g");
   return source.replace(assetPattern, (_match, opening: string, url: string, closing: string) => `${opening}${url.includes("?") ? url : withAssetVersion(url)}${closing}`);
-}
-
-/**
- * Minimale Brücke zwischen der Hermes-SPA im Iframe und der Workbench.
- *
- * Zwei Richtungen:
- *  - `route.changed` nach oben, damit die Workbench die zuletzt besuchte Seite
- *    merken und die eigene Navigation mitmarkieren kann. Die SPA meldet ihre
- *    Route nicht von sich aus nach außen.
- *  - `route.navigate` nach unten, damit ein Klick in der Workbench-Navigation
- *    die SPA intern weiterroutet statt das Iframe neu zu laden. Ein `src`-Wechsel
- *    würde die komplette SPA samt Verbindungen neu aufbauen — sichtbar als
- *    Sekunden von Ladezustand bei jedem Seitenwechsel.
- *
- * Fällt die Injektion aus (etwa weil Hermes sein HTML ändert), degradiert
- * beides still: Die Workbench bleibt auf der Startseite und lädt bei einem
- * Seitenwechsel das Iframe neu.
- */
-export function routeBridgeScript(): string {
-  return `<script data-wrapt-hermes-bridge="1">(() => {
-  let hostActive = true;
-  const nativeSetInterval = window.setInterval.bind(window);
-  window.setInterval = (callback, delay, ...args) => nativeSetInterval((...values) => {
-    if (hostActive) callback(...values);
-  }, delay, ...args);
-  const here = () => location.pathname + location.search + location.hash;
-  const notify = () => window.parent.postMessage({source:"wrapt-hermes",version:1,type:"route.changed",path:here()}, location.origin);
-  for (const name of ["pushState","replaceState"]) { const original = history[name]; history[name] = function (...args) { const result = original.apply(this, args); notify(); return result; }; }
-  addEventListener("popstate", notify); addEventListener("hashchange", notify);
-  addEventListener("message", (event) => {
-    if (event.origin !== location.origin) return;
-    const data = event.data;
-    if (!data || data.source !== "wrapt-hermes" || data.version !== 1) return;
-    if (data.type === "host.activity" && typeof data.active === "boolean") {
-      const changed = hostActive !== data.active;
-      hostActive = data.active;
-      if (changed && hostActive) dispatchEvent(new Event("focus"));
-      return;
-    }
-    if (data.type !== "route.navigate" || typeof data.path !== "string") return;
-    if (!data.path.startsWith("/") || data.path.includes("..") || data.path.startsWith("//")) return;
-    if (data.path === here()) return;
-    history.pushState({}, "", data.path);
-    dispatchEvent(new PopStateEvent("popstate", {state: {}}));
-  });
-  notify();
-})();</script>`;
 }
 
 export function proxyRequestHeaders(request: FastifyRequest, headers: Record<string, string | string[] | undefined>) {

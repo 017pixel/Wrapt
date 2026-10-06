@@ -16,8 +16,8 @@ mapfile -t serve_config < <(node -e '
   for (const name of ["wrapt.local.json", "wrapt.example.json", "workbench.local.json"]) {
     try {
       const c = JSON.parse(readFileSync(join(dir, name), "utf8"));
-      const internal = c.previews?.slotPorts ?? [3901,3902,3903,3904,3905,3906,3907,3908,3909,3910,3911,3912];
-      const publicPorts = c.previews?.publicPorts ?? [8451,8452,8453,8454,8455,8456,8457,8458,8459,8460,8461,8462];
+      const internal = c.previews?.slotPorts ?? Array.from({length:60}, (_, i) => 3901+i);
+      const publicPorts = c.previews?.publicPorts ?? [...Array.from({length:12}, (_, i) => 8451+i), ...Array.from({length:48}, (_, i) => 8511+i)];
       if (internal.length !== publicPorts.length) throw new Error("Preview-Portlisten haben unterschiedliche Längen.");
       console.log(`${c.tailscale.hostname} ${c.tailscale.httpsPort ?? 8443}`);
       internal.forEach((port, index) => console.log(`${publicPorts[index]} ${port}`));

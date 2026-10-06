@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface PaneWidthOptions {
   /** Eigener Schlüssel je Bereich, damit sich Breiten nicht gegenseitig überschreiben. */
@@ -44,20 +44,26 @@ export function usePaneWidth({ storageKey, initial, min, max }: PaneWidthOptions
 
   const setWidth = useCallback((value: number) => setWidthState(clamp(value)), [clamp]);
 
+  const stopResizeRef = useRef<(() => void) | null>(null);
+  useEffect(() => () => stopResizeRef.current?.(), []);
+
   /** Ziehen mit Maus, Stift oder Finger. Die Breite wächst nach rechts. */
   const startResize = useCallback((event: React.PointerEvent<HTMLElement>) => {
     event.preventDefault();
+    stopResizeRef.current?.();
     const startX = event.clientX;
     const startWidth = width;
     const previousCursor = document.body.style.cursor;
     document.body.style.cursor = "col-resize";
     const move = (moveEvent: PointerEvent) => setWidth(startWidth + moveEvent.clientX - startX);
     const stop = () => {
+      stopResizeRef.current = null;
       document.body.style.cursor = previousCursor;
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", stop);
       window.removeEventListener("pointercancel", stop);
     };
+    stopResizeRef.current = stop;
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", stop, { once: true });
     window.addEventListener("pointercancel", stop, { once: true });

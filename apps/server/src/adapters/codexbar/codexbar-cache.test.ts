@@ -171,6 +171,7 @@ describe("CodexbarUsageService stale-while-revalidate", () => {
     // Trotz abgelaufener TTL gilt jetzt eine Wartezeit bis zum nächsten Versuch.
     await service.getUsage();
     await service.getUsage();
+    expect(summarize(await service.getUsage())).toEqual({ codex: "partial", opencode: "partial", claude: "partial" });
     await vi.advanceTimersByTimeAsync(0);
     expect(attempts.length).toBe(afterFirstFetch + 3);
   });
@@ -188,5 +189,23 @@ describe("CodexbarUsageService stale-while-revalidate", () => {
     unsubscribe();
     await service.refresh();
     expect(listener).toHaveBeenCalledTimes(2);
+  });
+
+  it("wendet eine Monitoring-Änderung auch während eines laufenden Abrufs an", async () => {
+    let finish!: (payloads: CodexbarPayload[]) => void;
+    const pending = new Promise<CodexbarPayload[]>((resolve) => { finish = resolve; });
+    let monitoring = { codex: true, opencode: false, claude: false };
+    const service = createCodexbarUsageService({
+      ttlMilliseconds: 60_000,
+      client: { getUsage: () => pending } as unknown as CodexbarClient,
+      monitoring: () => monitoring,
+    });
+    const first = service.getUsage();
+    monitoring = { codex: false, opencode: false, claude: false };
+    service.invalidate();
+    finish([usagePayload("codex")]);
+    await first;
+    await vi.advanceTimersByTimeAsync(0);
+    expect(summarize(await service.getUsage())).toEqual({ codex: "disabled", opencode: "disabled", claude: "disabled" });
   });
 });

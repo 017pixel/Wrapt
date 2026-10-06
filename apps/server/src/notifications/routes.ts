@@ -20,7 +20,7 @@ import type { NotificationPushService } from "./push.js";
 
 function query(request: FastifyRequest) {
   const raw = request.query && typeof request.query === "object" ? request.query as Record<string, unknown> : {};
-  return z.object({ cursor: z.string().max(200).optional(), unreadOnly: z.coerce.boolean().default(false),
+  return z.object({ cursor: z.string().max(200).optional(), unreadOnly: z.enum(["true", "false", "1", "0"]).transform((value) => value === "true" || value === "1").default(false),
     source: notificationSourceSchema.optional(), category: notificationCategorySchema.optional(), severity: notificationSeveritySchema.optional(),
     limit: z.coerce.number().int().min(1).max(100).default(50) }).parse(raw);
 }

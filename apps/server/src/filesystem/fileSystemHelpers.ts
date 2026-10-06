@@ -44,24 +44,6 @@ export function mimeTypeFor(name: string): string {
   return MIME_TYPES[extension] ?? "application/octet-stream";
 }
 
-export function languageForName(name: string): string | null {
-  const extension = name.slice(name.lastIndexOf(".")).toLowerCase();
-  const languages: Record<string, string> = {
-    ".ts": "typescript", ".mts": "typescript", ".cts": "typescript", ".tsx": "tsx",
-    ".js": "javascript", ".mjs": "javascript", ".cjs": "javascript", ".jsx": "jsx",
-    ".json": "json", ".jsonc": "json", ".css": "css", ".scss": "scss", ".less": "less",
-    ".html": "xml", ".htm": "xml", ".svg": "xml", ".xml": "xml",
-    ".md": "markdown", ".markdown": "markdown",
-    ".py": "python", ".sh": "bash", ".bash": "bash", ".zsh": "bash",
-    ".sql": "sql", ".yaml": "yaml", ".yml": "yaml", ".toml": "ini", ".ini": "ini",
-    ".java": "java", ".go": "go", ".rs": "rust", ".c": "c", ".h": "c", ".cpp": "cpp", ".hpp": "cpp",
-    ".cs": "csharp", ".rb": "ruby", ".php": "php", ".swift": "swift", ".kt": "kotlin",
-    ".diff": "diff", ".patch": "diff", ".dockerfile": "dockerfile",
-  };
-  if (name.toLowerCase() === "dockerfile") return "dockerfile";
-  return languages[extension] ?? null;
-}
-
 export function sanitizeName(value: string): string {
   return value.replace(/[\\/\0]/g, "_").trim().slice(0, 255) || "datei";
 }

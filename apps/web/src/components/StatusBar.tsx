@@ -9,6 +9,9 @@ import { statusBarRegistry } from "../extensions/statusBarRegistry";
 import { openGlobalContextMenu } from "./context-menu/contextMenuEvents";
 import { hostContextMenuId } from "../extensions/hostContextMenus";
 import { StatusMascot } from "./mascot/StatusMascot";
+import { useUsageLimitsHover } from "./usage/useUsageLimitsHover";
+import { limitsCardProviders } from "./usage/usageLimitsCard";
+import { UsageLimitsHoverCard } from "./usage/UsageLimitsHoverCard";
 
 export type StatusBarProviderState = Pick<ProviderUsage, "providerId" | "status">;
 
@@ -116,6 +119,14 @@ export function StatusBar() {
     void queryClient.invalidateQueries({ queryKey: ["usage"] });
   };
   const statusBarStyle = { "--status-limit-font-size": `${menuConfig.statusBar.fontSizePx}px` } as CSSProperties;
+  const limitsHover = useUsageLimitsHover();
+  // Einmal pro Render-Takt: die Zeitbasis wird an einem Ort bestimmt, damit
+  // alle Provider in der Karte dieselbe „jetzt"-Referenz benutzen.
+  const cardProviders = limitsCardProviders(
+    usage.data?.providers ?? [],
+    visibleProviders.map((provider) => ({ providerId: provider.providerId, title: provider.title })),
+    Date.now(),
+  );
 
   return (
     <footer className={`status-bar hidden md:flex${mascot.data?.mascot.enabled === true ? " has-mascot" : ""}`}>
@@ -127,10 +138,29 @@ export function StatusBar() {
       {visibleProviders.length > 0 ? (
         <Link
           to="/usage"
-          className={`status-limits ${menuConfig.statusBar.alwaysShowLimits ? "is-always-visible" : ""}`}
+          ref={limitsHover.triggerRef}
+          className={`status-limits ${menuConfig.statusBar.alwaysShowLimits ? "is-always-visible" : ""} ${limitsHover.open ? "is-open" : ""}`}
           style={statusBarStyle}
           aria-label="Nutzung und Limits öffnen"
-          title={menuConfig.statusBar.alwaysShowLimits ? undefined : visibleProviders.map((provider) => `${provider.title}: ${providerLimit(providerById[provider.providerId])}`).join("\n")}
+          aria-expanded={limitsHover.open}
+          // Kein `title`-Attribut: Der native Browser-Tooltip würde neben der
+          // Card erscheinen und deren Inhalt doppelt, aber schlechter, zeigen.
+          onPointerEnter={limitsHover.onPointerEnter}
+          onPointerLeave={limitsHover.onPointerLeave}
+          onClick={(event) => {
+            // Ein Klick öffnet oder schließt die Karte immer — er navigiert nie
+            // direkt. Das `preventDefault()` muss in BEIDEN Zweigen stehen: Ohne
+            // es führt der Router den Klick aus, die Karte wäre auf Touch
+            // unerreichbar, weil die Navigation sofort gewinnt. Die
+            // vollständige Auswertung bleibt der Fußlink in der Karte.
+            if (limitsHover.open) {
+              event.preventDefault();
+              limitsHover.close();
+              return;
+            }
+            event.preventDefault();
+            limitsHover.toggle();
+          }}
           onContextMenu={(event) => openGlobalContextMenu(event, {
             surface: "host.context-menu.statusbar",
             title: "Nutzung und Limits",
@@ -150,7 +180,22 @@ export function StatusBar() {
             ...(index > 0 ? [<span key={`${provider.providerId}-divider`} className="status-bar-divider" aria-hidden="true" />] : []),
             <span key={provider.providerId}><strong>{menuConfig.statusBar.alwaysShowLimits ? provider.title : provider.label}</strong>{menuConfig.statusBar.alwaysShowLimits ? ":" : ""} {usage.isLoading ? "lädt…" : providerLimit(providerById[provider.providerId], true, !menuConfig.statusBar.alwaysShowLimits)}</span>,
           ])}
+          <span className="status-limits-caret" aria-hidden="true">
+            <svg width="9" height="9" viewBox="0 0 12 12" fill="none">
+              <path d="M2.5 4.5L6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </span>
         </Link>
+      ) : null}
+      {limitsHover.open && limitsHover.anchor && cardProviders.length > 0 ? (
+        <UsageLimitsHoverCard
+          anchor={limitsHover.anchor}
+          providers={cardProviders}
+          updatedAt={usage.data?.lastSuccessfulFetchAt ?? null}
+          onPointerEnter={limitsHover.onCardPointerEnter}
+          onPointerLeave={limitsHover.onCardPointerLeave}
+          onBlur={limitsHover.onCardBlur}
+        />
       ) : null}
     </footer>
   );

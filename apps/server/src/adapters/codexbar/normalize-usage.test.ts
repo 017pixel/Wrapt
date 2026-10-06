@@ -106,4 +106,107 @@ describe("normalizeProviderUsage", () => {
       expect.objectContaining({ label: "Wochenlimit", remainingPercent: 60 }),
     ]);
   });
+
+  it("maps Codex reset credits into the account contract", () => {
+    const usage = normalizeProviderUsage("codex", [{
+      provider: "codex",
+      source: "oauth",
+      usage: {
+        accountEmail: "plus@example.com",
+        loginMethod: "plus",
+        updatedAt: "2026-10-05T13:50:45Z",
+        secondary: { usedPercent: 42, windowMinutes: 10080, resetsAt: "2026-10-11T19:09:15Z" },
+        codexResetCredits: {
+          availableCount: 2,
+          updatedAt: "2026-10-05T13:50:45Z",
+          credits: [
+            {
+              id: "codex-reset-credit-v1-abc",
+              title: "Full reset",
+              description: "Thanks for using Codex!",
+              status: "available",
+              granted_at: "2026-09-22T18:45:39Z",
+              expires_at: "2026-10-22T18:45:39Z",
+            },
+            {
+              id: "codex-reset-credit-v1-def",
+              title: "Full reset",
+              description: "",
+              status: "available",
+              granted_at: "2026-09-29T19:30:34Z",
+              expires_at: null,
+            },
+          ],
+        },
+      },
+    }]);
+
+    expect(usage.accounts[0]?.resetCredits).toEqual([
+      {
+        id: "codex-reset-credit-v1-abc",
+        title: "Full reset",
+        description: "Thanks for using Codex!",
+        status: "available",
+        grantedAt: "2026-09-22T18:45:39Z",
+        expiresAt: "2026-10-22T18:45:39Z",
+      },
+      {
+        id: "codex-reset-credit-v1-def",
+        title: "Full reset",
+        description: "",
+        status: "available",
+        grantedAt: "2026-09-29T19:30:34Z",
+        expiresAt: null,
+      },
+    ]);
+  });
+
+  it("behält ein Konto, dessen Limitfenster fehlen, aber das Guthaben hat", () => {
+    // Ohne diese Regel ginge das Konto verloren, weil `primary` bis
+    // `tertiary` leer sind — der Nutzer sähe weder Limit noch Guthaben.
+    const usage = normalizeProviderUsage("codex", [{
+      provider: "codex",
+      source: "oauth",
+      usage: {
+        accountEmail: "plus@example.com",
+        loginMethod: "plus",
+        updatedAt: "2026-10-05T13:50:45Z",
+        primary: null,
+        secondary: null,
+        tertiary: null,
+        codexResetCredits: {
+          availableCount: 1,
+          updatedAt: "2026-10-05T13:50:45Z",
+          credits: [{
+            id: "credit-1",
+            title: "Full reset",
+            description: "",
+            status: "available",
+            granted_at: "2026-10-01T10:00:00Z",
+            expires_at: "2026-12-01T10:00:00Z",
+          }],
+        },
+      },
+    }]);
+
+    // `partial` bleibt korrekt: Wenn Codex keine Fenster meldet, fehlen wirklich
+    // Daten. Entscheidend ist, dass das Konto samt Guthaben erhalten bleibt.
+    expect(usage.status).toBe("partial");
+    expect(usage.accounts).toHaveLength(1);
+    expect(usage.accounts[0]?.windows).toEqual([]);
+    expect(usage.accounts[0]?.resetCredits).toHaveLength(1);
+  });
+
+  it("leaves reset credits empty for providers without banked resets", () => {
+    const usage = normalizeProviderUsage("opencode", [{
+      provider: "opencodego",
+      source: "local",
+      usage: {
+        updatedAt: "2026-10-05T13:50:45Z",
+        primary: { usedPercent: 48, windowMinutes: 43200, resetsAt: "2026-10-23T00:00:00Z" },
+      },
+    }]);
+
+    expect(usage.accounts[0]?.resetCredits).toEqual([]);
+  });
 });

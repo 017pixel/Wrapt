@@ -3,7 +3,7 @@ const elements = Object.fromEntries([
   "status-dot", "status-title", "status-detail", "version", "boot-id", "ownership",
   "repository", "log-path", "feedback", "open-workbench", "start-server", "stop-server",
   "restart-server", "save-path", "open-logs", "autostart",
-].map((id) => [id, document.getElementById(id)]));
+].map((id) => [id.replace(/-([a-z])/g, (_match, letter) => letter.toUpperCase()), document.getElementById(id)]));
 
 let currentRepository = "";
 let refreshing = false;

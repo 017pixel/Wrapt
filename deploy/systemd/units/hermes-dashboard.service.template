@@ -10,6 +10,7 @@ Type=simple
 WorkingDirectory=__HERMES_CHECKOUT__
 Environment=HOME=__HOME__
 Environment=HERMES_HOME=__HERMES_HOME__
+Environment=HERMES_TUI_DIR=__HERMES_TUI__
 Environment=PATH=__HERMES_CHECKOUT__/venv/bin:/usr/local/bin:/usr/bin:/bin
 ExecStart=__HERMES_PYTHON__ -m hermes_cli.main dashboard --host __HERMES_HOST__ --port __HERMES_PORT__ --no-open --skip-build
 Restart=always

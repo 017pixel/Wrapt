@@ -73,4 +73,3 @@ export interface TerminalMeta {
 }
 
 /** Transport-Status eines Renderers. */
-export type RendererStatus = "idle" | "connecting" | "syncing" | "ready" | "resyncing" | "error";

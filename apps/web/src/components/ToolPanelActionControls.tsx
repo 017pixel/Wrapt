@@ -5,6 +5,7 @@ import { DevicePickerButton } from "./DevicePickerButton";
 import { DeviceRotateIcon, ExternalLinkIcon, FullscreenIcon, RefreshIcon, RestoreIcon, CloseIcon } from "./icons";
 import { ToolActionMenu } from "./ToolActionMenu";
 import type { ResolvedPanel } from "./toolPanelResolution";
+import "./tool-panel-actions.css";
 
 interface ToolPanelActionControlsProps {
   panel: Panel;
@@ -50,7 +51,7 @@ export function ToolPanelActionControls({
       <div className="panel-standalone-actions" onContextMenu={onContextMenu}>
         {isMaximized ? <button type="button" title="Wiederherstellen" aria-label="Wiederherstellen" onClick={onToggleFullscreen} className="icon-button"><RestoreIcon className="h-4 w-4" /></button> : null}
         <ToolActionMenu
-          className={actionPlacement === "topbar" ? "is-topbar" : ""}
+          className="is-inline"
           externalHref={externalToolUrl ?? window.location.href}
           isFullscreen={isMaximized}
           onFullscreen={onToggleFullscreen}
@@ -61,7 +62,7 @@ export function ToolPanelActionControls({
   }
 
   return (
-    <div className={`panel-island ${actionPlacement === "topbar" && !isMaximized ? "is-topbar" : ""} ${actionPlacement === "topbar" && panel.type === "code-server" ? "is-flat-toolbar" : ""} ${isMaximized ? "is-maximized-actions" : ""}`} onContextMenu={onContextMenu}>
+    <div className={`panel-island ${actionPlacement === "topbar" ? "is-topbar" : ""} ${actionPlacement === "topbar" && panel.type === "code-server" ? "is-flat-toolbar" : ""} ${isMaximized ? "is-maximized-actions" : ""}`} onContextMenu={onContextMenu}>
       {panel.type === "preview" ? <DevicePickerButton deviceId={deviceId} onChange={onDeviceChange} /> : null}
       {panel.type === "preview" && deviceId !== "responsive" ? <button type="button" title="Ausrichtung drehen" aria-label="Ausrichtung drehen" onClick={onRotate} className="icon-button"><DeviceRotateIcon className="h-4 w-4" /></button> : null}
       {panel.type === "preview" && resolved.targetPort ? <span className="preview-slot-badge">{previewSlotId ? `SLOT ${previewSlotId}` : "SLOT"}</span> : null}

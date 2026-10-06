@@ -1,0 +1,251 @@
+/* Limit-Hover-Card der Statusleiste.
+   Alle Farben, Radien und Timings kommen aus dem @theme-Block von index.css.
+   `.ulc` ist die Karte, `.status-limits.is-open` der zugehörige Zustand des
+   Triggers in der Leiste. */
+
+/* --- Karte ------------------------------------------------------------- */
+
+.ulc {
+  /* Kanten und Spuren aus weißer Transparenz ableiten statt aus den Ink-Stufen.
+     Im ausgelieferten Theme sind `--color-line`, `--color-ink-600` und
+     `--color-ink-850` gleich `#191919` — ein Rahmen aus einer dieser Stufen
+     wäre auf der Karte unsichtbar. `color-mix` auf `--color-text` folgt der
+     Projektvorgabe und bleibt über jedes Theme hinweg ablesbar. */
+  --ulc-edge: color-mix(in oklab, var(--color-text) 11%, transparent);
+  --ulc-edge-soft: color-mix(in oklab, var(--color-text) 6%, transparent);
+  --ulc-track: color-mix(in oklab, var(--color-text) 9%, transparent);
+
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  width: min(384px, calc(100vw - 24px));
+  border: 1px solid var(--ulc-edge);
+  border-radius: var(--radius);
+  background: var(--color-ink-850);
+  padding: 12px 0 0;
+  color: var(--color-text);
+  box-shadow: var(--shadow-popover);
+  transform-origin: 100% 100%;
+  animation: ulc-in var(--duration-base) var(--ease-standard);
+}
+
+/* Kein `overflow` am Rahmen: Es würde den nach außen ragenden Pfeil
+   abschneiden. Der Scroll-Container sitzt deshalb innen, wodurch Kopf und Fuß
+   bei vielen Accounts sichtbar bleiben. */
+.ulc-scroll {
+  display: flex;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  flex-direction: column;
+}
+
+.ulc[data-placement="below"] { transform-origin: 100% 0; }
+
+@keyframes ulc-in {
+  from { opacity: 0; transform: translateY(6px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Der Pfeil ist ein gedrehtes Quadrat mit derselben Füllung wie die Karte;
+   dieselbe Geometrie wie die Mascot-Blase an derselben Stelle im Bild. */
+.ulc-arrow {
+  position: absolute;
+  bottom: -5px;
+  width: 9px;
+  height: 9px;
+  transform: rotate(45deg);
+  border-right: 1px solid var(--ulc-edge);
+  border-bottom: 1px solid var(--ulc-edge);
+  border-radius: 0 0 3px 0;
+  background: var(--color-ink-850);
+  pointer-events: none;
+}
+
+.ulc[data-placement="below"] .ulc-arrow {
+  bottom: auto;
+  top: -5px;
+  border: 0;
+  border-top: 1px solid var(--ulc-edge);
+  border-left: 1px solid var(--ulc-edge);
+  border-radius: 3px 0 0 0;
+}
+
+/* --- Kopf und Fuß ------------------------------------------------------ */
+
+.ulc-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--ulc-edge-soft);
+  padding: 0 16px 12px;
+}
+
+.ulc-head strong { font-size: var(--text-sm); font-weight: 600; letter-spacing: -.005em; }
+.ulc-updated { margin-left: auto; color: var(--color-faint); font-family: var(--font-mono); font-size: var(--text-2xs); }
+
+.ulc-foot {
+  flex: none;
+  border-top: 1px solid var(--ulc-edge-soft);
+  padding: 8px 16px;
+}
+
+.ulc-foot-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-muted);
+  font-size: var(--text-2xs);
+  text-decoration: none;
+  transition: color var(--duration-base) var(--ease-standard);
+}
+
+.ulc-foot-link:hover { color: var(--color-text); }
+
+/* --- Provider ---------------------------------------------------------- */
+
+.ulc-provider { flex: none; padding: 12px 16px; }
+.ulc-provider + .ulc-provider { border-top: 1px solid var(--ulc-edge-soft); }
+
+.ulc-provider-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+
+.ulc-dot {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-faint);
+}
+
+.ulc-provider[data-tone="info"] .ulc-dot { background: var(--color-info); }
+.ulc-provider[data-tone="warn"] .ulc-dot { background: var(--color-warn); }
+.ulc-provider[data-tone="ok"] .ulc-dot { background: var(--color-ok); }
+
+.ulc-provider-name { font-size: var(--text-sm); font-weight: 600; }
+
+.ulc-plan {
+  min-width: 0;
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ulc-note { margin: 0; color: var(--color-muted); font-size: var(--text-2xs); }
+
+/* --- Accounts ---------------------------------------------------------- */
+
+.ulc-account + .ulc-account { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--ulc-edge-soft); }
+
+.ulc-identity {
+  margin: 0 0 8px;
+  overflow: hidden;
+  color: var(--color-faint);
+  font-size: var(--text-2xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- Ein Limitfenster: Label, Auslastung, Reset in einer Zeile, Balken darunter --- */
+
+.ulc-window + .ulc-window { margin-top: 8px; }
+
+.ulc-window-top { display: flex; align-items: baseline; gap: 8px; }
+
+.ulc-window-label {
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: -.01em;
+}
+
+/* Die Zahl ist der verbleibende Anteil. „frei" ist kein Beiwerk, sondern
+   macht die Leserichtung eindeutig: 45 % heißt 45 % übrig. */
+.ulc-window-pct {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ulc-window-pct em { color: var(--color-faint); font-style: normal; font-weight: 400; }
+
+.ulc-window-reset { color: var(--color-faint); font-size: var(--text-2xs); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ulc-window-reset:not(:last-child) { margin-right: var(--space-2); }
+
+/* 2px statt 4px: die Zeile liest sich als Textzeile mit Unterstrich, nicht als
+   Diagramm. Der Balken zeigt den verbleibenden Anteil: voll heißt „nichts
+   verbraucht", leer heißt „fast leer". Deshalb ist die Spur dunkel und die
+   Füllung trägt die Warnfarbe bei wenig Rest. */
+.ulc-bar {
+  overflow: hidden;
+  height: 2px;
+  margin-top: 5px;
+  border-radius: var(--radius-pill);
+  background: var(--ulc-track);
+}
+
+.ulc-bar i { display: block; height: 100%; border-radius: var(--radius-pill); background: var(--color-ok); }
+
+.ulc-window.is-warn .ulc-bar i { background: var(--color-warn); }
+.ulc-window.is-bad .ulc-bar i { background: var(--color-bad); }
+.ulc-window.is-warn .ulc-window-pct { color: var(--color-warn); }
+.ulc-window.is-bad .ulc-window-pct { color: var(--color-bad); }
+
+/* --- Banked Resets ----------------------------------------------------- */
+
+.ulc-credits {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 0;
+  border: 1px solid color-mix(in oklab, var(--color-ok) 22%, transparent);
+  border-radius: var(--radius-sm);
+  background: var(--color-ok-soft);
+  padding: 5px 8px;
+  color: var(--color-ok);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.ulc-credits svg { flex: none; }
+.ulc-credits-until { margin-left: auto; color: var(--color-faint); }
+
+/* --- Trigger in der Statusleiste ---------------------------------------- */
+
+/* Drei getrennte Zustände, damit vor dem Öffnen klar ist, was sich öffnet.
+   Der Rahmen bleibt im ruhenden Zustand weg, damit die Leiste sauber bleibt.
+   Auch hier ist eine Ink-Stufe als Kante nicht verlässlich: Im ausgelieferten
+   Theme ist `--color-ink-600` deckungsgleich mit der Kartenfläche und
+   `--color-line` mit dem Untergrund. */
+.status-limits {
+  cursor: default;
+  border: 1px solid transparent;
+  transition: background var(--duration-base) var(--ease-standard),
+              color var(--duration-base) var(--ease-standard),
+              border-color var(--duration-base) var(--ease-standard);
+}
+
+.status-limits .status-limits-caret { display: inline-flex; opacity: 0; transition: opacity var(--duration-base) var(--ease-standard), transform var(--duration-base) var(--ease-standard); }
+.status-limits:hover { border-color: color-mix(in oklab, var(--color-text) 11%, transparent); }
+.status-limits:hover .status-limits-caret { opacity: 1; }
+
+.status-limits.is-open {
+  border-color: color-mix(in oklab, var(--color-text) 18%, transparent);
+  background: color-mix(in oklab, var(--color-text) 10%, transparent);
+  color: var(--color-text);
+}
+
+.status-limits.is-open .status-limits-caret { opacity: 1; transform: rotate(180deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ulc { animation: none; }
+  .status-limits, .status-limits-caret, .ulc-foot-link { transition: none; }
+}

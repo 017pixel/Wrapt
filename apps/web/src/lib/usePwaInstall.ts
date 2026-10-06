@@ -55,20 +55,31 @@ export function PwaInstallProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
+    let active = true;
     let registration: ServiceWorkerRegistration | null = null;
+    let installing: ServiceWorker | null = null;
+    const stateChanged = () => {
+      if (installing?.state === "installed" && navigator.serviceWorker.controller) setUpdateAvailable(true);
+    };
     const inspect = () => {
       if (registration?.waiting) setUpdateAvailable(true);
-      const installing = registration?.installing;
-      if (installing) installing.addEventListener("statechange", () => {
-        if (installing.state === "installed" && navigator.serviceWorker.controller) setUpdateAvailable(true);
-      });
+      const nextInstalling = registration?.installing ?? null;
+      if (nextInstalling === installing) return;
+      installing?.removeEventListener("statechange", stateChanged);
+      installing = nextInstalling;
+      installing?.addEventListener("statechange", stateChanged);
     };
     void navigator.serviceWorker.ready.then((value) => {
+      if (!active) return;
       registration = value;
       inspect();
       registration.addEventListener("updatefound", inspect);
     });
-    return () => registration?.removeEventListener("updatefound", inspect);
+    return () => {
+      active = false;
+      registration?.removeEventListener("updatefound", inspect);
+      installing?.removeEventListener("statechange", stateChanged);
+    };
   }, []);
 
   const install = async () => {

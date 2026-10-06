@@ -71,4 +71,19 @@ describe("Dateimanager-Navigation und Pfadzustand", () => {
 
     expect(useFileManagerStore.getState().ui.expanded).toEqual(new Set());
   });
+
+  it("ignoriert verspätete Poll-Antworten nach einer bestätigten Navigation", () => {
+    const previous = useFileManagerStore.getState();
+    const document = {
+      currentPath: previous.currentPath, history: previous.history, favorites: previous.favorites,
+      viewMode: previous.viewMode, sortKey: previous.sortKey, sortDirection: previous.sortDirection,
+    };
+    previous.navigateTo(`${root}/projects`, true);
+    useFileManagerStore.getState().markSaved(3, true);
+    useFileManagerStore.getState().applyRemote(document, 2);
+    expect(useFileManagerStore.getState().currentPath).toBe(`${root}/projects`);
+    expect(useFileManagerStore.getState().revision).toBe(3);
+    useFileManagerStore.getState().applyRemote({ ...document, currentPath: `${root}/extern` }, 4);
+    expect(useFileManagerStore.getState().currentPath).toBe(`${root}/extern`);
+  });
 });

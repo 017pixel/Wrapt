@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { AccountUsage, ProviderUsage, UsageWindow } from "@wrapt/contracts";
+import type { AccountUsage, ProviderUsage, ResetCredit, UsageWindow } from "@wrapt/contracts";
 import type { CodexbarPayload } from "./codexbar-schemas.js";
 
 type WorkbenchProvider = "codex" | "opencode" | "claude";
@@ -22,6 +22,16 @@ function payloadIdentity(payload: CodexbarPayload, fallback: string): string {
 function hasUsageWindow(payload: CodexbarPayload): boolean {
   return [payload.usage?.primary, payload.usage?.secondary, payload.usage?.tertiary]
     .some((window) => window?.usedPercent !== undefined);
+}
+
+/**
+ * Ob ein Payload überhaupt verwertbare Daten trägt. Reset-Guthaben zählen
+ * mit: Ein Konto, dessen Limitfenster gerade nicht abrufbar sind, aber über
+ * gültige Guthaben verfügt, wäre sonst unsichtbar — und der Guthabenverlust
+ * wäre weder in der Statusleiste noch auf der Nutzungsseite zu sehen.
+ */
+function hasReportableData(payload: CodexbarPayload): boolean {
+  return hasUsageWindow(payload) || (payload.usage?.codexResetCredits?.credits.length ?? 0) > 0;
 }
 
 function windowsFor(payload: CodexbarPayload): UsageWindow[] {
@@ -48,6 +58,24 @@ function windowLabel(id: UsageWindow["id"], windowMinutes: number | undefined): 
   if (id === "primary") return "Aktuelles Zeitfenster";
   if (id === "secondary") return "Längerer Zeitraum";
   return "Zusätzliches Zeitfenster";
+}
+
+/**
+ * Banked Resets kommen nur von Codex (`codexResetCredits`). Die snakecase-Felder
+ * des Anbieters werden hier auf die camelCase-Vertragsform gebracht; ein
+ * fehlendes Guthaben ist ein leeres Array, kein Fehler.
+ */
+function resetCreditsFor(payload: CodexbarPayload): ResetCredit[] {
+  const credits = payload.usage?.codexResetCredits;
+  if (!credits) return [];
+  return credits.credits.map((credit) => ({
+    id: credit.id,
+    title: credit.title,
+    description: credit.description,
+    status: credit.status,
+    grantedAt: credit.granted_at ?? null,
+    expiresAt: credit.expires_at ?? null,
+  }));
 }
 
 function unavailableProvider(providerId: WorkbenchProvider, code: string, message: string): ProviderUsage {
@@ -85,11 +113,14 @@ export function normalizeProviderUsage(providerId: WorkbenchProvider, payloads: 
     return unavailableProvider(providerId, "PROVIDER_NOT_DETECTED", "Für diesen Anbieter sind keine Nutzungsdaten verfügbar.");
   }
 
-  const successfulRaw = matching.filter(hasUsageWindow);
+  const successfulRaw = matching.filter(hasReportableData);
   const successfulByIdentity = new Map<string, CodexbarPayload>();
   successfulRaw.forEach((payload, index) => {
     const identity = payloadIdentity(payload, `position-${index}`);
     const existing = successfulByIdentity.get(identity);
+    // Vorrang hat das Payload mit den meisten Fenstern; bei Gleichstand das
+    // fehlerfreie. Guthaben allein zählen nicht als Füllgrad, sonst gewinnt ein
+    // Fensterloses Payload mit Guthaben gegen eines mit echten Limitwerten.
     const populatedWindows = (candidate: CodexbarPayload) => [candidate.usage?.primary, candidate.usage?.secondary, candidate.usage?.tertiary]
       .filter((window) => window?.usedPercent !== undefined).length;
     if (!existing || populatedWindows(payload) > populatedWindows(existing) || (existing.error && !payload.error)) {
@@ -110,6 +141,7 @@ export function normalizeProviderUsage(providerId: WorkbenchProvider, payloads: 
       email: email ?? null,
       plan,
       windows: windowsFor(payload),
+      resetCredits: resetCreditsFor(payload),
     };
   });
   const updatedAt = successful
@@ -118,7 +150,7 @@ export function normalizeProviderUsage(providerId: WorkbenchProvider, payloads: 
     .sort()
     .at(-1) ?? null;
   const unresolvedFailures = matching.some((payload, index) => {
-    if (hasUsageWindow(payload)) return false;
+    if (hasReportableData(payload)) return false;
     const identity = payloadIdentity(payload, `unresolved-${index}`);
     return !successfulByIdentity.has(identity);
   });

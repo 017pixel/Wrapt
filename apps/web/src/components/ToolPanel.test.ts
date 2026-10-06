@@ -81,7 +81,7 @@ describe("standalone T3 Code actions", () => {
 
     render(createElement(ToolPanel, { panel, project, isFocused: true, standalone: true, actionPlacement: "topbar" }));
 
-    await waitFor(() => expect(target.querySelector(".tool-actions-menu.is-topbar")).not.toBeNull());
+    await waitFor(() => expect(target.querySelector(".panel-standalone-actions .tool-actions-menu.is-inline")).not.toBeNull());
     fireEvent.click(within(target).getByRole("button", { name: "Werkzeugaktionen" }));
     expect(screen.getByRole("menuitem", { name: "Neu laden" })).not.toBeNull();
     expect(screen.getByRole("menuitem", { name: "In neuem Tab öffnen" })).not.toBeNull();
@@ -94,7 +94,7 @@ describe("standalone T3 Code actions", () => {
     await waitFor(() => expect(screen.getByTitle("T3 Code")).not.toBe(firstFrame));
     fireEvent.click(within(target).getByRole("button", { name: "Werkzeugaktionen" }));
     fireEvent.click(screen.getByRole("menuitem", { name: "Vollbild" }));
-    expect(target.querySelector(".tool-actions-menu.is-topbar")).not.toBeNull();
+    expect(target.querySelector(".panel-standalone-actions .tool-actions-menu.is-inline")).not.toBeNull();
     expect(document.querySelector(".tool-surface-maximized .tool-actions-menu")).toBeNull();
     fireEvent.click(within(target).getByRole("button", { name: "Werkzeugaktionen" }));
     expect(screen.getByRole("menuitem", { name: "Vollbild verlassen" })).not.toBeNull();
@@ -114,7 +114,7 @@ describe("standalone T3 Code actions", () => {
 
     render(createElement(ToolPanel, { panel, project, isFocused: true, standalone: true, actionPlacement: "topbar", codeServerMode: "embedded", codeServerState: "active" }));
 
-    await waitFor(() => expect(target.querySelector(".tool-actions-menu.is-topbar")).not.toBeNull());
+    await waitFor(() => expect(target.querySelector(".panel-standalone-actions .tool-actions-menu.is-inline")).not.toBeNull());
     expect(screen.getByTitle("Editor").getAttribute("src")).toBe("/editor/?folder=%2Ftmp%2Fwrapt");
     fireEvent.click(within(target).getByRole("button", { name: "Werkzeugaktionen" }));
     expect(screen.getByRole("menuitem", { name: "Neu laden" })).not.toBeNull();
@@ -220,7 +220,7 @@ describe("T3-Einbettung über den Proxy", () => {
 
     render(createElement(ToolPanel, { panel, project, isFocused: true, standalone: true, actionPlacement: "topbar" }));
 
-    await waitFor(() => expect(target.querySelector(".tool-actions-menu.is-topbar")).not.toBeNull());
+    await waitFor(() => expect(target.querySelector(".panel-standalone-actions .tool-actions-menu.is-inline")).not.toBeNull());
     fireEvent.click(within(target).getByRole("button", { name: "Werkzeugaktionen" }));
     expect(screen.getByRole("menuitem", { name: "In neuem Tab öffnen" }).getAttribute("href")).toBe("https://t3.example.test");
     target.remove();

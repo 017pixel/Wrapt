@@ -14,8 +14,8 @@ describe("orbitProviderWindows", () => {
       updatedAt: "2026-07-16T16:00:00Z",
       error: null,
       accounts: [
-        { id: "main", label: "Main", email: "main@example.com", plan: "plus", windows: [{ id: "primary", label: "5-Stunden-Limit", usedPercent: 20, remainingPercent: 80, windowMinutes: 300, resetsAt: "2026-07-16T18:00:00Z" }] },
-        { id: "work", label: "Work", email: "work@example.com", plan: "team", windows: [{ id: "secondary", label: "Wochenlimit", usedPercent: 35, remainingPercent: 65, windowMinutes: 10_080, resetsAt: "2026-07-22T10:00:00Z" }] },
+        { id: "main", label: "Main", email: "main@example.com", plan: "plus", windows: [{ id: "primary", label: "5-Stunden-Limit", usedPercent: 20, remainingPercent: 80, windowMinutes: 300, resetsAt: "2026-07-16T18:00:00Z" }], resetCredits: [] },
+        { id: "work", label: "Work", email: "work@example.com", plan: "team", windows: [{ id: "secondary", label: "Wochenlimit", usedPercent: 35, remainingPercent: 65, windowMinutes: 10_080, resetsAt: "2026-07-22T10:00:00Z" }], resetCredits: [] },
       ],
     });
 

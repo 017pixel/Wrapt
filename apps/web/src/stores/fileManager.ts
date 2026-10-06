@@ -126,7 +126,7 @@ export const useFileManagerStore = create<FileManagerStore>()((set) => ({
     saving: false,
     syncError: "Ein nicht gespeicherter Dateimanager-Zustand wurde nach dem Reload wiederhergestellt.",
   }),
-  applyRemote: (document, revision) => set((state) => state.dirty
+  applyRemote: (document, revision) => set((state) => state.dirty || state.saving || revision <= state.revision
     ? state
     : {
         currentPath: document.currentPath,
@@ -228,14 +228,3 @@ export const useFileManagerStore = create<FileManagerStore>()((set) => ({
   setDetailOpen: (detailOpen) => set((state) => ({ ui: { ...state.ui, detailOpen } })),
   setSearchQuery: (searchQuery) => set((state) => ({ ui: { ...state.ui, searchQuery } })),
 }));
-
-export function documentFromStore(store: Pick<FileManagerStore, "currentPath" | "history" | "favorites" | "viewMode" | "sortKey" | "sortDirection">): FileManagerState {
-  return {
-    currentPath: store.currentPath,
-    history: store.history,
-    favorites: store.favorites,
-    viewMode: store.viewMode,
-    sortKey: store.sortKey,
-    sortDirection: store.sortDirection,
-  };
-}

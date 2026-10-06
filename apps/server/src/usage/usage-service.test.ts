@@ -7,7 +7,7 @@ describe("usage forecast presentation", () => {
     const live: UsageResponse = {
       providers: [{
         providerId: "codex", providerName: "Codex", status: "available", updatedAt: "2026-07-15T10:00:00Z", error: null,
-        accounts: [{ id: "current", label: "Codex", email: "current@example.com", plan: null, windows: [{ id: "secondary", label: "Wochenlimit", usedPercent: 50, remainingPercent: 50, windowMinutes: 10_080, resetsAt: "2026-07-22T10:00:00Z" }] }],
+        accounts: [{ id: "current", label: "Codex", email: "current@example.com", plan: null, windows: [{ id: "secondary", label: "Wochenlimit", usedPercent: 50, remainingPercent: 50, windowMinutes: 10_080, resetsAt: "2026-07-22T10:00:00Z" }], resetCredits: [] }],
       }],
       fetchedAt: "2026-07-15T10:00:00Z", lastSuccessfulFetchAt: "2026-07-15T10:00:00Z", cached: false,
     };
