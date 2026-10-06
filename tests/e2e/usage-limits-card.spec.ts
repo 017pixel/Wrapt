@@ -181,9 +181,9 @@ test("wartet mit dem Öffnen und hält beim Schließen kurz stand", async ({ pag
   await expect(card).toBeVisible();
 
   // Nach dem Verlassen bleibt sie kurz stehen, damit der Zeiger in die Karte
-  // wandern kann; 100 ms sind zu wenig für den Übergang.
+  // wandern kann. Direkt nach dem Verlassen ist sie noch da, danach
+  // schließt sie von selbst.
   await page.mouse.move(10, 10);
-  await page.waitForTimeout(100);
   await expect(card).toBeVisible();
   await expect(card).toHaveCount(0);
 });

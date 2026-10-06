@@ -51,8 +51,8 @@ function SidebarSections(props: NotesSidebarSectionsProps) {
       onDragStart={(event) => { event.stopPropagation(); event.dataTransfer.setData(NOTE_DRAG_TYPE, note.id); event.dataTransfer.effectAllowed = "move"; drag.setNoteId(note.id); }}
       onDragEnd={() => drag.setNoteId(null)} onDragOver={(event) => { if (drag.noteId && drag.noteId !== note.id) event.preventDefault(); }}
       onDrop={(event) => {
-        const id = event.dataTransfer.getData(NOTE_DRAG_TYPE);
-        if (!active.some((entry) => entry.id === id) || id === note.id) return;
+        const id = event.dataTransfer.getData(NOTE_DRAG_TYPE) || drag.noteId;
+        if (!id || !active.some((entry) => entry.id === id) || id === note.id) return;
         event.preventDefault(); event.stopPropagation();
         onPatch(id, { favorite: true }); moveFavorite(id, note.id, favorites.map((entry) => entry.id)); drag.setNoteId(null);
       }}>
