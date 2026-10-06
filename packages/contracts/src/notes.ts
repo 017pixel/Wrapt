@@ -39,6 +39,18 @@ export const noteSortOrderSchema = z
   .min(NOTE_SORT_ORDER_MIN)
   .max(NOTE_SORT_ORDER_MAX);
 
+export const noteFolderSchema = z.object({
+  id: noteIdSchema,
+  name: noteTitleSchema,
+  sortOrder: noteSortOrderSchema,
+});
+export const noteFolderRequestSchema = z.object({ name: noteTitleSchema });
+export const noteFolderUpdateSchema = z.object({
+  name: noteTitleSchema.optional(),
+  sortOrder: noteSortOrderSchema.optional(),
+}).refine((value) => value.name !== undefined || value.sortOrder !== undefined);
+export const noteFolderResponseSchema = z.object({ folder: noteFolderSchema });
+
 export const noteSchema = z.object({
   id: noteIdSchema,
   title: noteTitleSchema,
@@ -46,6 +58,7 @@ export const noteSchema = z.object({
   icon: noteIconSchema,
   coverAssetId: z.string().uuid().nullable().default(null),
   parentId: noteIdSchema.nullable().default(null),
+  folderId: noteIdSchema.nullable().optional(),
   sortOrder: noteSortOrderSchema.default(0),
   favorite: z.boolean().default(false),
   archived: z.boolean().default(false),
@@ -59,6 +72,7 @@ export const noteSummarySchema = z.object({
   title: noteTitleSchema,
   icon: noteIconSchema,
   parentId: noteIdSchema.nullable().default(null),
+  folderId: noteIdSchema.nullable().optional(),
   sortOrder: noteSortOrderSchema.default(0),
   favorite: z.boolean().default(false),
   archived: z.boolean().default(false),
@@ -69,6 +83,7 @@ export const noteSummarySchema = z.object({
 
 export const notesListResponseSchema = z.object({
   notes: z.array(noteSummarySchema),
+  folders: z.array(noteFolderSchema).default([]),
 });
 
 export const noteResponseSchema = z.object({
@@ -78,6 +93,8 @@ export const noteResponseSchema = z.object({
 export const createNoteRequestSchema = z.object({
   title: noteTitleSchema.default("Unbenannte Notiz"),
   parentId: noteIdSchema.nullable().default(null),
+  folderId: noteIdSchema.nullable().optional(),
+  favorite: z.boolean().optional(),
 });
 
 export const updateNoteRequestSchema = z
@@ -86,6 +103,7 @@ export const updateNoteRequestSchema = z
     icon: noteIconValueSchema.optional(),
     coverAssetId: z.string().uuid().nullable().optional(),
     parentId: noteIdSchema.nullable().optional(),
+    folderId: noteIdSchema.nullable().optional(),
     sortOrder: noteSortOrderSchema.optional(),
     favorite: z.boolean().optional(),
     archived: z.boolean().optional(),
@@ -103,6 +121,13 @@ export const saveNoteContentRequestSchema = z.object({
   content: z.string().max(NOTE_CONTENT_MAX_CHARACTERS),
   expectedRevision: z.number().int().min(1),
 });
+
+export const moveNoteRequestSchema = z.object({
+  parentId: noteIdSchema.nullable(),
+  folderId: noteIdSchema.nullable().optional(),
+  beforeId: noteIdSchema.nullable().default(null),
+});
+export type MoveNoteRequest = z.infer<typeof moveNoteRequestSchema>;
 
 /**
  * Antwort des Inhaltsspeicherns. `conflict` bedeutet: Eine andere Sitzung war
@@ -133,6 +158,7 @@ export const noteSearchQuerySchema = z.object({
 });
 
 export type Note = z.infer<typeof noteSchema>;
+export type NoteFolder = z.infer<typeof noteFolderSchema>;
 export type NoteSummary = z.infer<typeof noteSummarySchema>;
 export type NotesListResponse = z.infer<typeof notesListResponseSchema>;
 export type NoteResponse = z.infer<typeof noteResponseSchema>;

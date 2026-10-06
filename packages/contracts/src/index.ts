@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { pushEndpointSchema } from "./push.js";
+import { resetCreditSchema } from "./reset-credits.js";
 export * from "./filesystem-path.js";
 export * from "./terminal.js";
 export * from "./appearance.js";
@@ -10,7 +11,9 @@ export * from "./notes.js";
 export * from "./orbit-assets.js";
 export * from "./operational-metrics.js";
 export * from "./plugins.js";
+export * from "./reset-credits.js";
 export * from "./update.js";
+export * from "./workspaces.js";
 
 export const isoDateSchema = z.iso.datetime({ offset: true });
 export const serviceModeSchema = z.enum(["embedded", "external", "hybrid"]);
@@ -241,7 +244,7 @@ export const previewSlotStateSchema = z.enum(["free", "active", "resetting", "qu
 export const previewAffinityStatusSchema = z.enum(["none", "own", "foreign", "quarantined"]);
 
 export const previewSlotSchema = z.object({
-  id: z.number().int().min(1).max(32),
+  id: z.number().int().min(1).max(128),
   internalPort: z.number().int().min(1).max(65_535),
   publicPort: z.number().int().min(1).max(65_535),
   targetPort: z.number().int().min(1).max(65_535).nullable(),
@@ -259,8 +262,8 @@ export const previewSlotSchema = z.object({
 });
 
 export const previewSlotsResponseSchema = z.object({
-  slots: z.array(previewSlotSchema).max(32),
-  assignedSlotId: z.number().int().min(1).max(32).nullable().default(null),
+  slots: z.array(previewSlotSchema).max(128),
+  assignedSlotId: z.number().int().min(1).max(128).nullable().default(null),
   routingRevision: z.number().int().nonnegative().default(0),
 });
 
@@ -282,7 +285,7 @@ export const previewSessionRequestSchema = z.object({
   projectId: z.string().trim().min(1).max(160).nullable().default(null),
   primaryPort: z.number().int().min(1).max(65_535),
   primaryProtocol: z.enum(["http", "https"]).default("http"),
-  requestedSlotId: z.number().int().min(1).max(32).nullable().optional(),
+  requestedSlotId: z.number().int().min(1).max(128).nullable().optional(),
   isolate: z.boolean().default(true),
   // Stabile Identität des Preview-Slots im Orbit-Dokument. Sie entscheidet, ob eine
   // Slot-Origin ohne Storage-Reset wiederverwendet werden darf.
@@ -296,7 +299,7 @@ export const previewSessionBindingSchema = z.object({
   label: z.string().min(1).max(80),
   targetPort: z.number().int().min(1).max(65_535),
   targetProtocol: z.enum(["http", "https"]),
-  slotId: z.number().int().min(1).max(32),
+  slotId: z.number().int().min(1).max(128),
   publicUrl: z.url(),
 });
 
@@ -336,7 +339,7 @@ export const previewSessionResponseSchema = z.object({
 });
 
 export const previewSlotAssignmentRequestSchema = z.object({
-  slotId: z.number().int().min(1).max(32).nullable().optional(),
+  slotId: z.number().int().min(1).max(128).nullable().optional(),
   targetPort: z.number().int().min(1).max(65_535).nullable(),
   expectedTargetPort: z.number().int().min(1).max(65_535).optional(),
   isolate: z.boolean().default(true),
@@ -386,7 +389,7 @@ export const previewRuntimeProfileSchema = z.object({
   source: previewRuntimeProfileSourceSchema,
   mainServiceId: z.string().min(1).max(120).nullable(),
   services: z.array(previewRuntimeServiceSchema).max(10),
-  allowedPorts: z.array(z.number().int().min(1).max(65_535)).min(1).max(32),
+  allowedPorts: z.array(z.number().int().min(1).max(65_535)).min(1).max(128),
   warnings: z.array(z.string().min(1).max(400)).max(24).default([]),
   detectedAt: isoDateSchema,
 });
@@ -405,7 +408,7 @@ export const previewDevServerStatusSchema = z.object({
   mainServiceId: z.string().min(1).max(120).nullable().default(null),
   profileSource: previewRuntimeProfileSourceSchema.default("detected"),
   services: z.array(previewRuntimeServiceStatusSchema).max(10).default([]),
-  allowedPorts: z.array(z.number().int().min(1).max(65_535)).max(32).default([]),
+  allowedPorts: z.array(z.number().int().min(1).max(65_535)).max(128).default([]),
   warnings: z.array(z.string().min(1).max(400)).max(24).default([]),
   publicUrl: z.url().nullable().default(null),
   pid: z.number().int().positive().nullable(),
@@ -415,7 +418,7 @@ export const previewDevServerStatusSchema = z.object({
   message: z.string().max(600).nullable(),
 });
 export const previewDevServersResponseSchema = z.object({
-  runtimes: z.array(previewDevServerStatusSchema).max(32),
+  runtimes: z.array(previewDevServerStatusSchema).max(128),
 });
 export const previewRuntimeLogLineSchema = z.object({
   serviceId: z.string().min(1).max(120),
@@ -463,7 +466,7 @@ export const previewSlotResetRequestSchema = z.object({
   storageProfileId: z.string().uuid().nullable(),
 });
 export const previewSlotResetResponseSchema = z.object({
-  slotId: z.number().int().min(1).max(32),
+  slotId: z.number().int().min(1).max(128),
   nonce: z.string().min(16).max(120),
   state: previewSlotStateSchema,
   slotGeneration: z.number().int().nonnegative(),
@@ -482,7 +485,7 @@ export const previewSlotResetReportSchema = z.object({
   verifiable: z.boolean(),
 });
 export const previewSlotResetVerificationResponseSchema = z.object({
-  slotId: z.number().int().min(1).max(32),
+  slotId: z.number().int().min(1).max(128),
   state: previewSlotStateSchema,
   slotGeneration: z.number().int().nonnegative(),
   verifiedAt: isoDateSchema.nullable(),
@@ -582,7 +585,7 @@ export const previewDiagnosticEventSchema = z.object({
   completeness: previewDiagnosticCompletenessSchema.default("complete"),
   previewNodeId: z.string().max(120).nullable().default(null),
   sessionId: z.string().uuid().nullable().default(null),
-  slotId: z.number().int().min(1).max(32).nullable().default(null),
+  slotId: z.number().int().min(1).max(128).nullable().default(null),
   routingRevision: z.number().int().nonnegative().nullable().default(null),
   bridgeSessionId: z.string().max(120).nullable().default(null),
   epoch: z.number().int().nonnegative().default(0),
@@ -682,7 +685,7 @@ export const previewRepairRequestSchema = z.object({
   action: previewRepairActionSchema,
   projectId: z.string().min(1).max(160).nullable().default(null),
   sessionId: z.string().uuid().nullable().default(null),
-  slotId: z.number().int().min(1).max(32).nullable().default(null),
+  slotId: z.number().int().min(1).max(128).nullable().default(null),
   // Reset und Quarantäneaufhebung verlangen eine sichtbare Bestätigung im UI.
   confirmed: z.boolean().default(false),
 });
@@ -974,6 +977,7 @@ export const accountUsageSchema = z.object({
   email: z.string().email().nullable(),
   plan: z.string().min(1).nullable(),
   windows: z.array(usageWindowSchema),
+  resetCredits: z.array(resetCreditSchema).default([]),
 });
 
 export const providerUsageSchema = z.object({
@@ -1037,14 +1041,6 @@ export const usageForecastSchema = z.object({
   confidence: z.enum(["low", "medium", "high"]),
   sampleCount: z.number().int().nonnegative(),
   message: z.string().min(1),
-});
-export const resetCreditSchema = z.object({
-  id: z.string().min(1),
-  title: z.string().min(1),
-  description: z.string(),
-  status: z.string().min(1),
-  grantedAt: isoDateSchema.nullable(),
-  expiresAt: isoDateSchema.nullable(),
 });
 export const usageDashboardResponseSchema = z.object({
   live: usageResponseSchema,
@@ -1619,7 +1615,7 @@ export const orbitNodeSchema = z.object({
   // bleibt slotgebunden. Dokumente bis v6 werden beim Laden auf "responsive" gehoben.
   previewDeviceId: z.string().max(80).nullable().default(null),
   previewOrientation: z.enum(["portrait", "landscape"]).default("portrait"),
-  previewSlotId: z.number().int().min(1).max(32).nullable().default(null),
+  previewSlotId: z.number().int().min(1).max(128).nullable().default(null),
   // Stabile Storage-Identität eines Preview-Slots. Sie entscheidet serverseitig, ob eine
   // Slot-Origin ohne Reset wiederverwendet werden darf.
   previewStorageProfileId: z.string().uuid().nullable().default(null),
@@ -1896,7 +1892,6 @@ export type UsageRange = z.infer<typeof usageRangeSchema>;
 export type UsageDailyPoint = z.infer<typeof usageDailyPointSchema>;
 export type UsageBreakdown = z.infer<typeof usageBreakdownSchema>;
 export type UsageForecast = z.infer<typeof usageForecastSchema>;
-export type ResetCredit = z.infer<typeof resetCreditSchema>;
 export type UsageDashboardResponse = z.infer<typeof usageDashboardResponseSchema>;
 export type ManagedAccount = z.infer<typeof managedAccountSchema>;
 export type AccountsResponse = z.infer<typeof accountsResponseSchema>;
