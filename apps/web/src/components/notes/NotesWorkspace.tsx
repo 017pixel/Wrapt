@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Note, NoteSummary, UpdateNoteRequest } from "@wrapt/contracts";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Note, NoteSummary } from "@wrapt/contracts";
 import { apiClient } from "../../lib/apiClient";
 import { useMediaQuery } from "../../lib/useMediaQuery";
 import { notesWindowUrl, notesWorkspaceUrl } from "../../lib/notesRoutes";
@@ -14,10 +14,9 @@ import { NoteHeader } from "./NoteHeader.js";
 import { NoteTitle } from "./NoteTitle.js";
 import { NoteMobileNavigation } from "./NoteMobileNavigation.js";
 import { NotesEmpty } from "./NotesEmpty.js";
-import { newNoteTitle } from "./noteTitles.js";
+import { useNotesMutations } from "./hooks/useNotesMutations.js";
 import { NotesCommandPalette } from "./search/NotesCommandPalette.js";
 import { NotesSidebar } from "./sidebar/NotesSidebar.js";
-import type { NotesDropResult } from "./sidebar/treeDrop.js";
 import type { NoteSaveState } from "./editor/useNoteAutosave.js";
 import { useLastOpenedNote } from "./useLastOpenedNote.js";
 
@@ -76,45 +75,9 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
     [queryClient],
   );
 
-  const createMutation = useMutation({
-    mutationFn: async ({ parentId }: { parentId: string | null }) => {
-      const created = await apiClient.createNote({ title: newNoteTitle(), parentId });
-      if (!created?.note) throw new Error("Die Seite konnte nicht erstellt werden.");
-      return created.note;
-    },
-    onSuccess: async (note, variables) => {
-      if (variables.parentId !== null) {
-        const linked = await appendParentReference(variables.parentId, note);
-        if (!linked) showActionError("Unterseite erstellt; der Verweis konnte nicht gespeichert werden.");
-      }
-      void invalidateNotes();
-      onSelectNote(note.id);
-      setMobileSidebarOpen(false);
-    },
-    onError: () => showActionError("Die Seite konnte nicht erstellt werden."),
-  });
-
-  const patchMutation = useMutation({
-    mutationFn: async ({ noteId: id, patch }: { noteId: string; patch: UpdateNoteRequest }) => {
-      const response = await apiClient.updateNote(id, patch);
-      if (!response) throw new Error("Die Änderung konnte nicht gespeichert werden.");
-      return response.note;
-    },
-    onSuccess: () => void invalidateNotes(),
-    onError: () => showActionError("Die Änderung konnte nicht gespeichert werden."),
-  });
-
-  const moveMutation = useMutation({
-    mutationFn: async ({ noteId: id, drop }: { noteId: string; drop: NotesDropResult }) => {
-      const response = await apiClient.updateNote(id, {
-        parentId: drop.parentId,
-        sortOrder: drop.sortOrder,
-      });
-      if (!response) throw new Error("Die Seite konnte nicht verschoben werden.");
-      return response.note;
-    },
-    onSuccess: () => void invalidateNotes(),
-    onError: () => showActionError("Die Seite konnte nicht verschoben werden."),
+  const { createMutation, patchMutation, moveMutation } = useNotesMutations({
+    appendParentReference, invalidateNotes, showActionError, onSelectNote,
+    closeMobileSidebar: () => setMobileSidebarOpen(false),
   });
 
   // Nach jedem eigenen Speichern den Detail-Cache frisch halten: Sonst würde
@@ -137,8 +100,8 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
   );
 
   const handleCreate = useCallback(
-    (parentId: string | null = null) => {
-      createMutation.mutate({ parentId });
+    (parentId: string | null = null, options: { folderId?: string | null; favorite?: boolean } = {}) => {
+      createMutation.mutate({ parentId, ...options });
     },
     [createMutation],
   );
@@ -152,6 +115,7 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
           const created = await apiClient.createNote({
             title: `${note.title} Kopie`,
             parentId: note.parentId,
+            folderId: note.folderId ?? null,
           });
           if (!created?.note) throw new Error("Kopie konnte nicht erstellt werden");
           if (detail.note.content !== "") {
@@ -266,6 +230,7 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
         <NotesSidebar
           collapsed={sidebarCollapsed && !isDrawerSidebar}
           notes={notes}
+          folders={listQuery.data?.folders ?? []}
           activeId={noteId}
           mobileOpen={mobileSidebarOpen}
           onCloseMobile={() => setMobileSidebarOpen(false)}

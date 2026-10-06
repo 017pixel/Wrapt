@@ -4,6 +4,7 @@ import type { Editor, JSONContent } from "@tiptap/core";
 import type { Note, NoteSummary } from "@wrapt/contracts";
 import { apiClient } from "../../lib/apiClient";
 import { BlockMenu } from "./editor/BlockMenu.js";
+import { focusLastNoteLine } from "./editor/focusLastLine.js";
 import { createNotesExtensions } from "./editor/extensions.js";
 import { FormatToolbar } from "./editor/FormatToolbar.js";
 import { LinkDialog } from "./editor/LinkDialog.js";
@@ -181,8 +182,35 @@ export function NoteEditor({
     editor?.setEditable(editable);
   }, [editor, editable]);
 
+
+  useEffect(() => {
+    if (!editor || compact) return;
+    const scroll = editor.view.dom.closest(".notes-editor-scroll");
+    if (!scroll) return;
+    const focusBlank = (event: Event) => {
+      const pointer = event as PointerEvent;
+      const target = pointer.target as HTMLElement;
+      if (pointer.button !== 0 || !target.matches(".notes-editor-scroll, .notes-editor-frame")) return;
+      const last = editor.view.dom.lastElementChild?.getBoundingClientRect();
+      if (last && pointer.clientY < last.bottom) return;
+      pointer.preventDefault();
+      focusLastNoteLine(editor);
+    };
+    scroll.addEventListener("pointerdown", focusBlank);
+    return () => scroll.removeEventListener("pointerdown", focusBlank);
+  }, [editor, compact]);
+
   const getMarkdown = useCallback(() => editor?.getMarkdown() ?? null, [editor]);
-  const handleSaved = useCallback((saved: Note) => onSaved?.(saved), [onSaved]);
+  const loadedNoteIdRef = useRef<string | null>(null);
+  const loadedRevisionRef = useRef<number | null>(null);
+  const handleSaved = useCallback((saved: Note) => {
+    // Die eigene Fassung ist bereits im Editor. Eine Bestätigung darf sie
+    // nicht erneut parsen oder den Cursor und die Undo-Historie zurücksetzen.
+    if (loadedNoteIdRef.current === saved.id) {
+      loadedRevisionRef.current = Math.max(loadedRevisionRef.current ?? 0, saved.revision);
+    }
+    onSaved?.(saved);
+  }, [onSaved]);
   const autosave = useNoteAutosave({
     noteId: note.id,
     revision: note.revision,
@@ -203,8 +231,6 @@ export function NoteEditor({
   }, [state, onStateChange]);
 
   // Beim Notizwechsel zuerst die alte Notiz sichern, dann neuen Inhalt laden.
-  const loadedNoteIdRef = useRef<string | null>(null);
-  const loadedRevisionRef = useRef<number | null>(null);
   useEffect(() => {
     if (!editor) return;
     const manager = editor.storage.markdown?.manager;
@@ -217,7 +243,7 @@ export function NoteEditor({
       if (autoFocus) editor.commands.focus("start");
       return;
     }
-    if (loadedRevisionRef.current === note.revision || state !== "saved") return;
+    if (note.revision <= (loadedRevisionRef.current ?? 0) || state !== "saved" || getDraftContent(note.id) !== null) return;
     loadedRevisionRef.current = note.revision;
     editor.commands.setContent(parseNoteMarkdown(manager, note.content), { emitUpdate: false });
     acceptServerNote(note);
@@ -256,7 +282,11 @@ export function NoteEditor({
   }, [acceptServerNote, conflictNote, editor, onSaved]);
 
   return (
-    <div className={compact ? "note-editor is-compact" : "note-editor"}>
+    <div className={compact ? "note-editor is-compact" : "note-editor"} onPointerDown={(event) => {
+      if (!editor || event.button !== 0 || event.target !== event.currentTarget) return;
+      event.preventDefault();
+      focusLastNoteLine(editor);
+    }}>
       {conflictNote ? (
         <div className="note-conflict" role="alert">
           <div>
@@ -285,7 +315,7 @@ export function NoteEditor({
           </div>
         </div>
       ) : null}
-      <EditorContent editor={editor} />
+      <EditorContent className="note-editor-body" editor={editor} />
       {editor ? <FormatToolbar editor={editor} onRequestLink={requestLink} /> : null}
       {editor && !compact ? <BlockMenu editor={editor} /> : null}
       <SlashMenu />

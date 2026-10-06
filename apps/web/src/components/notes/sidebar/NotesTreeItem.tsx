@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import type { NoteSummary } from "@wrapt/contracts";
-import { ChevronDownIcon, ChevronRightIcon, MoreIcon, PlusIcon } from "../../icons";
+import { ChevronRightIcon, MoreIcon, PlusIcon } from "../../icons";
 import { NotePageIcon } from "../icons/NotePageIcon.js";
+import { NOTE_DRAG_TYPE } from "./NotesDragContext.js";
 import type { NotesDropZone } from "./treeDrop.js";
 
 export interface NotesTreeActions {
@@ -79,8 +80,9 @@ export function NotesTreeItem({
         style={{ paddingLeft: 6 + depth * 14 }}
         draggable={!renaming}
         onDragStart={(event) => {
+          event.stopPropagation();
           event.dataTransfer.effectAllowed = "move";
-          event.dataTransfer.setData("text/plain", note.id);
+          event.dataTransfer.setData(NOTE_DRAG_TYPE, note.id);
           actions.onDragStart(note.id);
         }}
         onDragEnd={actions.onDragEnd}
@@ -99,7 +101,7 @@ export function NotesTreeItem({
             aria-expanded={expanded}
             onClick={() => actions.onToggle(note.id)}
           >
-            {expanded ? <ChevronDownIcon aria-hidden /> : <ChevronRightIcon aria-hidden />}
+            <ChevronRightIcon className={expanded ? "is-expanded" : ""} aria-hidden />
           </button>
         ) : (
           <span className="notes-tree-toggle is-placeholder" aria-hidden />

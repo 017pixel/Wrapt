@@ -1,5 +1,6 @@
 import {
   createNoteRequestSchema,
+  noteFolderResponseSchema,
   noteResponseSchema,
   notesListResponseSchema,
   saveNoteContentResponseSchema,
@@ -8,6 +9,7 @@ import {
   type NoteSearchQuery,
   type SaveNoteContentRequest,
   type UpdateNoteRequest,
+  type MoveNoteRequest,
 } from "@wrapt/contracts";
 import { mutate, request } from "./transport.js";
 
@@ -39,6 +41,10 @@ export async function createGlobalQuicknote(
 }
 
 export const notesApi = {
+  createNoteFolder: (name: string) => mutate("/notes/folders", "POST", noteFolderResponseSchema, { name }),
+  updateNoteFolder: (id: string, body: { name?: string; sortOrder?: number }) =>
+    mutate(`/notes/folders/${encodeURIComponent(id)}`, "PATCH", noteFolderResponseSchema, body),
+  deleteNoteFolder: (id: string) => mutate(`/notes/folders/${encodeURIComponent(id)}`, "DELETE", null),
   notes: (signal?: AbortSignal) =>
     request("/notes", notesListResponseSchema, signal),
   note: (noteId: string, signal?: AbortSignal) =>
@@ -54,6 +60,8 @@ export const notesApi = {
   createGlobalQuicknote,
   updateNote: (noteId: string, body: UpdateNoteRequest) =>
     mutate(`/notes/${encodeURIComponent(noteId)}`, "PATCH", noteResponseSchema, body),
+  moveNote: (noteId: string, body: MoveNoteRequest) =>
+    mutate(`/notes/${encodeURIComponent(noteId)}/move`, "POST", noteResponseSchema, body),
   saveNoteContent: (noteId: string, body: SaveNoteContentRequest) =>
     mutate(
       `/notes/${encodeURIComponent(noteId)}/content`,

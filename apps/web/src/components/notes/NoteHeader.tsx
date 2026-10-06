@@ -123,7 +123,7 @@ export function NoteHeader({
         </button>
         <button
           type="button"
-          className={`notes-icon-button ${note.favorite ? "is-active" : ""}`}
+          className={`notes-icon-button notes-favorite ${note.favorite ? "is-active" : ""}`}
           aria-label={note.favorite ? "Favorit entfernen" : "Als Favorit markieren"}
           aria-pressed={note.favorite}
           title={note.favorite ? "Favorit entfernen" : "Als Favorit markieren"}

@@ -1,11 +1,15 @@
 /* Notizen: Editor-Inhalt (ProseMirror). Typografie und Standardblöcke. */
 
 .note-editor {
+  position: relative;
   display: flex;
   min-height: 0;
   flex: 1;
   flex-direction: column;
 }
+
+.note-editor:not(.is-compact) { min-height: 35vh; }
+.note-editor-body { position: relative; }
 
 .note-editor-content {
   min-height: 100%;

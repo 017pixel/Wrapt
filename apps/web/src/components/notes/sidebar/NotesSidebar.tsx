@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
-import type { NoteSummary, UpdateNoteRequest } from "@wrapt/contracts";
+import type { NoteFolder, NoteSummary, UpdateNoteRequest } from "@wrapt/contracts";
 import {
   NOTES_SIDEBAR_DEFAULT_WIDTH,
   NOTES_SIDEBAR_MAX_WIDTH,
@@ -8,23 +8,24 @@ import {
   useNotesPreferences,
 } from "../../../stores/notesPreferences.js";
 import { useMediaQuery } from "../../../lib/useMediaQuery.js";
-import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon, SearchIcon } from "../../icons";
-import { NotesRecentSection } from "./NotesRecentSection.js";
-import { NotesSidebarRow } from "./NotesSidebarRow.js";
-import { NotesTree } from "./NotesTree.js";
+import { ChevronLeftIcon, PlusIcon, SearchIcon } from "../../icons";
+import { NotesSidebarSections } from "./NotesSidebarSections.js";
+import { NotesFolderActions } from "./NotesFolderActions.js";
 import { NotesItemMenu } from "./NotesItemMenu.js";
 import { NotesMoveDialog } from "./NotesMoveDialog.js";
+import { PromptDialog } from "../../ModalDialog.js";
 import type { NotesDropResult } from "./treeDrop.js";
 
 interface NotesSidebarProps {
   collapsed: boolean;
   notes: readonly NoteSummary[];
+  folders: readonly NoteFolder[];
   activeId: string | null;
   mobileOpen: boolean;
   onCloseMobile: () => void;
   onOpenPalette: () => void;
   onSelect: (noteId: string) => void;
-  onCreatePage: (parentId?: string | null) => void;
+  onCreatePage: (parentId?: string | null, options?: { folderId?: string | null; favorite?: boolean }) => void;
   onPatch: (noteId: string, patch: UpdateNoteRequest) => void;
   onMove: (noteId: string, drop: NotesDropResult) => void;
   onDuplicate: (note: NoteSummary) => void;
@@ -43,6 +44,7 @@ interface MenuState {
 export function NotesSidebar({
   collapsed,
   notes,
+  folders,
   activeId,
   mobileOpen,
   onCloseMobile,
@@ -55,13 +57,11 @@ export function NotesSidebar({
   onCopyLink,
 }: NotesSidebarProps) {
   const width = useNotesPreferences((state) => state.sidebarWidth);
-  const collapsedSections = useNotesPreferences((state) => state.collapsedSections);
   const setSidebarWidth = useNotesPreferences((state) => state.setSidebarWidth);
   const setSidebarCollapsed = useNotesPreferences((state) => state.setSidebarCollapsed);
-  const toggleSection = useNotesPreferences((state) => state.toggleSection);
   const [menu, setMenu] = useState<MenuState | null>(null);
   const [moveNote, setMoveNote] = useState<NoteSummary | null>(null);
-  const [renameRequestId, setRenameRequestId] = useState<string | null>(null);
+  const [renameNote, setRenameNote] = useState<NoteSummary | null>(null);
   const resizingRef = useRef(false);
   // Unter 900px liegt die Leiste als Schublade über dem Inhalt. Geschlossen
   // darf sie weder fokussierbar noch für Screenreader sichtbar sein.
@@ -69,9 +69,7 @@ export function NotesSidebar({
   const drawerClosed = isDrawer && !mobileOpen;
   const hidden = drawerClosed || collapsed;
 
-  const active = useMemo(() => notes.filter((note) => !note.archived), [notes]);
-  const favorites = useMemo(() => active.filter((note) => note.favorite), [active]);
-  const trashed = useMemo(() => notes.filter((note) => note.archived), [notes]);
+  const active = notes.filter((note) => !note.archived);
 
   const handleSelect = useCallback(
     (noteId: string) => {
@@ -111,7 +109,7 @@ export function NotesSidebar({
   const openMenu = useCallback((note: NoteSummary, anchor: DOMRect) => {
     setMenu({ note, anchor });
   }, []);
-  const clearRenameRequest = useCallback(() => setRenameRequestId(null), []);
+  const clearRenameRequest = useCallback(() => undefined, []);
 
   return (
     <aside
@@ -144,120 +142,13 @@ export function NotesSidebar({
             <ChevronLeftIcon aria-hidden />
           </button>
         </div>
+        <NotesFolderActions />
       </div>
 
       <div className="notes-sidebar-scroll">
-        <NotesRecentSection notes={notes} activeId={activeId} onSelect={handleSelect} onOpenMenu={openMenu} />
-
-        {favorites.length > 0 ? (
-          <section className="notes-group">
-            <div className="notes-group-head">
-              <button
-                type="button"
-                id="notes-favorites-heading"
-                className="notes-group-toggle"
-                aria-expanded={!collapsedSections.favorites}
-                aria-controls="notes-favorites-list"
-                onClick={() => toggleSection("favorites")}
-              >
-                <span>Favoriten</span>
-                {collapsedSections.favorites ? <ChevronRightIcon aria-hidden /> : <ChevronDownIcon aria-hidden />}
-              </button>
-            </div>
-            <div id="notes-favorites-list" aria-labelledby="notes-favorites-heading" hidden={collapsedSections.favorites}>
-              {favorites.map((note) => (
-                <NotesSidebarRow
-                  key={note.id}
-                  note={note}
-                  active={note.id === activeId}
-                  onSelect={() => handleSelect(note.id)}
-                  onOpenMenu={openMenu}
-                />
-              ))}
-            </div>
-          </section>
-        ) : null}
-
-        <section className="notes-group">
-          <div className="notes-group-head">
-            <button
-              type="button"
-              id="notes-private-heading"
-              className="notes-group-toggle"
-              aria-expanded={!collapsedSections.private}
-              aria-controls="notes-private-list"
-              onClick={() => toggleSection("private")}
-            >
-              <span>Privat</span>
-              {collapsedSections.private ? <ChevronRightIcon aria-hidden /> : <ChevronDownIcon aria-hidden />}
-            </button>
-            <button
-              type="button"
-              className="notes-group-action"
-              aria-label="Neue Seite in Privat"
-              title="Neue Seite"
-              onClick={() => onCreatePage(null)}
-            >
-              <PlusIcon aria-hidden />
-            </button>
-          </div>
-          <div id="notes-private-list" aria-labelledby="notes-private-heading" hidden={collapsedSections.private}>
-            <NotesTree
-              notes={active}
-              activeId={activeId}
-              onSelect={handleSelect}
-              onCreateSubpage={(parentId) => onCreatePage(parentId)}
-              onPatch={onPatch}
-              onMove={onMove}
-              onOpenMenu={openMenu}
-              renameRequestId={renameRequestId}
-              onRenameRequestHandled={clearRenameRequest}
-            />
-          </div>
-        </section>
-
-        {trashed.length > 0 ? (
-          <section className="notes-group">
-            <div className="notes-group-head">
-              <button
-                type="button"
-                id="notes-trash-heading"
-                className="notes-group-toggle"
-                aria-expanded={!collapsedSections.trash}
-                aria-controls="notes-trash-list"
-                onClick={() => toggleSection("trash")}
-              >
-                <span>Papierkorb ({trashed.length})</span>
-                {collapsedSections.trash ? <ChevronRightIcon aria-hidden /> : <ChevronDownIcon aria-hidden />}
-              </button>
-            </div>
-            <div
-              id="notes-trash-list"
-              aria-labelledby="notes-trash-heading"
-              hidden={collapsedSections.trash}
-            >
-              {trashed.map((note) => (
-                <NotesSidebarRow
-                  key={note.id}
-                  note={note}
-                  active={note.id === activeId}
-                  onSelect={() => handleSelect(note.id)}
-                  action={
-                    <button
-                      type="button"
-                      className="notes-sidebar-row-action"
-                      aria-label={`${note.title} wiederherstellen`}
-                      title="Wiederherstellen"
-                      onClick={() => onPatch(note.id, { archived: false })}
-                    >
-                      Wiederherstellen
-                    </button>
-                  }
-                />
-              ))}
-            </div>
-          </section>
-        ) : null}
+        <NotesSidebarSections notes={notes} folders={folders} activeId={activeId} onSelect={handleSelect}
+          onCreatePage={onCreatePage} onPatch={onPatch} onMove={onMove} onOpenMenu={openMenu}
+          renameRequestId={null} onRenameRequestHandled={clearRenameRequest} />
       </div>
 
       {menu ? (
@@ -267,7 +158,7 @@ export function NotesSidebar({
           onClose={() => setMenu(null)}
           onSelect={handleSelect}
           onCreateSubpage={(parentId) => onCreatePage(parentId)}
-          onRename={(noteId) => setRenameRequestId(noteId)}
+          onRename={(noteId) => setRenameNote(notes.find((note) => note.id === noteId) ?? null)}
           onMove={(note) => setMoveNote(note)}
           onToggleFavorite={(note) => onPatch(note.id, { favorite: !note.favorite })}
           onDuplicate={onDuplicate}
@@ -275,10 +166,15 @@ export function NotesSidebar({
           onArchive={(note) => onPatch(note.id, { archived: true })}
         />
       ) : null}
+
+      <PromptDialog open={renameNote !== null} title="Seite umbenennen" label="Seitentitel"
+        initialValue={renameNote?.title ?? ""} confirmLabel="Umbenennen" onClose={() => setRenameNote(null)}
+        onConfirm={(title) => { if (renameNote) onPatch(renameNote.id, { title }); setRenameNote(null); }} />
       {moveNote ? (
         <NotesMoveDialog
           note={moveNote}
           notes={active}
+          folders={folders}
           onClose={() => setMoveNote(null)}
           onMove={onMove}
         />

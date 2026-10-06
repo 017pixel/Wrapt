@@ -1,12 +1,27 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { Note } from "@wrapt/contracts";
 import { afterEach, expect, it, vi } from "vitest";
 import { NoteTitle } from "./NoteTitle";
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.useRealTimers(); });
 
 const note = { id: "seite-a", title: "Alter Titel", icon: null } as Note;
+
+it("lässt eine ältere Titelbestätigung keine neuere Eingabe überschreiben", () => {
+  vi.useFakeTimers();
+  const save = vi.fn();
+  const view = render(<NoteTitle note={note} onPatch={save} />);
+  const input = screen.getByRole("textbox", { name: "Notiztitel" });
+  fireEvent.change(input, { target: { value: "Erste Fassung" } });
+  act(() => vi.advanceTimersByTime(500));
+  fireEvent.change(input, { target: { value: "Zweite Fassung" } });
+  act(() => vi.advanceTimersByTime(500));
+  view.rerender(<NoteTitle note={{ ...note, title: "Erste Fassung" }} onPatch={save} />);
+  expect((input as HTMLTextAreaElement).value).toBe("Zweite Fassung");
+  view.rerender(<NoteTitle note={{ ...note, title: "Zweite Fassung" }} onPatch={save} />);
+  expect((input as HTMLTextAreaElement).value).toBe("Zweite Fassung");
+});
 
 it("speichert einen noch nicht entprellten Titel beim Seitenwechsel", () => {
   const save = vi.fn();
@@ -48,4 +63,16 @@ it("beendet die Titelbearbeitung mit Enter und speichert", () => {
 
   expect(save).toHaveBeenCalledExactlyOnceWith({ title: "Neuer Titel" });
   expect(document.activeElement).not.toBe(title);
+});
+
+it("speichert die Rückkehr zum ursprünglichen Titel während einer offenen Bestätigung", () => {
+  vi.useFakeTimers();
+  const save = vi.fn();
+  render(<NoteTitle note={note} onPatch={save} />);
+  const input = screen.getByRole("textbox", { name: "Notiztitel" });
+  fireEvent.change(input, { target: { value: "Zwischenstand" } });
+  act(() => vi.advanceTimersByTime(500));
+  fireEvent.change(input, { target: { value: note.title } });
+  act(() => vi.advanceTimersByTime(500));
+  expect(save.mock.calls).toEqual([[{ title: "Zwischenstand" }], [{ title: note.title }]]);
 });

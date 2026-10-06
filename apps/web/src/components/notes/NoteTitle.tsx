@@ -19,8 +19,17 @@ export function NoteTitle({ note, onPatch, disabled = false }: NoteTitleProps) {
   const pendingRef = useRef<{ value: string; originalTitle: string; onPatch: NoteTitleProps["onPatch"] } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const iconButtonRef = useRef<HTMLButtonElement>(null);
+  const activeNoteRef = useRef(note.id);
+  const submittedTitleRef = useRef<string | null>(null);
 
   useEffect(() => {
+    if (activeNoteRef.current !== note.id) {
+      activeNoteRef.current = note.id;
+      submittedTitleRef.current = null;
+    } else if (pendingRef.current || (submittedTitleRef.current !== null && submittedTitleRef.current !== note.title)) {
+      return;
+    }
+    submittedTitleRef.current = null;
     setTitle(note.title);
   }, [note.id, note.title]);
 
@@ -52,7 +61,10 @@ export function NoteTitle({ note, onPatch, disabled = false }: NoteTitleProps) {
     pendingRef.current = null;
     if (!pending) return;
     const trimmed = pending.value.trim();
-    if (trimmed && trimmed !== pending.originalTitle) pending.onPatch({ title: trimmed });
+    if (trimmed && trimmed !== (submittedTitleRef.current ?? pending.originalTitle)) {
+      submittedTitleRef.current = trimmed;
+      pending.onPatch({ title: trimmed });
+    }
   }, []);
 
   useEffect(() => () => {

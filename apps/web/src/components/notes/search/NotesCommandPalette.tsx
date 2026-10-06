@@ -175,7 +175,7 @@ export function NotesCommandPalette({
                             <span className="notes-palette-item-excerpt">{note.excerpt}</span>
                           ) : (
                             <span className="notes-palette-item-excerpt">
-                              {paths.get(note.id) === "" ? "Privat" : paths.get(note.id)}
+                              {paths.get(note.id) === "" ? "Alle Notizen" : paths.get(note.id)}
                             </span>
                           )}
                         </span>
@@ -199,7 +199,7 @@ export function NotesCommandPalette({
                   <div className="notes-palette-preview-titles">
                     <p className="notes-palette-preview-title">{selected.title}</p>
                     <p className="notes-palette-preview-path">
-                      {paths.get(selected.id) === "" ? "Privat" : paths.get(selected.id)}
+                      {paths.get(selected.id) === "" ? "Alle Notizen" : paths.get(selected.id)}
                     </p>
                   </div>
                 </div>

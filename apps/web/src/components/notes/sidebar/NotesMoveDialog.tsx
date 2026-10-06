@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { NoteSummary } from "@wrapt/contracts";
+import type { NoteFolder, NoteSummary } from "@wrapt/contracts";
 import { FolderIcon } from "../../icons";
 import { useMediaQuery } from "../../../lib/useMediaQuery.js";
 import { useDismissible } from "../hooks/useDismissible.js";
@@ -11,6 +11,7 @@ import { resolveMoveToParent, type NotesDropResult } from "./treeDrop.js";
 interface NotesMoveDialogProps {
   note: NoteSummary;
   notes: readonly NoteSummary[];
+  folders?: readonly NoteFolder[];
   onClose: () => void;
   onMove: (noteId: string, drop: NotesDropResult) => void;
 }
@@ -29,7 +30,7 @@ interface MoveTarget {
  * HTML5-Drag-and-Drop nicht greift. Auf dem Handy als Bottom Sheet, am
  * Schreibtisch als zentrierter Dialog.
  */
-export function NotesMoveDialog({ note, notes, onClose, onMove }: NotesMoveDialogProps) {
+export function NotesMoveDialog({ note, notes, folders = [], onClose, onMove }: NotesMoveDialogProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const coarsePointer = useMediaQuery("(pointer: coarse)");
   const [query, setQuery] = useState("");
@@ -63,7 +64,7 @@ export function NotesMoveDialog({ note, notes, onClose, onMove }: NotesMoveDialo
 
   const choose = (parentId: string | null) => {
     const result = resolveMoveToParent(notes, note.id, parentId);
-    if (result !== null) onMove(note.id, result);
+    if (result !== null) onMove(note.id, { ...result, folderId: null });
     onClose();
   };
 
@@ -105,6 +106,12 @@ export function NotesMoveDialog({ note, notes, onClose, onMove }: NotesMoveDialo
             <FolderIcon aria-hidden />
             <span className="notes-move-row-label">Oberste Ebene</span>
           </button>
+          {folders.filter((folder) => folder.name.toLowerCase().includes(query.trim().toLowerCase())).map((folder) => (
+            <button key={folder.id} type="button" className="notes-move-row" onClick={() => {
+              onMove(note.id, { parentId: null, folderId: folder.id, sortOrder: Math.max(0, ...notes.map((entry) => entry.sortOrder)) + 1 });
+              onClose();
+            }}><FolderIcon aria-hidden /><span className="notes-move-row-label">{folder.name}</span></button>
+          ))}
           {visibleTargets.map((target) => (
             <button
               key={target.id}

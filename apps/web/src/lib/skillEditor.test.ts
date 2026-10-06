@@ -76,6 +76,59 @@ describe("useAutosave", () => {
     expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ expectedRevision: "token-14-2026-01-01T10:05:00.000Z" }));
   });
 
+  it("verwendet für einen während des Requests eingereihten Save die bestätigte Revision", async () => {
+    const first = fileAt("2026-01-01T10:00:00.000Z");
+    const saved = fileAt("2026-01-01T10:01:00.000Z", "zweite Fassung");
+    let finish!: (response: SkillEditorReadResponse) => void;
+    const pending = new Promise<SkillEditorReadResponse>((resolve) => { finish = resolve; });
+    const save = vi.spyOn(apiClient, "saveSkillEditorFile")
+      .mockReturnValueOnce(pending)
+      .mockResolvedValueOnce(fileAt("2026-01-01T10:02:00.000Z", "dritte Fassung"));
+    const { result } = renderHook(() => useAutosave({ file: first, debounceMs: 100 }));
+    act(() => result.current.setContent("zweite Fassung"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    act(() => result.current.setContent("dritte Fassung"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    await act(async () => { finish(saved); await pending; });
+    await settle();
+    expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ content: "dritte Fassung", expectedRevision: saved.revisionToken }));
+    expect(result.current.state.kind).toBe("saved");
+  });
+
+  it("speichert das Rückgängigmachen während eines laufenden Requests", async () => {
+    const original = fileAt("2026-01-01T10:00:00.000Z");
+    let finish!: (response: SkillEditorReadResponse) => void;
+    const pending = new Promise<SkillEditorReadResponse>((resolve) => { finish = resolve; });
+    const save = vi.spyOn(apiClient, "saveSkillEditorFile").mockReturnValueOnce(pending).mockResolvedValue(original);
+    const { result } = renderHook(() => useAutosave({ file: original, debounceMs: 100 }));
+    act(() => result.current.setContent("Zwischenstand"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    act(() => result.current.setContent(original.content));
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    await act(async () => { finish(fileAt("2026-01-01T10:01:00.000Z", "Zwischenstand")); });
+    await settle();
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenLastCalledWith(expect.objectContaining({ content: original.content }));
+    expect(result.current.state.kind).toBe("saved");
+  });
+
+  it("stoppt bereits eingereihte Saves, wenn der erste Request einen Konflikt meldet", async () => {
+    let fail!: (error: Error) => void;
+    const pending = new Promise<SkillEditorReadResponse>((_resolve, reject) => { fail = reject; });
+    const save = vi.spyOn(apiClient, "saveSkillEditorFile").mockReturnValueOnce(pending)
+      .mockResolvedValue(fileAt("2026-01-01T10:01:00.000Z", "neuester Text"));
+    const { result } = renderHook(() => useAutosave({ file: fileAt("2026-01-01T10:00:00.000Z"), debounceMs: 100 }));
+    act(() => result.current.setContent("erste Änderung"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    act(() => result.current.setContent("neuester Text"));
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
+    await act(async () => { fail(new ApiClientError(409, "SKILLS_CONFLICT", "extern geändert")); });
+    await settle();
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(result.current.state.kind).toBe("conflict");
+    expect(result.current.content).toBe("neuester Text");
+  });
+
   it("schreibt beim Flush sofort und nicht erneut ohne Änderung", async () => {
     const save = vi.spyOn(apiClient, "saveSkillEditorFile").mockResolvedValue(fileAt("2026-01-01T10:05:00.000Z", "neu"));
     const { result } = renderHook(() => useAutosave({ file: fileAt("2026-01-01T10:00:00.000Z"), debounceMs: 5_000 }));

@@ -10,10 +10,13 @@ import {
   type NoteSearchQuery,
   type NoteSummary,
   type UpdateNoteRequest,
+  type MoveNoteRequest,
 } from "@wrapt/contracts";
 import { AppError } from "../utils/errors.js";
 import { migrateOrbitSources, type OrbitNotesMigrationResult } from "./orbitSourceMigration.js";
 import { noteSearchRangeStart } from "./searchRange.js";
+import { NoteFoldersDatabase } from "./folders.js";
+import { moveNoteInOrder } from "./ordering.js";
 
 /**
  * Eigene Tabelle für das Notizen-Feature in derselben SQLite-Datei wie Orbit.
@@ -27,6 +30,7 @@ interface NoteRow {
   icon: string | null;
   cover_asset_id: string | null;
   parent_id: string | null;
+  folder_id: string | null;
   sort_order: number;
   favorite: number;
   archived: number;
@@ -45,6 +49,7 @@ function toNote(row: NoteRow): Note {
     icon: row.icon,
     coverAssetId: row.cover_asset_id,
     parentId: row.parent_id,
+    folderId: row.folder_id,
     sortOrder: row.sort_order,
     favorite: row.favorite === 1,
     archived: row.archived === 1,
@@ -60,6 +65,7 @@ function toSummary(row: SummaryRow, match?: string): NoteSummary {
     title: row.title,
     icon: row.icon,
     parentId: row.parent_id,
+    folderId: row.folder_id,
     sortOrder: row.sort_order,
     favorite: row.favorite === 1,
     archived: row.archived === 1,
@@ -108,6 +114,7 @@ export function escapeLikePattern(query: string): string {
 
 export class NotesDatabase {
   private readonly db: DatabaseSync;
+  readonly folders: NoteFoldersDatabase;
 
   constructor(path: string) {
     mkdirSync(dirname(path), { recursive: true });
@@ -153,6 +160,7 @@ export class NotesDatabase {
         created_at TEXT NOT NULL
       );
     `);
+    this.folders = new NoteFoldersDatabase(this.db);
   }
 
   close(): void {
@@ -165,7 +173,7 @@ export class NotesDatabase {
 
   list(): NoteSummary[] {
     const rows = this.db
-      .prepare(`SELECT id, title, content, icon, cover_asset_id, parent_id, sort_order, favorite, archived, created_at, updated_at
+      .prepare(`SELECT id, title, content, icon, cover_asset_id, parent_id, folder_id, sort_order, favorite, archived, created_at, updated_at
         FROM notes ORDER BY sort_order ASC, updated_at DESC`)
       .all() as unknown as SummaryRow[];
     return rows.map((row) => toSummary(row));
@@ -204,7 +212,7 @@ export class NotesDatabase {
       params.push(updatedAfter);
     }
     const rows = this.db
-      .prepare(`SELECT id, title, content, icon, cover_asset_id, parent_id, sort_order, favorite, archived, created_at, updated_at
+      .prepare(`SELECT id, title, content, icon, cover_asset_id, parent_id, folder_id, sort_order, favorite, archived, created_at, updated_at
         FROM notes
         WHERE ${conditions.join(" AND ")}
         ORDER BY updated_at DESC`)
@@ -219,36 +227,40 @@ export class NotesDatabase {
 
   create(input: CreateNoteRequest): Note {
     this.assertParent(null, input.parentId);
+    this.folders.assertExists(input.folderId);
     const now = new Date().toISOString();
     const id = randomUUID();
     const sortOrder = this.nextSortOrder(input.parentId);
     this.db
-      .prepare(`INSERT INTO notes (id, title, content, icon, cover_asset_id, parent_id, sort_order, favorite, archived, revision, created_at, updated_at)
-        VALUES (?, ?, '', NULL, NULL, ?, ?, 0, 0, 1, ?, ?)`)
-      .run(id, input.title, input.parentId, sortOrder, now, now);
+      .prepare(`INSERT INTO notes (id, title, content, icon, cover_asset_id, parent_id, folder_id, sort_order, favorite, archived, revision, created_at, updated_at)
+        VALUES (?, ?, '', NULL, NULL, ?, ?, ?, ?, 0, 1, ?, ?)`)
+      .run(id, input.title, input.parentId, input.parentId === null ? input.folderId ?? null : null, sortOrder, input.favorite ? 1 : 0, now, now);
     return this.get(id)!;
   }
 
   update(noteId: string, input: UpdateNoteRequest): Note {
     const current = this.requireNote(noteId);
     if (input.parentId !== undefined) this.assertParent(noteId, input.parentId);
+    this.folders.assertExists(input.folderId);
     const next = {
       title: input.title ?? current.title,
       icon: input.icon === undefined ? current.icon : input.icon,
       coverAssetId: input.coverAssetId === undefined ? current.coverAssetId : input.coverAssetId,
       parentId: input.parentId === undefined ? current.parentId : input.parentId,
+      folderId: input.folderId === undefined ? current.folderId ?? null : input.folderId,
       sortOrder: input.sortOrder ?? current.sortOrder,
       favorite: input.favorite ?? current.favorite,
       archived: input.archived ?? current.archived,
     };
     this.db
-      .prepare(`UPDATE notes SET title=?, icon=?, cover_asset_id=?, parent_id=?, sort_order=?, favorite=?, archived=?, updated_at=?
+      .prepare(`UPDATE notes SET title=?, icon=?, cover_asset_id=?, parent_id=?, folder_id=?, sort_order=?, favorite=?, archived=?, updated_at=?
         WHERE id=?`)
       .run(
         next.title,
         next.icon,
         next.coverAssetId,
         next.parentId,
+        next.parentId === null ? next.folderId : null,
         next.sortOrder,
         next.favorite ? 1 : 0,
         next.archived ? 1 : 0,
@@ -256,6 +268,13 @@ export class NotesDatabase {
         noteId,
       );
     return this.get(noteId)!;
+  }
+
+  move(noteId: string, input: MoveNoteRequest): Note {
+    return moveNoteInOrder(this.db, noteId, input, () => this.update(noteId, {
+      parentId: input.parentId,
+      ...(input.folderId === undefined ? {} : { folderId: input.folderId }),
+    }));
   }
 
   /**

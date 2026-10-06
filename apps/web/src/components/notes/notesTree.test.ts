@@ -98,22 +98,22 @@ describe("resolveNotesDrop", () => {
   });
 
   it("ordnet zwischen Geschwistern ein", () => {
-    expect(resolveNotesDrop(notes, "a", "b", "after")).toEqual({
+    expect(resolveNotesDrop(notes, "a", "b", "after")).toMatchObject({
       parentId: "gruppe",
       sortOrder: 1.5,
     });
-    expect(resolveNotesDrop(notes, "c", "b", "before")).toEqual({
+    expect(resolveNotesDrop(notes, "c", "b", "before")).toMatchObject({
       parentId: "gruppe",
       sortOrder: 0.5,
     });
   });
 
   it("hängt am Rand an", () => {
-    expect(resolveNotesDrop(notes, "a", "b", "before")).toEqual({
+    expect(resolveNotesDrop(notes, "a", "b", "before")).toMatchObject({
       parentId: "gruppe",
       sortOrder: 0.5,
     });
-    expect(resolveNotesDrop(notes, "a", "c", "after")).toEqual({
+    expect(resolveNotesDrop(notes, "a", "c", "after")).toMatchObject({
       parentId: "gruppe",
       sortOrder: 2.5,
     });

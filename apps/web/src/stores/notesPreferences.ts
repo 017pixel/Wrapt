@@ -17,10 +17,14 @@ interface NotesPreferencesState {
   sidebarCollapsed: boolean;
   /** Aufgeklappte Seiten im Baum. */
   expanded: Record<string, boolean>;
-  /** Eingeklappte Bereiche der Seitenleiste, etwa Favoriten und Privat. */
+  /** Eingeklappte Bereiche der Seitenleiste, etwa Favoriten und alle Notizen. */
   collapsedSections: Record<string, boolean>;
   /** Zuletzt geöffnete Seite; wird beim Start ohne Auswahl wiederhergestellt. */
   lastOpenedNoteId: string | null;
+  sectionOrder: string[];
+  favoriteOrder: string[];
+  moveSection: (id: string, target: string, available?: string[]) => void;
+  moveFavorite: (id: string, target: string, available?: string[]) => void;
   setSidebarWidth: (width: number) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleExpanded: (noteId: string) => void;
@@ -38,6 +42,10 @@ export const useNotesPreferences = create<NotesPreferencesState>()(
       expanded: {},
       collapsedSections: { trash: true },
       lastOpenedNoteId: null,
+      sectionOrder: ["recent", "favorites", "all", "trash"],
+      favoriteOrder: [],
+      moveSection: (id, target, available = []) => set((state) => ({ sectionOrder: moveBefore([...state.sectionOrder, ...available], id, target) })),
+      moveFavorite: (id, target, available = []) => set((state) => ({ favoriteOrder: moveBefore([...state.favoriteOrder, ...available], id, target) })),
       setSidebarWidth: (width) => set({ sidebarWidth: clampNotesSidebarWidth(width) }),
       setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
       toggleExpanded: (noteId) =>
@@ -57,6 +65,22 @@ export const useNotesPreferences = create<NotesPreferencesState>()(
         }),
       setLastOpenedNoteId: (noteId) => set({ lastOpenedNoteId: noteId }),
     }),
-    { name: "wrapt.notes-preferences.v1", version: 1 },
+    {
+      name: "wrapt.notes-preferences.v1", version: 2,
+      migrate: (persisted) => {
+        const state = persisted as Partial<NotesPreferencesState>;
+        return { ...state, sectionOrder: ["recent", "favorites", "all", "trash"], favoriteOrder: [],
+          collapsedSections: { ...state.collapsedSections, all: state.collapsedSections?.private ?? false } };
+      },
+    },
   ),
 );
+
+/** Unbekannte Einträge werden aufgenommen, doppelte Einträge entfernt. */
+export function moveBefore(order: readonly string[], id: string, target: string): string[] {
+  if (id === target) return [...new Set(order)];
+  const next = [...new Set(order)].filter((entry) => entry !== id);
+  const index = next.indexOf(target);
+  next.splice(index < 0 ? next.length : index, 0, id);
+  return next;
+}

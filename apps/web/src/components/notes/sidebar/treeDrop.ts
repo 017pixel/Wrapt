@@ -6,13 +6,13 @@ export type NotesDropZone = "before" | "after" | "inside";
 
 export interface NotesDropResult {
   parentId: string | null;
+  folderId?: string | null;
+  beforeId?: string | null;
   sortOrder: number;
 }
 
 function siblingsOf(notes: readonly NoteSummary[], parentId: string | null): NoteSummary[] {
-  return notes
-    .filter((note) => note.parentId === parentId && !note.archived)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
+  return sortChildNotes(notes.filter((note) => note.parentId === parentId && !note.archived));
 }
 
 function clampOrder(value: number): number {
@@ -31,8 +31,10 @@ export function resolveNotesDrop(
   zone: NotesDropZone,
 ): NotesDropResult | null {
   if (dragId === targetId) return null;
+  const dragged = notes.find((note) => note.id === dragId);
+  if (!dragged || dragged.archived) return null;
   const target = notes.find((note) => note.id === targetId);
-  if (!target) return null;
+  if (!target || target.archived) return null;
   if (collectDescendantIds(notes, dragId).includes(targetId)) return null;
 
   if (zone === "inside") {
@@ -42,19 +44,21 @@ export function resolveNotesDrop(
   }
 
   const parentId = target.parentId;
+  const folderPatch = parentId === null && (target.folderId || dragged.folderId) ? { folderId: target.folderId ?? null } : {};
   const siblings = siblingsOf(notes, parentId).filter((note) => note.id !== dragId);
   const index = siblings.findIndex((note) => note.id === targetId);
   if (index === -1) return null;
   const neighbor = zone === "before" ? siblings[index - 1] : siblings[index + 1];
+  const position = { beforeId: zone === "before" ? target.id : siblings[index + 1]?.id ?? null };
 
   if (!neighbor) {
     const delta = zone === "before" ? -0.5 : 0.5;
-    return { parentId, sortOrder: clampOrder(target.sortOrder + delta) };
+    return { parentId, ...folderPatch, ...position, sortOrder: clampOrder(target.sortOrder + delta) };
   }
   const low = Math.min(target.sortOrder, neighbor.sortOrder);
   const high = Math.max(target.sortOrder, neighbor.sortOrder);
   const order = low === high ? target.sortOrder + (zone === "before" ? -0.5 : 0.5) : (low + high) / 2;
-  return { parentId, sortOrder: clampOrder(order) };
+  return { parentId, ...folderPatch, ...position, sortOrder: clampOrder(order) };
 }
 
 /**
@@ -80,6 +84,6 @@ export function resolveMoveToParent(
 export function sortChildNotes(notes: readonly NoteSummary[]): NoteSummary[] {
   return [...notes].sort((a, b) => {
     if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
-    return b.updatedAt.localeCompare(a.updatedAt);
+    return b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id);
   });
 }

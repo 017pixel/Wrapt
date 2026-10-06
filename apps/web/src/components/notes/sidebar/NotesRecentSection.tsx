@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import type { NoteSummary } from "@wrapt/contracts";
-import { ChevronDownIcon, ChevronRightIcon } from "../../icons";
-import { useNotesPreferences } from "../../../stores/notesPreferences.js";
+import { NotesSection } from "./NotesSection.js";
 import { NotesSidebarRow } from "./NotesSidebarRow.js";
 
 interface NotesRecentSectionProps {
@@ -17,8 +16,6 @@ const EXPANDED_COUNT = 12;
 /** „Zuletzt verwendet“: die zuletzt geänderten Seiten, mit Mehr/Weniger. */
 export function NotesRecentSection({ notes, activeId, onSelect, onOpenMenu }: NotesRecentSectionProps) {
   const [showMore, setShowMore] = useState(false);
-  const collapsed = useNotesPreferences((state) => state.collapsedSections.recent === true);
-  const toggleSection = useNotesPreferences((state) => state.toggleSection);
   const recent = useMemo(
     () =>
       notes
@@ -30,21 +27,7 @@ export function NotesRecentSection({ notes, activeId, onSelect, onOpenMenu }: No
   if (recent.length === 0) return null;
 
   return (
-    <section className="notes-group">
-      <div className="notes-group-head">
-        <button
-          type="button"
-          id="notes-recent-heading"
-          className="notes-group-toggle"
-          aria-expanded={!collapsed}
-          aria-controls="notes-recent-list"
-          onClick={() => toggleSection("recent")}
-        >
-          <span>Zuletzt verwendet</span>
-          {collapsed ? <ChevronRightIcon aria-hidden /> : <ChevronDownIcon aria-hidden />}
-        </button>
-      </div>
-      <div id="notes-recent-list" aria-labelledby="notes-recent-heading" hidden={collapsed}>
+    <NotesSection id="recent" title="Zuletzt verwendet">
         {visible.map((note) => (
           <NotesSidebarRow
             key={note.id}
@@ -63,7 +46,6 @@ export function NotesRecentSection({ notes, activeId, onSelect, onOpenMenu }: No
             {showMore ? "Weniger" : "Mehr"}
           </button>
         ) : null}
-      </div>
-    </section>
+    </NotesSection>
   );
 }

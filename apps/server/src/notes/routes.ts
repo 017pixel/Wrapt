@@ -1,5 +1,9 @@
 import {
   createNoteRequestSchema,
+  noteFolderRequestSchema,
+  noteFolderUpdateSchema,
+  noteFolderResponseSchema,
+  moveNoteRequestSchema,
   noteResponseSchema,
   noteSearchQuerySchema,
   notesListResponseSchema,
@@ -20,7 +24,21 @@ export async function registerNotesRoutes(
 ) {
   const notFound = () => new AppError(404, "NOTE_NOT_FOUND", "Diese Notiz wurde nicht gefunden.");
 
-  app.get("/notes", async () => notesListResponseSchema.parse({ notes: services.notes.list() }));
+  app.get("/notes", async () => notesListResponseSchema.parse({ notes: services.notes.list(), folders: services.notes.folders.list() }));
+
+  app.post("/notes/folders", async (request, reply) => {
+    const { name } = noteFolderRequestSchema.parse(request.body);
+    return reply.status(201).send(noteFolderResponseSchema.parse({ folder: services.notes.folders.create(name) }));
+  });
+  app.patch("/notes/folders/:folderId", async (request) => {
+    const { folderId } = z.object({ folderId: z.string().uuid() }).parse(request.params);
+    return noteFolderResponseSchema.parse({ folder: services.notes.folders.update(folderId, noteFolderUpdateSchema.parse(request.body)) });
+  });
+  app.delete("/notes/folders/:folderId", async (request, reply) => {
+    const { folderId } = z.object({ folderId: z.string().uuid() }).parse(request.params);
+    services.notes.folders.remove(folderId);
+    return reply.status(204).send();
+  });
 
   app.get("/notes/search", async (request) => {
     const query = noteSearchQuerySchema.parse(request.query);
@@ -43,6 +61,11 @@ export async function registerNotesRoutes(
     const { noteId } = noteParamsSchema.parse(request.params);
     const input = updateNoteRequestSchema.parse(request.body ?? {});
     return noteResponseSchema.parse({ note: services.notes.update(noteId, input) });
+  });
+
+  app.post("/notes/:noteId/move", async (request) => {
+    const { noteId } = noteParamsSchema.parse(request.params);
+    return noteResponseSchema.parse({ note: services.notes.move(noteId, moveNoteRequestSchema.parse(request.body)) });
   });
 
   app.put("/notes/:noteId/content", async (request) => {

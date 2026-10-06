@@ -1,0 +1,85 @@
+/* Textkürzung darf keinen eigenen Scrollcontainer erzeugen. Die Mausrad-
+   Bewegung läuft bis zur Liste, deren Rand weiterhin gesperrt bleibt. */
+.notes-sidebar-scroll *, .notes-move-list *, .notes-palette-results * {
+  overscroll-behavior-y: auto !important;
+}
+.notes-tree-label, .notes-sidebar-row-label, .notes-move-row-label { overflow: clip; }
+
+.notes-group { margin-top: var(--space-4); }
+.notes-group-toggle svg {
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+.notes-group-toggle svg.is-expanded { transform: rotate(90deg); }
+.notes-tree-toggle svg { transition: transform var(--duration-base) var(--ease-standard); }
+.notes-tree-toggle svg.is-expanded { transform: rotate(90deg); }
+.notes-group-content {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition: grid-template-rows var(--duration-base) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard);
+}
+.notes-group-content[data-collapsed="true"] { grid-template-rows: 0fr; opacity: 0; }
+.notes-group-content > div { min-height: 0; overflow: hidden; }
+.notes-group-content[data-collapsed="true"] > div { visibility: hidden; transition: visibility var(--duration-base); }
+.notes-group.is-drop-section { background: var(--color-accent-soft); border-radius: var(--radius); }
+.notes-group-action.is-create { color: var(--color-ok); }
+.notes-group-action.is-create:hover { background: var(--color-ok-soft); color: var(--color-ok); }
+.notes-group-head .notes-folder-actions { flex: none; }
+.notes-folder-actions { position: relative; }
+.notes-folder-menu {
+  position: absolute;
+  z-index: 40;
+  top: 100%;
+  right: 0;
+  width: 180px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-850);
+  padding: var(--space-1);
+  box-shadow: var(--shadow-popover);
+}
+.notes-folder-menu button {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  text-align: left;
+}
+.notes-folder-menu button:hover { background: var(--color-ink-700); color: var(--color-text); }
+.notes-folder-error { color: var(--color-bad); font-size: var(--text-xs); }
+
+.notes-tree-row, .notes-sidebar-row, .notes-group-action, .notes-group-toggle {
+  transition: background var(--duration-fast), color var(--duration-fast), opacity var(--duration-fast);
+}
+.notes-tree-actions { display: flex; opacity: 0; pointer-events: none; transition: opacity var(--duration-fast); }
+.notes-tree-row:hover .notes-tree-actions, .notes-tree-row:focus-within .notes-tree-actions,
+.notes-tree-row.is-active .notes-tree-actions { opacity: 1; pointer-events: auto; }
+.notes-palette, .notes-move-dialog, .notes-folder-menu { animation: notes-overlay-in var(--duration-base) var(--ease-standard); }
+.notes-palette-backdrop, .notes-move-backdrop { animation: notes-backdrop-in var(--duration-fast); }
+.notes-favorite svg { transition: transform var(--duration-base) var(--ease-standard), color var(--duration-fast); }
+.notes-favorite.is-active svg { animation: notes-favorite-in var(--duration-base) var(--ease-standard); }
+
+@keyframes notes-overlay-in { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes notes-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes notes-favorite-in { from { transform: scale(.75); } to { transform: scale(1); } }
+
+@media (max-width: 900px), (pointer: coarse) {
+  .notes-group-toggle { min-height: 44px; }
+  .notes-tree-actions { opacity: 1; pointer-events: auto; }
+  .note-block-handle { width: 44px; height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notes-workspace *, .notes-workspace *::before, .notes-workspace *::after,
+  .notes-palette, .notes-palette-backdrop, .notes-move-dialog, .notes-move-backdrop {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.notes-sidebar-folder-new { display: flex; width: 100%; min-height: 44px; align-items: center; gap: var(--space-2); padding: var(--space-2); color: var(--color-muted); font-size: var(--text-sm); border-radius: var(--radius-sm); }
+.notes-sidebar-folder-new:hover { background: var(--color-ink-800); color: var(--color-text); }
+.notes-sidebar-folder-new svg { width: 16px; height: 16px; }

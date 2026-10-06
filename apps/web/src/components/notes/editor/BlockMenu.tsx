@@ -5,6 +5,8 @@ import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { CopyIcon, TrashIcon } from "../../icons";
 import { useDismissible } from "../hooks/useDismissible.js";
 
+const blockPositionConfig = { placement: "left-start" as const, strategy: "absolute" as const, middleware: [] };
+
 interface BlockMenuProps {
   editor: Editor;
 }
@@ -123,17 +125,14 @@ export function BlockMenu({ editor }: BlockMenuProps) {
       <DragHandle
         editor={editor}
         className="note-block-handle-slot"
+        computePositionConfig={blockPositionConfig}
         onNodeChange={({ node, pos }) => {
           if (menuOpen) return;
           if (!node) {
             setTarget(null);
             return;
           }
-          const dom = editor.view.domAtPos(pos + 1);
-          const element =
-            dom.node.nodeType === Node.ELEMENT_NODE
-              ? (dom.node as HTMLElement)
-              : (dom.node.parentElement ?? null);
+          const element = editor.view.nodeDOM(pos) as HTMLElement | null;
           const rect = element?.getBoundingClientRect();
           if (!rect) return;
           setTarget({ node, pos, rect });

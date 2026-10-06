@@ -73,6 +73,8 @@ interface OpenDocument {
   /** Erwarteter Revisionstoken für den nächsten Schreibvorgang; `null` heißt „unbekannt". */
   revisionToken: string | null;
   saved: string;
+  conflicted: boolean;
+  pendingSaves: number;
 }
 
 export interface AutosaveController {
@@ -111,7 +113,6 @@ export function useAutosave({ file, debounceMs, onSaved }: AutosaveOptions): Aut
   const chainRef = useRef<Promise<void>>(Promise.resolve());
   // Solange ein Konflikt offen ist, wird nichts mehr von allein geschrieben: Jeder
   // weitere Versuch liefe in denselben 409, und die Entscheidung liegt beim Nutzer.
-  const conflictRef = useRef(false);
   const onSavedRef = useRef(onSaved);
   onSavedRef.current = onSaved;
 
@@ -121,8 +122,9 @@ export function useAutosave({ file, debounceMs, onSaved }: AutosaveOptions): Aut
   }, []);
 
   const performSave = useCallback(async (openDocument: OpenDocument, value: string, overwrite: boolean) => {
+    if (openDocument.conflicted && !overwrite) return;
     if (value === openDocument.saved && !overwrite) return;
-    const isCurrent = () => documentRef.current?.path === openDocument.path;
+    const isCurrent = () => documentRef.current === openDocument;
     if (isCurrent()) setState({ kind: "saving" });
     try {
       const saved = await apiClient.saveSkillEditorFile({
@@ -131,17 +133,18 @@ export function useAutosave({ file, debounceMs, onSaved }: AutosaveOptions): Aut
         expectedRevision: overwrite ? null : openDocument.revisionToken,
       });
       if (!saved) return;
-      conflictRef.current = false;
+      openDocument.conflicted = false;
+      openDocument.revisionToken = saved.revisionToken;
+      openDocument.saved = value;
       if (isCurrent()) {
-        documentRef.current = { path: saved.path, revisionToken: saved.revisionToken, saved: value };
         // Während des Speicherns kann weitergetippt worden sein.
         setState(contentRef.current === value ? { kind: "saved", at: new Date().toISOString() } : { kind: "dirty" });
       }
       onSavedRef.current?.(saved);
     } catch (error) {
+      if (error instanceof ApiClientError && error.status === 409) openDocument.conflicted = true;
       if (!isCurrent()) return;
       if (error instanceof ApiClientError && error.status === 409) {
-        conflictRef.current = true;
         const serverModifiedAt = error.details?.serverModifiedAt;
         setState({ kind: "conflict", serverModifiedAt: typeof serverModifiedAt === "string" ? serverModifiedAt : null });
         return;
@@ -154,16 +157,19 @@ export function useAutosave({ file, debounceMs, onSaved }: AutosaveOptions): Aut
   // Tastendruck den vorherigen Write und die erwartete mtime passt nicht mehr.
   const runSave = useCallback((openDocument: OpenDocument | null, value: string, overwrite = false): Promise<void> => {
     if (!openDocument) return Promise.resolve();
-    if (conflictRef.current && !overwrite) return Promise.resolve();
+    if (openDocument.conflicted && !overwrite) return Promise.resolve();
     clearTimer();
-    chainRef.current = chainRef.current.then(() => performSave(openDocument, value, overwrite)).catch(() => undefined);
+    openDocument.pendingSaves += 1;
+    chainRef.current = chainRef.current.then(() => performSave(openDocument, value, overwrite))
+      .finally(() => { openDocument.pendingSaves -= 1; })
+      .catch(() => undefined);
     return chainRef.current;
   }, [clearTimer, performSave]);
 
   // Dateiwechsel: hängige Änderungen der vorigen Datei noch wegschreiben.
   useEffect(() => {
     const previous = documentRef.current;
-    if (previous && previous.path !== file?.path && contentRef.current !== previous.saved) {
+    if (previous && previous.path !== file?.path && (contentRef.current !== previous.saved || previous.pendingSaves > 0)) {
       void runSave(previous, contentRef.current);
     }
     if (!file) {
@@ -175,8 +181,7 @@ export function useAutosave({ file, debounceMs, onSaved }: AutosaveOptions): Aut
     }
     if (previous?.path === file.path) return;
     clearTimer();
-    conflictRef.current = false;
-    documentRef.current = { path: file.path, revisionToken: file.revisionToken, saved: file.content };
+    documentRef.current = { path: file.path, revisionToken: file.revisionToken, saved: file.content, conflicted: false, pendingSaves: 0 };
     contentRef.current = file.content;
     setContentState(file.content);
     setState({ kind: "saved", at: null });
@@ -187,9 +192,9 @@ export function useAutosave({ file, debounceMs, onSaved }: AutosaveOptions): Aut
     setContentState(value);
     const openDocument = documentRef.current;
     if (!openDocument) return;
-    if (!conflictRef.current) setState(value === openDocument.saved ? { kind: "saved", at: null } : { kind: "dirty" });
+    if (!openDocument.conflicted) setState(value === openDocument.saved && openDocument.pendingSaves === 0 ? { kind: "saved", at: null } : { kind: "dirty" });
     clearTimer();
-    if (value === openDocument.saved || conflictRef.current) return;
+    if ((value === openDocument.saved && openDocument.pendingSaves === 0) || openDocument.conflicted) return;
     timerRef.current = window.setTimeout(() => void runSave(documentRef.current, contentRef.current), debounceMs);
   }, [clearTimer, debounceMs, runSave]);
 
@@ -200,14 +205,15 @@ export function useAutosave({ file, debounceMs, onSaved }: AutosaveOptions): Aut
   useEffect(() => {
     const saveOnUnload = () => {
       const openDocument = documentRef.current;
-      if (!openDocument || conflictRef.current || contentRef.current === openDocument.saved) return;
+      if (!openDocument || openDocument.conflicted || contentRef.current === openDocument.saved) return;
       clearTimer();
       apiClient.saveSkillEditorFileOnUnload({ path: openDocument.path, content: contentRef.current, expectedRevision: openDocument.revisionToken });
       // Die Antwort dieses Aufrufs liest niemand mehr: der neue Revisionstoken
       // bleibt unbekannt. Da wir selbst zuletzt geschrieben haben, schreibt der
       // nächste Vorgang ohne Erwartungswert — sonst meldete er einen Konflikt
       // mit uns selbst.
-      documentRef.current = { path: openDocument.path, revisionToken: null, saved: contentRef.current };
+      openDocument.revisionToken = null;
+      openDocument.saved = contentRef.current;
     };
     const onVisibilityChange = () => { if (document.visibilityState === "hidden") saveOnUnload(); };
     document.addEventListener("visibilitychange", onVisibilityChange);
@@ -224,17 +230,17 @@ export function useAutosave({ file, debounceMs, onSaved }: AutosaveOptions): Aut
   useEffect(() => () => {
     const openDocument = documentRef.current;
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
-    if (openDocument && !conflictRef.current && contentRef.current !== openDocument.saved) {
-      void apiClient.saveSkillEditorFile({ path: openDocument.path, content: contentRef.current, expectedRevision: openDocument.revisionToken }).catch(() => undefined);
+    if (openDocument && !openDocument.conflicted && (contentRef.current !== openDocument.saved || openDocument.pendingSaves > 0)) {
+      void runSave(openDocument, contentRef.current);
     }
-  }, []);
+  }, [runSave]);
 
   const reload = useCallback(async () => {
     const openDocument = documentRef.current;
     if (!openDocument) return;
     const fresh = await apiClient.skillEditorRead(openDocument.path);
-    conflictRef.current = false;
-    documentRef.current = { path: fresh.path, revisionToken: fresh.revisionToken, saved: fresh.content };
+    if (documentRef.current !== openDocument) return;
+    documentRef.current = { path: fresh.path, revisionToken: fresh.revisionToken, saved: fresh.content, conflicted: false, pendingSaves: 0 };
     contentRef.current = fresh.content;
     setContentState(fresh.content);
     setState({ kind: "saved", at: null });

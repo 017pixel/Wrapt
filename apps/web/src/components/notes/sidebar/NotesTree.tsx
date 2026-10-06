@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import type { NoteSummary, UpdateNoteRequest } from "@wrapt/contracts";
+import { useNotesDrag } from "./NotesDragContext.js";
 import { useNotesPreferences } from "../../../stores/notesPreferences.js";
 import { NotesTreeItem, type NotesTreeActions } from "./NotesTreeItem.js";
 import { buildSidebarTree, type SidebarTreeNode } from "./sidebarTree.js";
@@ -8,6 +9,7 @@ import { resolveNotesDrop, type NotesDropResult, type NotesDropZone } from "./tr
 
 interface NotesTreeProps {
   notes: readonly NoteSummary[];
+  allNotes?: readonly NoteSummary[];
   activeId: string | null;
   onSelect: (id: string) => void;
   onCreateSubpage: (parentId: string) => void;
@@ -21,6 +23,7 @@ interface NotesTreeProps {
 /** Seitenbaum mit Auf-/Einklappen, Umbenennen, Kontextmenü und Ziehen. */
 export function NotesTree({
   notes,
+  allNotes = notes,
   activeId,
   onSelect,
   onCreateSubpage,
@@ -35,7 +38,9 @@ export function NotesTree({
   const expandNotes = useNotesPreferences((state) => state.expandNotes);
 
   const [renamingId, setRenamingId] = useState<string | null>(null);
-  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const drag = useNotesDrag();
+  const [localDraggingId, setDraggingId] = useState<string | null>(null);
+  const draggingId = drag.noteId ?? localDraggingId;
   const [dropTarget, setDropTarget] = useState<{ noteId: string; zone: NotesDropZone } | null>(null);
   const expandTimerRef = useRef<number | null>(null);
 
@@ -79,6 +84,8 @@ export function NotesTree({
     }
   }, []);
 
+  useEffect(() => clearExpandTimer, [clearExpandTimer]);
+
   const zoneFor = useCallback(
     (event: DragEvent<HTMLDivElement>, noteId: string): NotesDropZone | null => {
       if (draggingId === null) return null;
@@ -86,9 +93,9 @@ export function NotesTree({
       const ratio = (event.clientY - rect.top) / rect.height;
       // Mittlerer Streifen verschachtelt, oben/unten ordnet als Geschwister ein.
       const zone: NotesDropZone = ratio > 0.25 && ratio < 0.75 ? "inside" : ratio < 0.5 ? "before" : "after";
-      return resolveNotesDrop(notes, draggingId, noteId, zone) === null ? null : zone;
+      return resolveNotesDrop(allNotes, draggingId, noteId, zone) === null ? null : zone;
     },
-    [draggingId, notes],
+    [draggingId, allNotes],
   );
 
   const handleDragOverRow = useCallback(
@@ -117,16 +124,17 @@ export function NotesTree({
   const handleDropRow = useCallback(
     (event: DragEvent<HTMLDivElement>, noteId: string) => {
       event.preventDefault();
+      event.stopPropagation();
       const zone = zoneFor(event, noteId);
       const dragId = draggingId;
       clearExpandTimer();
       setDropTarget(null);
       setDraggingId(null);
       if (dragId === null || zone === null) return;
-      const result = resolveNotesDrop(notes, dragId, noteId, zone);
+      const result = resolveNotesDrop(allNotes, dragId, noteId, zone);
       if (result !== null) onMove(dragId, result);
     },
-    [clearExpandTimer, draggingId, notes, onMove, zoneFor],
+    [clearExpandTimer, draggingId, allNotes, onMove, zoneFor],
   );
 
   const actions: NotesTreeActions = useMemo(
@@ -141,16 +149,17 @@ export function NotesTree({
       },
       onCancelRename: () => setRenamingId(null),
       onOpenMenu,
-      onDragStart: (noteId) => setDraggingId(noteId),
+      onDragStart: (noteId) => { setDraggingId(noteId); drag.setNoteId(noteId); },
       onDragEnd: () => {
         clearExpandTimer();
         setDraggingId(null);
+        drag.setNoteId(null);
         setDropTarget(null);
       },
       onDragOverRow: handleDragOverRow,
       onDropRow: handleDropRow,
     }),
-    [clearExpandTimer, handleDragOverRow, handleDropRow, onOpenMenu, onPatch, onCreateSubpage, onSelect, toggleExpanded],
+    [drag, clearExpandTimer, handleDragOverRow, handleDropRow, onOpenMenu, onPatch, onCreateSubpage, onSelect, toggleExpanded],
   );
 
   const renderNode = (node: SidebarTreeNode, depth: number) => {
@@ -168,10 +177,10 @@ export function NotesTree({
         dropZone={dropTarget?.noteId === node.note.id ? dropTarget.zone : null}
         actions={actions}
       >
-        {node.children.length > 0 && isExpanded ? (
-          <div className="notes-tree-children">
+        {node.children.length > 0 ? (
+          <div className="notes-group-content" data-collapsed={!isExpanded} inert={!isExpanded ? true : undefined} aria-hidden={!isExpanded || undefined}><div className="notes-tree-children">
             {node.children.map((child) => renderNode(child, depth + 1))}
-          </div>
+          </div></div>
         ) : null}
       </NotesTreeItem>
     );
