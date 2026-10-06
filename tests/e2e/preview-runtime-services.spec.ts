@@ -87,6 +87,31 @@ setInterval(() => {}, 1_000);
         await expect(page.locator(".preview-hub-command .preview-hub-state.is-running")).toHaveAccessibleName("Läuft");
         await expect(page.locator(".preview-hub-service .preview-hub-state.is-running")).toHaveCount(0);
       });
+
+      await test.step("Tab-X wartet auf eine verzögerte Veröffentlichung und erhält die laufenden Dienste", async () => {
+        const status = await (await request.get(`/api/v1/previews/dev-servers/${encodeURIComponent(projectId)}`, { headers: previewIdentity })).json();
+        const port = status.mainPort;
+        let release!: () => void;
+        let markStarted!: () => void;
+        const gate = new Promise<void>((done) => { release = done; });
+        const started = new Promise<void>((done) => { markStarted = done; });
+        await page.route(`**/api/v1/previews/dev-servers/${projectId}/launch`, async (route) => { markStarted(); await gate; await route.continue(); });
+        await page.evaluate(() => Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText: async () => undefined } }));
+        await page.getByRole("button", { name: "Preview-URL kopieren", exact: true }).click();
+        await started;
+        await page.getByRole("button", { name: `${project.name} schließen, Laufzeit bleibt aktiv`, exact: true }).click();
+        await expect(page.getByRole("tab", { name: project.name, exact: true })).toHaveCount(1);
+        release();
+        await expect(page.getByRole("tab", { name: project.name, exact: true })).toHaveCount(0);
+        await expect.poll(async () => {
+          const current = await (await request.get("/api/v1/previews/slots", { headers: previewIdentity })).json();
+          return current.slots.filter((slot: { targetPort: number | null }) => slot.targetPort === port).length;
+        }).toBe(0);
+        const runtime = await (await request.get(`/api/v1/previews/dev-servers/${encodeURIComponent(projectId)}`, { headers: previewIdentity })).json();
+        expect(runtime.publicUrl).toBeNull();
+        expect(runtime.services.every((service: { state: string }) => service.state === "running")).toBe(true);
+        expect((await request.get(`http://127.0.0.1:${port}/`)).ok()).toBe(true);
+      });
     } finally {
       await request.post(`/api/v1/previews/dev-servers/${encodeURIComponent(projectId)}/stop`, { headers: previewIdentity }).catch(() => {});
       await request.delete(`/api/v1/previews/sessions/by-key/preview-runtime:${encodeURIComponent(projectId)}`, { headers: previewIdentity }).catch(() => {});

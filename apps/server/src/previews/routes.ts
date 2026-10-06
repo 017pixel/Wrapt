@@ -47,7 +47,7 @@ import type { PreviewSecrets } from "./keys.js";
 import type { PreviewRepairService } from "./repair.js";
 import type { PreviewSlotService } from "./slots.js";
 import type { PreviewStorageService } from "./storage.js";
-
+import { closePreviewById, closePreviewByKey } from "./sessionLifecycle.js";
 export interface PreviewRouteOptions {
   slots: PreviewSlotService;
   database: PreviewSlotDatabase;
@@ -63,7 +63,7 @@ export interface PreviewRouteOptions {
   devServers: PreviewDevServerManager;
 }
 
-const slotParamsSchema = z.object({ slotId: z.coerce.number().int().min(1).max(32) });
+const slotParamsSchema = z.object({ slotId: z.coerce.number().int().min(1).max(128) });
 const sessionParamsSchema = z.object({ sessionId: z.string().uuid() });
 const storageParamsSchema = z.object({ storageProfileId: z.string().uuid() });
 const graphParamsSchema = z.object({
@@ -198,14 +198,14 @@ export async function registerPreviewRoutes(app: FastifyInstance, options: Previ
   app.delete("/previews/sessions/:sessionId", async (request, reply) => {
     const userId = mutating(request);
     const { sessionId } = sessionParamsSchema.parse(request.params);
-    options.slots.closeSessionById(userId, sessionId);
+    await closePreviewById(options.slots, options.devServers, userId, sessionId);
     return reply.status(204).send();
   });
   // Bestandspfad für Clients, die nur ihren Sessionschlüssel kennen.
   app.delete("/previews/sessions/by-key/:sessionKey", async (request, reply) => {
     const userId = mutating(request);
     const { sessionKey } = z.object({ sessionKey: z.string().min(1).max(160) }).parse(request.params);
-    options.slots.closeSession(userId, sessionKey);
+    await closePreviewByKey(options.slots, options.devServers, userId, sessionKey);
     return reply.status(204).send();
   });
 

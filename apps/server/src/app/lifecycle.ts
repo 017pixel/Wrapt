@@ -57,6 +57,7 @@ export function registerShutdown(app: FastifyInstance, deps: AppDependencies, st
     await deps.notificationPush.close();
     deps.notificationDatabase.close();
     deps.orbitDatabase.close();
+    deps.notesDatabase.close();
     deps.orbitAssets.close();
     deps.fileGallery.close();
     deps.fileManager.close();

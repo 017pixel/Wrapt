@@ -225,6 +225,60 @@ function laterDate(left: string | null, right: string | null): string | null {
   return Date.parse(left) >= Date.parse(right) ? left : right;
 }
 
+export interface WorkspaceSwitchLocation {
+  pathname: string;
+  search: string;
+  hash: string;
+}
+
+function safeSwitchPath(pathname: string): string {
+  if (typeof pathname !== "string" || pathname.length > 2048) return "/";
+  if (pathname === "/wrapt" || pathname === "/wrapt/") return "/";
+  if (pathname.startsWith("/wrapt/")) {
+    const rest = pathname.slice("/wrapt".length);
+    const relative = rest.startsWith("/") ? rest : `/${rest}`;
+    if (relative.includes("?") || relative.includes("#") || relative.includes("\\")) return "/";
+    if (relative.split("/").includes("..")) return "/";
+    return relative.length > 2048 ? "/" : relative;
+  }
+  if (!pathname.startsWith("/") || pathname.includes("?") || pathname.includes("#") || pathname.includes("\\")) return "/";
+  if (pathname.split("/").includes("..")) return "/";
+  return pathname;
+}
+
+function safeSwitchSearch(search: string): string {
+  if (typeof search !== "string" || search === "") return "";
+  if (!search.startsWith("?") || search.includes("#") || search.length > 4096) return "";
+  return search;
+}
+
+function switchHashRest(hash: string): string {
+  if (typeof hash !== "string" || hash === "" || hash === "#") return "";
+  const raw = hash.startsWith("#") ? hash.slice(1) : hash;
+  if (raw.length > 4096) return "";
+  const rest = raw
+    .split("&")
+    .filter((part) => part !== "" && part !== WORKSPACES_FRAGMENT_KEY && !part.startsWith(`${WORKSPACES_FRAGMENT_KEY}=`))
+    .join("&");
+  return rest.length > 2048 ? "" : rest;
+}
+
+export function buildWorkspaceSwitchHref(
+  targetUrl: string,
+  entries: readonly WorkspaceEntry[],
+  location: WorkspaceSwitchLocation,
+): string | null {
+  const normalized = normalizeWorkspaceUrl(targetUrl);
+  if (!normalized) return null;
+  const relative = safeSwitchPath(location.pathname);
+  const search = safeSwitchSearch(location.search);
+  const rest = switchHashRest(location.hash);
+  const fragment = encodeWorkspaceFragment(entries);
+  const combinedHash = rest === "" ? fragment : `#${rest}&${fragment.slice(1)}`;
+  if (relative === "/") return `${normalized}/wrapt/${search}${combinedHash}`;
+  return `${normalized}/wrapt${relative}${search}${combinedHash}`;
+}
+
 export function encodeWorkspaceFragment(entries: readonly WorkspaceEntry[]): string {
   const shared: SharedWorkspaceEntry[] = uniqueWorkspaceEntries(entries.map((entry) => parseWorkspaceEntry(entry)).filter(isWorkspaceEntry))
     .map(({ id, name, customName, url, addedAt, lastUsedAt }) => ({

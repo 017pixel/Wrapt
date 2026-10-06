@@ -50,6 +50,7 @@
 .sidebar-footer {
   max-height: 25%;
   flex: none;
+  overflow-x: hidden;
   overflow-y: auto;
   border-top: 1px solid var(--color-line);
   padding: 2px 0 8px;

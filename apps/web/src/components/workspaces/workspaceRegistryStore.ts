@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import {
+  buildWorkspaceSwitchHref,
   createWorkspaceEntry,
   createWorkspaceId,
   ensureSelfWorkspace,
@@ -13,6 +14,7 @@ import {
   WORKSPACES_STORAGE_KEY,
   type SharedWorkspaceEntry,
   type WorkspaceEntry,
+  type WorkspaceSwitchLocation,
 } from "./workspaceModel";
 import {
   WORKSPACES_SYNC_KEY,
@@ -39,7 +41,7 @@ interface WorkspaceRegistryState {
   remove(id: string): void;
   markUsed(id: string): void;
   mergeStored(snapshot: WorkspaceSnapshot): void;
-  beginSwitch(id: string): void;
+  beginSwitch(id: string, current?: WorkspaceSwitchLocation): void;
 }
 
 function browserStorage(): Storage | null {
@@ -230,12 +232,25 @@ export const useWorkspaceRegistry = create<WorkspaceRegistryState>((set, get) =>
     persistEntries(merged);
     set(merged);
   },
-  beginSwitch(id) {
+  beginSwitch(id, current) {
     const { entries, selfUrl } = get();
     const target = entries.find((entry) => entry.id === id);
     if (!target || target.url === selfUrl) return;
     get().markUsed(id);
     const latestEntries = get().entries;
-    set({ switchingWorkspace: { name: target.name, href: `${target.url}/wrapt/${encodeWorkspaceFragment(latestEntries)}` } });
+    let href: string;
+    try {
+      const fallback = `${target.url}/wrapt/${encodeWorkspaceFragment(latestEntries)}`;
+      href = fallback;
+      const location = current ?? (typeof window === "undefined"
+        ? null
+        : { pathname: window.location.pathname, search: window.location.search, hash: window.location.hash });
+      if (location) {
+        href = buildWorkspaceSwitchHref(target.url, latestEntries, location) ?? fallback;
+      }
+    } catch {
+      href = `${target.url}/wrapt/`;
+    }
+    set({ switchingWorkspace: { name: target.name, href } });
   },
 }));

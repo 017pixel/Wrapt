@@ -27,6 +27,7 @@ import {
   type RoutingSnapshot,
 } from "./routing.js";
 import { PreviewResetService, mayReuseSlot, storageOwnerKey } from "./reset.js";
+import { expirePreviewSessions, renewOwnedPreviewLease } from "./sessionLifecycle.js";
 
 export { PreviewSlotDatabase } from "./database.js";
 export type { PreviewSlotDefinition } from "./routing.js";
@@ -356,7 +357,7 @@ export class PreviewSlotService {
         const exhausted = error instanceof AppError && error.code === "PREVIEW_SLOTS_EXHAUSTED";
         if (attempt === 0 && exhausted) {
           this.database.transaction(() => {
-            this.releaseUnusedSlots(this.database.deleteExpiredSessions(new Date().toISOString()));
+            expirePreviewSessions(this.database, (slots) => this.releaseUnusedSlots(slots));
           });
           this.publish();
           continue;
@@ -534,13 +535,8 @@ export class PreviewSlotService {
   }
 
   renewLease(userId: string, sessionId: string): PreviewSessionResponse {
-    const session = this.database.sessionById(sessionId);
-    if (!session || session.userId !== userId) {
-      throw new AppError(404, "PREVIEW_SESSION_NOT_FOUND", "Diese Preview-Session gehört nicht zu deinem Benutzer.");
-    }
-    const leaseExpiresAt = new Date(Date.now() + leaseMilliseconds).toISOString();
-    this.database.renewLease(sessionId, leaseExpiresAt);
-    return this.sessionResponse({ ...session, leaseExpiresAt }, this.database.bindings(sessionId));
+    const session = renewOwnedPreviewLease(this.database, userId, sessionId, leaseMilliseconds);
+    return this.sessionResponse(session, this.database.bindings(sessionId));
   }
 
   closeSessionById(userId: string, sessionId: string): void {
@@ -583,7 +579,7 @@ export class PreviewSlotService {
 
   beginReclaim(): { slotId: number; nonce: string; affinity: ReturnType<PreviewResetService["affinity"]> } {
     const result = this.database.transaction(() => {
-      this.releaseUnusedSlots(this.database.deleteExpiredSessions(new Date().toISOString()));
+      expirePreviewSessions(this.database, (slots) => this.releaseUnusedSlots(slots));
       const persisted = new Map(this.database.list().map((slot) => [slot.slotId, slot]));
       const candidates = this.definitions.flatMap((definition) => {
         const affinity = this.reset.affinity(definition.id);

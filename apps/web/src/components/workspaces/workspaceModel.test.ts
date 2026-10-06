@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildWorkspaceSwitchHref,
   createWorkspaceEntry,
   decodeWorkspaceFragment,
   encodeWorkspaceFragment,
@@ -150,5 +151,38 @@ describe("Workspace-Modell", () => {
   it("lehnt einen unvollständigen neuen Eintrag ab", () => {
     expect(createWorkspaceEntry("id", "  ", "https://wrapt.example.ts.net")).toBeNull();
     expect(createWorkspaceEntry("bad id", "Wrapt", "https://wrapt.example.ts.net")).toBeNull();
+  });
+
+  it("behält die aktuelle Seite beim Workspace-Wechsel", () => {
+    const entries = [entry("self-id", "Main", "https://main.example.ts.net"), entry("second-id", "Zweitserver", "https://second.example.ts.net")];
+    const href = buildWorkspaceSwitchHref("https://second.example.ts.net", entries, { pathname: "/wrapt/notizen", search: "", hash: "" });
+    expect(href).not.toBeNull();
+    expect(href?.startsWith("https://second.example.ts.net/wrapt/notizen")).toBe(true);
+    expect(href).toContain("wraptWorkspaces=");
+    expect(decodeWorkspaceFragment(new URL(href ?? "").hash)).toHaveLength(2);
+  });
+
+  it("behält Query und Anker beim Wechsel und verdoppelt das Workspace-Fragment nicht", () => {
+    const entries = [entry("second-id", "Zweitserver", "https://second.example.ts.net")];
+    const href = buildWorkspaceSwitchHref(
+      "https://second.example.ts.net",
+      entries,
+      { pathname: "/wrapt/hermes-agent", search: "?path=%2Fchat", hash: "#knoten&wraptWorkspaces=alt" },
+    );
+    expect(href?.startsWith("https://second.example.ts.net/wrapt/hermes-agent?path=%2Fchat#knoten&wraptWorkspaces=")).toBe(true);
+    expect((href?.match(/wraptWorkspaces=/g) ?? []).length).toBe(1);
+  });
+
+  it("fällt für Dashboard und unsichere Pfade auf den Root zurück", () => {
+    const entries = [entry("second-id", "Zweitserver", "https://second.example.ts.net")];
+    expect(buildWorkspaceSwitchHref("https://second.example.ts.net", entries, { pathname: "/wrapt/", search: "", hash: "" }))
+      ?.toBe(`https://second.example.ts.net/wrapt/${encodeWorkspaceFragment(entries)}`);
+    expect(buildWorkspaceSwitchHref("https://second.example.ts.net", entries, { pathname: "/wrapt", search: "", hash: "" }))
+      ?.toBe(`https://second.example.ts.net/wrapt/${encodeWorkspaceFragment(entries)}`);
+    expect(buildWorkspaceSwitchHref("https://second.example.ts.net", entries, { pathname: "/wrapt/../etc", search: "", hash: "" }))
+      ?.toBe(`https://second.example.ts.net/wrapt/${encodeWorkspaceFragment(entries)}`);
+    expect(buildWorkspaceSwitchHref("https://second.example.ts.net", entries, { pathname: "javascript:alert(1)", search: "", hash: "" }))
+      ?.toBe(`https://second.example.ts.net/wrapt/${encodeWorkspaceFragment(entries)}`);
+    expect(buildWorkspaceSwitchHref("kein-url", entries, { pathname: "/wrapt/notizen", search: "", hash: "" })).toBeNull();
   });
 });

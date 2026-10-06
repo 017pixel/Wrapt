@@ -54,6 +54,7 @@ export function PreviewHub() {
   const [confirmStopAll, setConfirmStopAll] = useState(false);
   const [renameTarget, setRenameTarget] = useState<Project | null>(null);
   const initialized = useRef(false);
+  const closingProjectId = useRef<string | null>(null);
   const synchronizedProjectId = useRef<string | null>(selectedProjectId);
   const projectsQuery = useQuery({ ...wraptQueries.projects(), enabled: routeActive });
   const orbitQuery = useQuery({ ...wraptQueries.orbit(), enabled: routeActive });
@@ -92,6 +93,7 @@ export function PreviewHub() {
   }, [setSearchParams]);
 
   const chooseProject = (projectId: string) => {
+    closingProjectId.current = null;
     synchronizedProjectId.current = projectId;
     openProject(projectId);
     activateProject(projectId);
@@ -101,7 +103,11 @@ export function PreviewHub() {
     setProjectSearch("");
   };
 
-  const closeProjectTab = (projectId: string) => {
+  const closeProjectTab = async (projectId: string) => {
+    try { await apiClient.closePreviewSessionByKey(`preview-runtime:${projectId}`); }
+    catch { setBulkMessage("Der Preview-Tab konnte nicht freigegeben werden. Bitte erneut versuchen."); return; }
+    void queryClient.invalidateQueries({ queryKey: ["preview-slots"] });
+    closingProjectId.current = projectId;
     const wasActive = usePreviewHubStore.getState().activeProjectId === projectId;
     closeProject(projectId);
     if (!wasActive) return;
@@ -138,7 +144,7 @@ export function PreviewHub() {
   useEffect(() => {
     if (!routeActive || !initialized.current || selectedProjectId === synchronizedProjectId.current) return;
     synchronizedProjectId.current = selectedProjectId;
-    if (!selectedProjectId || selectedProjectId === activeProjectId) return;
+    if (!selectedProjectId || selectedProjectId === activeProjectId || selectedProjectId === closingProjectId.current) return;
     if (!projects.some((project) => project.id === selectedProjectId)) return;
     openProject(selectedProjectId);
     setProjectParam(selectedProjectId);
@@ -147,6 +153,8 @@ export function PreviewHub() {
   useEffect(() => {
     if (!routeActive || !initialized.current) return;
     const requested = searchParams.get("project");
+    if (requested === closingProjectId.current) return;
+    closingProjectId.current = null;
     if (!requested || requested === activeProjectId || !projects.some((project) => project.id === requested)) return;
     synchronizedProjectId.current = requested;
     openProject(requested);
@@ -233,7 +241,7 @@ export function PreviewHub() {
                     requestedSlotId: matchingNode?.node.previewSlotId ?? null,
                   });
                 } },
-                { id: hostContextMenuId("preview.close"), icon: <CloseIcon />, danger: true, onSelect: () => closeProjectTab(project.id) },
+                { id: hostContextMenuId("preview.close"), icon: <CloseIcon />, danger: true, onSelect: () => void closeProjectTab(project.id) },
               ],
             })}>
               <button type="button" role="tab" aria-selected={project.id === activeProjectId} onClick={() => chooseProject(project.id)}>
@@ -241,7 +249,7 @@ export function PreviewHub() {
                 <span>{project.name}</span>
                 {status?.services.filter((service) => service.state === "failed").length ? <small>{status.services.filter((service) => service.state === "failed").length}</small> : null}
               </button>
-              <button type="button" className="preview-hub-tab-close" aria-label={`${project.name} schließen, Laufzeit bleibt aktiv`} title="Tab schließen, Laufzeit bleibt aktiv" onClick={() => closeProjectTab(project.id)}><CloseIcon /></button>
+              <button type="button" className="preview-hub-tab-close" aria-label={`${project.name} schließen, Laufzeit bleibt aktiv`} title="Tab schließen, Laufzeit bleibt aktiv" onClick={() => void closeProjectTab(project.id)}><CloseIcon /></button>
             </div>;
           })}
           <button type="button" className="preview-hub-add-tab" aria-label="Preview-Projekt hinzufügen" onClick={() => setProjectManagerOpen(true)}><PlusIcon /><span>Projekt</span></button>

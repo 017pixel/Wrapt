@@ -96,6 +96,16 @@ describe("Workspace-Registry-Store", () => {
     });
   });
 
+  it("behält die aktuelle Seite beim Öffnen eines anderen Workspace", () => {
+    useWorkspaceRegistry.getState().initialize("https://main.example.ts.net", "Main");
+    const second = useWorkspaceRegistry.getState().add("Zweitserver", "https://second.example.ts.net");
+    if (!second) throw new Error("Zweitserver fehlt");
+    useWorkspaceRegistry.getState().beginSwitch(second.id, { pathname: "/wrapt/notizen", search: "", hash: "" });
+    const switching = useWorkspaceRegistry.getState().switchingWorkspace;
+    expect(switching?.href.startsWith("https://second.example.ts.net/wrapt/notizen")).toBe(true);
+    expect(switching?.href).toContain("wraptWorkspaces=");
+  });
+
   it("behält Fremdeinträge und beide Loopback-Aliase in beiden Wechselrichtungen", () => {
     const registry = useWorkspaceRegistry.getState();
     registry.initialize(loopbackA, "Gerät A");

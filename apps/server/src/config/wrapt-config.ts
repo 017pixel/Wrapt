@@ -150,12 +150,12 @@ export const wraptConfigSchema = z.object({
     // Ausschließlich diese Ports dürfen Projektlaufzeiten für HTTP-, WebSocket-,
     // Frontend- und Backend-Dienste verwenden. Die Reihenfolge ist zugleich die
     // automatische Vergabepriorität.
-    allowedProjectPorts: z.array(z.number().int().min(1_024).max(65_535)).min(1).max(32)
-      .default([1234, 1223, 8000, 8080, 8888, 4444, 1233, 6000, 6060, 4040]),
-    slotPorts: z.array(z.number().int().min(1).max(65_535)).min(1).max(32)
-      .default([3901, 3902, 3903, 3904, 3905, 3906, 3907, 3908, 3909, 3910, 3911, 3912]),
-    publicPorts: z.array(z.number().int().min(1).max(65_535)).min(1).max(32)
-      .default([8451, 8452, 8453, 8454, 8455, 8456, 8457, 8458, 8459, 8460, 8461, 8462]),
+    allowedProjectPorts: z.array(z.number().int().min(1_024).max(65_535)).min(1).max(128)
+      .default([1234, 1223, 8000, 8080, 8888, 4444, 1233, 6000, 6060, 4040, ...Array.from({ length: 40 }, (_, index) => 16000 + index)]),
+    slotPorts: z.array(z.number().int().min(1).max(65_535)).min(1).max(128)
+      .default(Array.from({ length: 60 }, (_, index) => 3901 + index)),
+    publicPorts: z.array(z.number().int().min(1).max(65_535)).min(1).max(128)
+      .default([...Array.from({ length: 12 }, (_, index) => 8451 + index), ...Array.from({ length: 48 }, (_, index) => 8511 + index)]),
     // Feature-Flags der Preview-Überarbeitung. Jede Teilfunktion lässt sich einzeln
     // zurückrollen, ohne Daten zu verlieren (siehe plans/02, Abschnitt 17/18).
     gatewayV2Enabled: z.boolean().default(false),

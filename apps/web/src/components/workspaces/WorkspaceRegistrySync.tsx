@@ -21,7 +21,13 @@ export function WorkspaceRegistrySync() {
     const decoded = decodeWorkspaceFragment(fragment);
     const incoming = decoded.some((entry) => entry.url === window.location.origin) ? decoded : undefined;
     if (params.has(WORKSPACES_FRAGMENT_KEY)) {
-      window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
+      const rest = fragment
+        .replace(/^#/, "")
+        .split("&")
+        .filter((part) => part !== "" && part !== WORKSPACES_FRAGMENT_KEY && !part.startsWith(`${WORKSPACES_FRAGMENT_KEY}=`))
+        .join("&");
+      const suffix = rest === "" ? "" : `#${rest}`;
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}${suffix}`);
     }
     initialize(window.location.origin, "Dieses Gerät", incoming);
   }, [initialize]);

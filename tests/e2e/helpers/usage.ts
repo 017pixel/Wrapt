@@ -2,6 +2,7 @@ import type { Page } from "@playwright/test";
 import {
   codexResetHistoryResponseSchema,
   usageDashboardResponseSchema,
+  usageResponseSchema,
   usageSyncStatusSchema,
   usageTimelineLaneSchema,
   usageTimelineResponseSchema,
@@ -33,8 +34,63 @@ const timeline = usageTimelineResponseSchema.parse({
   lastSuccessfulFetchAt: fetchedAt,
 });
 
+/**
+ * Live-Antwort der Statusleiste. Sie war früher leer, wodurch der Limits-Chip in
+ * den E2E-Tests blind blieb. Die Werte bilden die echte CodexBar-Antwort ab:
+ * zwei Accounts, einmal mit 5-Stunden- und Wochenlimit samt Guthaben, einmal nur
+ * mit dem Wochenlimit — plus die beiden eingeschränkten Providerzustände.
+ */
+const live = usageResponseSchema.parse({
+  providers: [
+    {
+      providerId: "codex", providerName: "Codex", status: "available", updatedAt: fetchedAt, error: null,
+      accounts: [
+        {
+          id: "codex-1", label: "Account", email: "beckerbenjamin2010@gmail.com", plan: "plus",
+          windows: [
+            { id: "primary", label: "5-Stunden-Limit", usedPercent: 89, remainingPercent: 11, windowMinutes: 300, resetsAt: "2030-10-05T16:14:00Z" },
+            { id: "secondary", label: "Wochenlimit", usedPercent: 49, remainingPercent: 51, windowMinutes: 10_080, resetsAt: "2030-10-11T17:38:01Z" },
+          ],
+          resetCredits: [
+            { id: "credit-1", title: "Full reset", description: "", status: "available", grantedAt: "2026-09-22T18:45:39Z", expiresAt: "2030-11-22T18:45:39Z" },
+            { id: "credit-2", title: "Full reset", description: "", status: "available", grantedAt: "2026-09-29T19:30:34Z", expiresAt: "2030-11-29T19:30:34Z" },
+          ],
+        },
+        {
+          id: "codex-2", label: "Account 2", email: "b.becker@aisci.de", plan: "plus",
+          windows: [
+            { id: "secondary", label: "Wochenlimit", usedPercent: 42, remainingPercent: 58, windowMinutes: 10_080, resetsAt: "2030-10-11T19:09:15Z" },
+          ],
+          resetCredits: [],
+        },
+      ],
+    },
+    {
+      providerId: "opencode", providerName: "OpenCode Go", status: "partial", updatedAt: fetchedAt,
+      error: { code: "PARTIAL_DATA", message: "Ein Teil der Nutzungsdaten ist nicht verfügbar." },
+      accounts: [
+        {
+          id: "opencode-1", label: "Account", email: null, plan: null,
+          windows: [
+            { id: "primary", label: "Monatslimit", usedPercent: 48, remainingPercent: 52, windowMinutes: 43_200, resetsAt: "2030-11-23T00:00:00Z" },
+          ],
+          resetCredits: [],
+        },
+      ],
+    },
+    {
+      providerId: "claude", providerName: "Claude Code", status: "disabled", updatedAt: null,
+      error: { code: "MONITORING_DISABLED", message: "Die Limitüberwachung ist in den Einstellungen deaktiviert." },
+      accounts: [],
+    },
+  ],
+  fetchedAt,
+  lastSuccessfulFetchAt: fetchedAt,
+  cached: true,
+});
+
 const dashboard = usageDashboardResponseSchema.parse({
-  live: { providers: [], fetchedAt, lastSuccessfulFetchAt: fetchedAt, cached: true },
+  live,
   range: "30d", daily: [], projects: [], projectRange: "all", models: [], forecasts: [], resetCredits: {},
   totals: { totalTokens: 0, totalCost: 0, todayTokens: 0, projected30DayTokens: 0, projected30DayCost: 0 },
   historyStartedAt: null,
@@ -53,7 +109,8 @@ export async function mockUsageData(page: Page): Promise<void> {
     const path = new URL(route.request().url()).pathname;
     const response = path.endsWith("/timeline") ? timeline
       : path.endsWith("/sync/status") ? syncStatus
-        : path.endsWith("/usage") ? dashboard.live : dashboard;
+        : path.endsWith("/usage") ? live
+          : dashboard;
     await route.fulfill({ json: response });
   });
   await page.route("**/api/v1/system/codex-reset-history", (route) => route.fulfill({ json: resetHistory }));

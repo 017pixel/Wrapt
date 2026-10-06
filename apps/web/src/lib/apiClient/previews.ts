@@ -29,6 +29,7 @@ import {
   type PreviewSlotResetReport,
 } from "@wrapt/contracts";
 import { mutate, request } from "./transport.js";
+import { queuePreviewSessionRequest } from "./previewSessionRequests.js";
 
 export const previewsApi = {
   previewSlots: (signal?: AbortSignal) => request("/previews/slots", previewSlotsResponseSchema, signal),
@@ -36,10 +37,10 @@ export const previewsApi = {
   previewDependencies: (projectId: string, primaryPort: number, signal?: AbortSignal) =>
     request(`/previews/dependencies?projectId=${encodeURIComponent(projectId)}&primaryPort=${primaryPort}`, previewDependenciesResponseSchema, signal),
   savePreviewDependencies: (body: PreviewDependenciesResponse) => mutate("/previews/dependencies", "PUT", previewDependenciesResponseSchema, body),
-  openPreviewSession: (body: PreviewSessionRequest) => mutate("/previews/sessions", "POST", previewSessionResponseSchema, body),
+  openPreviewSession: (body: PreviewSessionRequest) => queuePreviewSessionRequest(body.sessionKey, () => mutate("/previews/sessions", "POST", previewSessionResponseSchema, body)),
   renewPreviewSession: (sessionId: string) => mutate(`/previews/sessions/${encodeURIComponent(sessionId)}/lease`, "PUT", previewSessionResponseSchema),
   closePreviewSession: (sessionId: string) => mutate(`/previews/sessions/${encodeURIComponent(sessionId)}`, "DELETE", null),
-  closePreviewSessionByKey: (sessionKey: string) => mutate(`/previews/sessions/by-key/${encodeURIComponent(sessionKey)}`, "DELETE", null),
+  closePreviewSessionByKey: (sessionKey: string) => queuePreviewSessionRequest(sessionKey, () => mutate(`/previews/sessions/by-key/${encodeURIComponent(sessionKey)}`, "DELETE", null)),
   previewDevicePreference: (signal?: AbortSignal) => request("/previews/device-preference", previewDevicePreferenceSchema, signal),
   savePreviewDevicePreference: (body: PreviewDevicePreferenceRequest) => mutate("/previews/device-preference", "PUT", previewDevicePreferenceSchema, body),
   previewHubPreference: (signal?: AbortSignal) => request("/previews/hub-preference", previewHubPreferenceSchema, signal),
@@ -49,7 +50,7 @@ export const previewsApi = {
   previewRuntimeProfile: (projectId: string, signal?: AbortSignal) => request(`/previews/dev-servers/${encodeURIComponent(projectId)}/profile`, previewRuntimeProfileSchema, signal),
   previewDevServerLogs: (projectId: string, signal?: AbortSignal) => request(`/previews/dev-servers/${encodeURIComponent(projectId)}/logs`, previewDevServerLogsSchema, signal),
   startPreviewDevServer: (projectId: string) => mutate(`/previews/dev-servers/${encodeURIComponent(projectId)}/start`, "POST", previewDevServerStatusSchema),
-  launchPreviewRuntime: (projectId: string) => mutate(`/previews/dev-servers/${encodeURIComponent(projectId)}/launch`, "POST", previewRuntimeLaunchSchema),
+  launchPreviewRuntime: (projectId: string) => queuePreviewSessionRequest(`preview-runtime:${projectId}`, () => mutate(`/previews/dev-servers/${encodeURIComponent(projectId)}/launch`, "POST", previewRuntimeLaunchSchema)),
   stopPreviewDevServer: (projectId: string) => mutate(`/previews/dev-servers/${encodeURIComponent(projectId)}/stop`, "POST", previewDevServerStatusSchema),
   restartPreviewDevServer: (projectId: string) => mutate(`/previews/dev-servers/${encodeURIComponent(projectId)}/restart`, "POST", previewDevServerStatusSchema),
   savePreviewDevServerMainPort: (projectId: string, mainPort: number | null) => mutate(`/previews/dev-servers/${encodeURIComponent(projectId)}/main-port`, "PUT", previewDevServerStatusSchema, { mainPort }),

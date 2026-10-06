@@ -5,6 +5,7 @@ import { previewSlotUrl } from "../../lib/previewTargets";
 import { PreviewBridgeClient, type BridgeStatus } from "../../lib/previewBridgeClient";
 import { generateId } from "../../lib/id";
 import { withPreviewSlotRecovery } from "../../lib/previewSlotRecovery";
+import { closeTransientPreviewSession } from "./previewSessionCleanup";
 
 export interface PreviewRuntimeAssignment {
   slotId: number;
@@ -51,7 +52,22 @@ export function usePreviewRuntimeSession(input: UsePreviewRuntimeSessionInput) {
   const inflightRequestRef = useRef<{ fingerprint: string; promise: Promise<PreviewSessionResponse | undefined> } | null>(null);
   const assignmentRef = useRef<PreviewRuntimeAssignment | null>(null);
   const onSlotAssignedRef = useRef(input.onSlotAssigned);
+  const mountedRef = useRef(false);
   onSlotAssignedRef.current = input.onSlotAssigned;
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      // Persistente Orbit-Schlüssel werden erst beim ausdrücklichen Entfernen
+      // geschlossen. Nur diese Komponente besitzt ihre erzeugte Session.
+      if (input.sessionKey !== undefined) return;
+      window.setTimeout(() => {
+        if (mountedRef.current) return;
+        void closeTransientPreviewSession(effectiveSessionKey, inflightRequestRef.current?.promise).catch(() => undefined);
+      }, 0);
+    };
+  }, [effectiveSessionKey, input.sessionKey]);
 
   const flushEventState = useCallback(() => {
     if (eventFlushRef.current !== null) {
@@ -152,7 +168,7 @@ export function usePreviewRuntimeSession(input: UsePreviewRuntimeSessionInput) {
       void inflight.promise.then((response) => { if (active) applyResponse(response); }).catch(reportError);
       return () => { active = false; };
     }
-    const promise = openWithRecovery();
+    const promise = inflight?.promise.catch(() => undefined).then(openWithRecovery) ?? openWithRecovery();
     inflightRequestRef.current = { fingerprint: requestFingerprint, promise };
     void promise.then((response) => {
       if (inflightRequestRef.current?.promise === promise) inflightRequestRef.current = null;
@@ -179,8 +195,12 @@ export function usePreviewRuntimeSession(input: UsePreviewRuntimeSessionInput) {
   useEffect(() => {
     if (!session) return;
     const renew = window.setInterval(() => {
-      void apiClient.renewPreviewSession(session.id).catch(() => {
-        // Die sichtbare Preview bleibt bestehen; der nächste Nutzerimpuls meldet den Fehler.
+      void apiClient.renewPreviewSession(session.id).catch((reason: unknown) => {
+        if (reason instanceof ApiClientError && reason.status === 404) {
+          assignmentRef.current = null;
+          setSession(null);
+          setRetryKey((value) => value + 1);
+        }
       });
     }, 10 * 60_000);
     return () => window.clearInterval(renew);

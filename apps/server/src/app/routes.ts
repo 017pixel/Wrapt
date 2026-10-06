@@ -16,6 +16,8 @@ import { registerEditorOpenRoutes } from "../services/editorOpen.js";
 import { createCommandService } from "../services/commandService.js";
 import { createServiceStatusService } from "../services/serviceStatusService.js";
 import { registerTerminalRoutes } from "../terminal/routes.js";
+import { WorkspaceRegistryDatabase } from "../workspaces/database.js";
+import { registerWorkspaceRegistryRoutes } from "../workspaces/routes.js";
 import { TerminalFailure } from "../terminal/Manager.js";
 import { AppError } from "../utils/errors.js";
 import type { AppDependencies } from "./dependencies.js";
@@ -132,5 +134,10 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
         throw new TerminalFailure("INVALID_CWD", "Das gewählte Projekt wurde nicht gefunden.");
       }
     },
+  });
+  await app.register(registerWorkspaceRegistryRoutes, {
+    prefix: "/api/v1",
+    database: new WorkspaceRegistryDatabase(settings.databasePath),
+    identity: deps.identityOptions,
   });
 }

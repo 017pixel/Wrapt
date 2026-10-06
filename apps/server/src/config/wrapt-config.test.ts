@@ -87,9 +87,9 @@ describe("Workbench-Preview-Konfiguration", () => {
 
   it("akzeptiert getrennte interne und öffentliche Slot-Ports", () => {
     expect(wraptConfigSchema.parse(exampleConfig()).previews).toMatchObject({
-      allowedProjectPorts: [1234, 1223, 8000, 8080, 8888, 4444, 1233, 6000, 6060, 4040],
-      slotPorts: [3901, 3902, 3903, 3904, 3905, 3906, 3907, 3908, 3909, 3910, 3911, 3912],
-      publicPorts: [8451, 8452, 8453, 8454, 8455, 8456, 8457, 8458, 8459, 8460, 8461, 8462],
+      allowedProjectPorts: [1234, 1223, 8000, 8080, 8888, 4444, 1233, 6000, 6060, 4040, ...Array.from({ length: 40 }, (_, i) => 16000 + i)],
+      slotPorts: Array.from({ length: 60 }, (_, i) => 3901 + i),
+      publicPorts: [...Array.from({ length: 12 }, (_, i) => 8451 + i), ...Array.from({ length: 48 }, (_, i) => 8511 + i)],
     });
   });
 

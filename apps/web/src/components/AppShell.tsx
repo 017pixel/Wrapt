@@ -26,6 +26,7 @@ import { useViewPresence } from "../lib/useViewPresence";
 import { recordToolUsage } from "../stores/toolUsage";
 import { PluginTopbar } from "./plugins/PluginTopbar";
 import { WorkspaceRegistrySync } from "./workspaces/WorkspaceRegistrySync";
+import { WorkspaceRegistryServerSync } from "./workspaces/WorkspaceRegistryServerSync";
 import { WorkspaceSwitchTransition } from "./workspaces/WorkspaceSwitchTransition";
 import { PwaInstallHint } from "./mobile/PwaInstallHint";
 
@@ -292,6 +293,7 @@ export function AppShell() {
       <a className="skip-link" href="#main-content">Zum Hauptinhalt springen</a>
       <span className="sr-only" aria-live="polite" aria-atomic="true">{title} geöffnet</span>
       <WorkspaceRegistrySync />
+      <WorkspaceRegistryServerSync />
       <WorkspaceSwitchTransition />
       <TerminalWorkspaceSync />
       <TerminalSessionsSync />

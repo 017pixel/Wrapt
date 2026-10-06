@@ -11,6 +11,7 @@ import { skillsApi } from "./skills.js";
 import { systemApi } from "./system.js";
 import { terminalApi } from "./terminal.js";
 import { usageApi } from "./usage.js";
+import { workspacesApi } from "./workspaces.js";
 import { ApiClientError } from "./transport.js";
 
 export { ApiClientError };
@@ -29,4 +30,5 @@ export const apiClient = {
   ...usageApi,
   ...orbitApi,
   ...terminalApi,
+  ...workspacesApi,
 };

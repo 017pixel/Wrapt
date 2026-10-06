@@ -1,3 +1,6 @@
+import { logLevel, serviceState, type PaneState } from "./runtimeStatus.js";
+import { PreviewRuntimePublications, type PreviewRuntimePublication } from "./runtimePublications.js";
+export type { PreviewRuntimePublication } from "./runtimePublications.js";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
@@ -7,11 +10,9 @@ import type {
   PreviewDevServerStatus,
   PreviewExternalOpenMode,
   PreviewHubPreference,
-  PreviewRuntimeLogLevel,
   PreviewRuntimeProfile,
   PreviewRuntimeService,
   PreviewRuntimeServiceLogs,
-  PreviewRuntimeServiceStatus,
   Project,
 } from "@wrapt/contracts";
 import { AppError } from "../utils/errors.js";
@@ -23,11 +24,6 @@ type CommandRunner = (args: string[], timeoutMilliseconds: number) => CommandRes
 
 const DEFAULT_PREVIEW_TMUX_SOCKET = "wrapt-previews";
 const RUNTIME_PORTS_OPTION = "@wrapt_runtime_ports";
-
-export interface PreviewRuntimePublication {
-  url: string;
-  sessionId: string;
-}
 
 export interface PreviewDevServerManagerOptions {
   database: PreviewDevServerDatabase;
@@ -45,14 +41,6 @@ export interface PreviewDevServerManagerOptions {
   tmuxSocket?: string;
   useSystemdSupervisor?: boolean;
   logger?: (message: string) => void;
-}
-
-interface PaneState {
-  serviceId: string;
-  dead: boolean;
-  exitCode: number | null;
-  pid: number | null;
-  startedAt: string | null;
 }
 
 function cleanOutput(value: string): string {
@@ -80,30 +68,13 @@ export function sanitizeDevServerPath(projectPath: string, ambientPath: string):
   return [ownBin, ...kept].join(":");
 }
 
-function logLevel(text: string): PreviewRuntimeLogLevel {
-  if (/\b(error|failed|exception|fatal|err!|eaddrinuse|unhandled)\b/i.test(text)) return "error";
-  if (/\b(warn|warning|deprecated)\b/i.test(text)) return "warning";
-  if (/\b(ready|listening|started|compiled|built|success|local:)\b/i.test(text)) return "success";
-  return "info";
-}
-
-function serviceState(service: PreviewRuntimeService, pane: PaneState | undefined): PreviewRuntimeServiceStatus {
-  if (!pane) return { ...service, state: "stopped", pid: null, startedAt: null, exitCode: null, message: null };
-  const state = pane.dead ? (pane.exitCode === 0 ? "stopped" : "failed") : "running";
-  return {
-    ...service, state, pid: pane.dead ? null : pane.pid, startedAt: pane.startedAt, exitCode: pane.exitCode,
-    message: state === "failed" ? `${service.name} wurde mit Exit-Code ${pane.exitCode ?? "unbekannt"} beendet.` : null,
-  };
-}
-
 export class PreviewDevServerManager {
   private readonly run: CommandRunner;
   private readonly watchdogIntervalMilliseconds: number;
   private readonly watchdogMaxAttemptsPerWindow: number;
   private readonly watchdogWindowMilliseconds: number;
   private readonly restartHistory = new Map<string, number[]>();
-  private readonly publications = new Map<string, PreviewRuntimePublication>();
-  private readonly publicationHeartbeat = new Map<string, number>();
+  private readonly publications = new PreviewRuntimePublications();
   private startQueue: Promise<void> = Promise.resolve();
   private watchdogTimer: ReturnType<typeof setInterval> | null = null;
   private tickRunning = false;
@@ -218,7 +189,10 @@ export class PreviewDevServerManager {
   }
 
   async launch(userId: string, projectId: string): Promise<{ status: PreviewDevServerStatus; publication: PreviewRuntimePublication }> {
+    const key = this.runtimeKey(userId, projectId);
+    const revision = this.publications.revision(key);
     await this.start(userId, projectId);
+    if (this.publications.revision(key) !== revision) throw new AppError(409, "PREVIEW_PUBLICATION_CLOSED", "Die Preview wurde während des Starts geschlossen.");
     this.execute(["set-option", "-t", this.sessionName(userId, projectId), "@wrapt_preview_publication_requested", "1"]);
     const profile = this.profileForSession(userId, projectId, await this.profile(projectId));
     const publication = await this.publish(userId, profile, true);
@@ -226,13 +200,18 @@ export class PreviewDevServerManager {
     return { status: await this.status(userId, projectId), publication };
   }
 
+  async releasePublication(userId: string, projectId: string): Promise<void> {
+    this.publications.revoke(this.runtimeKey(userId, projectId));
+    const name = this.sessionName(userId, projectId);
+    if (this.panes(name).length) this.execute(["set-option", "-t", name, "@wrapt_preview_publication_requested", "0"]);
+    await this.publications.forget(this.runtimeKey(userId, projectId));
+  }
+
   async stop(userId: string, projectId: string): Promise<PreviewDevServerStatus> {
     await this.resolveProject(projectId);
     const name = this.sessionName(userId, projectId);
     if (this.panes(name).length > 0) this.execute(["kill-session", "-t", name]);
-    const key = this.runtimeKey(userId, projectId);
-    this.publications.delete(key);
-    this.publicationHeartbeat.delete(key);
+    await this.publications.forget(this.runtimeKey(userId, projectId));
     return this.status(userId, projectId);
   }
 
@@ -330,7 +309,7 @@ export class PreviewDevServerManager {
     }
     if (panes.some((pane) => !pane.dead) && this.sessionOption(name, "@wrapt_preview_publication_requested") === "1") {
       const key = this.runtimeKey(userId, projectId);
-      if (Date.now() - (this.publicationHeartbeat.get(key) ?? 0) >= 10 * 60_000) {
+      if (this.publications.age(key) >= 10 * 60_000) {
         // `profile` darf nicht im Argument-Ausdruck liegen: Ein Fehler dort
         // läge vor dem `.catch` und würde den Tick als ungefangenes Promise
         // scheitern lassen.
@@ -360,11 +339,8 @@ export class PreviewDevServerManager {
     const mainService = profile.services.find((service) => service.port === selectedPort);
     if (!mainService || !this.options.publishRuntime) return null;
     const key = this.runtimeKey(userId, projectId);
-    if (!force && Date.now() - (this.publicationHeartbeat.get(key) ?? 0) < 9 * 60_000) return this.publications.get(key) ?? null;
-    const published = await this.options.publishRuntime(userId, { ...profile, mainServiceId: mainService.id });
-    this.publications.set(key, published);
-    this.publicationHeartbeat.set(key, Date.now());
-    return published;
+    if (this.sessionOption(this.sessionName(userId, projectId), "@wrapt_preview_publication_requested") !== "1") return null;
+    return this.publications.publish(key, () => this.options.publishRuntime!(userId, { ...profile, mainServiceId: mainService.id }), force);
   }
 
   private async assignRuntimePorts(sessionName: string, profile: RuntimeProfileResult): Promise<RuntimeProfileResult> {
@@ -531,6 +507,7 @@ export class PreviewDevServerManager {
     this.restartHistory.set(sessionName, attempts);
     this.options.logger?.(`Projektlaufzeit ${projectId} ist fehlgeschlagen und wird automatisch vollständig neu gestartet.`);
     const publicationRequested = this.sessionOption(sessionName, "@wrapt_preview_publication_requested") === "1";
+    const revision = this.publications.revision(this.runtimeKey(userId, projectId));
     try {
       this.execute(["kill-session", "-t", sessionName]);
       await this.start(userId, projectId);
@@ -538,7 +515,7 @@ export class PreviewDevServerManager {
       this.options.logger?.(`Der automatische Neustart von ${projectId} ist fehlgeschlagen: ${error instanceof Error ? error.message : String(error)}`);
       return;
     }
-    if (publicationRequested) {
+    if (publicationRequested && this.publications.revision(this.runtimeKey(userId, projectId)) === revision) {
       this.execute(["set-option", "-t", sessionName, "@wrapt_preview_publication_requested", "1"]);
       try {
         const profile = await this.profile(projectId);

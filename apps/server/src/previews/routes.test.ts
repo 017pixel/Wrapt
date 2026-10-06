@@ -48,6 +48,7 @@ async function harness() {
   const repair = new PreviewRepairService({ database, slots, scanCandidates: async () => [] });
   const devServers = {
     preference: () => ({ externalOpenMode: "window" as const, updatedAt: null }),
+    releasePublication: async () => undefined,
     savePreference: (_userId: string, externalOpenMode: "window" | "tab") => ({ externalOpenMode, updatedAt: new Date().toISOString() }),
     status: async (_userId: string, projectId: string) => ({ projectId, state: "stopped" as const, command: "npm run dev" as const, mainPort: null, pid: null, startedAt: null, updatedAt: new Date().toISOString(), exitCode: null, message: null }),
     profile: async (projectId: string) => ({
