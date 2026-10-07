@@ -2,6 +2,11 @@
 
 Alle relevanten Änderungen werden in kurzen Stichpunkten dokumentiert.
 
+## [Unreleased]
+
+### Verändert
+- Accounts-Liste weiter vereinfacht: Zeilen zeigen nur noch die E-Mail-Adresse, Status und Details stehen im 3-Punkte-Menü unter Information, Aktiv-Button und Aktivieren-Button sind gleich groß, das Menü klappt unten nicht mehr um.
+
 ## [2.2.8] - 2026-10-07
 
 ### Erstellt

@@ -97,36 +97,9 @@
   display: flex;
   position: relative;
   gap: 12px;
-  align-items: flex-start;
+  align-items: center;
   border-bottom: 1px solid var(--color-line-soft);
   padding: 14px 4px;
-}
-
-.account-row-icon {
-  display: grid;
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
-  place-items: center;
-  border-radius: var(--radius-sm);
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
-}
-
-.account-row.is-active .account-row-icon {
-  background: var(--color-ok-soft);
-  color: var(--color-ok);
-}
-
-.account-row.is-active::before {
-  position: absolute;
-  top: 12px;
-  bottom: 12px;
-  left: -4px;
-  width: 2px;
-  border-radius: var(--radius-pill);
-  background: var(--color-ok);
-  content: "";
 }
 
 .account-row-main {
@@ -134,43 +107,16 @@
   flex: 1;
 }
 
-.account-row-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.account-row-head strong {
-  color: var(--color-text);
-  font-size: 13px;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
-.account-row-badges {
-  display: inline-flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.account-row-meta {
-  display: block;
-  margin-top: 3px;
-  color: var(--color-faint);
-  font-size: 11px;
-  line-height: 1.5;
-}
-
-.account-row-path {
+.account-row-main strong {
   display: block;
   overflow: hidden;
-  margin-top: 4px;
-  color: var(--color-faint);
-  font-family: var(--font-mono);
-  font-size: 10px;
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .account-row-side {
@@ -183,8 +129,10 @@
 
 .account-row-activate {
   display: inline-flex;
+  min-width: 128px;
   min-height: 44px;
   align-items: center;
+  justify-content: center;
   gap: 7px;
   border: 1px solid transparent;
   border-radius: var(--radius-sm);
@@ -193,6 +141,7 @@
   color: var(--color-accent-contrast);
   font-size: 12px;
   font-weight: 650;
+  white-space: nowrap;
 }
 
 .account-row-activate:hover:not(:disabled) {
@@ -205,7 +154,7 @@
   color: var(--color-faint);
 }
 
-.account-row.is-active .account-row-activate:disabled {
+.account-row-activate.is-active:disabled {
   border-color: color-mix(in srgb, var(--color-ok) 34%, var(--color-line));
   color: var(--color-ok);
 }
@@ -230,12 +179,54 @@
   z-index: 40;
   top: calc(100% + 4px);
   right: 0;
-  min-width: 240px;
+  min-width: 260px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-sm);
   background: var(--color-ink-850);
   padding: 4px;
   box-shadow: var(--shadow-popover);
+}
+
+.account-menu.is-up {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
+.account-menu-label {
+  margin: 0;
+  padding: 8px 12px 4px;
+  color: var(--color-faint);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.account-menu-info dl {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 4px;
+  padding: 0 12px 8px;
+  border-bottom: 1px solid var(--color-line-soft);
+}
+
+.account-menu-info dl > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 3px 0;
+}
+
+.account-menu-info dt {
+  color: var(--color-faint);
+  font-size: 12px;
+}
+
+.account-menu-info dd {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
 }
 
 .account-menu button {
@@ -302,17 +293,16 @@
   }
 
   .account-row {
-    flex-wrap: wrap;
+    align-items: center;
   }
 
   .account-row-main {
-    flex-basis: calc(100% - 52px);
+    flex: 1;
   }
 
   .account-row-side {
     width: 100%;
     margin-left: 0;
-    padding-left: 52px;
   }
 
   .account-row-menu .account-menu {

@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import type { DiscoveredAccount, ManagedAccount, UsageProviderId } from "@wrapt/contracts";
 import { MoreIcon, PlusIcon, PowerIcon, UserIcon } from "../icons";
-import { Badge } from "../primitives";
 
 export type AccountGroup = [UsageProviderId, DiscoveredAccount[]];
 
@@ -11,12 +10,14 @@ const groupLabel: Record<UsageProviderId, string> = {
   opencode: "OpenCode Go",
 };
 
-function metaFor(item: DiscoveredAccount): string {
-  const parts: string[] = [];
-  if (item.plan) parts.push(item.plan);
-  parts.push(item.registered ? (item.source === "login" ? "Wrapt-Profil" : "Lokales Profil") : "gefunden");
-  if (item.email && item.email !== item.label) parts.push(item.email);
-  return parts.join(" · ");
+function infoFor(item: DiscoveredAccount): Array<[string, string]> {
+  return [
+    ["Status", item.active ? "Aktiv" : "Inaktiv"],
+    ["Anmeldung", item.authenticated ? "Angemeldet" : "Anmeldung fehlt"],
+    ["Überwachung", !item.registered ? "–" : item.enabled ? "Überwacht" : "Nicht überwacht"],
+    ["Plan", item.plan ?? "–"],
+    ["Profil", !item.registered ? "Gefunden" : item.source === "login" ? "Wrapt-Profil" : "Lokales Profil"],
+  ];
 }
 
 export interface AccountListProps {
@@ -47,6 +48,7 @@ export function AccountList({
   registerPending,
 }: AccountListProps) {
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const [openUp, setOpenUp] = useState(false);
 
   useEffect(() => {
     if (!openKey) return;
@@ -85,36 +87,21 @@ export function AccountList({
             <span>{items.length}</span>
           </h3>
           <ul className="account-rows">
-            {items.map((item) => {
+            {items.map((item, index) => {
               const key = `${item.provider}:${item.profilePath}`;
               const account = item.accountId ? accountById.get(item.accountId) : undefined;
               const menuOpen = openKey === key;
+              const email = item.email ?? item.label;
               return (
-                <li className={item.active ? "account-row is-active" : "account-row"} key={key}>
-                  <div className="account-row-icon" aria-hidden="true">
-                    <UserIcon className="h-5 w-5" />
-                  </div>
+                <li className="account-row" key={key}>
                   <div className="account-row-main">
-                    <div className="account-row-head">
-                      <strong>{item.label}</strong>
-                      <span className="account-row-badges">
-                        {item.active ? <Badge tone="ok">Aktiv</Badge> : null}
-                        <Badge tone={item.authenticated ? "ok" : "warn"}>
-                          {item.authenticated ? "angemeldet" : "Anmeldung fehlt"}
-                        </Badge>
-                        {item.registered && !item.enabled ? <Badge tone="warn">nicht überwacht</Badge> : null}
-                      </span>
-                    </div>
-                    <small className="account-row-meta">{metaFor(item)}</small>
-                    <code className="account-row-path" title={item.profilePath}>
-                      {item.profilePath}
-                    </code>
+                    <strong>{email}</strong>
                   </div>
                   <div className="account-row-side">
                     {account ? (
                       <button
                         type="button"
-                        className="account-row-activate"
+                        className={item.active ? "account-row-activate is-active" : "account-row-activate"}
                         disabled={item.active || !item.authenticated || activatePending}
                         onClick={() => onActivate(account)}
                       >
@@ -139,33 +126,56 @@ export function AccountList({
                           className="icon-button account-row-menu-trigger"
                           aria-haspopup="menu"
                           aria-expanded={menuOpen}
-                          aria-label={`Aktionen für ${item.label}`}
+                          aria-label={`Aktionen für ${email}`}
                           title="Aktionen"
-                          onClick={() => setOpenKey((current) => (current === key ? null : key))}
+                          onClick={(event) => {
+                            if (openKey === key) {
+                              setOpenKey(null);
+                              return;
+                            }
+                            const rect = event.currentTarget.getBoundingClientRect();
+                            const isLast = index === items.length - 1;
+                            setOpenUp(isLast || rect.bottom + 340 > window.innerHeight);
+                            setOpenKey(key);
+                          }}
                         >
                           <MoreIcon className="h-4 w-4" />
                         </button>
                         {menuOpen ? (
-                          <div className="account-menu" role="menu" aria-label={`Aktionen für ${item.label}`}>
-                            <button type="button" role="menuitem" onClick={() => { setOpenKey(null); onRename(account); }}>
-                              Umbenennen
-                            </button>
-                            <button type="button" role="menuitem" onClick={() => { setOpenKey(null); onLogin(account); }}>
-                              {account.provider === "codex" ? "Geräteanmeldung" : "Neu anmelden"}
-                            </button>
-                            <button type="button" role="menuitem" onClick={() => { setOpenKey(null); onToggleWatch(account); }}>
-                              {account.enabled ? "Limitüberwachung ausschalten" : "Limits überwachen"}
-                            </button>
-                            <button
-                              type="button"
-                              role="menuitem"
-                              className="is-danger"
-                              disabled={removePending || item.active}
-                              title={item.active ? "Der aktive Account kann nicht entfernt werden" : undefined}
-                              onClick={() => { setOpenKey(null); onRemove(account); }}
-                            >
-                              Entfernen
-                            </button>
+                          <div className={openUp ? "account-menu is-up" : "account-menu"}>
+                            <div className="account-menu-info" aria-label={`Details für ${email}`}>
+                              <p className="account-menu-label">Information</p>
+                              <dl>
+                                {infoFor(item).map(([term, value]) => (
+                                  <div key={term}>
+                                    <dt>{term}</dt>
+                                    <dd>{value}</dd>
+                                  </div>
+                                ))}
+                              </dl>
+                            </div>
+                            <div role="menu" aria-label={`Aktionen für ${email}`}>
+                              <p className="account-menu-label">Aktionen</p>
+                              <button type="button" role="menuitem" onClick={() => { setOpenKey(null); onRename(account); }}>
+                                Umbenennen
+                              </button>
+                              <button type="button" role="menuitem" onClick={() => { setOpenKey(null); onLogin(account); }}>
+                                {account.provider === "codex" ? "Geräteanmeldung" : "Neu anmelden"}
+                              </button>
+                              <button type="button" role="menuitem" onClick={() => { setOpenKey(null); onToggleWatch(account); }}>
+                                {account.enabled ? "Limitüberwachung ausschalten" : "Limits überwachen"}
+                              </button>
+                              <button
+                                type="button"
+                                role="menuitem"
+                                className="is-danger"
+                                disabled={removePending || item.active}
+                                title={item.active ? "Der aktive Account kann nicht entfernt werden" : undefined}
+                                onClick={() => { setOpenKey(null); onRemove(account); }}
+                              >
+                                Entfernen
+                              </button>
+                            </div>
                           </div>
                         ) : null}
                       </div>
