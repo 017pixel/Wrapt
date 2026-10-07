@@ -73,37 +73,46 @@ async function switchTo(page: Page, name: string) {
   await picker.getByRole("button", { name: `${name} öffnen` }).click();
 }
 
+/**
+ * Der Wechsel-Hash ist Transport für den Registry-Stand und wird auf der
+ * Zielseite nach der Synchronisation entfernt. Erst danach stimmt die URL
+ * exakt — Navigation und Boot der Zielseite brauchen dafür Zeit.
+ */
+async function expectLanded(page: Page, expected: string) {
+  await expect.poll(async () => page.url(), { timeout: 20_000 }).toBe(expected);
+}
+
 test("wechselt auf derselben Seite zwischen zwei echten Workspaces und zurück", async ({ page }) => {
   await page.goto(`${mainOrigin}/wrapt/hermes-agent?path=%2Fchat`);
   await switchTo(page, "Forschungsserver");
-  await expect(page).toHaveURL(`${secondOrigin}/wrapt/hermes-agent?path=%2Fchat`);
+  await expectLanded(page, `${secondOrigin}/wrapt/hermes-agent?path=%2Fchat`);
   await expect(page.locator(".sidebar-shell .workspace-switcher-trigger")).toContainText("Forschungsserver");
   await switchTo(page, "Testserver");
-  await expect(page).toHaveURL(`${mainOrigin}/wrapt/hermes-agent?path=%2Fchat`);
+  await expectLanded(page, `${mainOrigin}/wrapt/hermes-agent?path=%2Fchat`);
   await page.goto(`${mainOrigin}/wrapt/settings?abschnitt=workspaces`);
   await switchTo(page, "Forschungsserver");
-  await expect(page).toHaveURL(`${secondOrigin}/wrapt/settings?abschnitt=workspaces`);
+  await expectLanded(page, `${secondOrigin}/wrapt/settings?abschnitt=workspaces`);
 });
 
 test("öffnet bei deaktivierten und unbekannten Zielseiten das Dashboard statt der Startseite", async ({ page }) => {
   await page.goto(`${mainOrigin}/wrapt/projects`);
   await switchTo(page, "Forschungsserver");
-  await expect(page).toHaveURL(`${secondOrigin}/wrapt`);
+  await expectLanded(page, `${secondOrigin}/wrapt`);
   await expect(page.locator(".sidebar-shell .workspace-switcher-trigger")).toContainText("Forschungsserver");
   await page.goto(`${mainOrigin}/wrapt/fehlendes-werkzeug`);
   await switchTo(page, "Forschungsserver");
-  await expect(page).toHaveURL(`${secondOrigin}/wrapt`);
+  await expectLanded(page, `${secondOrigin}/wrapt`);
   await page.goto(`${mainOrigin}/wrapt/plugins/tool/fehlendes-werkzeug`);
   await switchTo(page, "Forschungsserver");
-  await expect(page).toHaveURL(`${secondOrigin}/wrapt`);
+  await expectLanded(page, `${secondOrigin}/wrapt`);
 });
 
 test("bleibt beim Dashboard-Wechsel trotz Hermes-Startseite auf dem Dashboard", async ({ page }) => {
   // Der Startzustand entspricht einer Workspace-Ankunft auf dem Dashboard.
   await page.goto(`${mainOrigin}/wrapt/#wraptWorkspaces=%5B%5D`);
-  await expect(page).toHaveURL(`${mainOrigin}/wrapt/`);
+  await expectLanded(page, `${mainOrigin}/wrapt/`);
   await switchTo(page, "Forschungsserver");
-  await expect(page).toHaveURL(`${secondOrigin}/wrapt/`);
+  await expectLanded(page, `${secondOrigin}/wrapt/`);
 });
 
 test("hält die Serverliste sichtbar und schließt beide Menüs per Außenklick und Escape", async ({ page }) => {
@@ -194,8 +203,10 @@ test("behält ein verfügbares Plugin-Werkzeug auch bei verzögerter Registrieru
   await page.goto(`${mainOrigin}/wrapt/plugins/tool/${content.slug}`);
   await expect(page.getByRole("heading", { name: content.name, exact: true })).toBeVisible();
   await switchTo(page, "Forschungsserver");
-  await expect(page.getByLabel("Ansicht wird geladen")).toBeVisible();
+  // Die Zielseite bootet erst (Bundle, Abfragen), danach zeigt die verzögerte
+  // Registrierung den Ladezustand, bis die blockierte Antwort freigegeben wird.
+  await expect(page.getByLabel("Ansicht wird geladen")).toBeVisible({ timeout: 20_000 });
   releaseRuntime();
   await expect(page.getByRole("heading", { name: content.name, exact: true })).toBeVisible();
-  await expect(page).toHaveURL(`${secondOrigin}/wrapt/plugins/tool/${content.slug}`);
+  await expectLanded(page, `${secondOrigin}/wrapt/plugins/tool/${content.slug}`);
 });
