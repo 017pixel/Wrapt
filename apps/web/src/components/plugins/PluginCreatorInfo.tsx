@@ -40,7 +40,7 @@ export function PluginCreatorInfo() {
   return <>
     <aside className="plugins-skill-note" aria-label="Wrapt-Plugins Skill">
       <ExtensionsIcon className="h-4 w-4" />
-      <span><strong>Wrapt-Plugins</strong> erstellt und verwaltet mit deinem Coding-Agenten persönliche Plugins lokal, ohne Repository- oder Store-Dateien zu verändern.</span>
+      <span>Persönliche Plugins per Agent-Skill erstellen.<br />Funktioniert mit Codex, Claude Code und OpenCode, alles bleibt lokal.</span>
       <code>$wrapt-plugins</code>
       <button type="button" className="quiet-button" onClick={() => void openInfo()}>Mehr erfahren</button>
     </aside>

@@ -74,7 +74,7 @@ export function PluginOverview({ activeTab, examples, drafts, catalogEntries, in
   }, [activeTab]);
 
   return <>
-    <header className="plugins-hero"><div><span className="plugins-kicker">Persönliche Erweiterungen</span><h1>Plugins</h1><p>Erweitere Wrapt mit eigenen Seiten, Panels, Aktionen und kleinen Werkzeugen. Die KI ist der empfohlene Startpunkt.</p></div><div className="plugins-hero-actions"><button type="button" className="quiet-button-primary" onClick={onCreate}><PlusIcon className="h-4 w-4" /> Neues Plugin erstellen</button></div></header>
+    <header className="plugins-hero"><div><h1>Plugins</h1></div><div className="plugins-hero-actions"><button type="button" className="quiet-button-primary" onClick={onCreate}><PlusIcon className="h-4 w-4" /> Neues Plugin erstellen</button></div></header>
     <nav ref={tabsRef} className="plugins-tabs" aria-label="Plugin-Bereiche">
       {pluginTabs.map(({ id, label }) => <button key={id} type="button" aria-pressed={activeTab === id} className={`plugins-tab ${activeTab === id ? "is-active" : ""}`} onClick={() => onTabChange(id)}>{label}</button>)}
     </nav>
@@ -87,15 +87,15 @@ export function PluginOverview({ activeTab, examples, drafts, catalogEntries, in
         {stat("Im lokalen Store", storeCount, "mitgelieferte Beispiele", "is-accent")}
       </section>
       <section className="plugins-quick-grid" aria-label="Plugin-Bereiche öffnen">
-        <article className="plugins-quick-card"><span className="plugins-kicker">Arbeitsbereich</span><h2>Eigene Plugins</h2><p>{drafts.length} persönliche Drafts. Sie bleiben lokal und erscheinen nur hier.</p><button type="button" className="quiet-button" onClick={() => onTabChange("eigene")}>Eigene Plugins öffnen</button></article>
-        <article className="plugins-quick-card"><span className="plugins-kicker">Mitgelieferte Beispiele</span><h2>Plugins installieren</h2><p>{examples.length} versionierte Beispiele stehen direkt zum Installieren bereit.</p><button type="button" className="quiet-button" onClick={() => onTabChange("store")}>Beispiele öffnen</button></article>
-        <article className="plugins-quick-card"><span className="plugins-kicker">Verwaltung</span><h2>Installierte Plugins</h2><p>{installed.length} installierte Erweiterungen und ihre aktuellen Zustände.</p><button type="button" className="quiet-button" onClick={() => onTabChange("installiert")}>Installierte Plugins öffnen</button></article>
+        <article className="plugins-quick-card" onClick={() => onTabChange("eigene")}><h2>Eigene Plugins</h2><button type="button" className="quiet-button" onClick={() => onTabChange("eigene")}>Eigene Plugins öffnen</button></article>
+        <article className="plugins-quick-card" onClick={() => onTabChange("store")}><h2>Plugins installieren</h2><button type="button" className="quiet-button" onClick={() => onTabChange("store")}>Beispiele öffnen</button></article>
+        <article className="plugins-quick-card" onClick={() => onTabChange("installiert")}><h2>Installierte Plugins</h2><button type="button" className="quiet-button" onClick={() => onTabChange("installiert")}>Installierte Plugins öffnen</button></article>
       </section>
       <PluginCreatorInfo />
     </> : null}
 
     {activeTab === "eigene" ? <section className="plugins-section plugins-tab-section" aria-labelledby="own-plugins-title">
-      <header className="plugins-section-heading"><div><span className="plugins-kicker">Arbeitsbereich</span><h2 id="own-plugins-title">Eigene Plugins</h2><p>Deine gespeicherten Drafts und lokal aktivierten Seiten. Agenten legen persönliche Plugins ausschließlich hier an.</p></div><span className="plugins-section-count">{drafts.length}</span></header>
+      <header className="plugins-section-heading"><h2 id="own-plugins-title">Eigene Plugins</h2></header>
       {drafts.length > 0 ? <div className="plugins-draft-list">{drafts.map((draft) => {
         const ownerId = `wrapt.local.${draft.slug}`;
         const quickActionToolId = navigation.items.find((item) => item.ownerId === ownerId)?.contributionId;
@@ -121,7 +121,7 @@ export function PluginOverview({ activeTab, examples, drafts, catalogEntries, in
     {activeTab === "store" ? <PluginStore examples={examples} /> : null}
 
     {activeTab === "installiert" ? <section className="plugins-section plugins-tab-section" aria-labelledby="installed-plugins-title">
-      <header className="plugins-section-heading"><div><span className="plugins-kicker">Verwaltung</span><h2 id="installed-plugins-title">Installierte Plugins</h2><p>Verwalte installierte Erweiterungen und prüfe ihren Zustand.</p></div><span className="plugins-section-count">{installed.length}</span></header>
+      <header className="plugins-section-heading"><h2 id="installed-plugins-title">Installierte Plugins</h2></header>
       {installed.length > 0 ? <div className="plugins-installed-list">{installed.map((plugin) => {
         const slug = plugin.id.replace(/^wrapt\.(?:example|local)\./, "");
         const isPlugin = plugin.id.startsWith("wrapt.example.") || plugin.id.startsWith("wrapt.local.");

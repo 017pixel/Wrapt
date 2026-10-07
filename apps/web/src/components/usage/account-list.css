@@ -1,0 +1,328 @@
+/* Accounts-Tab als luftige Notion-Liste: keine Karten, keine Boxen um Gruppen,
+   nur Haarlinien zwischen den Zeilen. Alle Farben und Radien kommen aus den
+   Wrapt-Tokens in index.css (@theme). */
+
+/* Tab-Zeile: TabBar links, Aktionen rechts auf gleicher Baseline. */
+.usage-tab-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.usage-tab-row .tab-bar {
+  min-width: 0;
+  flex: 1;
+}
+
+.account-tab-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-tab-actions .quiet-button-primary {
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.account-tab-actions .icon-button {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+  flex: 0 0 44px;
+}
+
+/* Discovery-Bereich ohne Karten-Chrome. */
+.account-manager {
+  display: grid;
+  gap: 16px;
+}
+
+.account-discovery {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.account-profile-heading {
+  margin-bottom: 4px;
+}
+
+.account-profile-heading h2 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.account-groups {
+  display: grid;
+  gap: 28px;
+}
+
+.account-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 4px;
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.account-group-title span {
+  display: inline-grid;
+  min-width: 20px;
+  height: 18px;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--color-ink-800);
+  color: var(--color-muted);
+  font-size: 10px;
+}
+
+/* Zeilenliste statt Bento-Grid. */
+.account-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.account-row {
+  display: flex;
+  position: relative;
+  gap: 12px;
+  align-items: flex-start;
+  border-bottom: 1px solid var(--color-line-soft);
+  padding: 14px 4px;
+}
+
+.account-row-icon {
+  display: grid;
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+
+.account-row.is-active .account-row-icon {
+  background: var(--color-ok-soft);
+  color: var(--color-ok);
+}
+
+.account-row.is-active::before {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: -4px;
+  width: 2px;
+  border-radius: var(--radius-pill);
+  background: var(--color-ok);
+  content: "";
+}
+
+.account-row-main {
+  min-width: 0;
+  flex: 1;
+}
+
+.account-row-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.account-row-head strong {
+  color: var(--color-text);
+  font-size: 13px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.account-row-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.account-row-meta {
+  display: block;
+  margin-top: 3px;
+  color: var(--color-faint);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.account-row-path {
+  display: block;
+  overflow: hidden;
+  margin-top: 4px;
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-row-side {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.account-row-activate {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 7px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: var(--color-accent);
+  padding: 0 14px;
+  color: var(--color-accent-contrast);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.account-row-activate:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--color-accent) 88%, white);
+}
+
+.account-row-activate:disabled {
+  border-color: var(--color-line);
+  background: transparent;
+  color: var(--color-faint);
+}
+
+.account-row.is-active .account-row-activate:disabled {
+  border-color: color-mix(in srgb, var(--color-ok) 34%, var(--color-line));
+  color: var(--color-ok);
+}
+
+.account-row-side .quiet-button {
+  min-height: 44px;
+}
+
+.account-row-menu {
+  position: relative;
+}
+
+.account-row-menu-trigger {
+  width: 44px;
+  height: 44px;
+  min-height: 44px;
+}
+
+.account-menu {
+  display: grid;
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 240px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  background: var(--color-ink-850);
+  padding: 4px;
+  box-shadow: var(--shadow-popover);
+}
+
+.account-menu button {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  padding: 0 12px;
+  color: var(--color-text);
+  font-size: 13px;
+  text-align: left;
+}
+
+.account-menu button:hover:not(:disabled) {
+  background: var(--color-ink-800);
+}
+
+.account-menu button.is-danger {
+  color: var(--color-bad);
+}
+
+.account-menu button.is-danger:hover:not(:disabled) {
+  background: var(--color-bad-soft);
+}
+
+.account-menu button:disabled {
+  opacity: 0.4;
+}
+
+.account-group-empty {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  border: 1px dashed var(--color-line);
+  border-radius: var(--radius-sm);
+  padding: 28px;
+  color: var(--color-faint);
+  text-align: center;
+}
+
+.account-group-empty strong {
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.account-group-empty span {
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .usage-tab-row {
+    flex-wrap: wrap;
+  }
+
+  .account-tab-actions {
+    width: 100%;
+  }
+
+  .account-tab-actions .quiet-button-primary {
+    flex: 1;
+  }
+
+  .account-row {
+    flex-wrap: wrap;
+  }
+
+  .account-row-main {
+    flex-basis: calc(100% - 52px);
+  }
+
+  .account-row-side {
+    width: 100%;
+    margin-left: 0;
+    padding-left: 52px;
+  }
+
+  .account-row-menu .account-menu {
+    position: fixed;
+    top: auto;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    min-width: 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+  }
+}

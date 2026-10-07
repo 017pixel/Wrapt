@@ -29,7 +29,7 @@ describe("PluginCreatorInfo", () => {
     fireEvent.click(screen.getByRole("button", { name: "Mehr erfahren" }));
     expect(screen.getByRole("dialog", { name: "Wrapt-Plugins" })).toBeTruthy();
     expect(screen.getByText("$wrapt-plugins Erstelle ein Plugin für ...")).toBeTruthy();
-    expect(screen.getByText(/persönliche Plugins lokal/)).toBeTruthy();
+    expect(screen.getByText(/alles bleibt lokal/)).toBeTruthy();
     const viewButton = await screen.findByRole("button", { name: "Skill ansehen" });
     await waitFor(() => expect((viewButton as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(viewButton);

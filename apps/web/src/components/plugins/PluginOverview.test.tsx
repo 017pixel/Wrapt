@@ -73,7 +73,7 @@ describe("PluginOverview", () => {
     expect(screen.getByRole("button", { name: "Allgemein" }).getAttribute("aria-pressed")).toBe("true");
     fireEvent.click(screen.getByRole("button", { name: "Eigene Plugins" }));
     expect(onTabChange).toHaveBeenCalledWith("eigene");
-    expect(screen.getByText("Wrapt-Plugins")).toBeTruthy();
+    expect(screen.getByText(/Persönliche Plugins per Agent-Skill/)).toBeTruthy();
     expect(screen.getByText("$wrapt-plugins")).toBeTruthy();
   });
 

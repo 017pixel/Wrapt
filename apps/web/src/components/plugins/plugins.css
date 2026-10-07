@@ -23,12 +23,11 @@
   .plugins-section-heading, .plugin-panel-heading, .plugin-prompt-result-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); }
   .plugins-section-heading h2, .plugin-panel-heading h2, .plugin-prompt-result-heading h3 { margin: 4px 0 0; color: var(--color-text); font-size: 18px; font-weight: 600; letter-spacing: -.025em; }
   .plugins-section-heading p { max-width: 68ch; margin: 6px 0 0; color: var(--color-muted); font-size: 12px; line-height: 1.5; }
-  .plugins-section-count { display: grid; min-width: 36px; min-height: 36px; place-items: center; border: 1px solid var(--color-line); border-radius: var(--radius-sm); background: var(--color-ink-900); color: var(--color-text); font: 500 13px var(--font-mono); }
   .plugins-quick-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
-  .plugins-quick-card { display: grid; min-height: 172px; align-content: start; gap: 9px; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-ink-900); padding: 16px; }
+  .plugins-quick-card { display: grid; min-height: 172px; align-content: space-between; gap: 12px; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-ink-900); padding: 18px 16px; cursor: pointer; }
+  .plugins-quick-card:hover { border-color: var(--color-accent-line); }
   .plugins-quick-card h2 { margin: 0; color: var(--color-text); font-size: 16px; font-weight: 600; letter-spacing: -.02em; }
-  .plugins-quick-card p { min-height: 38px; margin: 0; color: var(--color-muted); font-size: 12px; line-height: 1.5; }
-  .plugins-quick-card .quiet-button { align-self: end; justify-self: start; margin-top: 5px; }
+  .plugins-quick-card .quiet-button { align-self: end; justify-self: start; min-height: 44px; margin-top: 5px; }
   .plugins-skill-note { display: flex; min-height: 56px; align-items: center; gap: 10px; margin-top: 12px; border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-ink-900); padding: 12px 14px; color: var(--color-muted); font-size: 12px; }
   .plugins-skill-note svg { flex: none; color: var(--color-accent); }
   .plugins-skill-note strong { color: var(--color-text); font-weight: 600; }
