@@ -245,12 +245,19 @@ describe("eingebettete Werkzeug-Eingaben", () => {  it("lässt Pointer-Gesten im
   });
 });
 
-describe("T3 Open-in-VS-Code-Brücke", () => {
+describe("T3 Open-in-Brücke", () => {
+  const locationAssign = vi.fn();
+
   beforeEach(() => {
-    // openPanel wird pro Test ersetzt, damit der persistierte Layout-Store
+    // Der Layout-Store wird pro Test ersetzt, damit der persistierte Store
     // keinen Storage braucht (im Test-Setup ist window.localStorage nicht
     // zuverlässig vorhanden).
-    vi.spyOn(useLayoutStore.getState(), "openPanel").mockImplementation(() => "new-panel-id");
+    vi.spyOn(useLayoutStore.getState(), "selectProject").mockImplementation(() => undefined);
+    locationAssign.mockClear();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { origin: "http://localhost:3000", href: "http://localhost:3000/t3-code", assign: locationAssign },
+    });
   });
 
   afterEach(() => vi.restoreAllMocks());
@@ -272,28 +279,19 @@ describe("T3 Open-in-VS-Code-Brücke", () => {
     };
   }
 
-  it("öffnet einen neuen Code-Server-Bereich mit dem Zielordner des T3-Buttons", async () => {
+  it("springt eingebettet auf die Code-Editor-Seite mit dem Zielordner des T3-Buttons", async () => {
     const project = t3Project();
     const panel = { id: "panel-t3", type: "t3-code", projectId: project.id, previewId: null, reloadKey: 0 } satisfies Panel;
-    const openPanel = vi.spyOn(useLayoutStore.getState(), "openPanel").mockImplementation(() => "new-panel-id");
 
     render(createElement(ToolPanel, { panel, project, isFocused: false, codeServerMode: "embedded" }));
 
     sendEditorMessage("/home/user/projects/foo");
 
-    await waitFor(() => expect(openPanel).toHaveBeenCalledWith({
-      type: "code-server",
-      projectId: project.id,
-      codeServerFolder: "/home/user/projects/foo",
-    }));
+    await waitFor(() => expect(locationAssign).toHaveBeenCalledWith("/code-editor/?folder=%2Fhome%2Fuser%2Fprojects%2Ffoo"));
+    expect(useLayoutStore.getState().selectProject).toHaveBeenCalledWith(project.id);
   });
 
-  it("springt auf der eigenständigen Werkzeugseite zur Code-Server-Seite", async () => {
-    const assign = vi.fn();
-    Object.defineProperty(window, "location", {
-      configurable: true,
-      value: { origin: "http://localhost:3000", href: "http://localhost:3000/t3-code", assign },
-    });
+  it("springt auf der eigenständigen Werkzeugseite zur Code-Editor-Seite", async () => {
     const project = t3Project();
     const panel = { id: "standalone-t3", type: "t3-code", projectId: project.id, previewId: null, reloadKey: 0 } satisfies Panel;
 
@@ -301,23 +299,42 @@ describe("T3 Open-in-VS-Code-Brücke", () => {
 
     sendEditorMessage("/home/user/projects/foo");
 
-    await waitFor(() => expect(assign).toHaveBeenCalledWith("/code-editor/?folder=%2Fhome%2Fuser%2Fprojects%2Ffoo"));
+    await waitFor(() => expect(locationAssign).toHaveBeenCalledWith("/code-editor/?folder=%2Fhome%2Fuser%2Fprojects%2Ffoo"));
+  });
+
+  it("öffnet ohne Ordner die Code-Editor-Seite mit dem Panel-Projekt", async () => {
+    const project = t3Project();
+    const panel = { id: "panel-t3", type: "t3-code", projectId: project.id, previewId: null, reloadKey: 0 } satisfies Panel;
+
+    render(createElement(ToolPanel, { panel, project, isFocused: false, codeServerMode: "embedded" }));
+
+    sendEditorMessage(null);
+
+    await waitFor(() => expect(locationAssign).toHaveBeenCalledWith("/code-editor/"));
+    expect(useLayoutStore.getState().selectProject).toHaveBeenCalledWith(project.id);
+  });
+
+  it("navigiert ohne Panel-Projekt ohne Projektauswahl zur Code-Editor-Seite", async () => {
+    const panel = { id: "panel-t3", type: "t3-code", projectId: null, previewId: null, reloadKey: 0 } satisfies Panel;
+
+    render(createElement(ToolPanel, { panel, project: undefined, isFocused: false, codeServerMode: "embedded" }));
+
+    sendEditorMessage("/home/user/projects/foo");
+
+    await waitFor(() => expect(locationAssign).toHaveBeenCalledWith("/code-editor/?folder=%2Fhome%2Fuser%2Fprojects%2Ffoo"));
+    expect(useLayoutStore.getState().selectProject).not.toHaveBeenCalled();
   });
 
   it("ignoriert fremde Nachrichten ohne den Open-Editor-Typ", async () => {
     const project = t3Project();
     const panel = { id: "panel-t3", type: "t3-code", projectId: project.id, previewId: null, reloadKey: 0 } satisfies Panel;
-    const openPanel = vi.spyOn(useLayoutStore.getState(), "openPanel").mockImplementation(() => "new-panel-id");
 
     render(createElement(ToolPanel, { panel, project, isFocused: false, codeServerMode: "embedded" }));
 
     window.dispatchEvent(new MessageEvent("message", { data: { type: "unrelated" }, origin: window.location.origin }));
 
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(openPanel).not.toHaveBeenCalledWith({
-      type: "code-server",
-      projectId: project.id,
-      codeServerFolder: "/home/user/projects/foo",
-    });
+    expect(locationAssign).not.toHaveBeenCalled();
+    expect(useLayoutStore.getState().selectProject).not.toHaveBeenCalled();
   });
 });

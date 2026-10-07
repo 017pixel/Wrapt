@@ -55,7 +55,7 @@ interface ToolPanelProps {
 }
 
 export function ToolPanel({ panel, project, isFocused, codeServerMode = "external", codeServerState, onFocus, standalone = false, externalMaximized, onMaximizedChange, onReload, onClose, minimal = false, terminalRenderScale = 1, terminalRuntimeId = null, actionPlacement = "overlay" }: ToolPanelProps) {
-  const openPanel = useLayoutStore((s) => s.openPanel);
+  const selectProject = useLayoutStore((s) => s.selectProject);
   const reloadPanel = useLayoutStore((s) => s.reloadPanel);
   const closePanel = useLayoutStore((s) => s.closePanel);
   const maximizePanel = useLayoutStore((s) => s.maximizePanel);
@@ -108,28 +108,22 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
 
   useEffect(() => {
     if (panel.type !== "t3-code") return;
-    // Der T3-„Open in VS Code"-Button öffnet seinen Zielordner statt einer
-    // toten vscode://-Navigation im code-server der Workbench: eingebettet als
-    // neuer Editor-Bereich, auf der eigenständigen Werkzeugseite als Sprung.
+    // Alle T3-„Open in …"-Einträge öffnen den Zielordner auf der vollen
+    // Code-Editor-Seite: Das Panel-Projekt wird aktiv gesetzt, damit die Seite
+    // zum passenden Projekt gehört. Ohne ablesbaren Ordner öffnet die Seite
+    // ihr Standardprojekt.
     const handleT3EditorRequest = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
       const data = event.data as { type?: unknown; folder?: unknown } | null;
       if (data?.type !== "wrapt:open-editor") return;
       const folder = typeof data.folder === "string" && data.folder.length > 0 ? data.folder : null;
-      if (standalone) {
-        const params = new URLSearchParams(folder ? { folder } : {});
-        window.location.assign(`/code-editor/?${params.toString()}`);
-        return;
-      }
-      openPanel({
-        type: "code-server",
-        projectId: panel.projectId,
-        ...(folder ? { codeServerFolder: folder } : {}),
-      });
+      if (panel.projectId) selectProject(panel.projectId);
+      const query = folder ? `?${new URLSearchParams({ folder }).toString()}` : "";
+      window.location.assign(`/code-editor/${query}`);
     };
     window.addEventListener("message", handleT3EditorRequest);
     return () => window.removeEventListener("message", handleT3EditorRequest);
-  }, [openPanel, panel.id, panel.projectId, panel.type, standalone]);
+  }, [selectProject, panel.projectId, panel.type]);
 
   useEffect(() => {
     if (panel.type !== "preview" || localPreview) return;

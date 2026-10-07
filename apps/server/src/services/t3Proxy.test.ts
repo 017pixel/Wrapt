@@ -23,13 +23,21 @@ describe("T3-Proxy", () => {
     expect(t3HttpRoutes).toContain("/oauth/*");
   });
 
-  it("brückt den T3-Open-in-VS-Code-Button an den code-server der Workbench", () => {
+  it("brückt alle T3-Open-Einträge auf die Code-Editor-Seite der Workbench", () => {
     expect(remoteEditorFallbackScript).toContain("wrapt:open-editor");
     expect(remoteEditorFallbackScript).toContain("=== \"Open file in preferred editor\"");
     expect(remoteEditorFallbackScript).toContain("[data-chat-header-actions]");
     expect(remoteEditorFallbackScript).toContain("__reactFiber$");
     expect(remoteEditorFallbackScript).toContain("window.parent.postMessage");
-    expect(remoteEditorFallbackScript).toContain("/editor/");
+    expect(remoteEditorFallbackScript).toContain("/code-editor/");
+    expect(remoteEditorFallbackScript).toContain("[role=menuitem]");
+    expect(remoteEditorFallbackScript).toContain("thread-details-action");
+    expect(remoteEditorFallbackScript).toContain("startsWith(\"Open in \")");
+    // Hover und Fokus laden das Editor-Dokument einmalig vor.
+    expect(remoteEditorFallbackScript).toContain("rel = \"prefetch\"");
+    expect(remoteEditorFallbackScript).toContain("\"mouseover\"");
+    expect(remoteEditorFallbackScript).toContain("\"focusin\"");
+    expect(remoteEditorFallbackScript).toContain("matchesOpenButton");
     // Die vscode://-URL ist nicht abfangbar (window.location.assign ist nicht
     // überschreibbar), also wird der Klick selbst unterbunden.
     expect(remoteEditorFallbackScript).toContain("addEventListener(\"click\", (event) => {");
@@ -38,12 +46,18 @@ describe("T3-Proxy", () => {
     expect(remoteEditorFallbackScript).not.toContain("Location.prototype.assign");
   });
 
-  it("erkennt den T3-Open-Button über aria-label, Text und Kopfbereich", () => {
-    expect(t3IsEditorOpenButton({ ariaLabel: "Open file in preferred editor", text: null, inHeaderActions: true, hasIcon: true })).toBe(true);
-    expect(t3IsEditorOpenButton({ ariaLabel: null, text: "Open", inHeaderActions: true, hasIcon: true })).toBe(true);
-    expect(t3IsEditorOpenButton({ ariaLabel: null, text: "Open", inHeaderActions: false, hasIcon: true })).toBe(false);
-    expect(t3IsEditorOpenButton({ ariaLabel: null, text: "Open", inHeaderActions: true, hasIcon: false })).toBe(false);
-    expect(t3IsEditorOpenButton({ ariaLabel: "Copy options", text: "Open", inHeaderActions: true, hasIcon: true })).toBe(false);
+  it("erkennt alle T3-Open-Varianten über aria-label, Text und Bereich", () => {
+    expect(t3IsEditorOpenButton({ ariaLabel: "Open file in preferred editor", text: null, inHeaderActions: true, hasIcon: true, inMenu: false, isEntry: true })).toBe(true);
+    expect(t3IsEditorOpenButton({ ariaLabel: null, text: "Open", inHeaderActions: true, hasIcon: true, inMenu: false, isEntry: true })).toBe(true);
+    expect(t3IsEditorOpenButton({ ariaLabel: "Open in VS Code", text: null, inHeaderActions: false, hasIcon: true, inMenu: true, isEntry: true })).toBe(true);
+    expect(t3IsEditorOpenButton({ ariaLabel: "Open in Cursor", text: null, inHeaderActions: true, hasIcon: true, inMenu: false, isEntry: true })).toBe(true);
+    expect(t3IsEditorOpenButton({ ariaLabel: null, text: "Open", inHeaderActions: false, hasIcon: true, inMenu: false, isEntry: true })).toBe(false);
+    expect(t3IsEditorOpenButton({ ariaLabel: null, text: "Open", inHeaderActions: true, hasIcon: false, inMenu: false, isEntry: true })).toBe(false);
+    expect(t3IsEditorOpenButton({ ariaLabel: "Open in…", text: null, inHeaderActions: false, hasIcon: true, inMenu: true, isEntry: true })).toBe(false);
+    expect(t3IsEditorOpenButton({ ariaLabel: "Open in VS Code", text: null, inHeaderActions: false, hasIcon: true, inMenu: false, isEntry: true })).toBe(false);
+    expect(t3IsEditorOpenButton({ ariaLabel: "Open in VS Code", text: null, inHeaderActions: false, hasIcon: false, inMenu: true, isEntry: true })).toBe(false);
+    expect(t3IsEditorOpenButton({ ariaLabel: "Open in VS Code", text: null, inHeaderActions: false, hasIcon: true, inMenu: true, isEntry: false })).toBe(false);
+    expect(t3IsEditorOpenButton({ ariaLabel: "Copy options", text: "Open", inHeaderActions: true, hasIcon: true, inMenu: false, isEntry: true })).toBe(false);
   });
 
   it("liest den Zielordner aus den React-Props entlang der Fiber-Kette", () => {
