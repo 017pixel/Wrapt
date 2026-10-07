@@ -60,7 +60,7 @@ test("öffnet Schnellaktionen auf freien Bereichen der Shell", async ({ page }) 
 
 test("öffnet Schnellaktionen im freien Bereich der linken Sidebar", async ({ page }) => {
   await page.goto("/wrapt/files");
-  await page.getByRole("button", { name: "Orbit einklappen" }).click();
+  await page.getByRole("button", { name: "Allgemein einklappen" }).click();
   await page.getByRole("button", { name: "Werkzeuge einklappen" }).click();
 
   const menu = page.locator('.global-context-menu[data-surface="host.context-menu.empty"]');

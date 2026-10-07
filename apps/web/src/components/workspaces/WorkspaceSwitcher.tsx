@@ -75,7 +75,9 @@ export function WorkspaceSwitcher({ compact = false, mobile = false }: Workspace
         aria-expanded={open}
         title={active?.name ?? "Server wechseln"}
       >
-        {!compact ? <strong>{active?.name ?? "Dieses Gerät"}</strong> : null}
+        {/* Der Name bleibt immer eingehängt und wird eingeklappt per CSS
+            ausgeblendet (Fade), damit der Switcher nicht springt. */}
+        <strong className="workspace-switcher-name">{active?.name ?? "Dieses Gerät"}</strong>
         <span className="workspace-switcher-chevron"><ChevronDownIcon className="h-4 w-4" /></span>
       </button>
 

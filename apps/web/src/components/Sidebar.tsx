@@ -1,9 +1,9 @@
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, useSyncExternalStore } from "react";
-import type { ComponentType, CSSProperties, DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent } from "react";
+import type { ComponentType, CSSProperties, DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import type { OrbitNode } from "@wrapt/contracts";
-import { ChevronDownIcon, ChevronLeftIcon, ChevronRightIcon, EyeIcon, FolderCodeIcon, FolderSearchIcon, WraptIcon } from "./icons";
+import { ChevronLeftIcon, ChevronRightIcon, EyeIcon, FolderCodeIcon, FolderSearchIcon, WraptIcon } from "./icons";
 import { prefetchRouteTarget } from "../lib/routePrefetch";
 import { wraptQueries } from "../lib/queryOptions";
 import { useNavigationRegistry } from "../extensions/useNavigationRegistry";
@@ -45,14 +45,17 @@ function requestOrbitProjectBrowser() {
 }
 
 
-function SectionHeader({ label, sectionKey, collapsed }: { label: string; sectionKey: SidebarSectionKey; collapsed: boolean }) {
+function SectionHeader({ label, sectionKey }: { label: string; sectionKey: SidebarSectionKey }) {
   const toggle = useSidebarPreferences((s) => s.toggleSection);
   const isCollapsed = useSidebarPreferences((s) => s.collapsedSections[sectionKey]);
-  if (collapsed) return <span className="sidebar-section-divider" aria-hidden />;
+  // Immer eingehängt: Im eingeklappten Zustand blendet CSS den Text aus und
+  // zeigt stattdessen eine Trennlinie (siehe sidebar-layout.css). Kein
+  // bedingtes Unmount — das war der Sprung in der alten Animation.
+  // Bewusst ohne Pfeil-Icon: Der Kopf bleibt klickbar und klappt die Sektion
+  // auf und zu, zeigt aber kein Chevron.
   return (
     <button type="button" className="sidebar-section-header" onClick={() => toggle(sectionKey)} aria-expanded={!isCollapsed} aria-label={`${label} ${isCollapsed ? "ausklappen" : "einklappen"}`}>
-      <span>{label}</span>
-      <ChevronDownIcon className={`sidebar-section-chevron ${isCollapsed ? "is-collapsed" : ""}`} />
+      <span className="sidebar-section-label">{label}</span>
     </button>
   );
 }
@@ -61,9 +64,20 @@ function useSectionCollapsed(sectionKey: SidebarSectionKey) {
   return useSidebarPreferences((s) => s.collapsedSections[sectionKey]);
 }
 
-// Ein Eintrag für beide Sidebar-Breiten. Eingeklappt bleibt nur das Icon stehen,
-// der Text steckt weiterhin in aria-label/title — deshalb genau eine Variante statt zwei Zweigen.
-function SidebarNavLink({ item, collapsed }: { item: OwnedNavigationItem; collapsed: boolean }) {
+// Hülle um Sektionsinhalte: bleibt immer eingehängt, damit das Auf- und
+// Zuklappen per CSS animieren kann (siehe .sidebar-section-body).
+function SectionBody({ collapsed, children }: { collapsed: boolean; children: ReactNode }) {
+  return (
+    <div className={`sidebar-section-body${collapsed ? " is-collapsed" : ""}`}>
+      <div className="sidebar-section-body-inner">{children}</div>
+    </div>
+  );
+}
+
+// Ein Eintrag für beide Sidebar-Breiten. Das Label bleibt immer eingehängt und
+// wird im eingeklappten Zustand per CSS ausgeblendet (Fade + Slide), damit die
+// Breiten-Animation nicht springt. Der Text steckt zusätzlich in aria-label/title.
+function SidebarNavLink({ item }: { item: OwnedNavigationItem }) {
   const client = useQueryClient();
   const navigate = useNavigate();
   const togglePage = useSidebarPreferences((state) => state.togglePage);
@@ -115,36 +129,39 @@ function SidebarNavLink({ item, collapsed }: { item: OwnedNavigationItem; collap
       onDragOver={(event) => { if (reorderEnabled) event.preventDefault(); }}
       onDrop={(event) => { const dragId = event.dataTransfer.getData("application/x-wrapt-navigation"); if (dragId) { event.preventDefault(); moveBefore(dragId, item.contributionId, availableIds); } }}
     >
-      {NavigationIcon ? <NavigationIcon className="h-4 w-4 shrink-0" style={{ color: "inherit" }} /> : null}
-      {!collapsed ? label : null}
+      {NavigationIcon ? <NavigationIcon className="sidebar-item-icon h-4 w-4 shrink-0" style={{ color: "inherit" }} /> : null}
+      <span className="sidebar-item-text">{label}</span>
     </NavLink>
   );
 }
-function OrbitPaletteButton({ payload, Icon, collapsed }: { payload: OrbitPalettePayload; Icon: React.ComponentType<{ className?: string }>; collapsed: boolean }) {
+function OrbitPaletteButton({ payload, Icon }: { payload: OrbitPalettePayload; Icon: React.ComponentType<{ className?: string }> }) {
   return (
-    <button type="button" className="sidebar-item orbit-palette-item" draggable onDragStart={(event) => beginOrbitDrag(event, payload)} onClick={() => requestOrbitNode(payload)} aria-label={payload.title} title={collapsed ? payload.title : "Klicken oder auf den Orbit ziehen"}>
-      <Icon className="h-4 w-4 shrink-0" />
-      {!collapsed ? <><span>{payload.title}</span><small>ziehen</small></> : null}
+    <button type="button" className="sidebar-item orbit-palette-item" draggable onDragStart={(event) => beginOrbitDrag(event, payload)} onClick={() => requestOrbitNode(payload)} aria-label={payload.title} title={payload.title}>
+      <Icon className="sidebar-item-icon h-4 w-4 shrink-0" />
+      <span className="sidebar-item-text">{payload.title}</span><small className="sidebar-item-meta">ziehen</small>
     </button>
   );
 }
 
-function OrbitToolSection({ collapsed }: { collapsed: boolean }) {
+function OrbitToolSection() {
   const hiddenOrbitItems = useSidebarPreferences((s) => s.hiddenOrbitItems);
   const isCollapsed = useSectionCollapsed("orbit-tools");
   const palette = useSyncExternalStore(orbitPaletteRegistry.subscribe, orbitPaletteRegistry.getSnapshot);
   const visible = palette.byGroup.tools.filter((item) => isOrbitItemVisibleIn(hiddenOrbitItems, item.value.runtime.legacyKey));
   return (
     <div className="sidebar-section">
-      <SectionHeader label="Orbit-Werkzeuge" sectionKey="orbit-tools" collapsed={collapsed} />
-      {!isCollapsed ? visible.map((item) => (
-        <OrbitPaletteButton key={item.contributionId} payload={item.value.runtime.createPayload()} Icon={item.value.runtime.icon} collapsed={collapsed} />
-      )) : null}
+      <SectionHeader label="Orbit-Werkzeuge" sectionKey="orbit-tools" />
+      <SectionBody collapsed={isCollapsed}>
+        {visible.map((item) => (
+          <OrbitPaletteButton key={item.contributionId} payload={item.value.runtime.createPayload()} Icon={item.value.runtime.icon} />
+        ))}
+      </SectionBody>
     </div>
   );
 }
 
-function OrbitPreviewSection({ collapsed }: { collapsed: boolean }) {  const isCollapsed = useSectionCollapsed("previews");
+function OrbitPreviewSection() {
+  const isCollapsed = useSectionCollapsed("previews");
   const hiddenOrbitItems = useSidebarPreferences((state) => state.hiddenOrbitItems);
   const palette = useSyncExternalStore(orbitPaletteRegistry.subscribe, orbitPaletteRegistry.getSnapshot);
   const document = useOrbitStore((state) => state.document);
@@ -164,10 +181,10 @@ function OrbitPreviewSection({ collapsed }: { collapsed: boolean }) {  const isC
   };
   return (
     <div className="sidebar-section orbit-preview-section">
-      <SectionHeader label="Previews" sectionKey="previews" collapsed={collapsed} />
-      {!isCollapsed ? <>
+      <SectionHeader label="Previews" sectionKey="previews" />
+      <SectionBody collapsed={isCollapsed}>
         {palette.byGroup.previews.filter((item) => isOrbitItemVisibleIn(hiddenOrbitItems, item.value.runtime.legacyKey)).map((item) => (
-          <OrbitPaletteButton key={item.contributionId} payload={item.value.runtime.createPayload()} Icon={item.value.runtime.icon} collapsed={collapsed} />
+          <OrbitPaletteButton key={item.contributionId} payload={item.value.runtime.createPayload()} Icon={item.value.runtime.icon} />
         ))}
         {savedGroups.length ? <span className="sidebar-preview-divider" /> : null}
         {savedGroups.map((group) => {
@@ -183,13 +200,13 @@ function OrbitPreviewSection({ collapsed }: { collapsed: boolean }) {  const isC
               { id: hostContextMenuId("preview.close"), label: "Löschen", danger: true, onSelect: () => deleteGroup(group) },
             ],
           })}>
-            <button type="button" className="sidebar-item orbit-palette-item" draggable onDragStart={(event) => beginOrbitDrag(event, { type: "previewGroup", title: group.title, layout: group.previewLayout ?? "1", referenceId: group.id })} onClick={() => requestOrbitNode({ type: "previewGroup", title: group.title, layout: group.previewLayout ?? "1", referenceId: group.id })} title={collapsed ? `${group.title} · ${count} Slots` : "Gespeicherte Gruppe einsetzen"}>
-              <EyeIcon className="h-4 w-4 shrink-0" />
-              {!collapsed ? <><span>{group.title}</span><small>{count} Slots</small></> : null}
+            <button type="button" className="sidebar-item orbit-palette-item" draggable onDragStart={(event) => beginOrbitDrag(event, { type: "previewGroup", title: group.title, layout: group.previewLayout ?? "1", referenceId: group.id })} onClick={() => requestOrbitNode({ type: "previewGroup", title: group.title, layout: group.previewLayout ?? "1", referenceId: group.id })} title={`${group.title} · ${count} Slots`} aria-label={`${group.title} · ${count} Slots`}>
+              <EyeIcon className="sidebar-item-icon h-4 w-4 shrink-0" />
+              <span className="sidebar-item-text truncate">{group.title}</span><small className="sidebar-item-meta">{count} Slots</small>
             </button>
           </div>;
         })}
-      </> : null}
+      </SectionBody>
       <PromptDialog
         open={renameGroup !== null}
         title="Preview-Gruppe umbenennen"
@@ -203,17 +220,19 @@ function OrbitPreviewSection({ collapsed }: { collapsed: boolean }) {  const isC
   );
 }
 
-function OrbitBlockSection({ collapsed }: { collapsed: boolean }) {
+function OrbitBlockSection() {
   const hiddenOrbitItems = useSidebarPreferences((s) => s.hiddenOrbitItems);
   const isCollapsed = useSectionCollapsed("blocks");
   const palette = useSyncExternalStore(orbitPaletteRegistry.subscribe, orbitPaletteRegistry.getSnapshot);
   const visible = palette.byGroup.blocks.filter((item) => isOrbitItemVisibleIn(hiddenOrbitItems, item.value.runtime.legacyKey));
   return (
     <div className="sidebar-section">
-      <SectionHeader label="Blöcke" sectionKey="blocks" collapsed={collapsed} />
-      {!isCollapsed ? visible.map((item) => (
-        <OrbitPaletteButton key={item.contributionId} payload={item.value.runtime.createPayload()} Icon={item.value.runtime.icon} collapsed={collapsed} />
-      )) : null}
+      <SectionHeader label="Blöcke" sectionKey="blocks" />
+      <SectionBody collapsed={isCollapsed}>
+        {visible.map((item) => (
+          <OrbitPaletteButton key={item.contributionId} payload={item.value.runtime.createPayload()} Icon={item.value.runtime.icon} />
+        ))}
+      </SectionBody>
     </div>
   );
 }
@@ -290,7 +309,7 @@ export function Sidebar({ collapsed, width, onToggle, onResize }: SidebarProps) 
       <aside className="workspace-sidebar flex-col">
         <div className="sidebar-brand">
           <div className="sidebar-mark"><WraptIcon className="h-[18px] w-[18px]" /></div>
-          {!collapsed ? <div className="sidebar-label">Wrapt</div> : null}
+          <div className="sidebar-label" aria-hidden={collapsed}>Wrapt</div>
           <button
             type="button"
             className="sidebar-toggle"
@@ -304,24 +323,29 @@ export function Sidebar({ collapsed, width, onToggle, onResize }: SidebarProps) 
         <div className="workspace-switcher-sidebar-slot"><WorkspaceSwitcher compact={collapsed} /></div>
         <nav className={`sidebar-scroll sidebar-primary-navigation ${orbitMode ? "is-orbit" : ""}`} aria-label="Seiten und Werkzeuge">
           <div className="sidebar-section">
-            <SectionHeader label="Orbit" sectionKey="workspace" collapsed={collapsed} />
-            {!workspaceSectionCollapsed ? visiblePrimaryNavItems.map((item) => (
-              <SidebarNavLink key={item.contributionId} item={item} collapsed={collapsed} />
-            )) : null}
+            <SectionHeader label="Allgemein" sectionKey="workspace" />
+            <SectionBody collapsed={workspaceSectionCollapsed}>
+              {visiblePrimaryNavItems.map((item) => (
+                <SidebarNavLink key={item.contributionId} item={item} />
+              ))}
+            </SectionBody>
           </div>
           <div className="sidebar-section">
-            <SectionHeader label="Werkzeuge" sectionKey="tools" collapsed={collapsed} />
-            {!toolsSectionCollapsed ? visibleToolRouteItems.map((item) => (
-              <SidebarNavLink key={item.contributionId} item={item} collapsed={collapsed} />
-            )) : null}
+            <SectionHeader label="Werkzeuge" sectionKey="tools" />
+            <SectionBody collapsed={toolsSectionCollapsed}>
+              {visibleToolRouteItems.map((item) => (
+                <SidebarNavLink key={item.contributionId} item={item} />
+              ))}
+            </SectionBody>
           </div>
         </nav>
         {orbitMode ? <div className="sidebar-orbit-library">
-          <div className="sidebar-orbit-library-heading" aria-hidden={collapsed}>Zum Orbit hinzufügen</div>
-          <OrbitToolSection collapsed={collapsed} />
+          <div className="sidebar-orbit-library-heading" aria-hidden={collapsed}><span>Zum Orbit hinzufügen</span></div>
+          <OrbitToolSection />
           <div className="sidebar-section">
-            <SectionHeader label="Orbit-Projekte" sectionKey="orbit-projects" collapsed={collapsed} />
-            {!orbitProjectsSectionCollapsed ? <>{recentProjects.map((project) => {
+            <SectionHeader label="Orbit-Projekte" sectionKey="orbit-projects" />
+            <SectionBody collapsed={orbitProjectsSectionCollapsed}>
+              {recentProjects.map((project) => {
             const orbitBoard = orbitDocument.boards.find((board) => board.id === orbitDocument.activeBoardId);
             const projectNode = orbitBoard?.nodes.find((node) => node.type === "project" && node.projectId === project.id);
             return (
@@ -343,26 +367,28 @@ export function Sidebar({ collapsed, width, onToggle, onResize }: SidebarProps) 
                 ],
               })}
               aria-label={`${project.name} ziehen`}
-              title={collapsed ? project.name : "Klicken oder auf den Orbit ziehen"}
+              title={project.name}
             >
-              <FolderCodeIcon className="h-4 w-4 shrink-0" />
-              {!collapsed ? <><span className="truncate">{project.name}</span><small>ziehen</small></> : null}
+              <FolderCodeIcon className="sidebar-item-icon h-4 w-4 shrink-0" />
+              <span className="sidebar-item-text truncate">{project.name}</span><small className="sidebar-item-meta">ziehen</small>
             </button>
           );})}
-            <button type="button" className="sidebar-item orbit-palette-item" onClick={requestOrbitProjectBrowser} aria-label="Alle Projekte auswählen" title="Serverordner durchsuchen">
-              <FolderSearchIcon className="h-4 w-4 shrink-0" />
-              {!collapsed ? <><span className="truncate">Alle Projekte</span><small>{availableProjects.length}</small></> : null}
+            <button type="button" className="sidebar-item orbit-palette-item" onClick={requestOrbitProjectBrowser} aria-label="Alle Projekte auswählen" title="Alle Projekte — Serverordner durchsuchen">
+              <FolderSearchIcon className="sidebar-item-icon h-4 w-4 shrink-0" />
+              <span className="sidebar-item-text truncate">Alle Projekte</span><small className="sidebar-item-meta">{availableProjects.length}</small>
             </button>
-          </> : null}
+            </SectionBody>
           </div>
-          <OrbitPreviewSection collapsed={collapsed} />
-          <OrbitBlockSection collapsed={collapsed} />
+          <OrbitPreviewSection />
+          <OrbitBlockSection />
         </div> : null}
         <nav className="sidebar-footer sidebar-section" aria-label="Account und System">
-          <SectionHeader label="Account und System" sectionKey="footer" collapsed={collapsed} />
-          {!footerSectionCollapsed ? visibleFooterNavItems.map((item) => (
-            <SidebarNavLink key={item.contributionId} item={item} collapsed={collapsed} />
-          )) : null}
+          <SectionHeader label="Account und System" sectionKey="footer" />
+          <SectionBody collapsed={footerSectionCollapsed}>
+            {visibleFooterNavItems.map((item) => (
+              <SidebarNavLink key={item.contributionId} item={item} />
+            ))}
+          </SectionBody>
         </nav>
       </aside>
       {!collapsed ? (

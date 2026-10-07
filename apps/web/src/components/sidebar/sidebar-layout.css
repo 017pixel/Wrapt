@@ -17,7 +17,7 @@
 .sidebar-primary-navigation .sidebar-section-header,
 .sidebar-orbit-library .sidebar-section-header,
 .sidebar-footer .sidebar-section-header {
-  margin-top: 10px;
+  margin-top: 14px;
 }
 
 .sidebar-orbit-library {
@@ -35,6 +35,8 @@
   position: sticky;
   z-index: 1;
   top: 0;
+  overflow: hidden;
+  max-height: 40px;
   border-bottom: 1px solid var(--color-line);
   background: var(--wrapt-surface-sidebar);
   padding: 10px 12px;
@@ -43,9 +45,19 @@
   font-weight: 600;
   letter-spacing: .06em;
   text-transform: uppercase;
+  transition:
+    max-height var(--duration-slow) var(--ease-standard),
+    opacity var(--duration-fast) var(--ease-standard),
+    padding var(--duration-slow) var(--ease-standard),
+    border-color var(--duration-slow) var(--ease-standard);
 }
 
-.sidebar-shell.is-collapsed .sidebar-orbit-library-heading { height: 1px; overflow: hidden; padding: 0; }
+.sidebar-orbit-library-heading > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .sidebar-footer {
   max-height: 25%;
@@ -53,5 +65,262 @@
   overflow-x: hidden;
   overflow-y: auto;
   border-top: 1px solid var(--color-line);
-  padding: 2px 0 8px;
+  padding: 8px 0 8px;
+}
+
+/* --- Auf-/Zu-Animation ----------------------------------------------------
+   Prinzip: Die Breite animiert über `.sidebar-shell` (siehe index.css), alle
+   Inhalte bleiben eingehängt. Icons behalten exakt ihre Position — nur Texte
+   blenden per Fade + leichtem Slide aus. Darum rückt nichts mehr zur Mitte.
+   Beim Schließen verschwindet der Text sofort (kein Quetschen), beim Öffnen
+   wartet er ca. 100 ms, bis die Breite weitgehend steht. */
+
+.sidebar-shell .sidebar-item {
+  justify-content: flex-start;
+  transition:
+    background var(--duration-base) var(--ease-standard),
+    color var(--duration-base) var(--ease-standard),
+    gap var(--duration-base) var(--ease-standard);
+}
+
+.sidebar-shell .sidebar-item-icon {
+  flex: none;
+}
+
+.sidebar-shell .sidebar-item-text,
+.sidebar-shell .sidebar-item-meta {
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.sidebar-shell .sidebar-item-text {
+  min-width: 0;
+  flex: 1 1 auto;
+  text-overflow: ellipsis;
+  max-width: 20rem;
+  transition:
+    opacity var(--duration-base) var(--ease-standard) 100ms,
+    transform var(--duration-slow) var(--ease-standard) 100ms,
+    max-width var(--duration-slow) var(--ease-standard);
+}
+
+.sidebar-shell .sidebar-item-meta {
+  flex: none;
+  max-width: 6rem;
+  transition:
+    opacity var(--duration-base) var(--ease-standard) 100ms,
+    transform var(--duration-slow) var(--ease-standard) 100ms,
+    max-width var(--duration-slow) var(--ease-standard);
+}
+
+.sidebar-shell.is-collapsed .sidebar-item {
+  gap: 0;
+}
+
+.sidebar-shell.is-collapsed .sidebar-item-text,
+.sidebar-shell.is-collapsed .sidebar-item-meta {
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(-8px);
+  pointer-events: none;
+  transition-delay: 0ms;
+  transition-duration: var(--duration-fast), var(--duration-base), var(--duration-slow);
+}
+
+/* Markenlabel: Logo bleibt stehen, nur der Schriftzug blendet aus. */
+.sidebar-shell .sidebar-label {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 1;
+  transform: translateX(0);
+  max-width: 12rem;
+  transition:
+    opacity var(--duration-base) var(--ease-standard) 100ms,
+    transform var(--duration-slow) var(--ease-standard) 100ms,
+    max-width var(--duration-slow) var(--ease-standard);
+}
+
+.sidebar-shell.is-collapsed .sidebar-label {
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(-8px);
+  pointer-events: none;
+  transition-delay: 0ms;
+  transition-duration: var(--duration-fast), var(--duration-base), var(--duration-slow);
+}
+
+/* Der Toggle springt zwischen Zeile und Überlappung — ein kurzes Aufpoppen
+   kaschiert den Positionswechsel in beide Richtungen. */
+.sidebar-shell.is-collapsed .sidebar-toggle {
+  animation: sidebar-toggle-pop var(--duration-slow) var(--ease-standard) both;
+}
+
+.sidebar-shell:not(.is-collapsed) .sidebar-toggle {
+  animation: sidebar-toggle-pop var(--duration-base) var(--ease-standard) both;
+}
+
+@keyframes sidebar-toggle-pop {
+  from { opacity: 0; transform: scale(.7); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* Sektionsköpfe: gleiche Box in beiden Zuständen, der Text blendet aus und
+   eine Trennlinie blendet ein — kein Höhen- oder Layoutsprung. */
+.sidebar-shell .sidebar-section-header {
+  position: relative;
+  min-height: 22px;
+  align-items: center;
+  overflow: hidden;
+}
+
+.sidebar-shell .sidebar-section-label {
+  display: block;
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 1;
+  transform: translateX(0);
+  max-width: 16rem;
+  transition:
+    opacity var(--duration-base) var(--ease-standard) 100ms,
+    transform var(--duration-slow) var(--ease-standard) 100ms,
+    max-width var(--duration-slow) var(--ease-standard);
+}
+
+.sidebar-shell .sidebar-section-header::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 28px;
+  height: 1px;
+  border-radius: 1px;
+  background: var(--color-line);
+  opacity: 0;
+  transform: translate(-50%, -50%) scaleX(.5);
+  content: "";
+  pointer-events: none;
+  transition:
+    opacity var(--duration-base) var(--ease-standard),
+    transform var(--duration-slow) var(--ease-standard);
+}
+
+.sidebar-shell.is-collapsed .sidebar-section-label {
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(-8px);
+  pointer-events: none;
+  transition-delay: 0ms;
+  transition-duration: var(--duration-fast), var(--duration-base), var(--duration-slow);
+}
+
+.sidebar-shell.is-collapsed .sidebar-section-header::after {
+  opacity: 1;
+  transform: translate(-50%, -50%) scaleX(1);
+}
+
+/* Sektionsinhalt: klappt per Grid-Zeile weich auf und zu, statt hart zu
+   erscheinen. Zugezogen ist der Inhalt zusätzlich unsichtbar, damit Links
+   weder per Tastatur noch per Screenreader erreichbar bleiben. */
+.sidebar-shell .sidebar-section-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows var(--duration-base) var(--ease-standard),
+    opacity var(--duration-fast) var(--ease-standard),
+    visibility var(--duration-base) var(--ease-standard);
+}
+
+.sidebar-shell .sidebar-section-body.is-collapsed {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+}
+
+.sidebar-shell .sidebar-section-body-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Orbit-Überschrift: klappt weich zusammen statt hart auf 1 px zu springen. */
+.sidebar-shell.is-collapsed .sidebar-orbit-library-heading {
+  max-height: 0;
+  border-bottom-color: transparent;
+  padding-top: 0;
+  padding-bottom: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Workspace-Switcher: Der Name blendet wie die Navi-Texte aus, das Chevron
+   gleitet dabei weich in die Mitte — kein harter Justify-Wechsel. */
+.sidebar-shell .workspace-switcher-trigger {
+  overflow: hidden;
+  white-space: nowrap;
+  transition:
+    background var(--duration-base) var(--ease-standard),
+    border-color var(--duration-base) var(--ease-standard),
+    padding var(--duration-slow) var(--ease-standard),
+    width var(--duration-slow) var(--ease-standard);
+}
+
+.sidebar-shell .workspace-switcher-name {
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 1;
+  transform: translateX(0);
+  max-width: 12rem;
+  transition:
+    opacity var(--duration-base) var(--ease-standard) 100ms,
+    transform var(--duration-slow) var(--ease-standard) 100ms,
+    max-width var(--duration-slow) var(--ease-standard);
+}
+
+.sidebar-shell .workspace-switcher-chevron {
+  flex: none;
+}
+
+.sidebar-shell.is-collapsed .workspace-switcher-trigger.is-compact {
+  justify-content: center;
+  padding-left: 0;
+  gap: 0;
+}
+
+.sidebar-shell.is-collapsed .workspace-switcher-name {
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(-8px);
+  pointer-events: none;
+  transition-delay: 0ms;
+  transition-duration: var(--duration-fast), var(--duration-base), var(--duration-slow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-shell,
+  .sidebar-shell .sidebar-item,
+  .sidebar-shell .sidebar-item-text,
+  .sidebar-shell .sidebar-item-meta,
+  .sidebar-shell .sidebar-label,
+  .sidebar-shell .sidebar-section-label,
+  .sidebar-shell .sidebar-section-body,
+  .sidebar-shell .sidebar-section-header::after,
+  .sidebar-shell .sidebar-orbit-library-heading,
+  .sidebar-shell .workspace-switcher-trigger,
+  .sidebar-shell .workspace-switcher-name {
+    transition-duration: 1ms;
+    transition-delay: 0ms;
+  }
+  .sidebar-shell .sidebar-toggle {
+    animation: none;
+  }
 }

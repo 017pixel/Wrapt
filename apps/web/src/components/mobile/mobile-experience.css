@@ -45,14 +45,14 @@
   .app-shell[data-shell-mode="tablet"][data-orientation="landscape"] .shell-desktop-only { display: initial; }
   .app-shell[data-shell-mode="tablet"][data-orientation="landscape"] .status-bar { min-height: 44px; height: 44px; }
   .app-shell[data-input-mode="touch"] .sidebar-item { min-height: 44px; }
-  .app-shell[data-input-mode="touch"] .sidebar-section-header { min-height: 44px; margin-right: 8px; margin-left: 8px; }
+  .app-shell[data-input-mode="touch"] .sidebar-section-header { min-height: 44px; width: calc(100% - 16px); margin-right: 8px; margin-left: 8px; }
   .app-shell[data-input-mode="touch"] .sidebar-toggle { width: 44px; min-width: 44px; height: 44px; }
   .app-shell[data-input-mode="touch"] .sidebar-shell.is-collapsed .sidebar-toggle { right: -22px; }
   .app-shell[data-input-mode="touch"] .workspace-switcher-trigger { width: 100%; min-height: 44px; }
   .app-shell[data-input-mode="touch"] .workspace-switcher-trigger.is-compact { width: 44px; }
 
   .app-shell[data-shell-mode="tablet"] .sidebar-item { min-height: 44px; }
-  .app-shell[data-shell-mode="tablet"] .sidebar-section-header { min-height: 44px; margin-right: 8px; margin-left: 8px; }
+  .app-shell[data-shell-mode="tablet"] .sidebar-section-header { min-height: 44px; width: calc(100% - 16px); margin-right: 8px; margin-left: 8px; }
   .app-shell[data-shell-mode="tablet"] .sidebar-toggle { width: 44px; min-width: 44px; height: 44px; }
   .app-shell[data-shell-mode="tablet"] .sidebar-shell.is-collapsed .sidebar-toggle { right: -22px; }
   .app-shell[data-shell-mode="tablet"] .workspace-switcher-trigger { width: 100%; min-height: 44px; }

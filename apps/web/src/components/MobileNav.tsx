@@ -14,7 +14,7 @@ import { WorkspaceSwitcher } from "./workspaces/WorkspaceSwitcher";
 import { useWorkspaceRegistry } from "./workspaces/workspaceRegistryStore";
 
 const navigationGroupKickers: ReadonlyArray<{ group: "workspace" | "tools" | "account"; kicker: string }> = [
-  { group: "workspace", kicker: "Orbit" },
+  { group: "workspace", kicker: "Allgemein" },
   { group: "tools", kicker: "Werkzeuge" },
   { group: "account", kicker: "Account und System" },
 ];

@@ -27,6 +27,7 @@ import { recordToolUsage } from "../stores/toolUsage";
 import { PluginTopbar } from "./plugins/PluginTopbar";
 import { WorkspaceRegistrySync } from "./workspaces/WorkspaceRegistrySync";
 import { WorkspaceRegistryServerSync } from "./workspaces/WorkspaceRegistryServerSync";
+import { WorkspaceBreadcrumb } from "./workspaces/WorkspaceBreadcrumb";
 import { WorkspaceSwitchTransition } from "./workspaces/WorkspaceSwitchTransition";
 import { PwaInstallHint } from "./mobile/PwaInstallHint";
 
@@ -320,6 +321,7 @@ export function AppShell() {
             <MenuIcon className="h-[18px] w-[18px]" />
           </button> : null}
           <div className="page-crumb min-w-0">
+            <WorkspaceBreadcrumb />
             <Link to="/" className="page-crumb-root shell-desktop-only">Wrapt</Link>
             <ChevronRightIcon className="page-crumb-separator shell-desktop-only" aria-hidden />
             {isProjectDetail ? (
