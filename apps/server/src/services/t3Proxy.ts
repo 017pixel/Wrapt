@@ -77,9 +77,11 @@ export const remoteEditorFallbackScript = `<script>
     const message = { type: messageType, ...(folder ? { folder } : {}) };
     // Ohne ablesbaren Ordner meldet der Eintrag trotzdem: Die Workbench
     // öffnet dann ihr aktives Projekt statt des toten vscode://-Links.
+    // Der Basename /wrapt gehört dazu (Vite base, statisches Prefix in
+    // static.ts); ohne ihn antwortet der Server mit 404.
     if (window.parent === window) {
       const query = folder ? "?" + new URLSearchParams({ folder }).toString() : "";
-      window.location.assign("/code-editor/" + query);
+      window.location.assign("/wrapt/code-editor/" + query);
     } else {
       window.parent.postMessage(message, window.location.origin);
     }

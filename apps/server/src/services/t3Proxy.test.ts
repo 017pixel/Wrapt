@@ -29,7 +29,7 @@ describe("T3-Proxy", () => {
     expect(remoteEditorFallbackScript).toContain("[data-chat-header-actions]");
     expect(remoteEditorFallbackScript).toContain("__reactFiber$");
     expect(remoteEditorFallbackScript).toContain("window.parent.postMessage");
-    expect(remoteEditorFallbackScript).toContain("/code-editor/");
+    expect(remoteEditorFallbackScript).toContain("/wrapt/code-editor/");
     expect(remoteEditorFallbackScript).toContain("[role=menuitem]");
     expect(remoteEditorFallbackScript).toContain("thread-details-action");
     expect(remoteEditorFallbackScript).toContain("startsWith(\"Open in \")");

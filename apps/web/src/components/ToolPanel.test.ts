@@ -287,7 +287,7 @@ describe("T3 Open-in-Brücke", () => {
 
     sendEditorMessage("/home/user/projects/foo");
 
-    await waitFor(() => expect(locationAssign).toHaveBeenCalledWith("/code-editor/?folder=%2Fhome%2Fuser%2Fprojects%2Ffoo"));
+    await waitFor(() => expect(locationAssign).toHaveBeenCalledWith("/wrapt/code-editor/?folder=%2Fhome%2Fuser%2Fprojects%2Ffoo"));
     expect(useLayoutStore.getState().selectProject).toHaveBeenCalledWith(project.id);
   });
 
@@ -299,7 +299,7 @@ describe("T3 Open-in-Brücke", () => {
 
     sendEditorMessage("/home/user/projects/foo");
 
-    await waitFor(() => expect(locationAssign).toHaveBeenCalledWith("/code-editor/?folder=%2Fhome%2Fuser%2Fprojects%2Ffoo"));
+    await waitFor(() => expect(locationAssign).toHaveBeenCalledWith("/wrapt/code-editor/?folder=%2Fhome%2Fuser%2Fprojects%2Ffoo"));
   });
 
   it("öffnet ohne Ordner die Code-Editor-Seite mit dem Panel-Projekt", async () => {
@@ -310,7 +310,7 @@ describe("T3 Open-in-Brücke", () => {
 
     sendEditorMessage(null);
 
-    await waitFor(() => expect(locationAssign).toHaveBeenCalledWith("/code-editor/"));
+    await waitFor(() => expect(locationAssign).toHaveBeenCalledWith("/wrapt/code-editor/"));
     expect(useLayoutStore.getState().selectProject).toHaveBeenCalledWith(project.id);
   });
 
@@ -321,7 +321,7 @@ describe("T3 Open-in-Brücke", () => {
 
     sendEditorMessage("/home/user/projects/foo");
 
-    await waitFor(() => expect(locationAssign).toHaveBeenCalledWith("/code-editor/?folder=%2Fhome%2Fuser%2Fprojects%2Ffoo"));
+    await waitFor(() => expect(locationAssign).toHaveBeenCalledWith("/wrapt/code-editor/?folder=%2Fhome%2Fuser%2Fprojects%2Ffoo"));
     expect(useLayoutStore.getState().selectProject).not.toHaveBeenCalled();
   });
 

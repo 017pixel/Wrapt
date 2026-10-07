@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { editorOpenEventSchema } from "@wrapt/contracts";
 import { useLayoutStore } from "../stores/layout";
+import { appBase, codeEditorUrl } from "../lib/appUrl";
 import { wraptQueries } from "../lib/queryOptions";
 
 /**
@@ -43,11 +44,11 @@ export function EditorOpenBridge() {
           .sort((a, b) => b.depth - a.depth)[0]?.candidate;
         // Eigenständige Werkzeugseite: gleiches Verhalten wie der T3-„Open"-
         // Button im ToolPanel — Sprung in die Code-Editor-Seite mit Ordner.
-        const standalone = ["/t3-code", "/code-editor", "/previews"]
+        const base = appBase();
+        const standalone = [`${base}/t3-code`, `${base}/code-editor`, `${base}/previews`]
           .some((prefix) => window.location.pathname === prefix || window.location.pathname.startsWith(`${prefix}/`));
         if (standalone || !project) {
-          const params = new URLSearchParams({ folder: path });
-          window.location.assign(`/code-editor/?${params.toString()}`);
+          window.location.assign(codeEditorUrl(path));
           return;
         }
         openPanel({

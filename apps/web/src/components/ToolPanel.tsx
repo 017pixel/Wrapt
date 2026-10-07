@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { ExternalLinkIcon, WarningIcon } from "./icons";
 import type { Panel, Project, ServiceMode } from "@wrapt/contracts";
 import { useLayoutStore } from "../stores/layout";
+import { codeEditorUrl } from "../lib/appUrl";
 import { DevicePreviewFrame } from "./DevicePreviewFrame";
 import type { DeviceOrientation, DevicePresetId } from "../config/devicePresets";
 import { TerminalArea } from "./terminal/TerminalArea";
@@ -118,8 +119,7 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
       if (data?.type !== "wrapt:open-editor") return;
       const folder = typeof data.folder === "string" && data.folder.length > 0 ? data.folder : null;
       if (panel.projectId) selectProject(panel.projectId);
-      const query = folder ? `?${new URLSearchParams({ folder }).toString()}` : "";
-      window.location.assign(`/code-editor/${query}`);
+      window.location.assign(codeEditorUrl(folder));
     };
     window.addEventListener("message", handleT3EditorRequest);
     return () => window.removeEventListener("message", handleT3EditorRequest);
