@@ -13,7 +13,12 @@ import "./workspaces.css";
 
 const expectedVersion = typeof __WRAPT_APP_VERSION__ === "string" ? __WRAPT_APP_VERSION__ : "0.0.0";
 
-export function WorkspaceRegistryView() {
+interface WorkspaceRegistryViewProps {
+  allowAdding?: boolean;
+  onDialogOpenChange?(open: boolean): void;
+}
+
+export function WorkspaceRegistryView({ allowAdding = true, onDialogOpenChange }: WorkspaceRegistryViewProps) {
   const health = useQuery(wraptQueries.health());
   const entries = useWorkspaceRegistry((state) => state.entries);
   const selfUrl = useWorkspaceRegistry((state) => state.selfUrl);
@@ -33,7 +38,7 @@ export function WorkspaceRegistryView() {
   const visibleEntries = useMemo(() => entries.filter((entry) => {
     if (entry.url === selfUrl) return true;
     if (selfBootId && bootIds[entry.id] === selfBootId) return false;
-    return !(selfBootId && isLoopbackWorkspace(entry.url) && checkingIds.includes(entry.id));
+    return !(selfBootId && !bootIds[entry.id] && isLoopbackWorkspace(entry.url) && checkingIds.includes(entry.id));
   }), [bootIds, checkingIds, entries, selfBootId, selfUrl]);
   const remoteCount = useMemo(() => visibleEntries.filter((entry) => entry.url !== selfUrl).length, [visibleEntries, selfUrl]);
 
@@ -56,6 +61,17 @@ export function WorkspaceRegistryView() {
   }, [health.data?.appName, health.data?.bootId, health.data?.version]);
 
   useEffect(() => { void checkStatuses(); }, [checkStatuses]);
+  const hoverPrefetch = useCallback((entry: WorkspaceEntry) => {
+    preconnectWorkspace(entry.url);
+    if (entry.url === selfUrl) return;
+    if (statuses[entry.id] === "checking" || statuses[entry.id] === "live") return;
+    if (checkingIds.includes(entry.id)) return;
+    void checkStatuses(entry.id);
+  }, [checkStatuses, checkingIds, selfUrl, statuses]);
+  useEffect(() => {
+    onDialogOpenChange?.(adding || editing !== null || removing !== null);
+    return () => onDialogOpenChange?.(false);
+  }, [adding, editing, removing, onDialogOpenChange]);
 
   const handleSave = (name: string, url: string, probe: WorkspaceProbeResult | null): boolean => {
     const normalized = normalizeWorkspaceUrl(url);
@@ -87,7 +103,7 @@ export function WorkspaceRegistryView() {
 
   return (
     <div className="workspace-registry-view">
-      {remoteCount === 0 ? (
+      {allowAdding && remoteCount === 0 ? (
         <div className="workspace-empty-state">
           <p>Nur dieses Gerät verbunden.</p>
           <button type="button" className="quiet-button-primary workspace-add-button" onClick={() => setAdding(true)}>Server hinzufügen</button>
@@ -102,8 +118,9 @@ export function WorkspaceRegistryView() {
             <article
               className="workspace-entry"
               key={entry.id}
-              onPointerEnter={() => preconnectWorkspace(entry.url)}
-              onFocusCapture={() => preconnectWorkspace(entry.url)}
+              onPointerEnter={() => hoverPrefetch(entry)}
+              onPointerDown={() => hoverPrefetch(entry)}
+              onFocusCapture={() => hoverPrefetch(entry)}
             >
               <div className="workspace-entry-row">
                 <div className="workspace-entry-main">
@@ -134,7 +151,7 @@ export function WorkspaceRegistryView() {
         })}
       </div>
 
-      {remoteCount > 0 ? <button type="button" className="quiet-button-primary workspace-add-button" onClick={() => setAdding(true)}>Server hinzufügen</button> : null}
+      {allowAdding && remoteCount > 0 ? <button type="button" className="quiet-button-primary workspace-add-button" onClick={() => setAdding(true)}>Server hinzufügen</button> : null}
       <WorkspaceEditorDialog
         open={adding || editing !== null}
         entry={editing}

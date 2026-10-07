@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDownIcon, CloseIcon } from "../icons";
 import { useWorkspaceRegistry } from "./workspaceRegistryStore";
@@ -14,6 +14,8 @@ export function WorkspaceSwitcher({ compact = false, mobile = false }: Workspace
   const selfUrl = useWorkspaceRegistry((state) => state.selfUrl);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const dialogOpenRef = useRef(false);
+  const onDialogOpenChange = useCallback((value: boolean) => { dialogOpenRef.current = value; }, []);
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<CSSProperties>({ top: 12, left: 12 });
   const active = entries.find((entry) => entry.url === selfUrl);
@@ -40,19 +42,22 @@ export function WorkspaceSwitcher({ compact = false, mobile = false }: Workspace
     if (!open) return;
     popoverRef.current?.querySelector<HTMLButtonElement>("button:not([disabled])")?.focus({ preventScroll: true });
     const closeFromOutside = (event: PointerEvent) => {
+      if (dialogOpenRef.current) return;
       const target = event.target;
+      const menu = target instanceof Element ? target.closest(".workspace-entry-menu-panel") : null;
+      if (menu?.id && popoverRef.current?.querySelector(`[aria-controls="${menu.id}"]`)) return;
       if (target instanceof Node && !popoverRef.current?.contains(target) && !triggerRef.current?.contains(target)) setOpen(false);
     };
     const closeFromEscape = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
+      if (event.key !== "Escape" || dialogOpenRef.current) return;
       event.preventDefault();
       setOpen(false);
       triggerRef.current?.focus();
     };
-    document.addEventListener("pointerdown", closeFromOutside);
+    document.addEventListener("pointerdown", closeFromOutside, true);
     document.addEventListener("keydown", closeFromEscape);
     return () => {
-      document.removeEventListener("pointerdown", closeFromOutside);
+      document.removeEventListener("pointerdown", closeFromOutside, true);
       document.removeEventListener("keydown", closeFromEscape);
     };
   }, [open]);
@@ -91,7 +96,7 @@ export function WorkspaceSwitcher({ compact = false, mobile = false }: Workspace
                 <CloseIcon className="h-4 w-4" style={{ color: "var(--color-muted)" }} />
               </button>
             </header>
-            <WorkspaceRegistryView />
+            <WorkspaceRegistryView allowAdding={false} onDialogOpenChange={onDialogOpenChange} />
           </div>
         </>,
         document.body,

@@ -7,6 +7,16 @@ import { expect, test } from "@playwright/test";
 test.use({ serviceWorkers: "block" });
 
 test("zeigt die Serverauswahl erst nach dem Hinzufügen eines zweiten Hosts", async ({ page }) => {
+  // Die Registry dieses Einzelhost-Tests bleibt von anderen Browserläufen getrennt.
+  let registry = { entries: [], changedAt: {}, deletedAt: {} };
+  let revision = 0;
+  await page.route("**/api/v1/workspaces/registry", async (route) => {
+    if (route.request().method() === "PUT") {
+      registry = route.request().postDataJSON().document;
+      revision += 1;
+    }
+    await route.fulfill({ json: { document: registry, revision, updatedAt: new Date().toISOString() } });
+  });
   await page.route("https://zweit.example.ts.net/api/v1/health", async (route) => {
     await route.fulfill({
       status: 200,

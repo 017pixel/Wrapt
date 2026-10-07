@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { MoreIcon } from "../icons";
 import { isLoopbackWorkspace, type WorkspaceEntry } from "./workspaceModel";
@@ -21,7 +21,7 @@ export function WorkspaceEntryMenu({ entry, status, isSelf, checking, onCheck, o
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
-  const menuId = `workspace-actions-${entry.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+  const menuId = `workspace-actions-${useId()}`;
 
   const closeMenu = useCallback(() => {
     setOpen(false);
@@ -34,16 +34,28 @@ export function WorkspaceEntryMenu({ entry, status, isSelf, checking, onCheck, o
     const triggerRect = trigger.getBoundingClientRect();
     const popoverRect = trigger.closest<HTMLElement>(".workspace-switcher-popover")?.getBoundingClientRect();
     const viewportPadding = 8;
-    const width = Math.min((popoverRect?.width ?? 360) - viewportPadding * 2, window.innerWidth - viewportPadding * 2);
-    const left = Math.max(viewportPadding, Math.min((popoverRect?.left ?? triggerRect.left) + 8, window.innerWidth - width - viewportPadding));
+    const gap = 8;
+    const width = Math.min(320, window.innerWidth - viewportPadding * 2);
+    const anchor = popoverRect ?? triggerRect;
+    const fitsRight = anchor.right + gap + width <= window.innerWidth - viewportPadding;
+    const fitsLeft = anchor.left - gap - width >= viewportPadding;
     const menuHeight = menuRef.current?.getBoundingClientRect().height ?? 220;
-    const availableBelow = window.innerHeight - triggerRect.bottom - viewportPadding;
-    const availableAbove = triggerRect.top - viewportPadding;
+    if (fitsRight || fitsLeft) {
+      const maxHeight = Math.min(480, window.innerHeight - viewportPadding * 2);
+      const top = Math.max(viewportPadding, Math.min(triggerRect.top, window.innerHeight - Math.min(menuHeight, maxHeight) - viewportPadding));
+      setMenuPosition({ top, left: fitsRight ? anchor.right + gap : anchor.left - gap - width, width, maxHeight });
+      return;
+    }
+    // Ohne seitlichen Platz oberhalb oder unterhalb der gesamten Auswahl öffnen.
+    const left = Math.max(viewportPadding, Math.min(anchor.right - width, window.innerWidth - width - viewportPadding));
+    const availableBelow = window.innerHeight - anchor.bottom - gap - viewportPadding;
+    const availableAbove = anchor.top - gap - viewportPadding;
     const openBelow = availableBelow >= menuHeight || availableBelow >= availableAbove;
-    const maxHeight = Math.max(0, Math.min(480, openBelow ? availableBelow : availableAbove));
-    const top = openBelow
-      ? Math.min(window.innerHeight - viewportPadding, triggerRect.bottom + 4)
-      : Math.max(viewportPadding, triggerRect.top - Math.min(menuHeight, maxHeight) - 4);
+    const available = openBelow ? availableBelow : availableAbove;
+    const maxHeight = Math.min(480, available >= 144 ? available : window.innerHeight - viewportPadding * 2);
+    const top = available < 144 ? viewportPadding : openBelow
+      ? anchor.bottom + gap
+      : Math.max(viewportPadding, anchor.top - Math.min(menuHeight, maxHeight) - gap);
     setMenuPosition({ top, left, width, maxHeight });
   }, []);
 
@@ -60,10 +72,10 @@ export function WorkspaceEntryMenu({ entry, status, isSelf, checking, onCheck, o
       closeMenu();
       triggerRef.current?.focus();
     };
-    document.addEventListener("pointerdown", closeFromOutside);
+    document.addEventListener("pointerdown", closeFromOutside, true);
     document.addEventListener("keydown", closeFromEscape, true);
     return () => {
-      document.removeEventListener("pointerdown", closeFromOutside);
+      document.removeEventListener("pointerdown", closeFromOutside, true);
       document.removeEventListener("keydown", closeFromEscape, true);
     };
   }, [closeMenu, open]);

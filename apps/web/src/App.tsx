@@ -1,4 +1,4 @@
-import { useMemo, useSyncExternalStore } from "react";
+import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { BrowserRouter, Navigate, Routes, useLocation } from "react-router";
 import { PwaInstallProvider } from "./lib/usePwaInstall";
 import { pageRouteRegistry } from "./extensions/pageRouteRegistry";
@@ -12,6 +12,8 @@ import { ThemeRuntimeSync } from "./components/ThemeRuntimeSync";
 import { PluginRuntimeSync } from "./extensions/pluginRuntimeSync";
 import { ContextMenuProvider } from "./components/context-menu/ContextMenuProvider";
 import { DashboardMetricsRuntime } from "./views/DashboardMetricsRuntime";
+import { RoutePrefetchHost } from "./components/RoutePrefetchHost";
+import { hasWorkspaceSwitchFragment, WorkspaceSwitchLanding } from "./components/workspaces/WorkspaceSwitchLanding";
 
 /**
  * Der statische Router ist durch den Route Host ersetzt: Pages und Routes
@@ -20,6 +22,8 @@ import { DashboardMetricsRuntime } from "./views/DashboardMetricsRuntime";
  * Extension-Route erscheint ohne Änderung an dieser Datei.
  */
 export function App() {
+  const [pluginRoutesReady, setPluginRoutesReady] = useState(false);
+  const markPluginRoutesReady = useCallback(() => setPluginRoutesReady(true), []);
   const snapshot = useSyncExternalStore(
     pageRouteRegistry.subscribe,
     pageRouteRegistry.getSnapshot,
@@ -33,10 +37,13 @@ export function App() {
         <ContextMenuProvider>
           <EditorOpenBridge />
           <ThemeRuntimeSync />
-          <PluginRuntimeSync />
+          <PluginRuntimeSync onReady={markPluginRoutesReady} />
           <DashboardMetricsRuntime />
-          <HomeRedirect />
-          <Routes>{routes}</Routes>
+          <RoutePrefetchHost />
+          <WorkspaceSwitchLanding pluginRoutesReady={pluginRoutesReady}>
+            <HomeRedirect />
+            <Routes>{routes}</Routes>
+          </WorkspaceSwitchLanding>
         </ContextMenuProvider>
       </BrowserRouter>
     </PwaInstallProvider>
@@ -59,6 +66,7 @@ const allPagePreferenceAliases = {
  */
 export function HomeRedirect() {
   const location = useLocation();
+  const arrival = useRef({ key: location.key, switching: hasWorkspaceSwitchFragment(location.hash) });
   const snapshot = useSyncExternalStore(
     pageRouteRegistry.subscribe,
     pageRouteRegistry.getSnapshot,
@@ -79,6 +87,7 @@ export function HomeRedirect() {
   }, [defaultPage, hiddenPages, routes]);
 
   if (location.pathname === "/inbox") return <Navigate to="/" replace />;
+  if (location.state?.workspaceSwitch || (arrival.current.switching && arrival.current.key === location.key)) return null;
   if (location.pathname !== "/" || target === null || target === "/") {
     return null;
   }
