@@ -52,3 +52,27 @@ export function projectToolOptions(project: Project, codeServerAvailable: boolea
 
   return options;
 }
+
+/** Reiner Zielpfad ohne Store Nebenwirkung, für Hover Prefetch auf Buttons. */
+export function projectToolPath(tool: ProjectToolOption): string {
+  switch (tool.type) {
+    case "terminal":
+      return "/terminal";
+    case "codex":
+      return "/codex";
+    case "claude":
+      return "/claude";
+    case "opencode":
+      return "/opencode";
+    case "t3-code":
+      return "/t3-code";
+    case "code-server":
+      return "/code-editor";
+    case "files":
+      return "/files";
+    case "preview":
+      return tool.previewId ? `/previews?preview=${encodeURIComponent(tool.previewId)}` : "/previews";
+    default:
+      return "/orbit";
+  }
+}

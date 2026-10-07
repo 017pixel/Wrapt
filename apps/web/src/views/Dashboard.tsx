@@ -833,7 +833,7 @@ export function Dashboard() {
             <NetworkIcon className="h-5 w-5" />
             <strong>Alle Bereiche ausgeblendet</strong>
             <span>In den Einstellungen lassen sich die Dashboard-Bereiche wieder einschalten.</span>
-            <button type="button" className="quiet-button" onClick={() => navigate("/settings")}>
+            <button type="button" className="quiet-button" data-prefetch-route="/settings" onClick={() => navigate("/settings")}>
               Einstellungen öffnen
             </button>
           </div>

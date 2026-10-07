@@ -85,13 +85,14 @@ export const loadSkillEditor = routeLoaders.skillEditor;
 export const loadNotes = routeLoaders.notes;
 
 const pathLoaders: Array<[prefix: string, load: () => Promise<unknown>]> = [
-  ["/orbit", loadWorkbench],
-  ["/workbench", loadWorkbench],
   ["/orbit/notizen", loadNotes],
   ["/orbit/previews", loadToolRoute],
+  ["/orbit", loadWorkbench],
+  ["/workbench", loadWorkbench],
   ["/projects/", loadProjectDetail],
   ["/projects", loadProjects],
   ["/files", loadFileManager],
+  ["/gallery", loadFileManager],
   ["/ki-skills", loadSkillEditor],
   ["/notizen", loadNotes],
   ["/settings", loadSettings],
@@ -110,7 +111,13 @@ const pathLoaders: Array<[prefix: string, load: () => Promise<unknown>]> = [
   ["/previews", loadToolRoute],
 ];
 
+function pathMatchesPrefix(path: string, prefix: string): boolean {
+  if (path === prefix) return true;
+  if (prefix.endsWith("/")) return path.startsWith(prefix);
+  return path.startsWith(`${prefix}/`);
+}
+
 export function prefetchRoute(path: string): void {
-  const match = pathLoaders.find(([prefix]) => path === prefix || path.startsWith(prefix));
+  const match = pathLoaders.find(([prefix]) => pathMatchesPrefix(path, prefix));
   if (match) void match[1]().catch(() => undefined);
 }

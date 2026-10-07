@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Project } from "@wrapt/contracts";
-import { projectToolOptions } from "./projectTools";
+import { projectToolOptions, projectToolPath } from "./projectTools";
 
 const project = (overrides: Partial<Project> = {}): Project => ({
   id: "demo",
@@ -67,5 +67,17 @@ describe("projectToolOptions", () => {
     const configured = project({ links: { t3Code: null, codeServer: "https://editor.example.test" } });
     expect(projectToolOptions(configured, false).some((option) => option.type === "code-server")).toBe(false);
     expect(projectToolOptions(configured, true).some((option) => option.type === "code-server")).toBe(true);
+  });
+
+  it("liefert reine Zielpfade für Hover Prefetch ohne Store Nebeneffekt", () => {
+    expect(projectToolPath({ id: "terminal", label: "Terminal", type: "terminal", icon: () => null })).toBe("/terminal");
+    expect(projectToolPath({ id: "t3-code", label: "T3", type: "t3-code", icon: () => null })).toBe("/t3-code");
+    expect(projectToolPath({ id: "codex", label: "Codex", type: "codex", icon: () => null })).toBe("/codex");
+    expect(projectToolPath({ id: "claude", label: "Claude", type: "claude", icon: () => null })).toBe("/claude");
+    expect(projectToolPath({ id: "opencode", label: "OpenCode", type: "opencode", icon: () => null })).toBe("/opencode");
+    expect(projectToolPath({ id: "code-server", label: "Editor", type: "code-server", icon: () => null })).toBe("/code-editor");
+    expect(projectToolPath({ id: "files", label: "Dateien", type: "files", icon: () => null })).toBe("/files");
+    expect(projectToolPath({ id: "preview-runtime", label: "Laufzeit", type: "preview", icon: () => null })).toBe("/previews");
+    expect(projectToolPath({ id: "preview:x", label: "X", type: "preview", icon: () => null, previewId: "x" })).toBe("/previews?preview=x");
   });
 });

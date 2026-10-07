@@ -58,7 +58,7 @@ function registerToolPage(slug: string, name: string, description: string, icon:
   }]);
 }
 
-export function PluginRuntimeSync() {
+export function PluginRuntimeSync({ onReady }: { onReady?(): void } = {}) {
   const runtimes = useQuery(wraptQueries.extensionRuntimes());
   const active = useMemo(() => (runtimes.data?.runtimes ?? [])
     .filter((item) => item.content.surfaces.includes("sidebar"))
@@ -83,7 +83,8 @@ export function PluginRuntimeSync() {
         navigationRegistry.removeOwner(owner);
       }
     }
-  }, [active, signature]);
+    if (runtimes.isFetched) onReady?.();
+  }, [active, signature, runtimes.isFetched, onReady]);
 
   return null;
 }

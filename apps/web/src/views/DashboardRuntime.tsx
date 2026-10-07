@@ -82,7 +82,7 @@ function RuntimeGroup({
       <ul>
         {ports.map((port) => (
           <li key={`port-${port.port}`}>
-            <button type="button" onClick={() => onOpenPort(port)}>
+            <button type="button" data-prefetch-route="/previews" onClick={() => onOpenPort(port)}>
               <span className={`dash-port-dot is-${port.protocol}`} aria-hidden />
               <span className="dash-runtime-main">
                 <strong className="font-mono">:{port.port}</strong>

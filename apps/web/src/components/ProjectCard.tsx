@@ -3,7 +3,7 @@ import { ChevronDownIcon, CodeServerIcon, T3CodeIcon, TerminalIcon } from "./ico
 import type { Project } from "@wrapt/contracts";
 import { Badge } from "./primitives";
 import { openProjectDefault, openProjectStandaloneDefault, openProjectToolStandalone, openToolForProject } from "../lib/wraptActions";
-import { projectToolOptions } from "../lib/projectTools";
+import { projectToolOptions, projectToolPath } from "../lib/projectTools";
 import { codeServerUnavailableReason, type CodeServerState } from "../lib/codeServerAvailability";
 import { useSidebarPreferences } from "../stores/sidebarPreferences";
 
@@ -26,6 +26,11 @@ export function ProjectCard({ project, codeServerState }: { project: Project; co
   const codeServerReason = codeServerUnavailableReason(project.links.codeServer !== null, codeServerState);
   const orbitEnabled = useSidebarPreferences((state) => !state.hiddenPages.has("workbench"));
   const tools = projectToolOptions(project, codeServerReason === null);
+  const primaryPath = project.links.t3Code
+    ? "/t3-code"
+    : orbitEnabled
+      ? "/orbit"
+      : codeServerReason === null ? "/code-editor" : "/terminal";
   const openPrimary = () => {
     if (project.availability !== "available") return;
     if (project.links.t3Code) {
@@ -66,6 +71,7 @@ export function ProjectCard({ project, codeServerState }: { project: Project; co
           type="button"
           onClick={openPrimary}
           disabled={project.availability !== "available"}
+          data-prefetch-route={primaryPath}
           className="quiet-button-primary max-md:basis-full"
         >
           {project.links.t3Code ? <T3CodeIcon className="h-3.5 w-3.5" /> : orbitEnabled ? <T3CodeIcon className="h-3.5 w-3.5" /> : codeServerReason === null ? <CodeServerIcon className="h-3.5 w-3.5" /> : <TerminalIcon className="h-3.5 w-3.5" />}
@@ -82,6 +88,7 @@ export function ProjectCard({ project, codeServerState }: { project: Project; co
                   type="button"
                   role="menuitem"
                   disabled={project.availability !== "available"}
+                  data-prefetch-route={projectToolPath(tool)}
                   onClick={() => {
                     navigate(openProjectToolStandalone(project, tool));
                   }}
