@@ -5,9 +5,14 @@ import { defineConfig, devices } from "@playwright/test";
 
 const e2ePort = Number(process.env.WRAPT_E2E_PORT ?? 3010);
 const e2eBaseURL = process.env.WRAPT_E2E_URL ?? `http://127.0.0.1:${e2ePort}`;
+// Das Web-Dist-Verzeichnis wird einmal pro Lauf angelegt und danach über die
+// Umgebung weitergegeben: Worker laden diese Datei erneut aus und müssen das
+// bereits gebaute Verzeichnis übernehmen, statt ein leeres anzulegen. Sonst
+// liefern von Specs gestartete Zusatzserver (z. B. der zweite Workspace) nur
+// „Frontend-Build ist noch nicht vorhanden" (503) aus.
 const e2eWebDist = process.env.WRAPT_E2E_EXTERNAL === "true"
   ? undefined
-  : mkdtempSync(join(tmpdir(), "wrapt-e2e-web-"));
+  : process.env.WRAPT_E2E_WEB_OUT_DIR?.trim() || mkdtempSync(join(tmpdir(), "wrapt-e2e-web-"));
 if (e2eWebDist) process.env.WRAPT_E2E_WEB_OUT_DIR = e2eWebDist;
 
 if (process.env.WRAPT_E2E_URL && process.env.WRAPT_E2E_ISOLATED !== "true") {
