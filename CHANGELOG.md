@@ -2,15 +2,36 @@
 
 Alle relevanten Änderungen werden in kurzen Stichpunkten dokumentiert.
 
+## [2.2.4] - 2026-10-07
+
+### Behoben
+- Alle Einträge zum Öffnen im Editor in T3 Code führen zur Code-Editor-Seite mit dem passenden Projektordner, statt wirkungslos zu bleiben.
+
+### Verändert
+- Der Editor lädt bei Hover über den Einträgen im Hintergrund vor, der Klick wirkt dadurch fast instant.
+
+## [2.2.3] - 2026-10-07
+
+### Behoben
+- Der Werkzeug Eintrag Claude Code öffnet wieder die Claude Seite statt Orbit.
+
+### Verändert
+- Seiten öffnen nach Hover spürbar schneller: Code und Startdaten laden im Hintergrund vor, der Klick wirkt fast instant. Gilt für alle Seiten, Werkzeuge und Projektlinks.
+- Server im Wechsler zeigen nach Hover schneller ihren Status, die Verbindung wird gleichzeitig vorbereitet.
+
+## [2.2.2] - 2026-10-07
+
+### Behoben
+- Serverwechsel behält die offene Seite samt Parametern. Ist sie auf dem Zielserver ausgeblendet oder nicht vorhanden, öffnet sich das Dashboard auch bei einer anderen eingestellten Startseite.
+- Die Serverauswahl und ihr Detailmenü schließen per Außenklick. Das Detailmenü öffnet seitlich rechts und weicht auf schmalen Bildschirmen aus, ohne die Serverliste zu verdecken.
+
+### Verändert
+- Neue Server lassen sich nur noch unter Einstellungen → Workspaces hinzufügen.
+
 ## [2.2.1] - 2026-10-06
 
 ### Behoben
 - Ziehen von Notizseiten und Favoriten in Ordner funktioniert auch in Safari zuverlässig, wenn der Browser die Zieh-Typen nicht meldet.
-
-## [Unreleased]
-
-### Verändert
-- Serverwechsel über Workspaces behält die offene Seite: Wer z. B. auf Notizen oder Hermes wechselt den Server, landet dort auf derselben Seite statt auf dem Dashboard. Query-Parameter bleiben erhalten.
 
 ## [2.2.0] - 2026-10-05
 
