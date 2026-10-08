@@ -141,6 +141,12 @@ async function seedAccounts(baseUrl, profilePaths, databasePath) {
 }
 
 export async function seedScreenshotData({ baseUrl, root, profilePaths }) {
+  // Erscheinungsbild gilt bei jedem Start: Der Starter schreibt die Config
+  // neu, ohne diese PUTs ginge das Maskottchen nach einem Neustart verloren.
+  await api(baseUrl, "/system/appearance", { method: "PUT", body: { preset: "t3-code" } }).catch(() => undefined);
+  // Capybara-Easter-Egg für die Aufnahmen: Das Maskottchen sitzt dann in der
+  // Statusleiste und gehört auf den Bildern sichtbar dazu.
+  await api(baseUrl, "/system/mascot", { method: "PUT", body: { mascot: { enabled: true, scale: 1 } } }).catch(() => undefined);
   const marker = join(root, "data", "screenshot-seeded");
   try {
     await access(marker);
@@ -148,8 +154,6 @@ export async function seedScreenshotData({ baseUrl, root, profilePaths }) {
   } catch {
     // Noch nicht befüllt.
   }
-
-  await api(baseUrl, "/system/appearance", { method: "PUT", body: { preset: "t3-code" } }).catch(() => undefined);
   await api(baseUrl, "/system/usage-monitoring", { method: "PUT", body: { monitoring: { codex: true, opencode: true, claude: false } } }).catch(() => undefined);
   await seedAccounts(baseUrl, profilePaths, join(root, "data", "wrapt.sqlite"));
   await api(baseUrl, "/usage/sync", { method: "POST" }).catch(() => undefined);

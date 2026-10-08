@@ -2,12 +2,13 @@
 // Nimmt die Landingpage-Screenshots der isolierten Screenshot-Instanz auf.
 // Läuft nur gegen die Fixture-Instanz (Default-Port 3410) und schreibt die
 // fertigen PNGs nach "Landing Page/assets/".
-import { execFileSync } from "node:child_process";
 import { mkdir, stat } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
+import { seedDashboardArtwork } from "./lib/screenshot-artwork.mjs";
 import { warmMetricsHistory } from "./lib/screenshot-metrics-warmup.mjs";
+import { scaleImage } from "./lib/screenshot-scale.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 // Standard bleiben die Landingpage-Assets. Für die Dokumentation wird nur das
@@ -45,6 +46,7 @@ context.route("**/api/v1/server/summary*", async (route) => {
   if (payload && typeof payload === "object") payload.serverName = "demo-server";
   await route.fulfill({ response, json: payload });
 });
+await seedDashboardArtwork(context);
 
 const page = await context.newPage();
 const results = [];
@@ -60,7 +62,7 @@ async function open(path) {
 async function shoot(name, width, height) {
   const target = join(assetsDirectory, `${name}.png`);
   await page.screenshot({ path: target });
-  execFileSync("sips", ["-z", String(height), String(width), target], { stdio: "ignore" });
+  await scaleImage(target, width, height);
   const info = await stat(target);
   results.push({ name, bytes: info.size, width, height });
   console.log(`  ${name}.png (${width}x${height})`);
@@ -214,6 +216,25 @@ async function captureSimpleRoute(route, options = {}) {
   await page.setViewportSize(viewport);
   await open(route);
   await page.waitForTimeout(options.waitMs ?? 2000);
+  if (options.hideGithubStand) {
+    // Der Fixture-Stand (Branch, Commit, Dirty-Dateien, Offline-Status)
+    // gehört nicht in öffentliche Bilder.
+    await page.evaluate(() => {
+      const label = [...globalThis.document.querySelectorAll(".data-row span")]
+        .find((element) => element.textContent?.startsWith("GitHub-Stand"));
+      label?.closest(".data-row")?.setAttribute("style", "display:none");
+      const alert = [...globalThis.document.querySelectorAll('[role="alert"]')]
+        .find((element) => element.textContent?.includes("Lokale Änderungen"));
+      alert?.setAttribute("style", "display:none");
+      const status = [...globalThis.document.querySelectorAll('p[role="status"]')]
+        .find((element) => element.textContent?.includes("GitHub ist nicht erreichbar"));
+      status?.setAttribute("style", "display:none");
+      const originHint = [...globalThis.document.querySelectorAll("p")]
+        .find((element) => element.textContent?.includes("Holt origin/"));
+      originHint?.setAttribute("style", "display:none");
+    });
+    await page.waitForTimeout(300);
+  }
   await shoot(options.output ?? "wrapt-simple", viewport.width, viewport.height);
 }
 
@@ -330,7 +351,7 @@ const docsTasks = [
   ["docs-dateimanager", () => captureSimpleRoute("/wrapt/files", { output: "06-gallery" })],
   ["docs-terminal", () => captureTerminal({ output: "07-terminal" })],
   ["docs-usage", () => captureUsage({ output: "08-usage" })],
-  ["docs-settings", () => captureSimpleRoute("/wrapt/settings", { output: "09-settings" })],
+  ["docs-settings", () => captureSimpleRoute("/wrapt/settings", { output: "09-settings", hideGithubStand: true })],
   ["docs-plugins", () => capturePlugins({ output: "12-plugins" })],
   ["docs-plugin-creator", () => captureSimpleRoute("/wrapt/plugins/maker", { output: "13-plugin-creator" })],
   ["docs-mobile", () => captureMobile({ output: "wrapt-mobil" })],
