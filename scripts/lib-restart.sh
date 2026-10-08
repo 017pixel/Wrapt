@@ -184,7 +184,14 @@ build_backend() {
 # Wendet einen in den Einstellungen gewählten T3-Kanal an (stable ⇄ nightly).
 # Muss VOR schedule_service_restart laufen: Danach wird dieser Prozess mit dem Dienst
 # beendet. Stimmt der Kanal bereits und antwortet T3, ist der Aufruf ein No-op.
+# WRAPT_SKIP_T3_SYNC=1 überspringt den Abgleich (z. B. manueller Restart,
+# bei dem T3 unangetastet bleiben muss).
 sync_t3_channel() {
+  skip_t3=${WRAPT_SKIP_T3_SYNC:-0}
+  if [ "$skip_t3" = 1 ]; then
+    log 'T3-Code-Kanal wird übersprungen (WRAPT_SKIP_T3_SYNC=1).'
+    return 0
+  fi
   if ! is_linux_platform; then
     warn "T3-Code-Kanal wird außerhalb von Linux mit systemd nicht synchronisiert."
     return 0
