@@ -105,13 +105,27 @@ async function writeProjectFiles(projectsRoot) {
   ].join("\n"));
 }
 
-function gitCommit(projectPath) {
+function gitCommit(projectPath, message = "Initialer Stand") {
   const options = { cwd: projectPath, stdio: "ignore" };
   const now = new Date().toISOString();
   const identity = ["-c", "user.email=demo@example.com", "-c", "user.name=demo"];
   execFileSync("git", [...identity, "init", "-q"], options);
   execFileSync("git", [...identity, "add", "-A"], options);
-  execFileSync("git", [...identity, "commit", "-q", "-m", "Initialer Stand"], {
+  execFileSync("git", [...identity, "commit", "-q", "-m", message], {
+    ...options,
+    env: { ...process.env, GIT_AUTHOR_DATE: now, GIT_COMMITTER_DATE: now },
+  });
+}
+
+// Folgetext für die Demo-Historie: Die Terminal-Screenshots zeigen `git log`,
+// das soll nach echter Arbeit aussehen statt nach einem einzigen Commit.
+async function gitFollowUp(projectPath, message, write) {
+  const options = { cwd: projectPath, stdio: "ignore" };
+  await write();
+  const now = new Date().toISOString();
+  const identity = ["-c", "user.email=demo@example.com", "-c", "user.name=demo"];
+  execFileSync("git", [...identity, "add", "-A"], options);
+  execFileSync("git", [...identity, "commit", "-q", "-m", message], {
     ...options,
     env: { ...process.env, GIT_AUTHOR_DATE: now, GIT_COMMITTER_DATE: now },
   });
@@ -125,6 +139,18 @@ async function ensureGitRepository(projectPath) {
     // Noch kein Repository — wird unten angelegt.
   }
   gitCommit(projectPath);
+}
+
+// Läuft bei jedem Fixture-Start: Bereits vorhandene Nachrichten werden
+// übersprungen, damit `git commit` ohne Änderungen nicht abbricht.
+async function ensureFollowUp(projectPath, message, write) {
+  try {
+    const history = execFileSync("git", ["log", "--format=%s"], { cwd: projectPath, encoding: "utf8" });
+    if (history.split("\n").includes(message)) return;
+  } catch {
+    // Kein lesbarer Verlauf: Commit unten anlegen.
+  }
+  await gitFollowUp(projectPath, message, write);
 }
 
 export async function writeFixtureData({ root, repositoryRoot, basePort }) {
@@ -141,11 +167,43 @@ export async function writeFixtureData({ root, repositoryRoot, basePort }) {
     "export BASH_SILENCE_DEPRECATION_WARNING=1",
     "",
   ].join("\n"));
+  // Kein sudo-Hinweis aus /etc/bash.bashrc in den Demo-Shells: Ohne diese
+  // Datei druckt jede interaktive Shell den Administrator-Hinweis.
+  await writeFile(join(root, ".sudo_as_admin_successful"), "");
   await writeProjectFiles(projectsRoot);
 
   for (const name of ["nordlicht", "feldnotiz", "sandkasten"]) {
     await ensureGitRepository(join(projectsRoot, name));
   }
+  // Echte Arbeitsspuren für `git log` in den Terminal-Screenshots.
+  await ensureFollowUp(join(projectsRoot, "nordlicht"), "Prototyp Kundenportal mit Zählerstand", () => {
+    return writeFile(join(projectsRoot, "nordlicht", "src", "zaehler.js"), [
+      "export function zaehlerstand(liste) {",
+      "  return liste.map((eintrag) => ({ ...eintrag, geprüft: true }));",
+      "}",
+      "",
+    ].join("\n"));
+  });
+  await ensureFollowUp(join(projectsRoot, "nordlicht"), "Feinschliff Startseite", () => {
+    return writeFile(join(projectsRoot, "nordlicht", "CHANGELOG.md"), [
+      "# Changelog",
+      "",
+      "## 0.4.0",
+      "",
+      "- Startseite Text überarbeitet",
+      "- Vorschau prüfen",
+      "",
+    ].join("\n"));
+  });
+  await ensureFollowUp(join(projectsRoot, "feldnotiz"), "Rückruf Notiz ergänzt", () => {
+    return writeFile(join(projectsRoot, "feldnotiz", "NOTIZEN.md"), [
+      "# Außentermine",
+      "",
+      "- [x] Zählerstand Hof 12",
+      "- [ ] Rückruf Technik",
+      "",
+    ].join("\n"));
+  });
 
   const projects = {
     projects: [

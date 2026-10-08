@@ -3,7 +3,8 @@
 // Läuft nur gegen die Fixture-Instanz (Default-Port 3410) und schreibt die
 // fertigen PNGs nach "Landing Page/assets/".
 import { execFileSync } from "node:child_process";
-import { mkdir, stat } from "node:fs/promises";
+import { mkdir, rename, stat } from "node:fs/promises";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium, expect } from "@playwright/test";
@@ -45,6 +46,19 @@ context.route("**/api/v1/server/summary*", async (route) => {
   if (payload && typeof payload === "object") payload.serverName = "demo-server";
   await route.fulfill({ response, json: payload });
 });
+// Dashboard-Hintergrund für die Aufnahmen: Das Easter-Egg-Motiv steht im
+// localStorage, ein frischer Browser-Kontext kennt es nicht. Nachthimmel
+// passt zum dunklen Standard-Theme.
+await context.addInitScript(() => {
+  try {
+    globalThis.window.localStorage.setItem(
+      "wrapt.dashboard-preferences.v1",
+      JSON.stringify({ state: { hiddenSections: [], artworkEnabled: true, artworkId: "nachthimmel-baum" }, version: 2 }),
+    );
+  } catch {
+    // Speicher gesperrt: Dann entstehen die Bilder ohne Hintergrund.
+  }
+});
 
 const page = await context.newPage();
 const results = [];
@@ -57,10 +71,34 @@ async function open(path) {
   await page.goto(`${baseUrl}${path}`, { waitUntil: "domcontentloaded" });
 }
 
+// Die 2-fache Aufnahme bleibt scharf, wenn sie auf die Zielgröße skaliert
+// wird. macOS nutzt sips, Linux fällt auf ffmpeg zurück (zur Not das
+// Playwright-Bündel), damit die Maße auf jeder Maschine stimmen.
+async function scaleImage(target, width, height) {
+  try {
+    execFileSync("sips", ["-z", String(height), String(width), target], { stdio: "ignore" });
+    return;
+  } catch {
+    // Kein macOS: weiter mit ffmpeg.
+  }
+  const temp = join(tmpdir(), `wrapt-shot-${Date.now()}.png`);
+  const candidates = ["ffmpeg", join(homedir(), ".cache/ms-playwright/ffmpeg-1011/ffmpeg-linux")];
+  for (const binary of candidates) {
+    try {
+      execFileSync(binary, ["-y", "-v", "error", "-i", target, "-vf", `scale=${width}:${height}`, temp], { stdio: "ignore" });
+      await rename(temp, target);
+      return;
+    } catch {
+      // Nächster Kandidat.
+    }
+  }
+  console.log(`  Hinweis: ${target} bleibt in Aufnahmeauflösung (kein Skalierer gefunden).`);
+}
+
 async function shoot(name, width, height) {
   const target = join(assetsDirectory, `${name}.png`);
   await page.screenshot({ path: target });
-  execFileSync("sips", ["-z", String(height), String(width), target], { stdio: "ignore" });
+  await scaleImage(target, width, height);
   const info = await stat(target);
   results.push({ name, bytes: info.size, width, height });
   console.log(`  ${name}.png (${width}x${height})`);
@@ -214,6 +252,25 @@ async function captureSimpleRoute(route, options = {}) {
   await page.setViewportSize(viewport);
   await open(route);
   await page.waitForTimeout(options.waitMs ?? 2000);
+  if (options.hideGithubStand) {
+    // Der Fixture-Stand (Branch, Commit, Dirty-Dateien, Offline-Status)
+    // gehört nicht in öffentliche Bilder.
+    await page.evaluate(() => {
+      const label = [...globalThis.document.querySelectorAll(".data-row span")]
+        .find((element) => element.textContent?.startsWith("GitHub-Stand"));
+      label?.closest(".data-row")?.setAttribute("style", "display:none");
+      const alert = [...globalThis.document.querySelectorAll('[role="alert"]')]
+        .find((element) => element.textContent?.includes("Lokale Änderungen"));
+      alert?.setAttribute("style", "display:none");
+      const status = [...globalThis.document.querySelectorAll('p[role="status"]')]
+        .find((element) => element.textContent?.includes("GitHub ist nicht erreichbar"));
+      status?.setAttribute("style", "display:none");
+      const originHint = [...globalThis.document.querySelectorAll("p")]
+        .find((element) => element.textContent?.includes("Holt origin/"));
+      originHint?.setAttribute("style", "display:none");
+    });
+    await page.waitForTimeout(300);
+  }
   await shoot(options.output ?? "wrapt-simple", viewport.width, viewport.height);
 }
 
@@ -330,7 +387,7 @@ const docsTasks = [
   ["docs-dateimanager", () => captureSimpleRoute("/wrapt/files", { output: "06-gallery" })],
   ["docs-terminal", () => captureTerminal({ output: "07-terminal" })],
   ["docs-usage", () => captureUsage({ output: "08-usage" })],
-  ["docs-settings", () => captureSimpleRoute("/wrapt/settings", { output: "09-settings" })],
+  ["docs-settings", () => captureSimpleRoute("/wrapt/settings", { output: "09-settings", hideGithubStand: true })],
   ["docs-plugins", () => capturePlugins({ output: "12-plugins" })],
   ["docs-plugin-creator", () => captureSimpleRoute("/wrapt/plugins/maker", { output: "13-plugin-creator" })],
   ["docs-mobile", () => captureMobile({ output: "wrapt-mobil" })],

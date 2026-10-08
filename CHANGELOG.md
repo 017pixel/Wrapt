@@ -5,6 +5,7 @@ Alle relevanten Änderungen werden in kurzen Stichpunkten dokumentiert.
 ## [Unreleased]
 
 ### Verändert
+- Landingpage- und Doku-Screenshots erneuert: dunkles Standard-Theme mit Demo-Daten überall, Capybara in der Statusleiste und Dashboard-Hintergrund auf den Übersichts-Motiven.
 - Accounts-Liste weiter vereinfacht: Zeilen zeigen nur noch die E-Mail-Adresse, Status und Details stehen im 3-Punkte-Menü unter Information, Aktiv-Button und Aktivieren-Button sind gleich groß, das Menü klappt unten nicht mehr um.
 - Account-Menü zweispaltig: Information und Aktionen stehen nebeneinander, das Popup ist breiter statt höher und weicht nach oben aus, wenn unten kein Platz ist.
 
