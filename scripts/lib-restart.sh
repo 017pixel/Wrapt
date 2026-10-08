@@ -187,9 +187,9 @@ build_backend() {
 # WRAPT_SKIP_T3_SYNC=1 überspringt den Abgleich (z. B. manueller Restart,
 # bei dem T3 unangetastet bleiben muss).
 sync_t3_channel() {
-  skip_t3=${WRAPT_SKIP_T3_SYNC:-0}
-  if [ "$skip_t3" = 1 ]; then
-    log 'T3-Code-Kanal wird übersprungen (WRAPT_SKIP_T3_SYNC=1).'
+  local skip_t3="${WRAPT_SKIP_T3_SYNC:-0}"
+  if [[ "$skip_t3" == "1" ]]; then
+    log "T3-Code-Kanal wird übersprungen (WRAPT_SKIP_T3_SYNC=1)."
     return 0
   fi
   if ! is_linux_platform; then
