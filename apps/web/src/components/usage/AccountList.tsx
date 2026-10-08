@@ -87,7 +87,7 @@ export function AccountList({
             <span>{items.length}</span>
           </h3>
           <ul className="account-rows">
-            {items.map((item, index) => {
+            {items.map((item) => {
               const key = `${item.provider}:${item.profilePath}`;
               const account = item.accountId ? accountById.get(item.accountId) : undefined;
               const menuOpen = openKey === key;
@@ -134,8 +134,9 @@ export function AccountList({
                               return;
                             }
                             const rect = event.currentTarget.getBoundingClientRect();
-                            const isLast = index === items.length - 1;
-                            setOpenUp(isLast || rect.bottom + 340 > window.innerHeight);
+                            const spaceBelow = window.innerHeight - rect.bottom;
+                            const spaceAbove = rect.top;
+                            setOpenUp(spaceBelow < 280 && spaceAbove > spaceBelow);
                             setOpenKey(key);
                           }}
                         >
