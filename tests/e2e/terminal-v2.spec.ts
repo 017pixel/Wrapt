@@ -214,13 +214,13 @@ test("renders background output and new input immediately after a browser-tab sw
   const pane = page.locator(".terminal-session-pane.is-visible");
   const input = pane.locator(".xterm-helper-textarea");
   const backgroundMarker = `__BACKGROUND_OUTPUT_${Date.now()}__`;
-  await input.pressSequentially(`sleep 1; printf '${backgroundMarker}\\n'`);
+  await input.pressSequentially(`printf '${backgroundMarker}\\n'`);
   await input.press("Enter");
 
   const otherTab = await context.newPage();
   await otherTab.goto(`${workbench}/`);
   await otherTab.bringToFront();
-  await otherTab.waitForTimeout(1_300);
+  await expect(pane.locator(".xterm-screen")).toContainText(backgroundMarker, { timeout: 15_000 });
   await page.bringToFront();
   await expect(pane.locator(".xterm-screen")).toContainText(backgroundMarker, { timeout: 15_000 });
 

@@ -174,10 +174,11 @@ test("wartet mit dem Öffnen und hält beim Schließen kurz stand", async ({ pag
 
   // Kurz vor Ablauf der 700 ms darf die Karte noch nicht da sein — sonst
   // wäre jeder Verzögerungswert gleichwertig und der Test nutzlos.
+  await page.clock.install();
   await trigger.hover();
-  await page.waitForTimeout(350);
+  await page.clock.runFor(350);
   await expect(card).toHaveCount(0);
-
+  await page.clock.runFor(350);
   await expect(card).toBeVisible();
 
   // Nach dem Verlassen bleibt sie kurz stehen, damit der Zeiger in die Karte
@@ -185,6 +186,7 @@ test("wartet mit dem Öffnen und hält beim Schließen kurz stand", async ({ pag
   // schließt sie von selbst.
   await page.mouse.move(10, 10);
   await expect(card).toBeVisible();
+  await page.clock.runFor(1_000);
   await expect(card).toHaveCount(0);
 });
 
@@ -226,4 +228,3 @@ test("lässt den Pfeil sichtbar aus der Karte ragen", async ({ page }) => {
   expect(geometry.ragtHeraus).toBe(true);
   expect(geometry.sichtbarHoehe).toBeGreaterThan(0);
 });
-

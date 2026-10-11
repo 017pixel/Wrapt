@@ -109,7 +109,7 @@ test("edits, saves and synchronizes a complete Orbit workspace", async ({ page, 
   await page.getByRole("button", { name: "Eigenschaften öffnen" }).click();
   await expect(page.locator(".orbit-inspector")).toBeVisible();
   await page.getByRole("button", { name: "Eigenschaften einklappen" }).click();
-  await page.waitForTimeout(300);
+  await expect(page.locator(".orbit-inspector")).toHaveCount(0);
   const frameBeforeDrag = await frameNode.boundingBox();
   if (browserName !== "firefox") {
     // Der große Eckgriff liegt bei kleinen Zoomstufen über dem linken Teil
@@ -282,11 +282,12 @@ test("edits, saves and synchronizes a complete Orbit workspace", async ({ page, 
     await dragHeader.click();
     await page.getByRole("button", { name: "Alles zeigen" }).click();
     await dragHeader.hover({ force: true });
+    let previousPosition: { x: number; y: number } | null = null;
     await expect.poll(async () => {
       const before = await dragHeader.boundingBox();
-      await page.waitForTimeout(80);
-      const after = await dragHeader.boundingBox();
-      return Boolean(before && after && Math.abs(before.x - after.x) < 1 && Math.abs(before.y - after.y) < 1);
+      const stable = Boolean(before && previousPosition && Math.abs(before.x - previousPosition.x) < 1 && Math.abs(before.y - previousPosition.y) < 1);
+      previousPosition = before;
+      return stable;
     }).toBe(true);
     const dragStart = await dragHeader.evaluate((header) => {
       const rect = header.getBoundingClientRect();

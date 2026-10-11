@@ -13,7 +13,7 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const fixturePorts = JSON.parse(
   await readFile(join(repositoryRoot, "tests/fixtures/preview-apps/ports.json"), "utf8"),
 );
-const e2ePort = Number(process.env.WRAPT_E2E_PORT ?? 3010);
+const e2ePort = Number(process.env.WRAPT_E2E_PORT ?? 19310);
 if (!Number.isInteger(e2ePort) || e2ePort < 1 || e2ePort + 130 > 65_535) {
   throw new Error("WRAPT_E2E_PORT muss eine gültige TCP-Portnummer sein.");
 }

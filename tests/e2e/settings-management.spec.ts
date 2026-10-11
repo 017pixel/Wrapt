@@ -75,6 +75,7 @@ test("testet die neuen Capybara-Aktionen", async ({ page }) => {
   await expect(preview).toHaveAttribute("data-action", "wake");
   await expect(preview).toHaveAttribute("data-frame", /yawn/);
 
+  await page.clock.install();
   await page.getByRole("button", { name: "Party", exact: true }).click();
   await expect(preview).toHaveAttribute("data-frame", "party");
   await expect(preview.locator(".capy-confetti-piece")).toHaveCount(3);
@@ -110,9 +111,10 @@ test("zeigt fünf zusätzliche Capybara-Aktionen und eine längere Party", async
 
   await page.getByRole("button", { name: "Party", exact: true }).click();
   await expect(preview).toHaveAttribute("data-action", "celebrate");
-  await page.waitForTimeout(3_000);
+  await page.clock.runFor(3_000);
   await expect(preview).toHaveAttribute("data-action", /celebrate|hop/);
-  await expect(preview).not.toHaveAttribute("data-action", /^(celebrate|hop)$/, { timeout: 10_000 });
+  await page.clock.runFor(10_000);
+  await expect(preview).not.toHaveAttribute("data-action", /^(celebrate|hop)$/);
   expect(pageErrors).toEqual([]);
 });
 
@@ -182,7 +184,7 @@ test("testet Capybara-Vorschau und Schalter", async ({ page }) => {
     // Die Statusleiste übernimmt die gespeicherte Größe (150 % von 88 px).
     const mascot = page.locator(".status-mascot");
     await expect(mascot).toHaveAttribute("data-scale", "1.5");
-    await expect(page.getByRole("button", { name: "Capybara begrüßen" }).locator("img"))
+    await expect(page.getByRole("button", { name: "Capybara begrüßen" }).getByRole("img", { name: "Capybara-Maskottchen" }))
       .toHaveAttribute("width", "132");
   } finally {
     await slider.fill("100");

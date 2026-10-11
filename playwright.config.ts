@@ -3,7 +3,8 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { defineConfig, devices } from "@playwright/test";
 
-const e2ePort = Number(process.env.WRAPT_E2E_PORT ?? 3010);
+const e2ePort = Number(process.env.WRAPT_E2E_PORT ?? 19310);
+process.env.WRAPT_E2E_PORT = String(e2ePort);
 const e2eBaseURL = process.env.WRAPT_E2E_URL ?? `http://127.0.0.1:${e2ePort}`;
 // Das Web-Dist-Verzeichnis wird einmal pro Lauf angelegt und danach über die
 // Umgebung weitergegeben: Worker laden diese Datei erneut aus und müssen das
@@ -34,39 +35,39 @@ const desktopTestIgnore = [
   /preview-start-performance\.spec\.ts$/,
 ];
 
-export default defineConfig({
-  testDir: "./tests/e2e",
+export default defineConfig<object, { personaName: "frisch" | "normal" | "heavy" | "konfiguriert" }>({
+  testDir: ".",
   // Der erste Navigationsaufruf lädt das komplette Workbench-Bundle. Auf dem
   // CI-Runner reicht dafür das Standardlimit nicht, ein Retry liefe dann nur
   // wieder ins selbe Limit.
   timeout: 60_000,
-  fullyParallel: false,
-  workers: 1,
+  fullyParallel: true,
+  workers: "50%",
   // Der isolierte Launcher besitzt ein eigenes Dist-Verzeichnis; kein E2E-Lauf
   // überschreibt die Assets oder Sitzungen der aktiven Workbench.
-  retries: 1,
-  reporter: [["list"], ["./tests/e2e/reporters/audit-reporter.ts"]],
+  retries: process.env.CI ? 2 : 0,
+  reporter: [["list"], ["html", { open: "never" }], ["./tests/e2e/reporters/audit-reporter.ts"]],
   projects: [
-    { name: "chromium", testIgnore: desktopTestIgnore, use: { ...devices["Desktop Chrome"] } },
-    // Playwrights Firefox-Transport verliert bei page.reload() gelegentlich die
-    // Service-Worker-Response-Bindung. Diese Suite prüft Desktop-UI, nicht PWA-Caching.
-    // Firefox braucht außerdem das doppelte Zeitbudget: `page.goto` scheitert
-    // hier wiederholt am globalen Limit, während Chromium und WebKit durchlaufen.
-    { name: "firefox", testIgnore: desktopTestIgnore, timeout: 150_000, use: { ...devices["Desktop Firefox"], serviceWorkers: "block" } },
-    { name: "webkit", testIgnore: desktopTestIgnore, use: { ...devices["Desktop Safari"] } },
-    { name: "phone-touch", testMatch: /responsive-shell\.spec\.ts/, use: { ...devices["iPhone 13"], browserName: "chromium" } },
-    { name: "phone-landscape", testMatch: /responsive-shell\.spec\.ts/, use: { ...devices["iPhone 13"], browserName: "chromium", viewport: { width: 844, height: 390 } } },
-    { name: "ipad-portrait", testMatch: /responsive-shell\.spec\.ts/, use: { ...devices["iPad Mini"], browserName: "chromium" } },
-    { name: "ipad-landscape", testMatch: /responsive-shell\.spec\.ts/, use: { ...devices["iPad Mini"], browserName: "chromium", viewport: { width: 1024, height: 768 } } },
-    { name: "ipad-pro-portrait", testMatch: /responsive-shell\.spec\.ts/, use: { ...devices["Desktop Chrome"], viewport: { width: 1024, height: 1366 }, hasTouch: true, deviceScaleFactor: 2 } },
-    { name: "ipad-pro-landscape", testMatch: /responsive-shell\.spec\.ts/, use: { ...devices["Desktop Chrome"], viewport: { width: 1366, height: 1024 }, hasTouch: true, deviceScaleFactor: 2 } },
-    { name: "webkit-mobile", testMatch: /responsive-shell\.spec\.ts/, use: { ...devices["iPhone 13"], browserName: "webkit" } },
+    ...["frisch", "normal", "heavy", "konfiguriert"].map((personaName) => ({
+      name: `personas-${personaName}`, testDir: "./e2e", testMatch: /journeys\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"], personaName: personaName as "frisch" | "normal" | "heavy" | "konfiguriert" },
+    })),
+    { name: "personas", testDir: "./e2e", testIgnore: /journeys\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"], personaName: "normal" } },
+    // Historische Specs teilen sich Identitäten, Konfiguration und Orbit-Dokument.
+    // Ihre Serialisierung bleibt erhalten, die neuen Personas sind workerisoliert.
+    { name: "chromium", testDir: "./tests/e2e", fullyParallel: false, workers: 1,
+      testIgnore: desktopTestIgnore, use: { ...devices["Desktop Chrome"] } },
+    { name: "phone-touch", testDir: "./tests/e2e", fullyParallel: false, workers: 1,
+      testMatch: /responsive-shell\.spec\.ts/, dependencies: ["chromium"],
+      use: { ...devices["iPhone 13"], browserName: "chromium" } },
   ],
   use: {
     baseURL: e2eBaseURL,
-    trace: "retain-on-failure",
+    trace: "on-first-retry",
+    screenshot: "only-on-failure",
   },
-  webServer: process.env.WRAPT_E2E_EXTERNAL === "true" ? undefined : {
+  webServer: process.env.WRAPT_E2E_EXTERNAL === "true" ? [] : {
     // Der Build läuft bewusst im Produktionsmodus: Die CI setzt
     // NODE_ENV=development (der Server braucht es für die
     // Entwicklungsidentität), doch die E2E-Suite soll das ausgelieferte

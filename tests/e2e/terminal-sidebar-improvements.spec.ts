@@ -49,7 +49,6 @@ test("zeigt nach einer Sekunde eine lesbare Preview und schließt nur normale Te
   const first = entryRow(page, "Terminal 1");
   await first.hover();
   await expect(page.getByTestId("terminal-hover-preview")).toHaveCount(0);
-  await page.waitForTimeout(1_100);
   const preview = page.getByTestId("terminal-hover-preview");
   await expect(preview).toContainText(marker, { timeout: 10_000 });
   const previewBox = await preview.boundingBox();

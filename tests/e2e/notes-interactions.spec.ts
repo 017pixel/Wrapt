@@ -38,7 +38,7 @@ async function prepareDrag(page: Page, source: Locator, target: Locator) {
   for (let i = 0; i < 6; i++) {
     await target.scrollIntoViewIfNeeded();
     await source.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(150);
+    await expect.poll(() => fullyVisible(source)).toBe(true);
     if ((await fullyVisible(target)) && (await fullyVisible(source))) break;
   }
   expect(await fullyVisible(source)).toBe(true);
@@ -89,7 +89,11 @@ test("Ordner, Favoriten, Drag-and-drop und gespeicherte Abschnittsreihenfolge", 
   const folderName = `Gedanken ${unique}`;
   await page.getByLabel("Ordnername").fill(folderName);
   await page.getByRole("button", { name: "Erstellen", exact: true }).click();
+  const createdResponse = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/v1/notes" && response.request().method() === "POST");
   await page.getByRole("button", { name: `Neue Seite in ${folderName}`, exact: true }).click();
+  const created = (await (await createdResponse).json()).note;
+  await expect(page).toHaveURL(new RegExp(`note=${created.id}`));
+  await expect(page.getByLabel("Notiztitel")).toHaveValue(created.title);
   await page.getByLabel("Notiztitel").fill(`Idee ${unique}`);
   await page.getByLabel("Notiztitel").blur();
   // Der Titel landet erst per PATCH auf dem Server; auf kalten Runnern dauert
@@ -100,7 +104,11 @@ test("Ordner, Favoriten, Drag-and-drop und gespeicherte Abschnittsreihenfolge", 
   }, { timeout: 15_000 }).toBe(true);
   await expect(page.locator(".notes-note-current")).toHaveText(`Idee ${unique}`);
   const first = new URL(page.url()).searchParams.get("note");
+  const favoriteResponse = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/v1/notes" && response.request().method() === "POST");
   await page.getByRole("button", { name: "Neue Seite in Favoriten", exact: true }).click();
+  const createdFavorite = (await (await favoriteResponse).json()).note;
+  await expect(page).toHaveURL(new RegExp(`note=${createdFavorite.id}`));
+  await expect(page.getByLabel("Notiztitel")).toHaveValue(createdFavorite.title);
   await expect(page.getByRole("button", { name: "Favorit entfernen", exact: true })).toBeVisible();
   await page.getByLabel("Notiztitel").fill(`Favorit ${unique}`);
   await page.getByLabel("Notiztitel").blur();
@@ -208,7 +216,6 @@ test("Verschieben zwischen Ordnerbäumen, Zurückziehen und Seitenreihenfolge", 
     if (section === `folder:${folderA.id}` || section === `folder:${folderB.id}`) continue;
     if ((await toggle.getAttribute("aria-expanded")) === "true") await toggle.click();
   }
-  await page.waitForTimeout(300);
   const childRow = groupA.locator(".notes-tree-row").filter({ has: page.getByRole("button", { name: child.title, exact: true }) });
   const targetRow = groupB.locator(".notes-tree-row").filter({ has: page.getByRole("button", { name: parentB.title, exact: true }) });
   await dragNoteToRow(page, childRow, targetRow, "inside");

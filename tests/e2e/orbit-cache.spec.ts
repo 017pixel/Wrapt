@@ -67,6 +67,7 @@ test("keeps Orbit revisions out of the PWA cache and recovers one stale save", a
   expect(putStatuses.at(-1)).toBe(200);
 
   const settledRequestCount = putStatuses.length;
-  await page.waitForTimeout(2_000);
+  await page.clock.install();
+  await page.clock.runFor(2_000);
   expect(putStatuses).toHaveLength(settledRequestCount);
 });

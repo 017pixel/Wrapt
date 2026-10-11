@@ -73,7 +73,6 @@ async function captureStableFixture(
       && snapshot.iframes === scenario.previews && snapshot.connectionsVisible) {
       return { activeNodes: snapshot.nodes, activeEdges: snapshot.edges, activeIframes: snapshot.iframes };
     }
-    await page.waitForTimeout(40);
   }
   throw new Error(`Orbit-Fixture „${scenario.name}“ wurde nicht 3 RAF-Frames stabil (${last}).`);
 }

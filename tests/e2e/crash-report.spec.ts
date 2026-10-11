@@ -46,7 +46,6 @@ test("öffnet kein Pop-Up für harmlose ResizeObserver-Meldungen", async ({ page
       message: "ResizeObserver loop completed with undelivered notifications.",
     }));
   });
-  await page.waitForTimeout(300);
   await expect(page.locator(".crash-backdrop")).toHaveCount(0);
 
   // Ein echter Fehler danach muss weiterhin durchkommen — und die ignorierte
@@ -61,7 +60,7 @@ test("öffnet kein Pop-Up für harmlose ResizeObserver-Meldungen", async ({ page
   expect(report).toContain("Ignoriert (harmlos): ResizeObserver");
 });
 
-test("überlebt einen Renderfehler in einer Ansicht, ohne die Navigation zu verlieren", async ({ page }) => {
+test("meldet ein abgelehntes Promise als Toast statt Vollbild-Dialog (Q-002)", async ({ page }) => {
   await page.goto("/wrapt/", { waitUntil: "domcontentloaded" });
   await expect(page.locator(".sidebar-shell")).toBeVisible();
 
@@ -69,7 +68,10 @@ test("überlebt einen Renderfehler in einer Ansicht, ohne die Navigation zu verl
     void Promise.reject(new Error("Abgelehntes Promise ohne catch"));
   });
 
-  await expect(page.locator(".crash-backdrop")).toBeVisible();
+  // Hintergrundfehler (z. B. Hintergrund-500) dürfen das Tippen nicht unterbrechen.
+  const toast = page.getByRole("status", { name: /Abgelehntes Promise ohne catch/ });
+  await expect(toast).toBeVisible();
+  await expect(page.locator(".crash-backdrop")).toHaveCount(0);
   // Entscheidend: die Sidebar steht noch, die App ist nicht weiss.
   await expect(page.locator(".sidebar-shell")).toBeVisible();
 });
