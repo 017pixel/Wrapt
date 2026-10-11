@@ -4,10 +4,38 @@ Alle relevanten Änderungen werden in kurzen Stichpunkten dokumentiert.
 
 ## [Unreleased]
 
+### Erstellt
+- Skills-Seite mit drei Gruppen: Globale Regeln, Skills und Hermes-Skills stehen in einem Baum mit Zählern, Suche über alles und Badges für defekte oder beschreibungslose Einträge.
+- Hermes-Skills lassen sich direkt verwalten: anlegen mit Kategorie, umbenennen und löschen inklusive aller Verweise.
+- Globale Regeln im Baum: die verteilte AGENTS.md und die Hermes-Regeln öffnen sich im selben Editor.
+
 ### Verändert
+- Skills-Seitenleiste aufgeräumt: kein Pfad unten, kein Kopf oben, dünnere Scrollbar, Dateiname und Skill-Name stehen nebeneinander.
+- Skill-Vorschau als zentrierte Leseansicht mit größerer Schrift, der Frontmatter-Block bleibt draußen.
+- Git-Leiste auf einen Knopf reduziert: Commiten und Pushen auf GitHub läuft automatisch ab, Fehler mit Log bleiben sichtbar.
+- Vier Skills sind zu den Hermes-Skills gezogen: use-t3-code, wrapt-fleet, server-fleet-sync und server-fleet-daily-sync liegen unter devops.
 - Landingpage- und Doku-Screenshots erneuert: dunkles Standard-Theme mit Demo-Daten überall, Capybara in der Statusleiste und Dashboard-Hintergrund auf den Übersichts-Motiven.
 - Accounts-Liste weiter vereinfacht: Zeilen zeigen nur noch die E-Mail-Adresse, Status und Details stehen im 3-Punkte-Menü unter Information, Aktiv-Button und Aktivieren-Button sind gleich groß, das Menü klappt unten nicht mehr um.
 - Account-Menü zweispaltig: Information und Aktionen stehen nebeneinander, das Popup ist breiter statt höher und weicht nach oben aus, wenn unten kein Platz ist.
+- Skills-Baum klappt weich auf und zu, auf Touch-Geräten sind alle Ziele finger groß und Aktionen ohne Schweben erreichbar.
+
+### Behoben
+- Skills-Editor öffnet keine fehlenden Dateien mehr von allein, weder beim Start noch nach dem Löschen.
+- Nicht vorhandene Regeldateien sind im Baum deaktiviert statt anklickbar.
+- Integrierte Browser-Fläche in T3 Code verbindet wieder: Der Workbench-Proxy leitet den Browser-Stream (`/api/preview-stream`) samt WebSocket weiter, statt mit 404 zu antworten.
+
+## [2.2.9] - 2026-10-08
+
+### Erstellt
+- Funktionstests für vier Nutzertypen, mit leeren und großen Datenbeständen, angepassten Einstellungen, mobilen Abläufen und Fehlerfällen.
+
+### Verändert
+- Browserprüfungen laufen mit Chromium, getrennten Testdaten und einem HTML-Bericht. Einstellungen werden zusammen mit den betroffenen Arbeitsabläufen geprüft.
+
+### Behoben
+- Notes ist als Start-App auswählbar und lässt sich in der Navigation ein- und ausblenden.
+- Notiztitel sind auf 300 Zeichen begrenzt, damit zu lange Eingaben beim Speichern nicht mehr abgewiesen werden.
+- „Open in VS Code" in T3 Code öffnet auch im breiten Layout mit ausgeklapptem Thread-Details-Panel wieder die Code-Editor-Seite mit dem passenden Projektordner, statt auf einen wirkungslosen VS-Code-Link zu laufen.
 
 ## [2.2.8] - 2026-10-07
 

@@ -37,7 +37,9 @@ json_escape() { printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'; }
 # statt nur in einen Timeout zu laufen.
 write_status() {
   local phase="$1" exit_code="$2" message="$3"
-  local temporary
+  local temporary baseline_web_json="null"
+  # Basis-Marker des Jobs für bootIdChanged/webBuildIdChanged (D-015). Leer = unbekannt.
+  [[ "${RESTART_BASELINE_WEB_BUILD_ID:-}" =~ ^[0-9]+$ ]] && baseline_web_json="${RESTART_BASELINE_WEB_BUILD_ID}"
   mkdir -p "$status_dir" 2>/dev/null || return 0
   temporary="$status_file.$$.$RANDOM.tmp"
   cat > "$temporary" <<JSON
@@ -50,7 +52,9 @@ write_status() {
   "message": "$(json_escape "$message")",
   "startedAt": "$(json_escape "$restart_started_at")",
   "updatedAt": "$(restart_timestamp)",
-  "logFile": "$(json_escape "${RESTART_LOG_FILE:-}")"
+  "logFile": "$(json_escape "${RESTART_LOG_FILE:-}")",
+  "baselineBootId": "$(json_escape "${RESTART_BASELINE_BOOT_ID:-}")",
+  "baselineWebBuildId": ${baseline_web_json}
 }
 JSON
   chmod 600 "$temporary" 2>/dev/null || true
@@ -63,8 +67,44 @@ step() {
   write_status "running" "null" "Läuft …"
 }
 
+restart_lock_stale_seconds="${RESTART_LOCK_STALE_SECONDS:-900}"
+
+restart_lock_age_seconds() {
+  local now started
+  now="$(date +%s)"
+  started="$(cat "$lock_dir/started_at" 2>/dev/null || echo "")"
+  [[ "$started" =~ ^[0-9]+$ ]] || return 1
+  echo $(( now - started ))
+}
+
+restart_lock_owner_alive() {
+  local pid
+  pid="$(cat "$lock_dir/pid" 2>/dev/null || echo "")"
+  [[ "$pid" =~ ^[1-9][0-9]*$ ]] || return 1
+  kill -0 "$pid" 2>/dev/null
+}
+
+# Sperre übernehmen. Ein verwaister Lock (toter Prozess oder länger ohne
+# Status-Heartbeat als das Server-Fenster STALE_RESTART_MS) wird aufgelöst und
+# der Status zurückgesetzt, damit kein 1-h-Hänger alles blockiert (A-009).
+acquire_restart_lock() {
+  if [[ "${RESTART_LOCK_HELD:-0}" == "1" ]]; then return 0; fi
+  if mkdir "$lock_dir" 2>/dev/null; then return 0; fi
+  local age
+  age="$(restart_lock_age_seconds 2>/dev/null || echo "?")"
+  if ! restart_lock_owner_alive || { [[ "$age" =~ ^[0-9]+$ ]] && (( age > restart_lock_stale_seconds )); }; then
+    warn "Verwaister Neustart-Lock (Alter: ${age}s) — wird aufgelöst."
+    rm -rf "$lock_dir" 2>/dev/null || true
+    restart_last_step="Verwaister Lock"
+    write_status "failed" 75 "Ein hängender Neustart wurde nach ${age}s ohne Lebenszeichen abgebrochen."
+    if mkdir "$lock_dir" 2>/dev/null; then return 0; fi
+  fi
+  err "Es läuft bereits ein Neustart."
+  exit 75
+}
+
 release_restart_lock() {
-  rm -f "$lock_dir/owner" 2>/dev/null || true
+  rm -f "$lock_dir/owner" "$lock_dir/pid" "$lock_dir/started_at" 2>/dev/null || true
   rmdir "$lock_dir" 2>/dev/null || true
 }
 
@@ -88,17 +128,14 @@ on_exit() {
 restart_begin() {
   restart_target="$1"
   mkdir -p "$status_dir"
-  if [[ "${RESTART_LOCK_HELD:-0}" != "1" ]]; then
-    if ! mkdir "$lock_dir" 2>/dev/null; then
-      err "Es läuft bereits ein Neustart."
-      exit 75
-    fi
-  fi
   if [[ -z "$restart_job_id" ]]; then
     restart_job_id="$(node -e 'console.log(crypto.randomUUID())')"
   fi
+  acquire_restart_lock
   printf '%s\n' "$restart_job_id" > "$lock_dir/owner"
-  chmod 600 "$lock_dir/owner" 2>/dev/null || true
+  printf '%s\n' "$$" > "$lock_dir/pid"
+  date +%s > "$lock_dir/started_at"
+  chmod 600 "$lock_dir/owner" "$lock_dir/pid" "$lock_dir/started_at" 2>/dev/null || true
   trap on_exit EXIT
   write_status "running" 0 "Läuft …"
   if [[ -z "${RESTART_BASELINE_BOOT_ID:-}" ]]; then
@@ -110,7 +147,9 @@ restart_begin() {
     export RESTART_BASELINE_WEB_BUILD_ID
   fi
   log "Ziel: $restart_target — Projekt: $repo_root"
-  find "$status_dir" -maxdepth 1 -type f -name 'restart-*.log' -mtime +30 -delete 2>/dev/null || true
+  # Tages-Rotation wie serverseitig (D-015: 7 Tage). Das Byte-Budget (100 MB)
+  # setzt das Backend bei jedem Start durch (rotateRestartLogs).
+  find "$status_dir" -maxdepth 1 -type f -name 'restart-*.log' -mtime +7 -delete 2>/dev/null || true
 }
 
 # pnpm zuverlässig finden. Der Serverprozess startet diese Skripte mit dem PATH der
@@ -166,7 +205,12 @@ run_pnpm() { $pnpm_cmd "$@"; }
 log "pnpm: $pnpm_cmd — node: $(command -v node || echo 'nicht gefunden') $(node --version 2>/dev/null)"
 
 # Baut die Verträge (contracts). Web und Server hängen davon ab, deshalb immer zuerst.
+# Reihenfolge wie im Root-build: erst Extension-Contracts, dann Haupt-Contracts.
+# Sonst ist ein Restart nach einer Extension-Schema-Änderung „succeeded", baut aber
+# gegen veraltete Schemas und scheitert erst zur Laufzeit mit ZodError (A-009).
 build_contracts() {
+  step "Baue @wrapt/extension-contracts …"
+  run_pnpm --filter @wrapt/extension-contracts build
   step "Baue @wrapt/contracts …"
   run_pnpm --filter @wrapt/contracts build
 }
@@ -277,11 +321,24 @@ schedule_service_restart() {
 }
 
 health_value() {
-  local key="$1" payload
+  local key="$1" payload value
   # Der Health-Check läuft gegen den konfigurierten Port; das Backend setzt
   # WRAPT_HEALTH_URL beim Spawn des Neustart-Skripts (F01-07/F03-4).
   local health_url="${WRAPT_HEALTH_URL:-http://127.0.0.1:3010}"
   payload="$(curl -fsS --max-time 2 "${health_url}/api/v1/health" 2>/dev/null)" || return 1
+  # Robustes JSON-Parsing: jq falls vorhanden, sonst node (sicher vorhanden — die
+  # Job-ID unten braucht es). sed nur als letzter Ausweg, wenn beides fehlt.
+  if command -v jq >/dev/null 2>&1; then
+    value="$(printf '%s' "$payload" | jq -r --arg k "$key" '.[$k] // empty' 2>/dev/null)"
+    [[ -n "$value" ]] && { printf '%s' "$value"; return 0; }
+    return 1
+  fi
+  if command -v node >/dev/null 2>&1; then
+    value="$(KEY="$key" PAYLOAD="$payload" node -e 'try { const v = JSON.parse(process.env.PAYLOAD ?? "{}")[process.env.KEY ?? ""]; if (v === null || v === undefined || typeof v === "object") process.exit(1); console.log(String(v)); } catch { process.exit(1); }' 2>/dev/null)" || return 1
+    printf '%s' "$value"
+    return 0
+  fi
+  # Ohne jq/node: flaches sed wie bisher (kann bei verschachteltem JSON danebenliegen).
   printf '%s' "$payload" | sed -n "s/.*\"${key}\"[[:space:]]*:[[:space:]]*\"\\{0,1\\}\\([^\",}]*\\)\"\\{0,1\\}.*/\\1/p"
 }
 

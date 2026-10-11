@@ -4,6 +4,64 @@ Dieses Dokument beschreibt die Grenzen, die aus dem Project Audit and Improvemen
 umgesetzt wurden, ihre Konfiguration und ihren Rückbau. Es ergänzt die
 [Konfiguration](configuration.md) und die [Sicherheitsausnahmen](security-exceptions.md).
 
+## Single-User-Betrieb ohne Mandantentrennung (S-004)
+
+- Die Workbench ist für genau einen vertrauenswürdigen Benutzer ausgelegt.
+- `allowedUsers` mit mehr als einem Eintrag teilt alles: Orbit, Notizen,
+  Dateisystem, Projekte, Skills und Benachrichtigungen sind global sichtbar und
+  überschreibbar — es gibt keine `userId`-Trennung.
+- Bei mehr als einem erlaubten Benutzer schreibt der Server beim Start eine
+  Warnung ins Log (`allowedUsersIsolationWarning`).
+- Wer einen zweiten Benutzer einträgt, bestätigt damit: beide Identitäten sind
+  voll vertrauenswürdig. Alternative: eigene Instanz pro Benutzer.
+- Skills-Mutationen (`PUT/POST/DELETE /api/v1/skills/*`) erfordern die
+  Adminrolle (`requireWorkbenchAdmin`); Lesen (`GET`) bleibt für alle erlaubten
+  Identitäten offen.
+
+## Projekt-Code ist vertrauenswürdig (S-006)
+
+- Alles, was als Server-Benutzer (gleiche UID) läuft — Terminal-Befehle,
+  Preview-DevServer, Skill-Hooks — kann die Workbench-API über Loopback
+  erreichen. Der Header `tailscale-user-login` ist ab Loopback fälschbar.
+- Deshalb gilt: Nur Code ausführen, der als Workbench-Admin agieren dürfte.
+- Die Loopback-Prüfung des Open-in-Editor-Kanals nutzt die echte
+  Transportschicht (`socket.remoteAddress`), nie Proxy-Header.
+- Jede Preview-Statusantwort trägt den Hinweis „Nur vertrauenswürdige Repos
+  starten: Preview-Befehle laufen als Server-Benutzer."
+
+## Ungeschützte API-Pfade (A-010)
+
+- `/api/v1/health` — lesender Liveness-Punkt ohne Identität.
+- `/api/v1/previews/doctor/*` — nur Loopback + Capability-Token.
+- `/api/v1/editor/*` — nur Loopback + Capability-Token (`/editor/ws` zusätzlich
+  Same-Origin).
+- Mutationen ohne `Origin`-/`Sec-Fetch-Site`-Header (CLI, systemd, Skripte)
+  passieren die Same-Origin-Prüfung still; Browser-Mutationen mit fremder
+  Origin werden mit 403 abgelehnt.
+
+## Geschützte Serverbereiche (S-011)
+
+- Das Terminal startet keine Prozesse mit CWD in `CONFIG_DIR` oder `DATA_DIR`
+  (`deniedRoots` in `TerminalManager`, zusätzlich zur `terminalAllowedRoots`-
+  Prüfung). Ein solcher Pfad endet als `INVALID_CWD`.
+- Der Dateimanager verweigert Schreiben in `config/` und in die `.env`-Datei
+  des Repositorys (`FILESYSTEM_CONFIG_PROTECTED`, 403). Lesen bleibt erlaubt,
+  damit die Selbst-Entwicklung der Workbench weiter funktioniert.
+- Ausführbare CLI-Pfade aus der Config (`hermes.cliPath`, `pythonPath`, T3)
+  sind weiterhin vertrauenswürdig zu pflegen: Sie laufen als Server-Benutzer.
+  Eine Binary-Allowlist dafür ist ein offener Punkt (siehe Plan S-011) — bis
+  dahin gilt: Config nur direkt auf dem Server bearbeiten.
+
+## Preview-Befehls-Bestätigung (S-013)
+
+- Start, Launch und Restart einer Projektlaufzeit verlangen eine einmalige
+  Bestätigung pro Projekt und Befehls-Hash:
+  `POST /api/v1/previews/dev-servers/:projectId/confirm` mit dem angezeigten
+  `commandHash` bestätigt Befehl + Pfad; `start|launch|restart` antworten sonst
+  mit 409 `PREVIEW_COMMAND_UNCONFIRMED` inklusive Befehls-Vorschau.
+- Ändert sich der Befehl (neuer Hash), ist eine erneute Bestätigung nötig.
+- Der Watchdog startet unbestätigte Befehle nicht (derselbe Prüfpfad).
+
 ## Terminal-Arbeitsverzeichnisse
 
 - Erlaubte Wurzeln stehen in `TERMINAL_ALLOWED_ROOTS`.
@@ -83,7 +141,7 @@ Bearbeiten und Veröffentlichen sind getrennte Fähigkeiten.
 
 ## E2E-Isolation und Flake-Budget
 
-- Playwright startet ohne `WRAPT_E2E_PORT` auf Port 3010. Für einen isolierten Lauf einen freien
+- Playwright startet ohne `WRAPT_E2E_PORT` auf dem separaten Testport 19310. Für einen isolierten Lauf einen freien
   Port setzen und vorher den gesamten Bereich von `WRAPT_E2E_PORT` bis `WRAPT_E2E_PORT + 130`
   prüfen, zum Beispiel `WRAPT_E2E_PORT=13100 pnpm test:e2e`.
 - Der Testserver verwendet temporäre Daten-, Konfigurations- und Web-Build-Verzeichnisse, einen

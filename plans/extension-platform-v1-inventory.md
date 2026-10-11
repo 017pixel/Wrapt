@@ -437,7 +437,7 @@ Beim normalen Serverstart laufen:
 | --- | --- | --- |
 | Usage Analytics | `USAGE_SNAPSHOT_INTERVAL_MS` | Limits und Kosten importieren |
 | Usage Timeline | interner Cache-/Synczyklus | Account-Timeline aktualisieren |
-| News Service | `NEWS_SYNC_INTERVAL_MS`, Initiallauf nach 1 s | Feeds und AI-Aufbereitung |
+| News Service (entfernt seit 1.8.0) | — | Feature entfernt, keine Sync-Variablen mehr |
 | Hermes Result Sync | `hermes.resultPollSeconds` | Ergebnisse und Notifications |
 | T3 Status Sync | `notifications.pollSeconds` | T3-Abschlüsse und Rückfragen |
 | Terminal Status Sync | `notifications.pollSeconds` | lange Prozesse und Agentenstatus |
@@ -641,9 +641,6 @@ PREVIEW_DEV_SERVER_LOG_BYTES PREVIEW_DEV_SERVER_START_TIMEOUT_MS
 T3_CLI_PATH T3_NPM_PACKAGE T3_HOST T3_PORT T3_SERVICE_UNIT
 HERMES_ENABLED HERMES_HOST HERMES_PORT HERMES_PROXY_PREFIX HERMES_CLI_PATH HERMES_HOME
 HERMES_DASHBOARD_UNIT HERMES_GATEWAY_UNIT HERMES_UPDATE_UNIT
-MISTRAL_API_KEY MISTRAL_API_BASE_URL MISTRAL_MODEL_INGEST MISTRAL_MODEL_CHAT
-MISTRAL_MODEL_EMBED MISTRAL_TIMEOUT_MS NEWS_SYNC_INTERVAL_MS NEWS_FETCH_TIMEOUT_MS
-NEWS_MAX_ITEMS_PER_SOURCE NEWS_AI_CONCURRENCY
 WORKBENCH_DEV_BACKEND_URL
 ```
 

@@ -4,7 +4,7 @@ Die selbst gehostete Remote-Development-Workbench für den privaten Arbeitsplatz
 Wrapt verbindet Projekte, Terminals, Editoren, Coding-Agenten, Previews, Dateien,
 Automatisierungen und Systemdiagnose in einer Oberfläche.
 
-**Aktuelle Version 2.2.8 · MIT · Node.js 22+ · pnpm 10 · [Changelog](CHANGELOG.md)**
+**Aktuelle Version 2.2.9 · MIT · Node.js 22+ · pnpm 10 · [Changelog](CHANGELOG.md)**
 
 ![Wrapt-Dashboard mit anonymisiertem Beispielserver](docs-webseite/assets/01-dashboard.png)
 
@@ -217,6 +217,10 @@ sind. Der Lauf baut `apps/server/dist` im aktuellen Checkout neu; führe ihn des
 aus einer separaten Arbeitskopie aus. E2E-Tests gehören auf ihre eigene Instanz und dürfen weder
 eine Nutzer-Preview als `WRAPT_E2E_URL` verwenden noch gegen Preview-Ports laufen. Details stehen
 in [Hardening und Prüfungen](docs/hardening.md).
+
+Die [Persona-Testinventur](docs/e2e-persona-report.md) beschreibt die vier Nutzertypen,
+Einstellungskreuzwirkungen, Fehlerfälle und Abdeckungsgrenzen. Der lokale HTML-Bericht
+liegt nach dem Lauf unter `playwright-report/index.html`.
 
 Wichtige Regeln:
 

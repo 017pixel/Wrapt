@@ -174,7 +174,7 @@ model:
   default: deepseek-v4-flash
   provider: custom:opencode.go.ai
 fallback_providers:
-  - custom:api.mistral.ai
+  - custom:backup.example.invalid
 custom_providers:
   - name: Opencode.go.ai
     base_url: https://opencode.ai/zen/go/v1
