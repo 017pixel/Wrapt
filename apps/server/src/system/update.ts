@@ -7,7 +7,7 @@ import type { UpdateStatusResponse } from "@wrapt/contracts";
 import { updateStatusResponseSchema } from "@wrapt/contracts";
 import { execa } from "execa";
 import { settings } from "../config/settings.js";
-import { bootId, readRestartStatus, webBuildId } from "./restart.js";
+import { bootId, readRestartStatus, STALE_RESTART_MS, webBuildId } from "./restart.js";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../../../..");
 const logDirectory = join(projectRoot, "data", "restart-logs");
@@ -97,7 +97,7 @@ function ensureNoRestartRunning(): void {
   const status = readRestartStatus();
   if (status.phase !== "running") return;
   const updatedAt = status.updatedAt ? Date.parse(status.updatedAt) : Number.NaN;
-  if (!Number.isNaN(updatedAt) && Date.now() - updatedAt < 60 * 60 * 1000) {
+  if (!Number.isNaN(updatedAt) && Date.now() - updatedAt < STALE_RESTART_MS) {
     throw new UpdateError(
       "Es läuft bereits ein Neustart oder Update.",
       "Warte, bis der laufende Vorgang fertig ist.",

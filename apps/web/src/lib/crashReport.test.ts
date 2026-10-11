@@ -4,17 +4,24 @@ import {
   addBreadcrumb,
   describeClickTarget,
   dismissCrash,
+  dismissToast,
+  formatQueryErrorBreadcrumb,
   formatStepsReport,
   getCurrentCrash,
+  getCurrentToast,
   getRecentSteps,
   isBenignError,
+  redactText,
   reportCrash,
   resetBreadcrumbsForTest,
+  resetToastForTest,
 } from "./crashReport";
 
 beforeEach(() => {
   dismissCrash();
+  dismissToast();
   resetBreadcrumbsForTest();
+  resetToastForTest();
 });
 
 describe("harmlose Browser-Meldungen", () => {
@@ -123,5 +130,78 @@ describe("Verlauf", () => {
     expect(describeClickTarget(button)).toBe("Klick: <button> Speichern Entwurf");
     expect(describeClickTarget(document.createElement("div"))).toBeNull();
     expect(describeClickTarget(null)).toBeNull();
+  });
+});
+
+describe("Schwärzung vor Speichern und Versand (Q-004)", () => {
+  it("schwärzt E-Mails und Pfade in Texten", () => {
+    expect(redactText("Konto max@example.de meldet Fehler")).toBe("Konto [E-Mail geschwärzt] meldet Fehler");
+    expect(redactText("Fehler in /home/benutzer/projekt/datei.ts")).toBe("Fehler in [Pfad geschwärzt]");
+    expect(redactText("Alles harmlos")).toBe("Alles harmlos");
+  });
+
+  it("speichert Bericht ohne E-Mail und Pfad (vor createCrashNotification)", () => {
+    reportCrash({
+      kind: "error",
+      error: new Error("Absturz für max@example.de in /home/benutzer/app/index.ts"),
+      componentStack: "in Ansicht (/home/benutzer/app/Ansicht.tsx)",
+    });
+
+    const crash = getCurrentCrash();
+    expect(crash?.message).not.toContain("max@example.de");
+    expect(crash?.message).not.toContain("/home/benutzer");
+    expect(crash?.message).toContain("[E-Mail geschwärzt]");
+    expect(crash?.componentStack).not.toContain("/home/benutzer");
+  });
+
+  it("schwärzt Breadcrumbs beim Notieren", () => {
+    addBreadcrumb("Query fehlgeschlagen: Konto max@example.de");
+    reportCrash({ kind: "error", error: new Error("Auslöser") });
+
+    expect(getCurrentCrash()?.breadcrumbs.join("\n")).not.toContain("max@example.de");
+  });
+
+  it("kürzt und schwärzt volle Query-Schlüssel im Verlauf", () => {
+    const lang = `["nutzung", {"konto": "max@example.de", "daten": "${"x".repeat(300)}"}]`;
+    const zeile = formatQueryErrorBreadcrumb(JSON.parse(lang), new Error("Fehler für max@example.de"));
+
+    expect(zeile.length).toBeLessThan(lang.length);
+    expect(zeile).not.toContain("max@example.de");
+    expect(zeile).toContain("Query fehlgeschlagen");
+  });
+});
+
+describe("Schwere-Stufen (Q-002)", () => {
+  it("öffnet für abgelehnte Promises keinen Dialog, sondern Breadcrumb + Toast", () => {
+    reportCrash({ kind: "unhandledrejection", error: new Error("Hintergrund-500 beim Sync") });
+
+    expect(getCurrentCrash()).toBeNull();
+    expect(getCurrentToast()?.message).toContain("Hintergrund-500");
+    expect(getRecentSteps().join("\n")).toContain("Abgelehntes Promise");
+  });
+
+  it("meldet abgelehnte Promises auch bei offenem Dialog nur als Toast", () => {
+    reportCrash({ kind: "error", error: new Error("Render ist kaputt") });
+    reportCrash({ kind: "unhandledrejection", error: new Error("Später Sync-Fehler") });
+
+    expect(getCurrentCrash()?.message).toContain("Render ist kaputt");
+    expect(getCurrentToast()?.message).toContain("Später Sync-Fehler");
+  });
+
+  it("öffnet für Render- und Error-Fehler weiterhin den Dialog", () => {
+    reportCrash({ kind: "render", error: new Error("Render kaputt") });
+    expect(getCurrentCrash()?.message).toContain("Render kaputt");
+
+    dismissCrash();
+    reportCrash({ kind: "error", error: new Error("Echter Fehler") });
+    expect(getCurrentCrash()?.message).toContain("Echter Fehler");
+  });
+
+  it("hält harmlose Ablehnungen (Abort) still — ohne Toast", () => {
+    const abort = Object.assign(new Error("Abgebrochen"), { name: "AbortError" });
+    reportCrash({ kind: "unhandledrejection", error: abort });
+
+    expect(getCurrentCrash()).toBeNull();
+    expect(getCurrentToast()).toBeNull();
   });
 });

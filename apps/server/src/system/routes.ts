@@ -20,6 +20,7 @@ import {
 } from "@wrapt/contracts";
 import type { FastifyInstance } from "fastify";
 import { settings } from "../config/settings.js";
+import { requireWorkbenchAdmin } from "../security/workbench-identity.js";
 import { persistAppearanceTheme, persistContextMenuConfig, persistMascotConfig, readAppearanceTheme, readContextMenuConfig, readMascotConfig } from "../config/wrapt-config.js";
 import type { RouteServices } from "../api/services.js";
 import { systemService } from "../services/systemService.js";
@@ -31,8 +32,7 @@ import { getUpdateStatus, triggerUpdate, UpdateError } from "./update.js";
 import { AppError } from "../utils/errors.js";
 
 export async function registerSystemRoutes(app: FastifyInstance, services: RouteServices) {
-  app.get("/health", async (_request, reply) => {
-    reply.header("Access-Control-Allow-Origin", "*");
+  app.get("/health", async () => {
     return healthResponseSchema.parse({
       status: "ok",
       version: settings.appVersion,
@@ -50,7 +50,6 @@ export async function registerSystemRoutes(app: FastifyInstance, services: Route
       return reply.header("Allow", "GET, OPTIONS").status(405).send();
     }
     return reply
-      .header("Access-Control-Allow-Origin", "*")
       .header("Access-Control-Allow-Methods", "GET")
       .header("Access-Control-Max-Age", "600")
       .status(204)
@@ -59,6 +58,7 @@ export async function registerSystemRoutes(app: FastifyInstance, services: Route
   app.get("/system/dashboard-config", async () => dashboardConfigSchema.parse(settings.dashboard));
   app.get("/system/appearance", async () => appearanceResponseSchema.parse({ theme: readAppearanceTheme(settings.configDirectory), source: "project" }));
   app.put("/system/appearance", async (request) => {
+    requireWorkbenchAdmin(request, services.identity);
     const { theme } = appearanceResponseSchema.parse({ theme: request.body, source: "project" });
     persistAppearanceTheme(settings.configDirectory, theme);
     return appearanceResponseSchema.parse({ theme, source: "project" });
@@ -67,6 +67,7 @@ export async function registerSystemRoutes(app: FastifyInstance, services: Route
     contextMenu: readContextMenuConfig(settings.configDirectory),
   }));
   app.put("/system/context-menu", async (request) => {
+    requireWorkbenchAdmin(request, services.identity);
     const { contextMenu } = contextMenuConfigResponseSchema.parse(request.body);
     persistContextMenuConfig(settings.configDirectory, contextMenu);
     return contextMenuConfigResponseSchema.parse({ contextMenu });
@@ -75,20 +76,26 @@ export async function registerSystemRoutes(app: FastifyInstance, services: Route
     mascot: readMascotConfig(settings.configDirectory),
   }));
   app.put("/system/mascot", async (request) => {
+    requireWorkbenchAdmin(request, services.identity);
     const { mascot } = mascotConfigResponseSchema.parse(request.body);
     persistMascotConfig(settings.configDirectory, mascot);
     return mascotConfigResponseSchema.parse({ mascot });
   });
   app.get("/system/codex-reset-history/settings", async () => codexResetHistorySettingsResponseSchema.parse({ settings: codexResetHistoryService.getSettings() }));
   app.put("/system/codex-reset-history/settings", async (request) => {
+    requireWorkbenchAdmin(request, services.identity);
     const { settings: next } = codexResetHistorySettingsResponseSchema.parse({ settings: request.body });
     return codexResetHistorySettingsResponseSchema.parse({ settings: codexResetHistoryService.updateSettings(next) });
   });
   app.get("/system/codex-reset-history", async () => codexResetHistoryResponseSchema.parse(await codexResetHistoryService.get()));
   app.post("/system/restart", { config: { rateLimit: { max: 3, timeWindow: "1 minute" } } }, async (request, reply) => {
+    requireWorkbenchAdmin(request, services.identity);
     const { target } = restartRequestSchema.parse(request.body);
+    // Sichere Retries (D-015): Gleicher Key → gleiche jobId, kein zweiter Job.
+    const rawKey = request.headers["x-idempotency-key"];
+    const idempotencyKey = Array.isArray(rawKey) ? rawKey[0] : rawKey;
     try {
-      const { jobId, logFile } = triggerRestart(target);
+      const { jobId, logFile } = triggerRestart(target, { idempotencyKey });
       return reply.status(202).send(restartResponseSchema.parse({ status: "accepted", jobId, target, bootId, webBuildId: webBuildId(), logFile }));
     } catch (error) {
       if (error instanceof RestartError) {
@@ -105,6 +112,7 @@ export async function registerSystemRoutes(app: FastifyInstance, services: Route
     updateStatusResponseSchema.parse(await getUpdateStatus()),
   );
   app.post("/system/update", { config: { rateLimit: { max: 2, timeWindow: "5 minutes" } } }, async (request, reply) => {
+    requireWorkbenchAdmin(request, services.identity);
     try {
       const { jobId, logFile, fromHash, toHash } = await triggerUpdate();
       return reply.status(202).send(updateTriggerResponseSchema.parse({ status: "accepted", jobId, target: "both", bootId, webBuildId: webBuildId(), logFile, fromHash, toHash }));
@@ -120,6 +128,7 @@ export async function registerSystemRoutes(app: FastifyInstance, services: Route
   // Setzt nur den Wunschkanal. Angewendet wird er beim nächsten Backend-Neustart
   // (Einstellungen → Dienst neu starten), damit der Nutzer den Zeitpunkt bestimmt.
   app.post("/system/t3-channel", async (request) => {
+    requireWorkbenchAdmin(request, services.identity);
     const { channel } = t3ChannelRequestSchema.parse(request.body);
     return t3ChannelService.setChannel(channel);
   });
@@ -127,6 +136,7 @@ export async function registerSystemRoutes(app: FastifyInstance, services: Route
   // Wirkt sofort: Der Sync überspringt deaktivierte Anbieter, der Live-Cache meldet sie
   // als deaktiviert. Persistiert wird ausschließlich in config/wrapt.local.json.
   app.put("/system/usage-monitoring", async (request) => {
+    requireWorkbenchAdmin(request, services.identity);
     const { monitoring } = usageMonitoringResponseSchema.parse(request.body);
     const result = usageMonitoringService.update(monitoring);
     // Gespeicherte Live-Antwort verwerfen, damit der neue Stand ohne Wartezeit ankommt.

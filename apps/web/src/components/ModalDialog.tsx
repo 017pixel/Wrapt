@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { CloseIcon } from "./icons";
+import { CloseIcon, LoaderIcon } from "./icons";
 import { useModalFocus } from "../lib/useModalFocus";
 
 export interface ModalFrameProps {
@@ -67,17 +67,47 @@ interface ConfirmDialogProps {
   danger?: boolean;
   className?: string;
   backdropClassName?: string;
+  /** Läuft die Bestätigung noch (Mutation)? Dann ist der Knopf disabled + Spinner. */
+  confirmPending?: boolean | undefined;
+  /** Fehler der letzten Bestätigung: Der Dialog bleibt offen und zeigt ihn an. */
+  error?: string | null | undefined;
+  /**
+   * Der Aufrufer schließt den Dialog selbst bei Erfolg (setX(null)) und hält
+   * ihn bei Fehlern offen — ConfirmDialog schließt nicht mehr automatisch.
+   * Doppelklicks werden intern verriegelt: bis zum Schließen oder
+   * Pending-Wechsel löst nur der erste Klick aus.
+   */
   onConfirm: () => void;
   onClose: () => void;
 }
 
-export function ConfirmDialog({ open, title, description, confirmLabel, cancelLabel = "Abbrechen", danger = false, className, backdropClassName, onConfirm, onClose }: ConfirmDialogProps) {
+export function ConfirmDialog({ open, title, description, confirmLabel, cancelLabel = "Abbrechen", danger = false, className, backdropClassName, confirmPending = false, error = null, onConfirm, onClose }: ConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null);
+  const confirmRef = useRef(onConfirm);
+  const lockedRef = useRef(false);
+  confirmRef.current = onConfirm;
   useEffect(() => { if (open) window.setTimeout(() => cancelRef.current?.focus(), 0); }, [open]);
+  useEffect(() => { if (!open) lockedRef.current = false; }, [open]);
+  useEffect(() => { if (confirmPending) lockedRef.current = true; }, [confirmPending]);
   return <ModalFrame open={open} title={title} description={description} className={className} backdropClassName={backdropClassName} onClose={onClose}>{(requestClose) =>
-    <div className="modal-actions">
-      <button ref={cancelRef} type="button" className="quiet-button" onClick={requestClose}>{cancelLabel}</button>
-      <button type="button" className={danger ? "quiet-button modal-danger" : "quiet-button-primary"} onClick={() => { onConfirm(); requestClose(); }}>{confirmLabel}</button>
+    <div className="modal-actions-column">
+      {error ? <p className="modal-error" role="alert">{error}</p> : null}
+      <div className="modal-actions">
+        <button ref={cancelRef} type="button" className="quiet-button" onClick={requestClose}>{cancelLabel}</button>
+        <button
+          type="button"
+          className={danger ? "quiet-button modal-danger" : "quiet-button-primary"}
+          disabled={confirmPending}
+          aria-busy={confirmPending || undefined}
+          onClick={() => {
+            if (lockedRef.current || confirmPending) return;
+            // Synchron verriegeln: Zwei Klicks vor dem nächsten Render (Doppelklick)
+            // lösen trotzdem nur eine Mutation aus.
+            lockedRef.current = true;
+            confirmRef.current();
+          }}
+        >{confirmPending ? <LoaderIcon className="h-4 w-4 animate-spin" aria-hidden /> : null}{confirmLabel}</button>
+      </div>
     </div>
   }</ModalFrame>;
 }

@@ -2,11 +2,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { CloseIcon, CopyIcon, ErrorIcon, RefreshIcon } from "./icons";
 import {
   dismissCrash,
+  dismissToast,
   formatCrashReport,
   getCurrentCrash,
+  getCurrentToast,
   subscribeToCrash,
+  subscribeToCrashToast,
   type CrashEnvironment,
   type CrashReport,
+  type CrashToast,
 } from "../lib/crashReport";
 import { writeClipboardText } from "../lib/clipboard";
 import { useModalFocus } from "../lib/useModalFocus";
@@ -107,6 +111,35 @@ export function CrashReportDialog() {
           </button>
           <button type="button" className="quiet-button" onClick={close}>Weiterarbeiten</button>
         </footer>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Q-002: Abgelehnte Promises (Hintergrundfehler) melden sich als Toast, nicht als
+ * Vollbild-Dialog. Verschwindet nach 8 Sekunden oder per Schließen-Knopf.
+ */
+export function CrashToastRegion() {
+  const [toast, setToast] = useState<CrashToast | null>(getCurrentToast);
+
+  useEffect(() => subscribeToCrashToast(setToast), []);
+
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => dismissToast(), 8_000);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  if (!toast) return null;
+
+  return (
+    <div className="fixed right-4 bottom-4 z-[300] max-w-sm" role="status" aria-live="polite">
+      <div className="dash-notice is-warn">
+        <span className="min-w-0">{toast.message}</span>
+        <button type="button" className="quiet-button min-h-11 min-w-11 shrink-0" onClick={dismissToast} aria-label="Hinweis schließen">
+          <CloseIcon className="h-4 w-4" />
+        </button>
       </div>
     </div>
   );

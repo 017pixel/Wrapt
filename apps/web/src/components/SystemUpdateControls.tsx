@@ -32,12 +32,14 @@ export function SystemUpdateControls() {
   }
 
   async function startUpdate() {
+    if (updating) return;
     setUpdating(true);
     setError("");
     try {
       const response = await apiClient.triggerUpdate();
       if (!response) throw new Error("Keine Antwort vom Server erhalten.");
       setStarted(true);
+      setConfirmOpen(false);
       // Der Fortschritt läuft über den Neustart-Status, die Seite lädt danach neu.
       window.setTimeout(() => window.location.reload(), 2_000);
       await queryClient.invalidateQueries({ queryKey: ["health"] });
@@ -46,7 +48,6 @@ export function SystemUpdateControls() {
       await statusQuery.refetch();
     } finally {
       setUpdating(false);
-      setConfirmOpen(false);
     }
   }
 
@@ -173,7 +174,9 @@ export function SystemUpdateControls() {
         open={confirmOpen}
         title="Update installieren?"
         description={`Wrapt wird auf ${status?.remoteShort ?? "den neuesten Stand"} aktualisiert, neu gebaut und neu gestartet. Geöffnete Panels und Terminals bleiben erhalten.`}
-        confirmLabel="Update starten"
+        confirmLabel={updating ? "Wird gestartet …" : "Update starten"}
+        confirmPending={updating}
+        error={error || null}
         onConfirm={() => void startUpdate()}
         onClose={() => setConfirmOpen(false)}
       />

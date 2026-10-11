@@ -99,8 +99,8 @@ export function ExtensionSettings() {
     void queryClient.invalidateQueries({ queryKey: ["extensions", "detail"] });
   };
 
-  const runOperation = async (body: Parameters<typeof apiClient.dispatchExtensionOperation>[0]) => {
-    if (inFlight.current.has(body.extensionId)) return;
+  const runOperation = async (body: Parameters<typeof apiClient.dispatchExtensionOperation>[0]): Promise<boolean> => {
+    if (inFlight.current.has(body.extensionId)) return false;
     inFlight.current.add(body.extensionId);
     setBusyId(body.extensionId);
     setMessage(null);
@@ -114,9 +114,11 @@ export function ExtensionSettings() {
         setReviewExtension(accepted.extension);
       }
       refresh();
+      return true;
     } catch (error) {
       setMessage({ tone: "bad", text: error instanceof ApiClientError ? error.message : "Die Aktion ist fehlgeschlagen." });
       refresh();
+      return false;
     } finally {
       inFlight.current.delete(body.extensionId);
       setBusyId(null);
@@ -171,13 +173,14 @@ export function ExtensionSettings() {
 
   const confirmUninstall = (deleteData: "retain" | "delete") => {
     const extension = uninstallExtension;
-    if (extension === null) return;
-    setUninstallExtension(null);
+    if (extension === null || (busyId !== null && busyId === extension.id)) return;
     void runOperation({
       operation: "uninstall",
       extensionId: extension.id,
       expectedRevision: expectedRevision(),
       data: deleteData,
+    }).then((ok) => {
+      if (ok) setUninstallExtension(null);
     });
   };
 
@@ -335,8 +338,10 @@ export function ExtensionSettings() {
         open={uninstallExtension !== null}
         title={`„${uninstallExtension?.name ?? ""}" deinstallieren?`}
         description="Die Extension wird deaktiviert und aus der Registry entfernt. Installationsdaten werden gelöscht; eine spätere Installation aus dem Catalog bleibt möglich."
-        confirmLabel="Deinstallieren"
+        confirmLabel={uninstallExtension !== null && busyId === uninstallExtension.id ? "Wird deinstalliert …" : "Deinstallieren"}
         danger
+        confirmPending={uninstallExtension !== null && busyId === uninstallExtension.id}
+        error={message?.tone === "bad" ? message.text : null}
         onConfirm={() => confirmUninstall("delete")}
         onClose={() => setUninstallExtension(null)}
       />

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { RestartTarget } from "@wrapt/contracts";
 import { ApiClientError, apiClient } from "../lib/apiClient";
+import { useOrbitStore } from "../stores/orbit";
 import { writeClipboardText } from "../lib/clipboard";
 import { CopyIcon, DeviceRotateIcon, LoaderIcon, RefreshIcon, ServerIcon, WarningIcon } from "./icons";
 
@@ -23,19 +24,33 @@ export type RestartUiPhase =
 
 const sleep = (milliseconds: number) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 const RESTART_DEADLINE_MS = 300_000;
+const RESTART_POLL_MS = 1_500;
 
-export function useSystemRestart() {
+/** Testnaht: Im Browser window-APIs, im Test stubbar — Verhalten unverändert. */
+export const restartEnv = {
+  reload: () => window.location.reload(),
+  confirmDirty: () => window.confirm("Es gibt ungespeicherte Orbit-Änderungen. Trotzdem neu laden?"),
+};
+
+export interface SystemRestartOptions {
+  deadlineMs?: number;
+  pollMs?: number;
+}
+
+export function useSystemRestart(options: SystemRestartOptions = {}) {
+  const deadlineMs = options.deadlineMs ?? RESTART_DEADLINE_MS;
+  const pollMs = options.pollMs ?? RESTART_POLL_MS;
   const [phase, setPhase] = useState<RestartUiPhase>({ status: "idle" });
   const cancelledRef = useRef(false);
 
   useEffect(() => () => { cancelledRef.current = true; }, []);
 
   async function waitForResult(target: RestartTarget, baseline: { bootId: string; webBuildId: number | null }) {
-    const deadline = Date.now() + RESTART_DEADLINE_MS;
+    const deadline = Date.now() + deadlineMs;
     let lastLogTail = "";
     let scriptFinished = false;
     while (Date.now() < deadline) {
-      await sleep(1_500);
+      await sleep(pollMs);
       if (cancelledRef.current) return { ok: true } as const;
       try {
         const status = await apiClient.restartStatus();
@@ -71,7 +86,13 @@ export function useSystemRestart() {
       const result = await waitForResult(target, { bootId: response.bootId, webBuildId: response.webBuildId });
       if (cancelledRef.current) return;
       if (result.ok) {
-        window.location.reload();
+        // Dirty-Guard (U-002): Der Neustart killt auch laufende KI-Sitzungen und
+        // verwirft Filter-/Scroll-Kontext — bei ungespeichertem Orbit nur mit Confirm neu laden.
+        if (useOrbitStore.getState().dirty && !restartEnv.confirmDirty()) {
+          setPhase({ status: "idle" });
+          return;
+        }
+        restartEnv.reload();
         return;
       }
       setPhase({ status: "error", target, message: result.message, logTail: result.logTail });
@@ -83,7 +104,12 @@ export function useSystemRestart() {
     }
   }
 
-  return { phase, restart };
+  function cancel() {
+    cancelledRef.current = true;
+    setPhase({ status: "idle" });
+  }
+
+  return { phase, restart, cancel };
 }
 
 export function RestartProgress({ phase }: { phase: Exclude<RestartUiPhase, { status: "idle" }> }) {
@@ -101,10 +127,10 @@ function RestartErrorDetails({ phase }: { phase: Extract<RestartUiPhase, { statu
 }
 
 export function SystemRestartControls() {
-  const { phase, restart } = useSystemRestart();
+  const { phase, restart, cancel } = useSystemRestart();
   const working = phase.status === "working";
   return <div className="space-y-3"><div className="flex flex-wrap gap-2">{restartButtons.map(({ target, label, hint, icon: Icon }) => {
     const active = working && phase.target === target;
     return <button key={target} type="button" disabled={working} onClick={() => void restart(target)} className={`quiet-button grow basis-40 flex-col items-start gap-1 py-2.5 ${target === "both" ? "border-accent-line" : ""}`} title={hint}><span className="flex items-center gap-2 font-medium text-text">{active ? <LoaderIcon className="h-3.5 w-3.5 animate-spin" /> : <Icon className="h-3.5 w-3.5" />}{label}</span><span className="text-[11px] text-faint">{hint}</span></button>;
-  })}</div>{phase.status === "idle" ? <p className="text-[12px] text-faint">Geöffnete Panels, Arbeitsflächen, Terminals und gespeicherte Daten bleiben erhalten.</p> : <><RestartProgress phase={phase} />{phase.status === "error" ? <RestartErrorDetails phase={phase} /> : null}</>}</div>;
+  })}</div>{phase.status === "idle" ? <p className="text-[12px] text-faint">Geöffnete Panels, Arbeitsflächen, Terminals und gespeicherte Daten bleiben erhalten. Ein Neustart beendet laufende KI-Sitzungen.</p> : <><RestartProgress phase={phase} />{phase.status === "working" ? <div className="flex flex-wrap gap-2"><button type="button" className="quiet-button min-h-11 px-4" onClick={cancel}>Abbrechen</button></div> : null}{phase.status === "error" ? <RestartErrorDetails phase={phase} /> : null}</>}</div>;
 }

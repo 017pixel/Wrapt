@@ -33,12 +33,38 @@ interface Breadcrumb {
 const breadcrumbs: Breadcrumb[] = [];
 
 /**
+ * Schwärzt E-Mails und lokale Pfade, bevor etwas gespeichert oder versendet
+ * wird (Q-004). Läuft über jede Breadcrumb und jeden Bericht — ein versehentlich
+ * mitgeloggter Account (Usage) oder Pfad darf nie im Crash-Report landen.
+ */
+const emailMuster = /[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g;
+const pfadMuster = /(\/home\/|\/Users\/)[^\s"'`]+|[A-Za-z]:\\[^\s"'`]+/g;
+
+export function redactText(text: string): string {
+  return text.replace(emailMuster, "[E-Mail geschwärzt]").replace(pfadMuster, "[Pfad geschwärzt]");
+}
+
+/** Query-Schlüssel gekürzt + geschwärzt für den Verlauf (kein volles JSON). */
+export function formatQueryErrorBreadcrumb(queryKey: unknown, error: unknown): string {
+  let key: string;
+  try {
+    key = JSON.stringify(queryKey) ?? String(queryKey);
+  } catch {
+    key = String(queryKey);
+  }
+  if (key.length > 200) key = `${key.slice(0, 200)}…`;
+  const message = error instanceof Error ? error.message : String(error);
+  return `Query fehlgeschlagen [${redactText(key)}]: ${redactText(message)}`;
+}
+
+/**
  * Notiert einen Zwischenschritt (Seitenwechsel, API-Fehler, console.error) für den Bericht.
  * Wiederholungen werden zusammengefasst — sonst spült eine in Schleife feuernde Meldung
  * (etwa ein ResizeObserver) den gesamten nützlichen Verlauf aus dem Puffer.
  */
 export function addBreadcrumb(message: string) {
-  const trimmed = message.length > 500 ? `${message.slice(0, 500)}…` : message;
+  const redacted = redactText(message);
+  const trimmed = redacted.length > 500 ? `${redacted.slice(0, 500)}…` : redacted;
   const last = breadcrumbs.at(-1);
   if (last && last.message === trimmed) {
     last.count += 1;
@@ -75,7 +101,7 @@ export function describeClickTarget(target: Element | null): string | null {
     ?? labelled.tagName).trim().replace(/\s+/g, " ");
   if (!label) return null;
   const shortened = label.length > 80 ? `${label.slice(0, 80)}…` : label;
-  return `Klick: <${labelled.tagName.toLowerCase()}> ${shortened}`;
+  return redactText(`Klick: <${labelled.tagName.toLowerCase()}> ${shortened}`);
 }
 
 type Listener = (report: CrashReport | null) => void;
@@ -95,6 +121,47 @@ export function getCurrentCrash(): CrashReport | null {
 export function dismissCrash() {
   currentReport = null;
   for (const listener of listeners) listener(null);
+}
+
+// Q-002 Schwere-Stufen: Abgelehnte Promises (Hintergrund-500, abgebrochene
+// Mutationen, Preview-Saves) sind kein Vollbild wert — sie werden Breadcrumb
+// plus Toast. Nur Render- und echte Error-Fehler öffnen den Dialog.
+export interface CrashToast {
+  id: string;
+  message: string;
+}
+
+type ToastListener = (toast: CrashToast | null) => void;
+
+const toastListeners = new Set<ToastListener>();
+let currentToast: CrashToast | null = null;
+
+export function subscribeToCrashToast(listener: ToastListener): () => void {
+  toastListeners.add(listener);
+  return () => toastListeners.delete(listener);
+}
+
+export function getCurrentToast(): CrashToast | null {
+  return currentToast;
+}
+
+export function dismissToast() {
+  currentToast = null;
+  for (const listener of toastListeners) listener(null);
+}
+
+/** Nur für Tests: setzt den Toast-Zustand zurück. */
+export function resetToastForTest() {
+  currentToast = null;
+}
+
+function pushToast(message: string) {
+  const short = message.length > 200 ? `${message.slice(0, 200)}…` : message;
+  currentToast = {
+    id: globalThis.crypto?.randomUUID?.() ?? String(Date.now()),
+    message: redactText(short),
+  };
+  for (const listener of toastListeners) listener(currentToast);
 }
 
 // Defensiv gelesen: Ein Berichtsgenerator, der selbst am fehlenden DOM scheitert,
@@ -145,23 +212,29 @@ export function isBenignError(kind: CrashKind, error: unknown, message: string):
 }
 
 /**
- * Meldet einen Absturz. Der erste Bericht gewinnt: Folgefehler sind meistens
- * Nachbeben des ersten und würden die eigentliche Ursache aus der Anzeige drängen.
+ * Meldet einen Absturz. Nur Render- und Error-Fehler öffnen den Vollbild-Dialog;
+ * Promise-Ablehnungen landen als Breadcrumb + Toast (Q-002). Der erste Bericht
+ * gewinnt: Folgefehler sind meistens Nachbeben des ersten.
  */
 export function reportCrash(input: { kind: CrashKind; error: unknown; componentStack?: string | null }) {
-  if (currentReport) return;
   const { message, stack } = describe(input.error);
   if (isBenignError(input.kind, input.error, message)) {
     addBreadcrumb(`Ignoriert (harmlos): ${message}`);
     return;
   }
+  if (input.kind === "unhandledrejection") {
+    addBreadcrumb(`Abgelehntes Promise: ${message}`);
+    pushToast(message);
+    return;
+  }
+  if (currentReport) return;
   currentReport = {
     id: globalThis.crypto?.randomUUID?.() ?? String(Date.now()),
     occurredAt: new Date().toISOString(),
     kind: input.kind,
-    message,
-    stack,
-    componentStack: input.componentStack ?? null,
+    message: redactText(message),
+    stack: stack ? redactText(stack) : null,
+    componentStack: input.componentStack ? redactText(input.componentStack) : null,
     route: currentRoute(),
     breadcrumbs: snapshotBreadcrumbs(),
   };
