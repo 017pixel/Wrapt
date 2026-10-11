@@ -76,7 +76,7 @@ test("Doppelklick und Absenden während Theme-Speichern erzeugen nur eine Mutati
 test("Serverfehler zeigt Wiederholen, danach lädt das Projekt und Notizen bleiben bedienbar", async ({ page, api, appErrors }) => {
   await page.route("**/api/v1/projects", (route) => route.fulfill({ status: 500, json: { error: { code: "TEST_FAILURE", message: "Testfehler" } } }));
   await openPage(page, "/projects");
-  await expect(page.getByRole("alert").filter({ hasText: "Daten konnten nicht geladen werden" })).toBeVisible();
+  await expect(page.getByRole("alert").filter({ hasText: "Verbindung fehlgeschlagen" })).toBeVisible();
   await page.unroute("**/api/v1/projects");
   await page.getByRole("button", { name: "Erneut versuchen", exact: true }).click();
   await expect(page.getByRole("link", { name: /Wrapt/ }).first()).toBeVisible();
