@@ -56,6 +56,16 @@ const selection = `id, source, category, source_icon sourceIcon, kind, severity,
   deleted_at deletedAt, resolved_at resolvedAt, metadata_json metaJson, report_json reportJson`;
 
 /**
+ * Produktentscheid (D-002): Ungelesene aktive Meldungen sind auf dieses
+ * Maximum begrenzt. Wer nie liest, behält die neuesten Einträge; die
+ * ältesten werden automatisch als resolved markiert, statt die Tabelle
+ * unbegrenzt wachsen zu lassen. `prune()` setzt die Kappe durch.
+ */
+export const NOTIFICATION_MAX_UNREAD_ACTIVE = 500;
+/** Batchgröße für Anwesenheits-Abgleich und -Update (kein unbegrenztes IN(...)). */
+const PRESENCE_BATCH_SIZE = 200;
+
+/**
  * Nur flüchtige Anforderungen dürfen nach dem Erledigen erneut aufleben.
  * Finale Meldungen (fertig, fehlgeschlagen) gehören zu genau einem Durchlauf:
  * Ein neuer Durchlauf bekommt von der Quelle eine neue remoteId. Ohne diese
@@ -75,7 +85,8 @@ export class NotificationDatabase {
     this.retentionMilliseconds = retentionHours * 3_600_000;
     this.presenceTtlMilliseconds = presenceTtlMilliseconds;
     this.db = new DatabaseSync(path);
-    this.db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000");
+    // NORMAL statt FULL: Mit WAL ist NORMAL absturzsicher (fsync am Checkpoint statt pro Commit, P-010).
+    this.db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000");
     this.db.exec(`CREATE TABLE IF NOT EXISTS notifications (
       id TEXT PRIMARY KEY, source TEXT NOT NULL, kind TEXT NOT NULL, severity TEXT NOT NULL,
       title TEXT NOT NULL, body TEXT NOT NULL, link TEXT, remote_id TEXT, created_at TEXT NOT NULL,
@@ -89,7 +100,8 @@ export class NotificationDatabase {
     this.addColumn("report_json", "TEXT");
     this.db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS notifications_remote_unique ON notifications(source, kind, remote_id) WHERE remote_id IS NOT NULL;
       CREATE INDEX IF NOT EXISTS notifications_created_at ON notifications(created_at DESC, id DESC);
-      CREATE INDEX IF NOT EXISTS notifications_active_unread ON notifications(read_at) WHERE state = 'active' AND read_at IS NULL;`);
+      CREATE INDEX IF NOT EXISTS notifications_active_unread ON notifications(read_at) WHERE state = 'active' AND read_at IS NULL;
+      CREATE INDEX IF NOT EXISTS notifications_presence_lookup ON notifications(source, created_at ASC, id ASC) WHERE state = 'active' AND read_at IS NULL;`);
     // Bestehende Datensätze sinnvoll in das neue Modell überführen.
     this.db.exec(`UPDATE notifications SET
       category = CASE WHEN source IN ('hermes', 'update') THEN 'hermes' ELSE 'terminal' END,
@@ -211,17 +223,41 @@ export class NotificationDatabase {
     this.presence = items.map((item) => ({ ...item, lastSeenAt: Date.now() }));
     if (this.presence.length === 0) return 0;
     const at = new Date().toISOString();
-    const ids = new Set<string>();
-    for (const entry of this.presence) {
-      const rows = this.db.prepare(`SELECT ${selection} FROM notifications WHERE state = 'active' AND read_at IS NULL AND source = ?`)
-        .all(entry.source) as unknown as NotificationRow[];
-      for (const row of rows) if (this.presenceMatches(rowToNotification(row))) ids.add(row.id);
+    // Batches statt eines unbegrenzten IN(...): Jede Abfrage und jedes Update
+    // bleibt auf PRESENCE_BATCH_SIZE begrenzt (Index notifications_presence_lookup).
+    let total = 0;
+    const sources = [...new Set(this.presence.map((entry) => entry.source))];
+    for (const source of sources) {
+      let cursorAt: string | null = null;
+      let cursorId: string | null = null;
+      for (let guard = 0; guard < 500; guard += 1) {
+        const rows = (cursorAt === null || cursorId === null
+          ? this.db.prepare(`SELECT id, source, metadata_json metaJson, created_at createdAt FROM notifications
+            WHERE state = 'active' AND read_at IS NULL AND source = ? ORDER BY created_at ASC, id ASC LIMIT ?`).all(source, PRESENCE_BATCH_SIZE)
+          : this.db.prepare(`SELECT id, source, metadata_json metaJson, created_at createdAt FROM notifications
+            WHERE state = 'active' AND read_at IS NULL AND source = ? AND (created_at > ? OR (created_at = ? AND id > ?))
+            ORDER BY created_at ASC, id ASC LIMIT ?`).all(source, cursorAt, cursorAt, cursorId, PRESENCE_BATCH_SIZE)
+        ) as unknown as Array<{ id: string; source: NotificationSource; metaJson: string; createdAt: string }>;
+        if (rows.length === 0) break;
+        const matching: string[] = [];
+        for (const row of rows) {
+          const meta = safeJson(row.metaJson, {}) as Record<string, unknown>;
+          if (this.presenceMatchesMeta(row.source, meta)) matching.push(row.id);
+        }
+        if (matching.length > 0) {
+          const placeholders = matching.map(() => "?").join(",");
+          this.db.prepare(`UPDATE notifications SET read_at = ? WHERE id IN (${placeholders})`).run(at, ...matching);
+          total += matching.length;
+        }
+        if (rows.length < PRESENCE_BATCH_SIZE) break;
+        const last = rows[rows.length - 1];
+        if (!last) break;
+        cursorAt = last.createdAt;
+        cursorId = last.id;
+      }
     }
-    if (ids.size === 0) return 0;
-    const placeholders = [...ids].map(() => "?").join(",");
-    this.db.prepare(`UPDATE notifications SET read_at = ? WHERE id IN (${placeholders})`).run(at, ...ids);
-    this.emit({ type: "notification.sync" });
-    return ids.size;
+    if (total > 0) this.emit({ type: "notification.sync" });
+    return total;
   }
 
   resolveByRemoteId(source: NotificationSource, kind: string, remoteId: string): boolean {
@@ -262,6 +298,20 @@ export class NotificationDatabase {
     const result = this.db.prepare(`DELETE FROM notifications WHERE
       (state IN ('resolved','dismissed') AND COALESCE(resolved_at, deleted_at, created_at) < ?)
       OR (state = 'active' AND read_at IS NOT NULL AND read_at < ?)`).run(cutoff, cutoff);
+    return Number(result.changes) + this.pruneUnreadCap();
+  }
+
+  /**
+   * Kappt ungelesene aktive Meldungen auf NOTIFICATION_MAX_UNREAD_ACTIVE.
+   * Die ältesten werden automatisch resolved (jüngste bleiben erhalten).
+   */
+  private pruneUnreadCap(): number {
+    if (this.unreadCount() <= NOTIFICATION_MAX_UNREAD_ACTIVE) return 0;
+    const excess = this.unreadCount() - NOTIFICATION_MAX_UNREAD_ACTIVE;
+    const at = new Date().toISOString();
+    const result = this.db.prepare(`UPDATE notifications SET state = 'resolved', resolved_at = ? WHERE id IN (
+      SELECT id FROM notifications WHERE state = 'active' AND read_at IS NULL ORDER BY created_at ASC, id ASC LIMIT ?
+    )`).run(at, excess);
     return Number(result.changes);
   }
 
@@ -278,11 +328,16 @@ export class NotificationDatabase {
 
   /** Passt eine Benachrichtigung zu einer gemeldeten, noch frischen Sicht? */
   private presenceMatches(notification: Notification): boolean {
+    return this.presenceMatchesMeta(notification.source, notification.meta as Record<string, unknown>);
+  }
+
+  /** Meta-Variante für den Batch-Abgleich ohne volles Row-Parsing. */
+  private presenceMatchesMeta(source: NotificationSource, meta: Record<string, unknown>): boolean {
     const cutoff = Date.now() - this.presenceTtlMilliseconds;
     for (const entry of this.presence) {
-      if (entry.lastSeenAt < cutoff || entry.source !== notification.source) continue;
-      if (entry.threadId && notification.meta.threadId === entry.threadId) return true;
-      if (entry.sessionId && (notification.meta.sessionId === entry.sessionId || notification.meta.runtimeId === entry.sessionId)) return true;
+      if (entry.lastSeenAt < cutoff || entry.source !== source) continue;
+      if (entry.threadId && meta.threadId === entry.threadId) return true;
+      if (entry.sessionId && (meta.sessionId === entry.sessionId || meta.runtimeId === entry.sessionId)) return true;
     }
     return false;
   }

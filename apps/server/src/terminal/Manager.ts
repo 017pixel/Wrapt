@@ -23,6 +23,7 @@ export class TerminalManager {
 
   constructor(private readonly options: {
     allowedRoots: string[];
+    deniedRoots?: string[];
     defaultCwd: string;
     homeDirectory?: string;
     shell?: TerminalShellConfiguration;
@@ -51,7 +52,7 @@ export class TerminalManager {
       persist: (session) => this.persist(session),
       emit: (session, message) => this.emit(session, message),
       cwdRefreshTimers: this.cwdRefreshTimers,
-      validateCwd: (session) => validateCwdSync(session.cwd, this.options.allowedRoots),
+      validateCwd: (session) => validateCwdSync(session.cwd, this.options.allowedRoots, this.options.deniedRoots ?? []),
     });
     reconcileTerminalSessionsOnStartup({
       supervisor: this.options.supervisor,
@@ -59,11 +60,13 @@ export class TerminalManager {
       externalSessionOwnerId: this.options.externalSessionOwnerId,
       defaultCwd: this.options.defaultCwd,
       allowedRoots: this.options.allowedRoots,
+      deniedRoots: this.options.deniedRoots ?? [],
     });
     restorePersistentSessions({
       database: this.options.database,
       owners: this.options.persistentSessionOwners ?? [],
       allowedRoots: this.options.allowedRoots,
+      deniedRoots: this.options.deniedRoots ?? [],
       sessions: this.sessions,
       spawn: (session) => this.process.spawn(session),
       persist: (session) => this.persist(session),
@@ -78,6 +81,7 @@ export class TerminalManager {
     if (pending) return pending;
     const creation = createSessionWithContext({
       allowedRoots: this.options.allowedRoots,
+      deniedRoots: this.options.deniedRoots ?? [],
       defaultCwd: this.options.defaultCwd,
       maxSessions: this.options.maxSessions,
       maxSessionsByKind: this.options.maxSessionsByKind,
@@ -100,7 +104,7 @@ export class TerminalManager {
     // Nach einem Backend-Neustart lebt tmux weiter, aber das PTY-Gateway
     // fehlt. Auch Subscribe/Attach muss es wieder verbinden können.
     if (!session.pty && session.supervisorName && this.options.supervisor?.has(session.supervisorName)) {
-      reattachSession({ allowedRoots: this.options.allowedRoots, process: this.process, supervisor: this.options.supervisor, persist: (value) => this.persist(value) }, session, {
+      reattachSession({ allowedRoots: this.options.allowedRoots, deniedRoots: this.options.deniedRoots ?? [], process: this.process, supervisor: this.options.supervisor, persist: (value) => this.persist(value) }, session, {
         kind: session.kind, projectId: session.projectId, clientId,
         cols: viewport?.cols ?? session.cols, rows: viewport?.rows ?? session.rows,
       });
@@ -231,7 +235,7 @@ export class TerminalManager {
   async restartSession(userId: string, sessionId: string) {
     const session = this.owned(userId, sessionId);
     if (session.status === "closed") throw new TerminalFailure("SESSION_ALREADY_CLOSED", "Die Terminalsitzung wurde bereits beendet.");
-    session.cwd = requireValidCwd(session, this.options.allowedRoots, (s) => this.persist(s));
+    session.cwd = requireValidCwd(session, this.options.allowedRoots, (s) => this.persist(s), this.options.deniedRoots ?? []);
     if (session.status === "running") this.process.stopProcess(session, true);
     session.history = ""; session.exitCode = null; session.exitSignal = null; session.status = "starting"; session.updatedAt = Date.now();
     // Ein echter Neustart erzeugt die Runtime neu: neuer Epoch, frischer
@@ -254,6 +258,7 @@ export class TerminalManager {
       externalSessionOwnerId: this.options.externalSessionOwnerId,
       defaultCwd: this.options.defaultCwd,
       allowedRoots: this.options.allowedRoots,
+      deniedRoots: this.options.deniedRoots ?? [],
     });
     const stored = this.options.database?.listSessions(userId, (id) => this.sessions.get(id)?.clients.size ?? 0) ?? [];
     return stored.map((item) => {

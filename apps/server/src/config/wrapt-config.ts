@@ -189,6 +189,10 @@ export const wraptConfigSchema = z.object({
     // Git-Repo für README-Tabelle und Commit/Push-Button. Ohne Angabe entsteht der
     // physische Skill-Ordner direkt unter rootDirectory/skills und der Git-Bereich entfällt.
     repositoryDirectory: absolutePath.optional(),
+    // Hermes-Skills (Quelle hermes-skills/<kategorie>/<name>) und globale Hermes-Regeln.
+    // Ohne Angabe leitet der Server beide aus Repository und HERMES_HOME ab.
+    hermesSkillsDirectory: absolutePath.optional(),
+    hermesAgentsPath: absolutePath.optional(),
     autosaveDebounceMs: z.number().int().min(500).max(15_000).default(2_500),
     maxFileBytes: z.number().int().min(16_384).max(2_097_152).default(262_144),
   }).prefault({}),

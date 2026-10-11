@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { promisify } from "node:util";
@@ -101,6 +101,9 @@ export class T3StatusSync {
   private readonly pendingFinals: Map<string, PendingFinal> = new Map();
   private readonly remoteSnapshots: Map<string, Map<string, ThreadRow>> = new Map();
   private readonly remoteActivities: Map<string, Map<string, string[]>> = new Map();
+  /** Sichtbare Sync-Fehler statt stiller Best-Effort-Abbrüche (D-014). */
+  private syncErrorCount = 0;
+  private lastSyncError: { scope: string; message: string; at: string } | null = null;
 
   constructor(private readonly options: {
     databasePath: string; environmentIdPath: string; notifications: NotificationDatabase;
@@ -141,6 +144,18 @@ export class T3StatusSync {
   start(): void { if (this.timer) return; this.timer = setInterval(() => void this.poll(), this.options.pollSeconds * 1_000); this.timer.unref(); void this.poll(); }
   stop(): void { if (this.timer) clearInterval(this.timer); this.timer = null; this.saveCursor(); for (const source of this.options.remoteSources ?? []) this.saveRemoteCursor(source); }
 
+  /** Diagnose für stille Sync-Fehler: Zähler plus letzte Meldung mit Alter. */
+  syncErrorStatus(): { syncErrorCount: number; lastSyncError: { scope: string; message: string; at: string } | null } {
+    return { syncErrorCount: this.syncErrorCount, lastSyncError: this.lastSyncError };
+  }
+
+  private noteSyncError(scope: string, error: unknown): void {
+    const message = (error instanceof Error ? error.message : "Unbekannter T3-Sync-Fehler").slice(0, 500);
+    this.syncErrorCount += 1;
+    this.lastSyncError = { scope, message, at: new Date().toISOString() };
+    console.warn(`Wrapt: T3-Status-Sync ${scope} fehlgeschlagen (${this.syncErrorCount}x): ${message}`);
+  }
+
   private remoteCursorPath(source: RemoteT3Source): string {
     return `${this.options.cursorPath}.remote-${source.host}`;
   }
@@ -152,6 +167,9 @@ export class T3StatusSync {
   }
 
   private pollLocal(): void {
+    // Ohne T3-Datenbank gibt es nichts zu lesen — still. Erst echte
+    // Lesefehler (Sperre, Migration) werden als Warnung gezählt.
+    if (!existsSync(this.options.databasePath)) return;
     let db: DatabaseSync | null = null;
     try {
       db = new DatabaseSync(this.options.databasePath, { readOnly: true });
@@ -175,8 +193,9 @@ export class T3StatusSync {
       this.initialized = true;
       this.lastSequence = currentSequence;
       this.saveCursor();
-    } catch {
+    } catch (error) {
       // T3 kann während eines Kanalwechsels migrieren oder seine DB kurz sperren. Der nächste Poll versucht es erneut.
+      this.noteSyncError("lokal", error);
     } finally { db?.close(); }
   }
 
@@ -211,8 +230,9 @@ export class T3StatusSync {
         state.initialized = true;
         state.lastSequence = currentSequence;
         this.saveRemoteCursor(source);
-      } catch {
+      } catch (error) {
         // Remote nicht erreichbar oder Schema-Migration: Der nächste Poll versucht es erneut.
+        this.noteSyncError(`remote:${source.host}`, error);
       }
     }
   }
@@ -222,6 +242,7 @@ export class T3StatusSync {
     const now = Date.now();
     const settleMilliseconds = (this.options.finalSettleSeconds ?? 10) * 1_000;
     const localKeys = [...this.pendingFinals.entries()].filter(([, pending]) => pending.sourceKey === "local").map(([key]) => key);
+    if (localKeys.length > 0 && !existsSync(this.options.databasePath)) return;
     if (localKeys.length > 0) {
       let db: DatabaseSync | null = null;
       try {
@@ -245,7 +266,7 @@ export class T3StatusSync {
           this.emitFinal(target, pending.environmentId, logs);
           this.pendingFinals.delete(key);
         }
-      } catch { /* Der nächste Poll versucht es erneut. */ } finally { db?.close(); }
+      } catch (error) { this.noteSyncError("lokal-abschluss", error); } finally { db?.close(); }
     }
     try {
       for (const [key, pending] of [...this.pendingFinals]) {
@@ -274,7 +295,7 @@ export class T3StatusSync {
         this.emitFinal(target, pending.environmentId, logs);
         this.pendingFinals.delete(key);
       }
-    } catch { /* Beschädigte Puffer oder Cursor dürfen den Poll nicht abbrechen. */ }
+    } catch (error) { this.noteSyncError("remote-abschluss", error); }
   }
 
   private saveCursor(): void { this.writeCursor(this.options.cursorPath, this.lastSequence, "local"); }

@@ -14,6 +14,10 @@ export async function startBackgroundServices(app: FastifyInstance, deps: AppDep
   }
   if (!isolatedTest) {
     systemService.startMetricsHistory();
+    // Boot-Hook der Account-Recovery (D-009): offene Aktivierungs-Journale
+    // deterministisch abschließen, statt sie beim nächsten Lesen nachzuholen.
+    // Best-Effort im Hintergrund; Fehler landen im Log, nicht im Boot.
+    void deps.accounts.reconcile().catch((error) => app.log.warn({ err: error }, "Account-Reconcile beim Start fehlgeschlagen"));
     deps.liveUsage.start();
     deps.analytics.start();
     deps.usageTimeline.start();

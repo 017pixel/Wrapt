@@ -23,6 +23,7 @@ export interface SessionCreationInput {
 
 export interface SessionCreationContext {
   allowedRoots: string[];
+  deniedRoots?: string[];
   defaultCwd: string;
   maxSessions: number;
   maxSessionsByKind: Partial<Record<TerminalKind, number>> | undefined;
@@ -69,7 +70,7 @@ export async function createSessionWithContext(
     }
     if (activeSessions.length >= context.maxSessions) throw new TerminalFailure("TOO_MANY_SESSIONS", "Die maximale Anzahl gleichzeitig geöffneter Terminals ist erreicht.");
   }
-  const cwd = await validateCwd(input.cwd ?? context.defaultCwd, context.allowedRoots);
+  const cwd = await validateCwd(input.cwd ?? context.defaultCwd, context.allowedRoots, context.deniedRoots ?? []);
   if (input.mode === "login" && (kind === "shell" || !input.accountId)) throw new TerminalFailure("INVALID_MESSAGE", "Für die Anmeldung fehlt ein gültiger Account.");
   let profilePath: string | null = null;
   if (input.accountId && kind !== "shell") {
@@ -113,7 +114,7 @@ export async function createSessionWithContext(
   }
 }
 
-export function reattachSession(context: Pick<SessionCreationContext, "allowedRoots" | "persist" | "process" | "supervisor">, existing: TerminalSession, input: SessionCreationInput): TerminalSession {
+export function reattachSession(context: Pick<SessionCreationContext, "allowedRoots" | "deniedRoots" | "persist" | "process" | "supervisor">, existing: TerminalSession, input: SessionCreationInput): TerminalSession {
   if (existing.kind !== (input.kind ?? "shell") || existing.projectId !== (input.projectId ?? null)) {
     throw new TerminalFailure("SESSION_RUNTIME_CONFLICT", "Diese Werkzeuginstanz ist bereits an eine andere Session gebunden.");
   }
@@ -141,7 +142,7 @@ export function reattachSession(context: Pick<SessionCreationContext, "allowedRo
       // Persistierte Pfade sind nur bis zum nächsten Start gültig. Vor jedem
       // Spawn wird der CWD erneut kanonisch geprüft; eine Session mit
       // unzulässigem Pfad wird sichtbar stillgelegt statt gestartet.
-      existing.cwd = requireValidCwd(existing, context.allowedRoots, (session) => context.persist(session));
+      existing.cwd = requireValidCwd(existing, context.allowedRoots, (session) => context.persist(session), context.deniedRoots ?? []);
       // Eine neue Emulation hat eine neue Sequenzbasis. Ein Browser darf
       // seinen alten Stand deshalb nicht mit einem leeren Delta-Sync bestätigen.
       if (!existing.headless) existing.epoch += 1;

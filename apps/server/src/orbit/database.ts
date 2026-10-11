@@ -89,7 +89,8 @@ export class OrbitDatabase {
     mkdirSync(backupDirectory, { recursive: true });
     this.backupDirectory = backupDirectory;
     this.db = new DatabaseSync(path);
-    this.db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000");
+    // NORMAL statt FULL: Mit WAL ist NORMAL absturzsicher (fsync am Checkpoint statt pro Commit, P-010).
+    this.db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000");
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS orbit_documents (
         id TEXT PRIMARY KEY,
@@ -339,7 +340,8 @@ export class OrbitDatabase {
     };
   }
 
-  saveLegacy(document: OrbitWorkspace, expectedRevision: number | null): OrbitDocumentResponse {
+  // Legacy-Pfad, Sunset 01.08.2027 (D-005/A-007): 200 bleibt, verworfene Saves melden `conflicted: true`.
+  saveLegacy(document: OrbitWorkspace, expectedRevision: number | null): OrbitDocumentResponse & { conflicted: boolean } {
     const parsed = orbitWorkspaceSchema.parse(document);
     const serialized = JSON.stringify(parsed);
     if (Buffer.byteLength(serialized, "utf8") > settings.orbitDocumentMaxBytes) {
@@ -351,19 +353,17 @@ export class OrbitDatabase {
     if (expectedRevision !== null && expectedRevision !== currentRevision) {
       if (serialized !== current?.documentJson) {
         this.saveRecoveryDraft(serialized, expectedRevision, currentRevision);
+        return { ...this.get(), conflicted: true };
       }
-      return this.get();
+      return { ...this.get(), conflicted: false };
     }
 
     try {
-      return this.save(parsed, expectedRevision);
+      return { ...this.save(parsed, expectedRevision), conflicted: false };
     } catch (error) {
-      // Legacy-Clients erwarten bei einem veralteten Stand den aktuellen
-      // Serverentwurf statt eines 409. Der eigentliche Save hat den Konflikt
-      // bereits unter der Schreibsperre als Draft gesichert. Dieser Catch
-      // behandelt auch den Race zwischen dem obigen Vorab-Read und dem
-      // transaktionssicheren Save.
-      if (error instanceof AppError && error.code === "ORBIT_REVISION_CONFLICT") return this.get();
+      // Legacy-Semantik: aktueller Entwurf statt 409; der Konflikt ist bereits
+      // als Draft gesichert. Deckt auch den Race Vorab-Read/transaktionssicherer Save ab.
+      if (error instanceof AppError && error.code === "ORBIT_REVISION_CONFLICT") return { ...this.get(), conflicted: true };
       throw error;
     }
   }

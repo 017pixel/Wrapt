@@ -36,19 +36,22 @@ async function createFixtureDatabase(): Promise<string> {
 
 describe("readOpenCodeUsage", () => {
   it("aggregates models, daily points and projects from the local session database", async () => {
-    const payload = readOpenCodeUsage(await createFixtureDatabase());
-    expect(payload).not.toBeNull();
-    expect(payload?.provider).toBe("opencode");
-    const byModel = new Map(payload?.daily.flatMap((day) => day.modelBreakdowns).map((item) => [item.modelName, item]) ?? []);
+    const result = readOpenCodeUsage(await createFixtureDatabase());
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const payload = result.payload;
+    expect(payload.provider).toBe("opencode");
+    const byModel = new Map(payload.daily.flatMap((day) => day.modelBreakdowns).map((item) => [item.modelName, item]) ?? []);
     expect(byModel.get("deepseek-v4-flash")).toMatchObject({ totalTokens: 24_800, cost: 1.0 });
     expect(byModel.get("claude-sonnet-5")).toMatchObject({ totalTokens: 24_500, cost: 1.5 });
     expect(byModel.get("altes-modell")).toMatchObject({ totalTokens: 99_000, cost: 9 });
-    expect(payload?.projects).toContainEqual(expect.objectContaining({ projectPath: "/home/user/projects/alpha", totalTokens: 24_800, name: "alpha" }));
-    expect(payload?.projects).toContainEqual(expect.objectContaining({ projectPath: "/home/user/projects/gamma", totalTokens: 99_000, name: "gamma" }));
-    expect(payload?.projects).toContainEqual(expect.objectContaining({ projectPath: "/home/user/projects/beta", totalTokens: 24_500 }));
+    expect(payload.projects).toContainEqual(expect.objectContaining({ projectPath: "/home/user/projects/alpha", totalTokens: 24_800, name: "alpha" }));
+    expect(payload.projects).toContainEqual(expect.objectContaining({ projectPath: "/home/user/projects/gamma", totalTokens: 99_000, name: "gamma" }));
+    expect(payload.projects).toContainEqual(expect.objectContaining({ projectPath: "/home/user/projects/beta", totalTokens: 24_500 }));
   });
 
-  it("returns null when the database is missing or not readable", () => {
-    expect(readOpenCodeUsage(join(tmpdir(), "definitiv-nicht-vorhanden", "opencode.db"))).toBeNull();
+  it("unterscheidet fehlende Datenbank von unlesbarer (ok/reason statt null)", () => {
+    const missing = readOpenCodeUsage(join(tmpdir(), "definitiv-nicht-vorhanden", "opencode.db"));
+    expect(missing).toMatchObject({ ok: false, reason: "missing" });
   });
 });

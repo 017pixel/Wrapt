@@ -1,12 +1,13 @@
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { randomUUID } from "node:crypto";
-import { ZodError, z } from "zod";
+import { z } from "zod";
 import { saveTerminalWorkspaceRequestSchema, terminalWorkspaceOpsRequestSchema, terminalWorkspaceSchema, terminalWorkspaceV2Schema } from "@wrapt/contracts";
 import { AppError } from "../utils/errors.js";
+import { toApiError, toTerminalError } from "../utils/api-errors.js";
 import { TerminalFailure } from "./Manager.js";
 import type { TerminalManager } from "./Manager.js";
 import type { TerminalDatabase } from "./database.js";
-import { clientTerminalMessageSchema, type ServerTerminalMessage, type TerminalErrorCode } from "./protocol.js";
+import { clientTerminalMessageSchema, createTerminalFloodGuard, type ServerTerminalMessage, type TerminalErrorCode } from "./protocol.js";
 import { TerminalWorkspaceService } from "./workspace/TerminalWorkspaceService.js";
 import { migrateTerminalWorkspaceV1 } from "./workspace/terminalWorkspaceMigrations.js";
 import { isSameOriginRequest } from "../security/same-origin.js";
@@ -31,17 +32,14 @@ function terminalIdentity(request: FastifyRequest, identityOptions: WorkbenchIde
 }
 
 function errorMessage(error: unknown): { code: TerminalErrorCode; message: string } {
-  if (error instanceof TerminalFailure) return { code: error.code, message: error.message };
-  if (error instanceof ZodError) return { code: "INVALID_MESSAGE", message: "Die Terminalnachricht ist ungültig." };
-  return { code: "INTERNAL_ERROR", message: "Die Terminalanfrage konnte nicht verarbeitet werden." };
+  return toTerminalError(error);
 }
 
 function httpIdentity(request: FastifyRequest, identityOptions: WorkbenchIdentityOptions) {
   try { return terminalIdentity(request, identityOptions); }
   catch (error) {
-    const failure = errorMessage(error);
-    const status = failure.code === "UNAUTHORIZED" ? 401 : failure.code === "FORBIDDEN" ? 403 : 400;
-    throw new AppError(status, failure.code, failure.message);
+    const mapped = toApiError(error);
+    throw new AppError(mapped.status, mapped.code, mapped.message);
   }
 }
 
@@ -167,7 +165,13 @@ export async function registerTerminalRoutes(app: FastifyInstance, options: {
       if (detach) { detach(); subscriptions.delete(runtimeId); }
     };
     const sessionOf = (runtimeId: string) => options.manager.resolveRuntime(userId, runtimeId);
+    // Flood-Schutz pro Socket (S-009): Nachrichtenflut schließt mit 1013.
+    const floodGuard = createTerminalFloodGuard();
     socket.on("message", (raw: unknown) => {
+      if (!floodGuard.tryConsume("messages")) {
+        socket.close(1013, "Zu viele Terminalnachrichten");
+        return;
+      }
       try {
         if (typeof raw !== "string" && !Buffer.isBuffer(raw)) throw new TerminalFailure("INVALID_MESSAGE", "Die Terminalnachricht ist ungültig.");
         const message = clientTerminalMessageSchema.parse(JSON.parse(raw.toString()));

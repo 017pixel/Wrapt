@@ -1,10 +1,28 @@
 import { z } from "zod";
 import { terminalKindSchema, type TerminalKind } from "@wrapt/contracts";
+import { RateBudget } from "../utils/rate-budget.js";
 
 const sessionId = z.string().uuid();
 const runtimeId = z.string().uuid();
 const dimensions = z.object({ cols: z.number().int().min(2).max(500), rows: z.number().int().min(1).max(300) });
 export type { TerminalKind };
+
+/**
+ * Flood-Schutz pro Terminal-Socket (S-009): 120 Nachrichten pro 5 s Burst.
+ * Darüber schließt der Server mit 1013 (Try again later), statt PTY-CPU an
+ * Flut-Nachrichten zu verlieren. Normale Nutzung (Eingabe, Resize, Ping)
+ * liegt um Größenordnungen darunter.
+ */
+export const TERMINAL_FLOOD_MAX_MESSAGES = 120;
+export const TERMINAL_FLOOD_WINDOW_MS = 5_000;
+
+export function createTerminalFloodGuard(now?: () => number): RateBudget {
+  return new RateBudget({
+    maxEvents: TERMINAL_FLOOD_MAX_MESSAGES,
+    windowMilliseconds: TERMINAL_FLOOD_WINDOW_MS,
+    ...(now === undefined ? {} : { now }),
+  });
+}
 
 const syncStateSchema = z.object({
   epoch: z.number().int().nonnegative(),

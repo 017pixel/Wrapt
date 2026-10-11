@@ -73,7 +73,8 @@ export class ExtensionDatabase {
     mkdirSync(dirname(databasePath), { recursive: true });
     this.databasePath = databasePath;
     this.database = new DatabaseSync(databasePath);
-    this.database.exec("PRAGMA journal_mode = WAL; PRAGMA busy_timeout = 5000;");
+    // synchronous=NORMAL wie überall: Mit WAL absturzsicher, ohne fsync pro Commit (P-010).
+    this.database.exec("PRAGMA journal_mode = WAL; PRAGMA synchronous = NORMAL; PRAGMA busy_timeout = 5000;");
     this.database.exec("PRAGMA foreign_keys = ON;");
     this.migrate();
     this.recoveredTransientOperations = this.reconcileTransientOperations();

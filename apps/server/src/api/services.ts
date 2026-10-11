@@ -11,6 +11,7 @@ import type { createProjectFileService } from "../services/projectFileService.js
 import type { createProjectService } from "../services/projectService.js";
 import type { createServiceStatusService } from "../services/serviceStatusService.js";
 import type { SkillEditorService } from "../skills/skillEditorService.js";
+import type { WorkbenchIdentityOptions } from "../security/workbench-identity.js";
 import type { AccountService } from "../usage/account-service.js";
 import type { UsageTimelineService } from "../usage/timeline-service.js";
 import type { UsageAnalyticsService } from "../usage/usage-service.js";
@@ -31,6 +32,7 @@ export interface RouteServices {
   orbitAssets: OrbitAssetRepository;
   fileGallery: OrbitAssetRepository;
   projectBrowser: ProjectBrowserService;
+  identity: WorkbenchIdentityOptions;
   fileManager: FileManagerService;
   skillEditor: SkillEditorService;
   proxyOrigins: string[];

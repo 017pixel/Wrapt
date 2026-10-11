@@ -39,12 +39,14 @@ describe("Wrapt API", () => {
     expect(health.webBuildId === null || Number.isInteger(health.webBuildId)).toBe(true);
   });
 
-  it("erlaubt Cross-Origin-Lesen nur für Health und beantwortet GET-Preflights", async () => {
+  it("sendet kein Wildcard-CORS für Health und beantwortet GET-Preflights", async () => {
     const app = await buildApp({ startBackgroundServices: false });
     apps.push(app);
     const origin = "https://macbook.example.ts.net";
     const health = await app.inject({ method: "GET", url: "/api/v1/health", headers: { origin } });
-    expect(health.headers["access-control-allow-origin"]).toBe("*");
+    // S-008: kein `Access-Control-Allow-Origin: *` — fremde Origins lesen weder
+    // Version noch bootId/webBuildId per Cross-Origin-Fetch.
+    expect(health.headers["access-control-allow-origin"]).toBeUndefined();
     expect(health.headers["access-control-allow-credentials"]).toBeUndefined();
 
     const preflight = await app.inject({
@@ -53,7 +55,7 @@ describe("Wrapt API", () => {
       headers: { origin, "access-control-request-method": "GET" },
     });
     expect(preflight.statusCode).toBe(204);
-    expect(preflight.headers["access-control-allow-origin"]).toBe("*");
+    expect(preflight.headers["access-control-allow-origin"]).toBeUndefined();
     expect(preflight.headers["access-control-allow-methods"]).toBe("GET");
     expect(preflight.headers["access-control-allow-credentials"]).toBeUndefined();
 

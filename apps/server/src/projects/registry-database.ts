@@ -37,7 +37,8 @@ export class ProjectRegistryDatabase {
   constructor(path: string) {
     mkdirSync(dirname(path), { recursive: true });
     this.database = new DatabaseSync(path);
-    this.database.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000");
+    // NORMAL statt FULL: Mit WAL ist NORMAL absturzsicher (fsync am Checkpoint statt pro Commit, P-010).
+    this.database.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000");
     this.database.exec(`
       CREATE TABLE IF NOT EXISTS orbit_project_registry (
         id TEXT PRIMARY KEY,
@@ -66,14 +67,17 @@ export class ProjectRegistryDatabase {
   }
 
   register(path: string, name = basename(path), at = new Date().toISOString(), preferredId?: string): { project: RegisteredProject; created: boolean } {
-    const existing = this.findByPath(path);
-    if (existing) return { project: existing, created: false };
-    const project: RegisteredProject = { id: preferredId ?? registeredProjectId(path), path, name, createdAt: at };
-    this.database.prepare(`
+    // D-010: idempotent per Upsert statt Check-then-Insert — zwei parallele
+    // POST /projects/register mit gleichem Pfad liefern beide 200/201 statt 500.
+    const id = preferredId ?? registeredProjectId(path);
+    const inserted = this.database.prepare(`
       INSERT INTO orbit_project_registry (id, canonical_path, name, created_at)
       VALUES (?, ?, ?, ?)
-    `).run(project.id, project.path, project.name, project.createdAt);
-    return { project, created: true };
+      ON CONFLICT(canonical_path) DO NOTHING
+    `).run(id, path, name, at);
+    const stored = this.findByPath(path);
+    if (!stored) throw new Error("Projektregistrierung fehlgeschlagen.");
+    return { project: stored, created: inserted.changes === 1 };
   }
 
   close() { this.database.close(); }

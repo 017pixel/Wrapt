@@ -21,6 +21,9 @@ export function createRuntimeDependencies(options: RuntimeDependencyOptions) {
 
   const terminals = new TerminalManager({
     allowedRoots: settings.terminalAllowedRoots,
+    // S-011: Server-Config und Datenschlüssel liegen außerhalb jeder
+    // Terminal-Arbeit, auch wenn sie unter einer erlaubten Wurzel stehen.
+    deniedRoots: [settings.configDirectory, settings.dataDirectory],
     defaultCwd: settings.terminalDefaultCwd,
     homeDirectory: settings.systemHomeDirectory,
     shell: settings.terminalShell,

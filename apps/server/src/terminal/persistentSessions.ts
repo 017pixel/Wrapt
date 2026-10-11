@@ -8,6 +8,7 @@ export function restorePersistentSessions(deps: {
   database: TerminalDatabase | undefined;
   owners: readonly string[];
   allowedRoots: string[];
+  deniedRoots?: string[];
   sessions: Map<string, TerminalSession>;
   spawn(session: TerminalSession): void;
   persist(session: TerminalSession): void;
@@ -17,7 +18,7 @@ export function restorePersistentSessions(deps: {
       const session = fromStored(stored);
       deps.sessions.set(session.id, session);
       try {
-        session.cwd = requireValidCwd(session, deps.allowedRoots, deps.persist);
+        session.cwd = requireValidCwd(session, deps.allowedRoots, deps.persist, deps.deniedRoots ?? []);
         session.epoch += 1;
         session.status = "starting";
         session.exitCode = null;

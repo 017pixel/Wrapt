@@ -12,6 +12,7 @@ import { registerHermesRoutes } from "../hermes/routes.js";
 import { registerNotificationRoutes } from "../notifications/routes.js";
 import { registerPluginRoutes } from "../plugins/routes.js";
 import { registerPreviewRoutes } from "../previews/routes.js";
+import { registerDevServerConfirmationRoutes } from "../previews/devServerConfirmations.js";
 import { registerEditorOpenRoutes } from "../services/editorOpen.js";
 import { createCommandService } from "../services/commandService.js";
 import { createServiceStatusService } from "../services/serviceStatusService.js";
@@ -38,6 +39,7 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
       orbitAssets: deps.orbitAssets,
       fileGallery: deps.fileGallery,
       projectBrowser: deps.projectBrowser,
+      identity: deps.identityOptions,
       fileManager: deps.fileManager,
       skillEditor: deps.skillEditor,
       projectFiles: deps.projectFiles,
@@ -98,6 +100,12 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
     diagnosticMaxBatchBytes: settings.previews.diagnosticMaxBatchBytes,
     diagnosticRetentionDays: settings.previews.diagnosticRetentionDays,
     devServers: deps.previewDevServers,
+  });
+  await app.register(registerDevServerConfirmationRoutes, {
+    prefix: "/api/v1",
+    devServers: deps.previewDevServers,
+    database: deps.previewDevServerDatabase,
+    identity: deps.identityOptions,
   });
   await app.register(registerHermesRoutes, {
     prefix: "/api/v1",

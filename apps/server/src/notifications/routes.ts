@@ -54,7 +54,8 @@ export async function registerNotificationRoutes(app: FastifyInstance, options: 
     const presence = notificationPresenceInputSchema.parse(request.body);
     return { updated: database.setPresence(presence) };
   });
-  app.post("/notifications/report", async (request, reply) => {
+  // S-009: Crash-Reports schreiben DB + Diagnose und dürfen nicht als Spam-Kanal dienen.
+  app.post("/notifications/report", { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } }, async (request, reply) => {
     const parsed = z.object({
       title: z.string().min(1).max(200), body: z.string().max(1_000), link: z.string().startsWith("/").max(512).nullable().default(null),
       remoteId: z.string().max(200), report: z.object({ message: z.string().min(1).max(4_000), stack: z.string().max(20_000).nullable().default(null),

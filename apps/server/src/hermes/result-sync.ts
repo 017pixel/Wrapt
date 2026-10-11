@@ -48,14 +48,15 @@ async function loadCursor(): Promise<ResultCursor> {
   } catch { return { ...defaultCursor, acpNotified: {} }; }
 }
 
-async function saveCursor(cursor: ResultCursor): Promise<void> {
+async function saveCursor(cursor: ResultCursor): Promise<boolean> {
   const path = cursorPath();
   try {
     await mkdir(dirname(path), { recursive: true });
     const temporary = `${path}.${process.pid}.tmp`;
     await writeFile(temporary, `${JSON.stringify({ ...cursor, seenIds: cursor.seenIds.slice(-200), startedIds: cursor.startedIds.slice(-200), acpNotified: Object.fromEntries(Object.entries(cursor.acpNotified).slice(-200)) }, null, 2)}\n`, { encoding: "utf8", mode: 0o600 });
     await rename(temporary, path);
-  } catch { /* Best Effort — der Sync kommt beim nächsten Poll erneut. */ }
+    return true;
+  } catch { return false; /* Best Effort — der Sync kommt beim nächsten Poll erneut. */ }
 }
 
 function later(left: string | null, right: string | null): string | null {
@@ -86,12 +87,21 @@ export class HermesResultSync {
   private cursor: ResultCursor | null = null;
   private unsubscribe: (() => void) | null = null;
   private readonly acpNotified = new Map<string, string>();
+  /** Sichtbare Sync-Fehler statt stiller Best-Effort-Abbrüche (D-014). */
+  private pollErrorCount = 0;
+  private cursorSaveErrorCount = 0;
+  private lastPollError: { message: string; at: string } | null = null;
 
   constructor(
     private readonly sessions: HermesSessionService,
     private readonly manager: HermesAcpManager,
     private readonly notifications: NotificationDatabase,
   ) {}
+
+  /** Diagnose für stille Sync-Fehler: Zähler plus letzte Meldung mit Alter. */
+  syncErrorStatus(): { pollErrorCount: number; cursorSaveErrorCount: number; lastPollError: { message: string; at: string } | null } {
+    return { pollErrorCount: this.pollErrorCount, cursorSaveErrorCount: this.cursorSaveErrorCount, lastPollError: this.lastPollError };
+  }
 
   start(): void {
     if (this.timer) return;
@@ -186,8 +196,12 @@ export class HermesResultSync {
         cursor.startedIds = cursor.startedIds.filter((id) => runningIds.includes(id));
       }
       cursor.dashboardReachable = true;
-    } catch {
+    } catch (error) {
       cursor.dashboardReachable = false;
+      const message = (error instanceof Error ? error.message : "Unbekannter Hermes-Fehler").slice(0, 500);
+      this.pollErrorCount += 1;
+      this.lastPollError = { message, at: new Date().toISOString() };
+      console.warn(`Wrapt: Hermes-Ergebnis-Sync fehlgeschlagen (${this.pollErrorCount}x): ${message}`);
     }
     const update = readHermesUpdateState();
     if (update.lastFinishedAt && update.lastFinishedAt !== cursor.updateFinishedAt) {
@@ -210,7 +224,10 @@ export class HermesResultSync {
       cursor.updateFinishedAt = update.lastFinishedAt;
     }
     cursor.acpNotified = Object.fromEntries(this.acpNotified);
-    await saveCursor(cursor);
+    if (!(await saveCursor(cursor))) {
+      this.cursorSaveErrorCount += 1;
+      console.warn(`Wrapt: Hermes-Ergebnis-Cursor konnte nicht gespeichert werden (${this.cursorSaveErrorCount}x).`);
+    }
   }
 
   private handleManagerMessage(message: HermesServerMessage): void {

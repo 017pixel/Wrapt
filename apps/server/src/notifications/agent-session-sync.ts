@@ -1,4 +1,4 @@
-import { globSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, globSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { NotificationDatabase } from "./database.js";
@@ -71,6 +71,9 @@ export class AgentSessionSync {
   private timer: NodeJS.Timeout | null = null;
   private state: CursorState = { opencodeRowId: 0, codexOffsets: {}, t3Sessions: [], runs: {} };
   private initialized = false;
+  /** Sichtbare Sync-Fehler statt stiller Best-Effort-Abbrüche (D-014). */
+  private syncErrorCount = 0;
+  private lastSyncError: { scope: string; message: string; at: string } | null = null;
 
   constructor(private readonly options: {
     opencodeDatabasePath: string; t3DatabasePath: string; codexSessionsPath: string; cursorPath: string;
@@ -83,6 +86,17 @@ export class AgentSessionSync {
     this.timer = setInterval(() => this.poll(true), this.options.pollSeconds * 1_000); this.timer.unref();
   }
   stop(): void { if (this.timer) clearInterval(this.timer); this.timer = null; this.save(); }
+  /** Diagnose für stille Sync-Fehler: Zähler plus letzte Meldung mit Alter. */
+  syncErrorStatus(): { syncErrorCount: number; lastSyncError: { scope: string; message: string; at: string } | null } {
+    return { syncErrorCount: this.syncErrorCount, lastSyncError: this.lastSyncError };
+  }
+
+  private noteSyncError(scope: string, error: unknown): void {
+    const message = (error instanceof Error ? error.message : "Unbekannter Session-Sync-Fehler").slice(0, 500);
+    this.syncErrorCount += 1;
+    this.lastSyncError = { scope, message, at: new Date().toISOString() };
+    console.warn(`Wrapt: Agent-Session-Sync ${scope} fehlgeschlagen (${this.syncErrorCount}x): ${message}`);
+  }
   private load(): void {
     try {
       const value = JSON.parse(readFileSync(this.options.cursorPath, "utf8")) as Partial<CursorState>;
@@ -107,6 +121,9 @@ export class AgentSessionSync {
   }
 
   private pollOpenCode(emit: boolean): void {
+    // Ohne Datenbank gibt es nichts zu lesen (OpenCode ungenutzt) — still.
+    // Erst echte Lesefehler (Sperre, korrupt) werden als Warnung gezählt.
+    if (!existsSync(this.options.opencodeDatabasePath)) return;
     let db: DatabaseSync | null = null;
     try {
       db = new DatabaseSync(this.options.opencodeDatabasePath, { readOnly: true }); db.exec("PRAGMA busy_timeout=1000");
@@ -152,7 +169,7 @@ export class AgentSessionSync {
         }
         this.state.runs[root.id] = buffer;
       }
-    } catch { /* OpenCode ist optional oder gerade gesperrt. */ } finally { db?.close(); }
+    } catch (error) { this.noteSyncError("opencode", error); } finally { db?.close(); }
   }
 
   private sessionRow(db: DatabaseSync, id: string, cache: Map<string, OpenCodeSession | null>): OpenCodeSession | null {
@@ -220,18 +237,19 @@ export class AgentSessionSync {
   private sessionActivity(): ReadonlyMap<string, number> {
     const ids = [...new Set(Object.values(this.state.runs).flatMap((run) => run.sessions))];
     const values = new Map<string, number>();
-    if (ids.length === 0) return values;
+    if (ids.length === 0 || !existsSync(this.options.opencodeDatabasePath)) return values;
     let db: DatabaseSync | null = null;
     try {
       db = new DatabaseSync(this.options.opencodeDatabasePath, { readOnly: true }); db.exec("PRAGMA busy_timeout=1000");
       const placeholders = ids.map(() => "?").join(",");
       const rows = db.prepare(`SELECT id, time_updated timeUpdated FROM session WHERE id IN (${placeholders})`).all(...ids) as unknown as Array<{ id: string; timeUpdated: number }>;
       for (const row of rows) values.set(row.id, row.timeUpdated);
-    } catch { /* Ohne Datenbank gilt nur die letzte Antwort als Aktivität. */ } finally { db?.close(); }
+    } catch (error) { this.noteSyncError("opencode-aktivitaet", error); } finally { db?.close(); }
     return values;
   }
 
   private t3Context(): { markers: ReadonlySet<string>; directories: ReadonlyMap<string, T3Directory> } {
+    if (!existsSync(this.options.t3DatabasePath)) return { markers: new Set(), directories: new Map() };
     let db: DatabaseSync | null = null;
     try {
       db = new DatabaseSync(this.options.t3DatabasePath, { readOnly: true }); db.exec("PRAGMA busy_timeout=1000");
@@ -261,11 +279,13 @@ export class AgentSessionSync {
         else entry.activeSince = Math.max(entry.activeSince, activeSince);
       }
       return { markers, directories };
-    } catch { return { markers: new Set(), directories: new Map() }; }
+    } catch (error) { this.noteSyncError("t3-kontext", error); return { markers: new Set(), directories: new Map() }; }
     finally { db?.close(); }
   }
 
   private pollCodex(emit: boolean): void {
+    // Ohne Codex-Verläufe gibt es nichts zu lesen — still (Codex optional).
+    if (!existsSync(this.options.codexSessionsPath)) return;
     try {
       const files = globSync("**/*.jsonl", { cwd: this.options.codexSessionsPath }).map((path) => join(this.options.codexSessionsPath, path))
         .map((path) => ({ path, stat: statSync(path) })).sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs).slice(0, 200);
@@ -301,6 +321,6 @@ export class AgentSessionSync {
         }
       }
       this.state.codexOffsets = retained;
-    } catch { /* Codex-Verläufe sind optional. */ }
+    } catch (error) { this.noteSyncError("codex", error); }
   }
 }

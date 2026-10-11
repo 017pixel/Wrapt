@@ -19,10 +19,12 @@ export class AccountService {
 
   list() { return this.options.database.listAccounts(); }
 
-  /** Registrierte Accounts samt Identität und serverweit aktivem Account je Werkzeug. */
+  /**
+   * Registrierte Accounts samt Identität und serverweit aktivem Account je Werkzeug.
+   * Rein lesend: keine Journal-Reparatur, kein Link-Abgleich, kein Runtime-Neustart.
+   * Die Recovery-Saga läuft nur über `reconcile()` (Boot-Hook, explizite Route).
+   */
   async listWithState(): Promise<ManagedAccount[]> {
-    await this.reconcileActivationJournal();
-    await this.repairActiveLinks();
     const accounts = this.list();
     const activeProfiles = new Map<UsageProviderId, string | null>();
     for (const provider of new Set(accounts.map((account) => account.provider))) {
@@ -101,6 +103,19 @@ export class AccountService {
   }
 
   /**
+   * Explizite Recovery-Saga (Boot-Hook, POST /accounts/reconcile): schließt
+   * offene Aktivierungs-Journale ab und repariert ersetzte Anmeldedateien.
+   * Reparaturfehler kommen als Warnungen zurück, nie als 503 — Lesen bleibt
+   * über listWithState() jederzeit möglich.
+   */
+  async reconcile(): Promise<{ reconciledProviders: UsageProviderId[]; warnings: Array<{ provider: UsageProviderId; message: string }> }> {
+    const pending = this.options.database.listActivationJournal().map((entry) => entry.provider);
+    await this.reconcileActivationJournal();
+    const warnings = await this.repairActiveLinks();
+    return { reconciledProviders: [...new Set(pending)], warnings };
+  }
+
+  /**
    * Startet die Codex-Runtime neu, damit der neue Account beim nächsten Start
    * gelesen wird. Best-Effort: Der Dateisystemwechsel ist bereits abgeschlossen
    * und wird nicht wegen eines fehlgeschlagenen Neustarts zurückgerollt.
@@ -134,24 +149,24 @@ export class AccountService {
   /**
    * Stellt Symlinks wieder her, die ein CLI durch eine reguläre Datei ersetzt hat. Ohne diesen
    * Schritt würden dort aufgefrischte Zugangsdaten am Anmeldespeicher des Accounts vorbeilaufen.
+   * Fehler werden als Warnungen gesammelt statt als 503 zu werfen, damit das
+   * Lesen der Accountliste nie blockiert (D-009).
    */
-  private async repairActiveLinks() {
+  private async repairActiveLinks(): Promise<Array<{ provider: UsageProviderId; message: string }>> {
+    const warnings: Array<{ provider: UsageProviderId; message: string }> = [];
     const intended = this.options.database.listActiveAccounts();
     for (const [provider, accountId] of Object.entries(intended) as Array<[UsageProviderId, string]>) {
       const account = this.list().find((item) => item.id === accountId);
       if (!account || !this.allowed(account.profilePath)) continue;
       try {
         await this.switcher.repair(provider, account.profilePath);
-      } catch {
-        throw new AppError(
-          503,
-          "ACCOUNT_CREDENTIAL_LINK_DIVERGED",
-          "Die aktive Anmeldedatei konnte nicht sicher mit dem Accountspeicher abgeglichen werden.",
-          { provider },
-          true,
-        );
+      } catch (error) {
+        const message = (error instanceof Error ? error.message : "Unbekannter Fehler").slice(0, 500);
+        console.warn(`Wrapt: Anmeldedatei für ${provider} konnte nicht abgeglichen werden: ${message}`);
+        warnings.push({ provider, message });
       }
     }
+    return warnings;
   }
 
   /** Schließt nach einem Prozessabbruch eine begonnene Umschaltung deterministisch ab. */

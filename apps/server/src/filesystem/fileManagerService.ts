@@ -17,7 +17,7 @@ import {
   type FileManagerSearchResponse,
 } from "@wrapt/contracts";
 import { AppError } from "../utils/errors.js";
-import { canonicalRootCandidates, preserveRootAlias, resolvePathWithinRootAliases, sameFilesystemPath } from "../utils/pathRoots.js";
+import { canonicalRootCandidates, preserveRootAlias, resolvePathWithinRootAliases, sameFilesystemPath, anyContained } from "../utils/pathRoots.js";
 import { contained, entryFor, filesystemFailure, mimeTypeFor, sanitizeName } from "./fileSystemHelpers.js";
 
 import { publishFileNoReplace } from "./fileTransfers.js";
@@ -38,6 +38,7 @@ interface StateRow {
 export class FileManagerService {
   private readonly db: DatabaseSync;
   private readonly rootAliases: string[];
+  private readonly deniedRoots: string[];
   readonly root: string;
 
   constructor(
@@ -45,11 +46,14 @@ export class FileManagerService {
     private readonly textPreviewBytes: number,
     private readonly maxUploadBytes: number,
     databasePath: string,
+    deniedRoots: string[] = [],
   ) {
     this.rootAliases = canonicalRootCandidates([root]);
+    this.deniedRoots = canonicalRootCandidates(deniedRoots);
     this.root = resolve(root);
     this.db = new DatabaseSync(databasePath);
-    this.db.exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000");
+    // synchronous=NORMAL wie überall: Mit WAL absturzsicher, ohne fsync pro Commit (P-010).
+    this.db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000");
     this.db.exec(`CREATE TABLE IF NOT EXISTS file_manager_state (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       document_json TEXT NOT NULL,
@@ -66,6 +70,17 @@ export class FileManagerService {
 
   private requestedPath(input?: string): string {
     return resolvePathWithinRootAliases(input, this.root, this.rootAliases);
+  }
+
+  /**
+   * S-011: Schreibschutz für Server-Config (wrapt.local.json, .env) und
+   * Datenschlüssel. Lesen bleibt erlaubt, Schreiben endet als 403.
+   */
+  private assertNotProtected(target: string): void {
+    if (this.deniedRoots.length === 0) return;
+    if (anyContained(this.deniedRoots, target)) {
+      throw new AppError(403, "FILESYSTEM_CONFIG_PROTECTED", "Der Konfigurationsbereich ist über den Dateimanager schreibgeschützt. Bitte direkt auf dem Server bearbeiten.");
+    }
   }
 
   /** Pfad innerhalb des Roots auflösen und auf echte Verzeichnisse/Dateien prüfen. */
@@ -112,6 +127,7 @@ export class FileManagerService {
     if (!contained(this.root, canonical) || !sameFilesystemPath(canonical, requested)) {
       throw new AppError(403, "FILESYSTEM_PATH_OUTSIDE_ROOT", "Der Zielpfad führt über einen nicht erlaubten Verweis.");
     }
+    this.assertNotProtected(canonical);
     return preserveRootAlias(canonical, this.root);
   }
 
@@ -157,7 +173,9 @@ export class FileManagerService {
       filesystemFailure(error);
     }
     const target = join(parentCanonical, name);
+    if (!contained(this.root, target)) throw new AppError(403, "FILESYSTEM_PATH_OUTSIDE_ROOT", "Der Zielname liegt außerhalb des erlaubten Serverbereichs.");
     if (requested === target) throw new AppError(400, "FILESYSTEM_SAME_NAME", "Der Name ist unverändert.");
+    this.assertNotProtected(target);
     await this.moveNoReplace(requested, target);
     return target;
   }
@@ -184,6 +202,7 @@ export class FileManagerService {
     if (target.startsWith(`${canonical}${sep}`)) {
       throw new AppError(400, "FILESYSTEM_MOVE_INTO_SELF", "Ein Ordner kann nicht in sich selbst verschoben werden.");
     }
+    this.assertNotProtected(target);
     await this.moveNoReplace(requested, target);
     return target;
   }
@@ -205,6 +224,7 @@ export class FileManagerService {
       if (error instanceof AppError) throw error;
       filesystemFailure(error);
     }
+    this.assertNotProtected(canonical);
     if (details.isDirectory()) {
       // rmdir ist atomar: ein zwischen Prüfung und Löschung neu befüllter
       // Ordner endet als ENOTEMPTY-Konflikt statt als stiller Datenverlust.
@@ -219,6 +239,8 @@ export class FileManagerService {
     const directory = await this.resolveTargetDirectory(input.path);
     const name = sanitizeName(input.name);
     const target = join(directory, name);
+    if (!contained(this.root, target)) throw new AppError(403, "FILESYSTEM_PATH_OUTSIDE_ROOT", "Der Zielname liegt außerhalb des erlaubten Serverbereichs.");
+    this.assertNotProtected(target);
     try {
       await lstat(target);
       throw new AppError(409, "FILE_EXISTS", "Ein Eintrag mit diesem Namen existiert bereits.");
@@ -238,6 +260,8 @@ export class FileManagerService {
     const directory = await this.resolveTargetDirectory(input.directory);
     const name = sanitizeName(input.filename);
     const target = join(directory, name);
+    if (!contained(this.root, target)) throw new AppError(403, "FILESYSTEM_PATH_OUTSIDE_ROOT", "Der Zielname liegt außerhalb des erlaubten Serverbereichs.");
+    this.assertNotProtected(target);
     try {
       await lstat(target);
       throw new AppError(409, "FILE_EXISTS", "Eine Datei mit diesem Namen existiert bereits im Zielordner.");

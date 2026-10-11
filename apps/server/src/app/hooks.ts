@@ -1,6 +1,5 @@
 import { apiErrorSchema } from "@wrapt/contracts";
 import type { FastifyInstance } from "fastify";
-import { ZodError } from "zod";
 import { isAuditedMutation } from "../observability/audit.js";
 import {
   isProtectedWorkbenchRequest,
@@ -9,54 +8,19 @@ import {
   requireMutationOrigin,
   resolveWorkbenchUser,
 } from "../security/workbench-identity.js";
-import { AppError } from "../utils/errors.js";
+import { toApiError } from "../utils/api-errors.js";
 import type { AppDependencies } from "./dependencies.js";
 
 export function registerCoreHooks(app: FastifyInstance, deps: AppDependencies) {
   app.setErrorHandler((error, request, reply) => {
-    if (error instanceof AppError) {
-      return reply.status(error.statusCode).send(
-        apiErrorSchema.parse({ error: { code: error.code, message: error.message, details: error.details, requestId: request.id, retryable: error.retryable } }),
-      );
+    const mapped = toApiError(error);
+    if (mapped.logAsUnhandled) {
+      app.log.error({ err: error }, "Unbehandelter Serverfehler");
+    } else if (mapped.status >= 500) {
+      app.log.warn({ err: error, code: mapped.code }, "Fachlicher Serverfehler");
     }
-    if (error instanceof ZodError) {
-      return reply.status(400).send(
-        apiErrorSchema.parse({
-          error: {
-            code: "VALIDATION_ERROR",
-            message: "Die Anfrage oder Konfiguration ist ungültig.",
-            details: { issues: error.issues.map((issue) => ({ path: issue.path.join("."), code: issue.code })) },
-            requestId: request.id,
-            retryable: false,
-          },
-        }),
-      );
-    }
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      "statusCode" in error &&
-      error.statusCode === 429
-    ) {
-      return reply.status(429).send(
-        apiErrorSchema.parse({ error: { code: "RATE_LIMITED", message: "Zu viele Anfragen. Bitte kurz warten.", details: null, requestId: request.id, retryable: true } }),
-      );
-    }
-    if (
-      typeof error === "object"
-      && error !== null
-      && "statusCode" in error
-      && typeof error.statusCode === "number"
-      && error.statusCode >= 400
-      && error.statusCode < 500
-    ) {
-      return reply.status(error.statusCode).send(
-        apiErrorSchema.parse({ error: { code: "VALIDATION_ERROR", message: "Die Anfrage ist ungültig.", details: null, requestId: request.id, retryable: false } }),
-      );
-    }
-    app.log.error({ err: error }, "Unbehandelter Serverfehler");
-    return reply.status(500).send(
-      apiErrorSchema.parse({ error: { code: "INTERNAL_ERROR", message: "Die Anfrage konnte nicht verarbeitet werden.", details: null, requestId: request.id, retryable: true } }),
+    return reply.status(mapped.status).send(
+      apiErrorSchema.parse({ error: { code: mapped.code, message: mapped.message, details: mapped.details, requestId: request.id, retryable: mapped.retryable } }),
     );
   });
 

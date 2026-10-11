@@ -1,4 +1,4 @@
-import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, rm, unlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { Readable } from "node:stream";
@@ -118,5 +118,40 @@ describe("OrbitAssetRepository", () => {
     expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
     first.close();
     second.close();
+  });
+
+  it("entfernt die DB-Zeile zuerst: delete gelingt auch bei unlink-Fehler", async () => {
+    const assets = await repository();
+    const file = await assets.create({ filename: "bild.png", mimeType: "image/png", buffer: Buffer.from("asset") });
+    const stored = await assets.file(file.id);
+    // unlink zum Scheitern bringen: Datei durch ein Verzeichnis ersetzen
+    // (unlink wirft dann EISDIR/EPERM statt ENOENT).
+    await unlink(stored!.path);
+    await mkdir(stored!.path);
+    await expect(assets.delete(file.id)).resolves.toBe(true);
+    // Die Zeile ist weg — kein Dauer-500 mehr, sondern 404 aus der Route.
+    await expect(assets.file(file.id)).resolves.toBeNull();
+    expect(assets.list(10, null).assets).toHaveLength(0);
+    assets.close();
+  });
+
+  it("meldet fehlende Dateien als 410 statt 500", async () => {
+    const assets = await repository();
+    const file = await assets.create({ filename: "bild.png", mimeType: "image/png", buffer: Buffer.from("asset") });
+    const stored = await assets.file(file.id);
+    await unlink(stored!.path);
+    await expect(assets.file(file.id)).rejects.toMatchObject({ statusCode: 410, code: "ORBIT_ASSET_MISSING" });
+    assets.close();
+  });
+
+  it("bereinigt DB-Zeilen ohne Datei beim Abgleich", async () => {
+    const assets = await repository();
+    const file = await assets.create({ filename: "bild.png", mimeType: "image/png", buffer: Buffer.from("asset") });
+    const stored = await assets.file(file.id);
+    await unlink(stored!.path);
+    const result = await assets.reconcileStorage();
+    expect(result.removedRows).toBe(1);
+    await expect(assets.file(file.id)).resolves.toBeNull();
+    assets.close();
   });
 });

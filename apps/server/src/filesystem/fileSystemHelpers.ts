@@ -45,7 +45,17 @@ export function mimeTypeFor(name: string): string {
 }
 
 export function sanitizeName(value: string): string {
-  return value.replace(/[\\/\0]/g, "_").trim().slice(0, 255) || "datei";
+  const cleaned = value.replace(/[\\/\0]/g, "_").trim().slice(0, 255);
+  // Ablehnen statt still umschreiben: Parent-Escape, nur Punkte/Leerzeichen
+  // und Steuerzeichen führen sonst in falsche Verzeichnisse oder Dotfile-Tarnung.
+  const hasControlCharacter = [...cleaned].some((char) => {
+    const code = char.codePointAt(0) ?? 0;
+    return code < 32 || code === 127;
+  });
+  if (!cleaned || /^[.\s]+$/.test(cleaned) || hasControlCharacter) {
+    throw new AppError(400, "FILESYSTEM_INVALID_NAME", "Dieser Dateiname ist nicht erlaubt.");
+  }
+  return cleaned;
 }
 
 /**

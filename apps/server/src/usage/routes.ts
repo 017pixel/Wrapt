@@ -1,4 +1,5 @@
 import {
+  accountReconcileResponseSchema,
   accountResponseSchema,
   accountsResponseSchema,
   activateAccountResponseSchema,
@@ -16,6 +17,7 @@ import {
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { RouteServices } from "../api/services.js";
+import { requireWorkbenchAdmin } from "../security/workbench-identity.js";
 import { UsageSyncCoordinator } from "./sync-coordinator.js";
 
 export async function registerUsageRoutes(app: FastifyInstance, services: RouteServices) {
@@ -32,6 +34,7 @@ export async function registerUsageRoutes(app: FastifyInstance, services: RouteS
       await services.usageTimeline.refresh();
     },
     refreshAnalytics: () => services.analytics.sync(),
+    collectBranchErrors: () => services.analytics.syncErrorStatus(),
   });
   // Status für die Oberfläche, damit sie nach einem Klick automatisch nachlädt,
   // sobald der Hintergrund-Sync abgeschlossen ist.
@@ -40,6 +43,13 @@ export async function registerUsageRoutes(app: FastifyInstance, services: RouteS
   // Stand, statt auf CodexBar zu warten.
   app.post("/usage/sync", { config: { rateLimit: { max: 6, timeWindow: "1 minute" } } }, async () => { usageSync.start(); return usageDashboardResponseSchema.parse(await services.analytics.dashboard("30d")); });
   app.get("/accounts", async () => accountsResponseSchema.parse({ accounts: await services.accounts.listWithState() }));
+  // Explizite Recovery-Saga (D-009): schließt offene Aktivierungs-Journale ab
+  // und repariert ersetzte Anmeldedateien. Der Lese-Pfad GET /accounts bleibt
+  // seiteneffektfrei; Reparaturfehler kommen als Warnungen, nie als 503.
+  app.post("/accounts/reconcile", async (request) => {
+    requireWorkbenchAdmin(request, services.identity);
+    return accountReconcileResponseSchema.parse(await services.accounts.reconcile());
+  });
   app.get("/accounts/discover", async () => discoveredAccountsResponseSchema.parse({ accounts: await services.accounts.discover() }));
   app.post("/accounts", async (request, reply) => {
     const account = await services.accounts.create(createAccountRequestSchema.parse(request.body));
@@ -53,18 +63,21 @@ export async function registerUsageRoutes(app: FastifyInstance, services: RouteS
     return accountResponseSchema.parse({ account });
   });
   app.delete("/accounts/:accountId", async (request, reply) => {
+    requireWorkbenchAdmin(request, services.identity);
     const { accountId } = z.object({ accountId: z.string().uuid() }).parse(request.params);
     await services.accounts.remove(accountId); services.usage.invalidate(); return reply.status(204).send();
   });
   // Schaltet den serverweit aktiven Codex-Account um. Alle danach gestarteten Codex-Prozesse
   // verwenden diesen Account, ohne dass eine erneute Anmeldung nötig ist.
   app.post("/accounts/:accountId/activate", { config: { rateLimit: { max: 12, timeWindow: "1 minute" } } }, async (request) => {
+    requireWorkbenchAdmin(request, services.identity);
     const { accountId } = z.object({ accountId: z.string().uuid() }).parse(request.params);
     const result = await services.accounts.activate(accountId);
     services.usage.invalidate();
     return activateAccountResponseSchema.parse(result);
   });
   app.post("/accounts/login-session", async (request, reply) => {
+    requireWorkbenchAdmin(request, services.identity);
     const body = createAccountRequestSchema.parse({ ...(request.body as object), source: "login" });
     const account = await services.accounts.create(body);
     services.usage.invalidate();

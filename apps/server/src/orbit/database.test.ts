@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
 import { AppError } from "../utils/errors.js";
+import { settings } from "../config/settings.js";
 import { OrbitDatabase, createDefaultOrbitWorkspace } from "./database.js";
 
 const directories: string[] = [];
@@ -162,6 +163,22 @@ describe("OrbitDatabase", () => {
     recovered.close();
   });
 
+  it("begrenzt Revisionen auf das konfigurierte Fenster (P-011)", async () => {
+    const { path, db } = await database();
+    const total = settings.orbitRevisionRetentionCount + 5;
+    for (let revision = 1; revision <= total; revision += 1) {
+      const document = createDefaultOrbitWorkspace();
+      document.boards[0]!.name = `Stand ${revision}`;
+      db.save(document, revision - 1);
+    }
+    db.close();
+    const inspected = new DatabaseSync(path, { readOnly: true });
+    expect(inspected.prepare("SELECT COUNT(*) count FROM orbit_document_revisions").get()).toEqual({
+      count: settings.orbitRevisionRetentionCount,
+    });
+    inspected.close();
+  });
+
   it("settles a stale legacy client on the current server document", async () => {
     const { path, db } = await database();
     const currentDocument = createDefaultOrbitWorkspace();
@@ -176,6 +193,7 @@ describe("OrbitDatabase", () => {
       revision: current.revision,
       document: { boards: [{ name: "Aktueller Serverstand" }] },
     });
+    expect(settled.conflicted).toBe(true);
     db.close();
 
     const reopened = new OrbitDatabase(path);
@@ -184,5 +202,27 @@ describe("OrbitDatabase", () => {
       document: { boards: [{ name: "Aktueller Serverstand" }] },
     });
     reopened.close();
+  });
+
+  it("speichert 10-mal hintereinander ohne Busy (P-010)", async () => {
+    const { db } = await database();
+    // synchronous=NORMAL ist pro Connection gesetzt und von außen nicht abfragbar
+    // (Zweit-Connection meldet immer den Default FULL) — hier zählt das Verhalten:
+    // Die synchrone API serialisiert; jede Runde liest frisch und trifft die Revision.
+    let busy = 0;
+    await Promise.all(Array.from({ length: 10 }, async (_, index) => {
+      try {
+        const current = db.get();
+        const document = createDefaultOrbitWorkspace();
+        document.boards[0]!.name = `Last ${index}`;
+        db.save(document, current.revision);
+      } catch (error) {
+        if (error instanceof Error && error.message.includes("BUSY")) busy += 1;
+        else throw error;
+      }
+    }));
+    expect(busy).toBe(0);
+    expect(db.get().revision).toBe(10);
+    db.close();
   });
 });

@@ -47,7 +47,8 @@ import { createProjectFileService } from "../services/projectFileService.js";
 import { createProjectService } from "../services/projectService.js";
 import { usageMonitoringService } from "../services/usageMonitoringService.js";
 import type { WorkbenchIdentityOptions } from "../security/workbench-identity.js";
-import { SkillEditorService } from "../skills/skillEditorService.js";
+import { allowedUsersIsolationWarning } from "../security/workbench-identity.js";
+import { createSkillEditorService } from "../skills/skillEditorDependencies.js";
 import { TerminalDatabase } from "../terminal/database.js";
 import { AccountService } from "../usage/account-service.js";
 import { restartCodexRuntimeForAccountSwitch } from "../usage/codex-runtime.js";
@@ -84,6 +85,10 @@ export async function createAppDependencies(app: FastifyInstance) {
     localLoopbackTrust: settings.localLoopbackTrust,
     localUsername: settings.localUsername,
   };
+  // S-004: Single-User-Betrieb ohne Mandantentrennung — bei mehreren
+  // erlaubten Identitäten sichtbar warnen, statt still zu teilen.
+  const isolationWarning = allowedUsersIsolationWarning(identityOptions.allowedUsers);
+  if (isolationWarning) app.log.warn(isolationWarning);
 
   const frameSources = new Set<string>(["'self'"]);
   for (const service of servicesConfig.services) {
@@ -150,6 +155,9 @@ export async function createAppDependencies(app: FastifyInstance) {
     },
     // Gatewayereignisse gehören keiner Benutzersession; sie werden pseudonym geführt.
     onDiagnostic: (event) => previewDiagnostics.recordGateway(event, "system"),
+    // S-005: Der Listener prüft mitgesendete Token (falsche → 403). Die strikte
+    // Token-Pflicht bleibt aus, bis apps/web Token an Slot-URLs hängt.
+    slotTokenSecret: previewSecrets.slotTokenSecret(),
   });
   const previewStorage = new PreviewStorageService({
     database: previewSlotDatabase,
@@ -170,20 +178,11 @@ export async function createAppDependencies(app: FastifyInstance) {
     settings.fileManagerTextPreviewBytes,
     settings.fileManagerMaxUploadBytes,
     settings.databasePath,
+    // S-011: Server-Config und Umgebungsdatei sind über den Dateimanager
+    // schreibgeschützt (Lesen bleibt erlaubt).
+    [settings.configDirectory, join(settings.repositoryRoot, ".env")],
   );
-  const skillEditor = new SkillEditorService({
-    rootDirectory: settings.skillEditor.rootDirectory,
-    propagateDirectories: settings.skillEditor.propagateDirectories,
-    repositoryDirectory: settings.skillEditor.repositoryDirectory,
-    autosaveDebounceMilliseconds: settings.skillEditor.autosaveDebounceMilliseconds,
-    maxFileBytes: settings.skillEditor.maxFileBytes,
-    jobDatabasePath: settings.databasePath,
-  });
-  // Unterbrochene Skill-Operationen aus einem früheren Lauf idempotent abschließen.
-  const skillRecovery = await skillEditor.recover();
-  if (skillRecovery.needsRecovery > 0) {
-    app.log.warn({ component: "skill-editor-recovery", ...skillRecovery }, "Skill-Operationen benötigen manuelle Prüfung.");
-  }
+  const skillEditor = await createSkillEditorService(app);
   const projects = createProjectService(projectsConfig, servicesConfig.services, undefined, projectActivity, projectRegistryDatabase);
   const terminalDatabase = new TerminalDatabase(settings.databasePath);
   const notificationDatabase = new NotificationDatabase(settings.databasePath, settings.notifications.pruneAfterHours);

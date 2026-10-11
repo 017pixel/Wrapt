@@ -64,24 +64,48 @@ export class OrbitAssetRepository {
     }
     return candidate;
   }
-  private async reconcileStorage(): Promise<void> {
+  async reconcileStorage(): Promise<{ removedFiles: number; removedRows: number }> {
     const entries = await readdir(this.directory, { withFileTypes: true });
     const referenced = new Set(
       (this.db.prepare(`SELECT storage_path storagePath FROM ${this.tableName}`).all() as Array<{ storagePath: string }>)
         .map((row) => resolve(row.storagePath)),
     );
     const cutoff = Date.now() - orphanRetentionMilliseconds;
+    let removedFiles = 0;
     await Promise.all(entries.filter((entry) => entry.isFile() && (uploadFilePattern.test(entry.name) || storageFilePattern.test(entry.name))).map(async (entry) => {
       const path = resolve(this.directory, entry.name);
       if (referenced.has(path)) return;
       try {
         const info = await stat(path);
-        if (info.mtimeMs < cutoff) await unlink(path);
+        if (info.mtimeMs < cutoff) {
+          await unlink(path);
+          removedFiles += 1;
+        }
       } catch {
         // Ein parallel abgeschlossener Upload oder ein bereits gelöschtes
         // Artefakt ist kein Fehler des aktuellen Requests.
       }
     }));
+    // Umgekehrte Richtung (D-011): Zeilen ohne Datei kamen früher als Dauer-500
+    // aus file(); jetzt werden sie bereinigt, damit file() null liefert und
+    // die Route ein definiertes 404 statt 500 antwortet.
+    let removedRows = 0;
+    const rows = this.db.prepare(`SELECT id, storage_path storagePath FROM ${this.tableName}`).all() as Array<{ id: string; storagePath: string }>;
+    for (const row of rows) {
+      let candidate: string;
+      try {
+        candidate = this.safeStoragePath(row.storagePath);
+      } catch {
+        continue;
+      }
+      try {
+        await stat(candidate);
+      } catch {
+        this.db.prepare(`DELETE FROM ${this.tableName} WHERE id=?`).run(row.id);
+        removedRows += 1;
+      }
+    }
+    return { removedFiles, removedRows };
   }
   private toAsset(row: AssetRow): OrbitAsset { return { id: row.id, filename: row.filename, mimeType: row.mimeType, bytes: row.bytes, createdAt: row.createdAt, folderId: row.folderId }; }
   private toFolder(row: FolderRow, fileCount: number): GalleryFolder { return { id: row.id, name: row.name, createdAt: row.createdAt, fileCount }; }
@@ -233,7 +257,11 @@ export class OrbitAssetRepository {
     const row = this.db.prepare(`SELECT id, filename, mime_type mimeType, bytes, sha256, storage_path storagePath, created_at createdAt, folder_id folderId FROM ${this.tableName} WHERE id=?`).get(id) as AssetRow | undefined;
     if (!row) return null;
     const storagePath = this.safeStoragePath(row.storagePath);
-    try { await stat(storagePath); } catch { throw new AppError(500, "ORBIT_ASSET_MISSING", "Die archivierte Datei fehlt auf dem Server."); }
+    // Definierter 410 statt 500 (D-011): Die Zeile existiert, die Datei fehlt
+    // (Crash-Lücke alter Deletes, manueller Eingriff). Der Abgleich in
+    // reconcileStorage() räumt solche Zeilen ab; bis dahin meldet die Route
+    // „nicht mehr verfügbar" statt eines anonymen Serverfehlers.
+    try { await stat(storagePath); } catch { throw new AppError(410, "ORBIT_ASSET_MISSING", "Die archivierte Datei ist nicht mehr verfügbar."); }
     return { asset: this.toAsset(row), path: storagePath };
   }
   list(limit: number, cursor: AssetCursor | null, folderId?: string | null): { assets: OrbitAsset[]; nextCursor: string | null } {
@@ -257,15 +285,16 @@ export class OrbitAssetRepository {
   async delete(id: string): Promise<boolean> {
     const row = this.db.prepare(`SELECT id, storage_path storagePath FROM ${this.tableName} WHERE id=?`).get(id) as { id: string; storagePath: string } | undefined;
     if (!row) return false;
-    const storagePath = this.safeStoragePath(row.storagePath);
-    try {
-      await unlink(storagePath);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
-        throw new AppError(503, "ORBIT_ASSET_DELETE_FAILED", "Die Datei konnte nicht sicher gelöscht werden.");
-      }
-    }
+    // Crash-sichere Reihenfolge (D-011): erst die DB-Zeile löschen, dann die
+    // Datei best effort. Ein Abbruch dazwischen hinterlässt höchstens eine
+    // verwaiste Datei, die reconcileStorage() abräumt — nie eine Zeile ohne
+    // Datei (früher Dauer-500 aus file()).
     this.db.prepare(`DELETE FROM ${this.tableName} WHERE id=?`).run(id);
+    try {
+      await unlink(this.safeStoragePath(row.storagePath));
+    } catch {
+      // Best effort: Die Zeile ist bereits weg; der Rest ist GC-Sache.
+    }
     return true;
   }
   async update(id: string, updates: { filename?: string; folderId?: string | null }): Promise<OrbitAsset | null> {

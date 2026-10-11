@@ -29,45 +29,49 @@ export function WorkspaceRegistryView({ allowAdding = true, onDialogOpenChange }
   const beginSwitch = useWorkspaceRegistry((state) => state.beginSwitch);
   const [statuses, setStatuses] = useState<Record<string, WorkspaceStatus>>({});
   const [bootIds, setBootIds] = useState<Record<string, string | null>>({});
-  const [checkingIds, setCheckingIds] = useState<string[]>([]);
+  const [checkingUrls, setCheckingUrls] = useState<string[]>([]);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<WorkspaceEntry | null>(null);
   const [removing, setRemoving] = useState<WorkspaceEntry | null>(null);
   const selfEntry = entries.find((entry) => entry.url === selfUrl);
-  const selfBootId = health.data?.bootId ?? (selfEntry ? bootIds[selfEntry.id] : null) ?? null;
+  const selfBootId = health.data?.bootId ?? (selfEntry ? bootIds[selfEntry.url] : null) ?? null;
+  const remoteSelf = Boolean(selfUrl && !isLoopbackWorkspace(selfUrl));
   const visibleEntries = useMemo(() => entries.filter((entry) => {
     if (entry.url === selfUrl) return true;
-    if (selfBootId && bootIds[entry.id] === selfBootId) return false;
-    return !(selfBootId && !bootIds[entry.id] && isLoopbackWorkspace(entry.url) && checkingIds.includes(entry.id));
-  }), [bootIds, checkingIds, entries, selfBootId, selfUrl]);
+    // Bestaetigter Alias desselben Backends: nur ausblenden wenn beide bootIds bekannt sind.
+    if (selfBootId && bootIds[entry.url] && bootIds[entry.url] === selfBootId) return false;
+    // Loopback ist geraetegebunden. In einer Remote Ansicht zeigt es auf den Betrachter,
+    // nicht auf den Server, daher dort nie als eigenen Eintrag fuehren.
+    if (remoteSelf && isLoopbackWorkspace(entry.url)) return false;
+    return true;
+  }), [bootIds, entries, selfBootId, selfUrl, remoteSelf]);
   const remoteCount = useMemo(() => visibleEntries.filter((entry) => entry.url !== selfUrl).length, [visibleEntries, selfUrl]);
 
-  const checkStatuses = useCallback(async (entryId?: string) => {
+  const checkStatuses = useCallback(async (entryUrl?: string) => {
     const currentEntries = useWorkspaceRegistry.getState().entries;
     const currentSelfUrl = useWorkspaceRegistry.getState().selfUrl;
-    const targets = entryId ? currentEntries.filter((entry) => entry.id === entryId) : currentEntries;
-    const targetIds = targets.map((entry) => entry.id);
-    if (!targetIds.length) return;
-    setCheckingIds((current) => [...new Set([...current, ...targetIds])]);
-    setStatuses((current) => ({ ...current, ...Object.fromEntries(targetIds.map((id) => [id, "checking"])) }));
-    await Promise.all(targets.map(async (entry) => {
+    const remoteView = Boolean(currentSelfUrl && !isLoopbackWorkspace(currentSelfUrl));
+    const targets = entryUrl ? currentEntries.filter((entry) => entry.url === entryUrl) : currentEntries;
+    // Loopback in Remote Ansicht nicht per Fetch pruefen: das traefe den Betrachter, nicht den Server.
+    const probed = targets.filter((entry) => entry.url === currentSelfUrl || !(remoteView && isLoopbackWorkspace(entry.url)));
+    const targetUrls = probed.map((entry) => entry.url);
+    if (!targetUrls.length) return;
+    setCheckingUrls((current) => [...new Set([...current, ...targetUrls])]);
+    setStatuses((current) => ({ ...current, ...Object.fromEntries(targetUrls.map((url) => [url, "checking"])) }));
+    await Promise.all(probed.map(async (entry) => {
       const result = entry.url === currentSelfUrl
         ? { status: "live" as const, reachable: true, version: health.data?.version ?? null, instanceName: entry.name, appName: health.data?.appName ?? null, bootId: health.data?.bootId ?? null }
         : await probeWorkspaceHealth(entry.url, expectedVersion);
-      setStatuses((current) => ({ ...current, [entry.id]: result.status }));
-      setBootIds((current) => ({ ...current, [entry.id]: result.bootId }));
+      setStatuses((current) => ({ ...current, [entry.url]: result.status }));
+      setBootIds((current) => ({ ...current, [entry.url]: result.bootId }));
     }));
-    setCheckingIds((current) => current.filter((id) => !targetIds.includes(id)));
+    setCheckingUrls((current) => current.filter((url) => !targetUrls.includes(url)));
   }, [health.data?.appName, health.data?.bootId, health.data?.version]);
 
   useEffect(() => { void checkStatuses(); }, [checkStatuses]);
   const hoverPrefetch = useCallback((entry: WorkspaceEntry) => {
     preconnectWorkspace(entry.url);
-    if (entry.url === selfUrl) return;
-    if (statuses[entry.id] === "checking" || statuses[entry.id] === "live") return;
-    if (checkingIds.includes(entry.id)) return;
-    void checkStatuses(entry.id);
-  }, [checkStatuses, checkingIds, selfUrl, statuses]);
+  }, []);
   useEffect(() => {
     onDialogOpenChange?.(adding || editing !== null || removing !== null);
     return () => onDialogOpenChange?.(false);
@@ -84,8 +88,17 @@ export function WorkspaceRegistryView({ allowAdding = true, onDialogOpenChange }
       }
       if (!edit(editing.id, name, normalized)) return false;
       if (probe) {
-        setStatuses((current) => ({ ...current, [editing.id]: probe.status }));
-        setBootIds((current) => ({ ...current, [editing.id]: probe.bootId }));
+        const previousUrl = editing.url;
+        setStatuses((current) => {
+          const next = { ...current, [normalized]: probe.status };
+          if (previousUrl !== normalized) delete next[previousUrl];
+          return next;
+        });
+        setBootIds((current) => {
+          const next = { ...current, [normalized]: probe.bootId };
+          if (previousUrl !== normalized) delete next[previousUrl];
+          return next;
+        });
       }
       setEditing(null);
       return true;
@@ -93,8 +106,8 @@ export function WorkspaceRegistryView({ allowAdding = true, onDialogOpenChange }
     if (entries.some((entry) => entry.url === normalized)) return false;
     const created = add(name, normalized);
     if (!created) return false;
-    setStatuses((current) => ({ ...current, [created.id]: probe?.status ?? "not-checked" }));
-    setBootIds((current) => ({ ...current, [created.id]: probe?.bootId ?? null }));
+    setStatuses((current) => ({ ...current, [created.url]: probe?.status ?? "not-checked" }));
+    setBootIds((current) => ({ ...current, [created.url]: probe?.bootId ?? null }));
     setAdding(false);
     return true;
   };
@@ -113,11 +126,11 @@ export function WorkspaceRegistryView({ allowAdding = true, onDialogOpenChange }
       <div className="workspace-entry-list" aria-label="Workspaces">
         {visibleEntries.map((entry) => {
           const isSelf = entry.url === selfUrl;
-          const status = statuses[entry.id] ?? (isSelf ? "live" : "not-checked");
+          const status = statuses[entry.url] ?? (isSelf ? "live" : "not-checked");
           return (
             <article
               className="workspace-entry"
-              key={entry.id}
+              key={entry.url}
               onPointerEnter={() => hoverPrefetch(entry)}
               onPointerDown={() => hoverPrefetch(entry)}
               onFocusCapture={() => hoverPrefetch(entry)}
@@ -139,8 +152,8 @@ export function WorkspaceRegistryView({ allowAdding = true, onDialogOpenChange }
                     entry={entry}
                     status={status}
                     isSelf={isSelf}
-                    checking={checkingIds.includes(entry.id)}
-                    onCheck={() => void checkStatuses(entry.id)}
+                    checking={checkingUrls.includes(entry.url)}
+                    onCheck={() => void checkStatuses(entry.url)}
                     onEdit={() => setEditing(entry)}
                     onRemove={() => setRemoving(entry)}
                   />

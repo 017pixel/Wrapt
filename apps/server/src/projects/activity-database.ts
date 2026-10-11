@@ -13,7 +13,8 @@ export class ProjectActivityDatabase {
   constructor(path: string) {
     mkdirSync(dirname(path), { recursive: true });
     this.database = new DatabaseSync(path);
-    this.database.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000");
+    // NORMAL statt FULL: Mit WAL ist NORMAL absturzsicher (fsync am Checkpoint statt pro Commit, P-010).
+    this.database.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000");
     this.database.exec(`
       CREATE TABLE IF NOT EXISTS project_activity (
         project_id TEXT PRIMARY KEY,

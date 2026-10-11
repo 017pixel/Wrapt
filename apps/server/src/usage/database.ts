@@ -20,7 +20,8 @@ export class UsageDatabase {
   constructor(path: string) {
     mkdirSync(dirname(path), { recursive: true });
     this.db = new DatabaseSync(path);
-    this.db.exec("PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000");
+    // synchronous=NORMAL wie überall: Mit WAL absturzsicher, ohne fsync pro Commit (P-010).
+    this.db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000");
     this.migrate();
   }
 

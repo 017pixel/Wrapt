@@ -1,6 +1,6 @@
 import type { FastifyRequest } from "fastify";
 import { describe, expect, it } from "vitest";
-import { isProtectedWorkbenchRequest, requireWorkbenchAdmin, resolveWorkbenchUser } from "./workbench-identity.js";
+import { allowedUsersIsolationWarning, isProtectedWorkbenchRequest, requireMutationOrigin, requireWorkbenchAdmin, resolveWorkbenchUser } from "./workbench-identity.js";
 
 function request(
   url: string,
@@ -126,5 +126,29 @@ describe("Workbench-Identität", () => {
     expect(isProtectedWorkbenchRequest(request("/api/v1/previews/doctor/status"))).toBe(false);
     expect(isProtectedWorkbenchRequest(request("/api/v1/previews/doctor/logs"))).toBe(false);
     expect(isProtectedWorkbenchRequest(request("/api/v1/previews/doctor/probe"))).toBe(false);
+  });
+
+  // A-010: Inventar der ungeschützten Routen — jede braucht einen eigenen
+  // Capability-/Token-Test (Doctor/Editor) oder ist lesend (Health).
+  it("inventarisiert alle ungeschützten Routen", () => {
+    expect(isProtectedWorkbenchRequest(request("/api/v1/health"))).toBe(false);
+    expect(isProtectedWorkbenchRequest(request("/api/v1/previews/doctor/status"))).toBe(false);
+    expect(isProtectedWorkbenchRequest(request("/api/v1/editor/open"))).toBe(false);
+    // Alles andere unter /api bleibt geschützt.
+    for (const url of ["/api/v1/skills/status", "/api/v1/system/restart", "/api/v1/orbit", "/api/v1/notes", "/api/v1/previews/slots"]) {
+      expect(isProtectedWorkbenchRequest(request(url))).toBe(true);
+    }
+  });
+
+  it("warnt bei mehreren erlaubten Benutzern vor fehlender Isolation (S-004)", () => {
+    expect(allowedUsersIsolationWarning(["a@example.com"])).toBeNull();
+    expect(allowedUsersIsolationWarning(["a@example.com", "b@example.com"])).toMatch(/vertrauensw/);
+  });
+
+  it("lässt header-lose Mutationen für CLI-Aufrufe passieren, blockt fremde Origin", () => {
+    const headerless = { url: "/api/v1/skills/status", method: "POST", raw: { url: "/api/v1/skills/status", rawHeaders: [], socket: { remoteAddress: "127.0.0.1" } }, headers: {} } as unknown as FastifyRequest;
+    expect(() => requireMutationOrigin(headerless)).not.toThrow();
+    const crossOrigin = { url: "/api/v1/skills/status", method: "POST", raw: { url: "/api/v1/skills/status", rawHeaders: ["origin", "https://boese.example"], socket: { remoteAddress: "127.0.0.1" } }, headers: { origin: "https://boese.example", host: "workbench.test" } } as unknown as FastifyRequest;
+    expect(() => requireMutationOrigin(crossOrigin)).toThrowError(expect.objectContaining({ statusCode: 403 }));
   });
 });

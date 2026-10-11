@@ -5,6 +5,8 @@ import replyFrom from "@fastify/reply-from";
 import WebSocket from "ws";
 import { settings } from "../config/settings.js";
 import { isSameOriginRequest } from "../security/same-origin.js";
+import { RateBudget } from "../utils/rate-budget.js";
+import { mergeProxyContentSecurityPolicy } from "../services/proxy-csp.js";
 import { routeBridgeScript } from "./route-bridge.js";
 import { hermesAuthority } from "./token.js";
 
@@ -133,6 +135,8 @@ export function rewriteResponseHeaders(
     // HTML trägt das Session-Token, das Hermes bei jedem Prozessstart neu
     // injiziert. Hier ist `no-store` zwingend, unabhängig von Hermes' Angabe.
     result["cache-control"] = noStoreCacheControl;
+    // S-007: Upstream-CSP mergen statt entfernen (Einbettungs-Härtung).
+    return mergeProxyContentSecurityPolicy(result).headers;
   } else if (type.includes("javascript")) {
     delete result["content-length"];
     delete result["content-encoding"];
@@ -224,8 +228,18 @@ function sendProxyError(reply: FastifyReply) {
   return reply.status(502).type("application/json").send({ error: "Das Hermes-Dashboard ist nicht erreichbar." });
 }
 
+// Eigenes Budget für den Hermes-Proxy (S-009): 600 Requests/Minute pro Identität.
+const hermesRateBudget = new RateBudget({ maxEvents: 600, windowMilliseconds: 60_000 });
+
+function hermesRateKey(request: FastifyRequest): string {
+  const identity = request.headers["tailscale-user-login"];
+  return typeof identity === "string" && identity.length > 0 ? identity : request.ip;
+}
+
 function proxyHttp(request: FastifyRequest, reply: FastifyReply) {
-  reply.removeHeader("content-security-policy");
+  if (!hermesRateBudget.tryConsume(hermesRateKey(request))) {
+    return reply.status(429).send({ error: "HERMES_RATE_LIMITED" });
+  }
   const resourcePath = upstreamPath(request.raw.url ?? request.url);
   const cacheContext = { method: request.method, resourcePath: resourcePath.split("?")[0] ?? "" };
   return reply.from(`${upstream}${resourcePath}`, {

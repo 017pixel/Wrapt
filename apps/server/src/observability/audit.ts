@@ -38,7 +38,8 @@ export class OperationalAuditDatabase {
     mkdirSync(dirname(path), { recursive: true });
     this.database = new DatabaseSync(path);
     this.outboxPath = `${path}.audit-outbox.jsonl`;
-    this.database.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000");
+    // NORMAL statt FULL: Mit WAL ist NORMAL absturzsicher (fsync am Checkpoint statt pro Commit, P-010).
+    this.database.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000");
     this.database.exec(`CREATE TABLE IF NOT EXISTS operational_audit (
       sequence INTEGER PRIMARY KEY AUTOINCREMENT,
       id TEXT NOT NULL UNIQUE,

@@ -107,6 +107,19 @@ describe("kanonische Terminal-Arbeitsverzeichnisse", () => {
     expect(canonicalCwdWithinRootsSync(join(root, "inside"), [root])).toBe(await realpath(join(root, "inside")));
   });
 
+  // S-011: Server-Config ist kein Terminal-Arbeitsverzeichnis, selbst wenn sie
+  // unter einer erlaubten Wurzel liegt.
+  it("lehnt geschützte Serverbereiche trotz erlaubter Wurzel ab", async () => {
+    const root = await temporaryDirectory("wrapt-cwd-root-");
+    const config = join(root, "config");
+    await mkdir(config);
+
+    await expect(validateCwd(config, [root], [config])).rejects.toMatchObject({ code: "INVALID_CWD" });
+    expect(canonicalCwdWithinRootsSync(config, [root], [config])).toBeNull();
+    // Ohne Deny-Liste bleibt derselbe Pfad erlaubt (abwärtskompatibel).
+    expect(await validateCwd(config, [root])).toBe(await realpath(config));
+  });
+
   it("quarantäniert eine gespeicherte Session mit ausgetauschtem CWD vor dem Spawn", async () => {
     const root = await temporaryDirectory("wrapt-cwd-root-");
     const outside = await temporaryDirectory("wrapt-cwd-outside-");

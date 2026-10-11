@@ -30,14 +30,19 @@ function decodeAssetCursor(cursor: string | undefined, code: string, message: st
 
 export async function registerOrbitRoutes(app: FastifyInstance, services: RouteServices) {
   app.get("/orbit", async () => orbitDocumentResponseSchema.parse(services.orbit.get()));
-  app.put("/orbit", async (request) => {
+  app.put("/orbit", async (request, reply) => {
     const input = saveOrbitDocumentRequestSchema.parse(request.body);
     const supportsCurrentConflictHandling = request.headers["x-wrapt-sync-version"] === "2"
       || request.headers["x-workbench-sync-version"] === "2";
-    const response = supportsCurrentConflictHandling
-      ? services.orbit.save(input.document, input.expectedRevision)
-      : services.orbit.saveLegacy(input.document, input.expectedRevision);
-    return orbitDocumentResponseSchema.parse(response);
+    if (supportsCurrentConflictHandling) {
+      return orbitDocumentResponseSchema.parse(services.orbit.save(input.document, input.expectedRevision));
+    }
+    const settled = services.orbit.saveLegacy(input.document, input.expectedRevision);
+    // Legacy-Sunset 01.08.2027 (D-005/A-007). Kein 200-ohne-Hinweis mehr:
+    // verworfene Saves tragen ein Konfliktsignal.
+    reply.header("Sunset", "Sat, 01 Aug 2027 00:00:00 GMT");
+    if (settled.conflicted) reply.header("x-wrapt-orbit-conflict", "1");
+    return orbitDocumentResponseSchema.parse(settled);
   });
   app.post("/orbit/assets", async (request, reply) => {
     const upload = await request.file();

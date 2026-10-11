@@ -160,7 +160,8 @@ export class NotificationPushService {
     this.validateEndpoint = options.validateEndpoint ?? assertPublicHttpEndpoint;
     this.timeoutMilliseconds = options.timeoutMilliseconds ?? 10_000;
     this.db = new DatabaseSync(options.databasePath);
-    this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;
+    // synchronous=NORMAL wie überall: Mit WAL absturzsicher, ohne fsync pro Commit (P-010).
+    this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000;
       CREATE TABLE IF NOT EXISTS push_subscriptions (
         endpoint TEXT PRIMARY KEY, user_id TEXT NOT NULL, subscription_json TEXT NOT NULL,
         created_at TEXT NOT NULL, updated_at TEXT NOT NULL,

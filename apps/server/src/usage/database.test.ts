@@ -251,9 +251,61 @@ describe("account registry", () => {
     await unlink(join(sharedHome, "auth.json"));
     await symlink(join(firstProfile, "auth.json"), join(sharedHome, "auth.json"));
     database.setActivationJournal("codex", first.id, "filesystem-switched");
-    await service.listWithState();
+    // Die Saga läuft explizit (Boot-Hook, POST /accounts/reconcile), nicht im Lese-Pfad.
+    const reconcileResult = await service.reconcile();
+    expect(reconcileResult.reconciledProviders).toContain("codex");
+    expect(reconcileResult.warnings).toEqual([]);
     expect(database.listActiveAccounts()).toMatchObject({ codex: first.id });
     expect(database.listActivationJournal()).toEqual([]);
+  });
+
+  it("liest seiteneffektfrei: offenes Journal löst weder FS- noch Runtime-Änderungen aus (D-009)", async () => {
+    const root = await mkdtemp(join(tmpdir(), "workbench-account-readonly-"));
+    const sharedHome = join(root, ".codex");
+    const firstProfile = join(root, "first");
+    const secondProfile = join(root, "second");
+    await Promise.all([mkdir(sharedHome), mkdir(firstProfile), mkdir(secondProfile)]);
+    await Promise.all([
+      writeFile(join(firstProfile, "auth.json"), "{}"),
+      writeFile(join(secondProfile, "auth.json"), "{}"),
+    ]);
+    const database = new UsageDatabase(":memory:"); databases.push(database);
+    const restartCodexRuntime = vi.fn(async () => ({ restarted: 1, terminated: [], forced: [] }));
+    const service = new AccountService({
+      database,
+      allowedRoots: [root],
+      profilesRoot: join(root, "profiles"),
+      codexbarConfigPath: join(root, "codexbar.json"),
+      restartCodexRuntime,
+      sharedHomes: {
+        codex: { sharedHome, authFileName: "auth.json" },
+        claude: { sharedHome: join(root, ".claude"), authFileName: ".credentials.json" },
+        opencode: { sharedHome: join(root, "opencode"), authFileName: "auth.json" },
+      },
+    });
+    const first = await service.create({ provider: "codex", label: "Erster", profilePath: firstProfile, source: "local" });
+    const second = await service.create({ provider: "codex", label: "Zweiter", profilePath: secondProfile, source: "local" });
+    await service.activate(first.id);
+    expect(restartCodexRuntime).toHaveBeenCalledTimes(1);
+
+    // Offenes Journal plus ersetzte Anmeldedatei: Früher hätte schon das Lesen
+    // die Saga (Dateisystemwechsel, Runtime-Neustart) ausgelöst oder 503 geworfen.
+    database.setActivationJournal("codex", second.id, "requested");
+    await unlink(join(sharedHome, "auth.json"));
+    await writeFile(join(sharedHome, "auth.json"), "{}");
+
+    const accounts = await service.listWithState();
+    expect(accounts).toHaveLength(2);
+    // Keine Seiteneffekte: Journal unangetastet, kein Neustart, Datei unverändert.
+    expect(database.listActivationJournal()).toHaveLength(1);
+    expect(restartCodexRuntime).toHaveBeenCalledTimes(1);
+    expect((await readFile(join(sharedHome, "auth.json"), "utf8"))).toBe("{}");
+
+    // Explizit holt die Saga nach: Journal geschlossen, zweiter Account aktiv.
+    const reconcileResult = await service.reconcile();
+    expect(reconcileResult.reconciledProviders).toContain("codex");
+    expect(database.listActivationJournal()).toEqual([]);
+    expect(database.listActiveAccounts()).toMatchObject({ codex: second.id });
   });
 
   it("restarts the running Codex runtime only when the active account really changes", async () => {

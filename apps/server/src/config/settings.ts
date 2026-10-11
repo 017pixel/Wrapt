@@ -124,7 +124,9 @@ const settingsSchema = z.object({
   FILE_MANAGER_TEXT_PREVIEW_BYTES: boundedIntegerFromEnvironment(300 * 1024, 4_096, 2 * 1024 * 1024),
   FILE_MANAGER_MAX_UPLOAD_BYTES: boundedIntegerFromEnvironment(200 * 1024 * 1024, 1_024, 2 * 1024 * 1024 * 1024),
   ORBIT_DESTRUCTIVE_DROP_PERCENT: boundedIntegerFromEnvironment(50, 10, 100),
-  ORBIT_REVISION_RETENTION_COUNT: boundedIntegerFromEnvironment(500, 20, 10_000),
+  // P-011: Rollback-Fenster 100 Revisionen (vorher 500 Vollkopien ≈ 71 MB + freelist-Bloat).
+  // Wöchentlicher VACUUM-Plan siehe docs/configuration.md (Orbit-Wartung); per Env übersteuerbar.
+  ORBIT_REVISION_RETENTION_COUNT: boundedIntegerFromEnvironment(100, 20, 10_000),
   ORBIT_CONFLICT_RETENTION_COUNT: boundedIntegerFromEnvironment(100, 10, 2_000),
   WRAPT_PROFILES_ROOT: absoluteFilesystemPathSchema.default(wb.paths.wraptProfilesRoot),
   CODEXBAR_CONFIG_PATH: absoluteFilesystemPathSchema.default(wb.codexbar.configPath),
@@ -205,6 +207,20 @@ const skillEditorPropagateDirectories = (
   wb.skillEditor.propagateDirectories
     ?? [join(wb.system.homeDirectory, ".claude/skills"), join(wb.system.homeDirectory, ".codex/skills")].filter((path) => existsSync(path))
 ).map((path) => resolve(path));
+// Hermes-Skills: explizite Config gilt immer, sonst <skills-repo>/hermes-skills,
+// aber nur wenn der Ordner wirklich existiert — sonst entfällt der Hermes-Teil.
+const skillEditorRepositoryDirectory = wb.skillEditor.repositoryDirectory ? resolve(wb.skillEditor.repositoryDirectory) : null;
+const skillEditorHermesSkillsDirectory = wb.skillEditor.hermesSkillsDirectory
+  ? resolve(wb.skillEditor.hermesSkillsDirectory)
+  : skillEditorRepositoryDirectory && existsSync(join(skillEditorRepositoryDirectory, "hermes-skills"))
+    ? join(skillEditorRepositoryDirectory, "hermes-skills")
+    : null;
+// Globale Hermes-Regeln: explizite Config gilt immer, sonst HERMES_HOME/
+// hermes-agent/AGENTS.md bzw. das Checkout-Verzeichnis — nur wenn existent.
+const skillEditorHermesAgentsPath = wb.skillEditor.hermesAgentsPath
+  ? resolve(wb.skillEditor.hermesAgentsPath)
+  : [join(hermesHomeDirectory, "hermes-agent", "AGENTS.md"), join(hermesCheckoutDirectory, "AGENTS.md")]
+    .find((path) => existsSync(path)) ?? null;
 
 const listenerPorts = [environment.PORT, environment.T3_PORT, environment.OPENCODE_WEB_PORT, environment.HERMES_PORT, ...wb.previews.slotPorts, ...wb.previews.publicPorts];
 if (new Set(listenerPorts).size !== listenerPorts.length) {
@@ -346,7 +362,9 @@ export const settings = Object.freeze({
   skillEditor: {
     rootDirectory: skillEditorRoot,
     propagateDirectories: skillEditorPropagateDirectories,
-    repositoryDirectory: wb.skillEditor.repositoryDirectory ? resolve(wb.skillEditor.repositoryDirectory) : null,
+    repositoryDirectory: skillEditorRepositoryDirectory,
+    hermesSkillsDirectory: skillEditorHermesSkillsDirectory,
+    hermesAgentsPath: skillEditorHermesAgentsPath,
     autosaveDebounceMilliseconds: wb.skillEditor.autosaveDebounceMs,
     maxFileBytes: wb.skillEditor.maxFileBytes,
   },

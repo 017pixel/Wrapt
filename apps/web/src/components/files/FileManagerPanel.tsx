@@ -15,7 +15,8 @@ import { useFileManagerStore } from "../../stores/fileManager";
 import { useLayoutStore } from "../../stores/layout";
 import { useResponsiveShell } from "../../lib/useResponsiveShell";
 import { usePaneWidth } from "../../lib/usePaneWidth";
-import { ConfirmDialog, PromptDialog } from "../ModalDialog";
+import { PromptDialog } from "../ModalDialog";
+import { FileManagerDeleteDialog } from "./FileManagerDeleteDialog";
 import { FmTree } from "./FmTree";
 import { FilePreview, QuickLook } from "./QuickLook";
 import { wraptQueries } from "../../lib/queryOptions";
@@ -695,21 +696,12 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
         }}
         onClose={() => setMoveTarget(null)}
       />
-      <ConfirmDialog
-        open={deleteTarget !== null}
-        title="Löschen bestätigen"
-        description={deleteTarget ? `„${deleteTarget.name}“ wird dauerhaft vom Server entfernt.${deleteTarget.kind === "directory" ? " Nur leere Ordner können gelöscht werden." : ""}` : ""}
-        confirmLabel="Löschen"
-        danger
-        onConfirm={() => {
-          if (!deleteTarget) return;
-          void apiClient.fileManagerDelete(deleteTarget.path).then(() => {
-            setDeleteTarget(null);
-            removePath(deleteTarget.path);
-            invalidate();
-          }).catch((error: unknown) => {
-            setActionError(error instanceof Error ? error.message : "Löschen fehlgeschlagen.");
-          });
+      <FileManagerDeleteDialog
+        target={deleteTarget}
+        onDeleted={(path) => {
+          setDeleteTarget(null);
+          removePath(path);
+          invalidate();
         }}
         onClose={() => setDeleteTarget(null)}
       />

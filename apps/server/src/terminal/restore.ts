@@ -12,16 +12,21 @@ import { STALE_SESSION_TTL_MS, TerminalFailure, type TerminalSession } from "./s
  * Kanonisiert einen Pfad und verlangt, dass das realpath-Ziel in einer der
  * erlaubten Wurzeln liegt. Ein Symlink innerhalb einer Wurzel, der nach außen
  * zeigt, wird damit beim Import und vor jedem Prozessstart abgelehnt.
+ * Pfade in `deniedRoots` (z. B. Server-Config) werden selbst dann abgelehnt,
+ * wenn sie lexikalisch in einer erlaubten Wurzel liegen (S-011).
  */
-export function canonicalCwdWithinRootsSync(value: string, allowedRoots: string[]): string | null {
+export function canonicalCwdWithinRootsSync(value: string, allowedRoots: string[], deniedRoots: string[] = []): string | null {
   let candidate: string;
   try { candidate = resolve(value); } catch { return null; }
   const roots = canonicalRootCandidates(allowedRoots);
+  const denied = canonicalRootCandidates(deniedRoots);
   if (!anyContained(roots, candidate)) return null;
+  if (denied.length > 0 && anyContained(denied, candidate)) return null;
   let canonical: string;
   try { canonical = realpathSync(candidate); } catch { return null; }
   try { if (!statSync(canonical).isDirectory()) return null; } catch { return null; }
   if (!anyContained(roots, canonical)) return null;
+  if (denied.length > 0 && anyContained(denied, canonical)) return null;
   return canonical;
 }
 
@@ -52,6 +57,7 @@ export function reconcileTerminalSessionsOnStartup(deps: {
   externalSessionOwnerId: string | undefined;
   defaultCwd: string;
   allowedRoots: string[];
+  deniedRoots?: string[];
 }): void {
   const activeSupervisorNames = new Set(deps.supervisor?.list().map((session) => session.name) ?? []);
   if (deps.supervisor) {
@@ -69,6 +75,7 @@ export function reconcileTerminalSessionsOnStartup(deps: {
       externalSessionOwnerId: deps.externalSessionOwnerId,
       defaultCwd: deps.defaultCwd,
       allowedRoots: deps.allowedRoots,
+      ...(deps.deniedRoots ? { deniedRoots: deps.deniedRoots } : {}),
     });
   }
 }
@@ -79,9 +86,10 @@ export function requireValidCwd(
   session: TerminalSession,
   allowedRoots: string[],
   persist: (session: TerminalSession) => void,
+  deniedRoots: string[] = [],
 ): string {
   try {
-    return validateCwdSync(session.cwd, allowedRoots);
+    return validateCwdSync(session.cwd, allowedRoots, deniedRoots);
   } catch (error) {
     session.status = "interrupted";
     session.updatedAt = Date.now();
@@ -122,12 +130,14 @@ export function importSupervisorSessions(userId: string, deps: {
   externalSessionOwnerId: string | undefined;
   defaultCwd: string;
   allowedRoots: string[];
+  deniedRoots?: string[];
 }): void {
   const { supervisor, database, externalSessionOwnerId, defaultCwd, allowedRoots } = deps;
+  const deniedRoots = deps.deniedRoots ?? [];
   if (!supervisor || !database) return;
   if (externalSessionOwnerId !== userId) return;
   const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  const fallbackCwd = canonicalCwdWithinRootsSync(defaultCwd, allowedRoots) ?? defaultCwd;
+  const fallbackCwd = canonicalCwdWithinRootsSync(defaultCwd, allowedRoots, deniedRoots) ?? defaultCwd;
   for (const discovered of supervisor.list()) {
     // Die eigene Supervisor-Session ist technisch ebenfalls ein tmux-Pane,
     // aber keine Nutzer-Session. Ohne diesen Filter würde jeder Backend-Start
@@ -138,7 +148,7 @@ export function importSupervisorSessions(userId: string, deps: {
     // Der gespeicherte CWD fällt dann auf die Standardwurzel zurück, statt
     // einen späteren Respawn außerhalb der Grenze zu ermöglichen.
     const cwd = isAbsolute(discovered.cwd)
-      ? canonicalCwdWithinRootsSync(discovered.cwd, allowedRoots) ?? fallbackCwd
+      ? canonicalCwdWithinRootsSync(discovered.cwd, allowedRoots, deniedRoots) ?? fallbackCwd
       : fallbackCwd;
     database.saveSession({
       id: randomUUID(),
@@ -165,14 +175,19 @@ export function importSupervisorSessions(userId: string, deps: {
 
 /** Prüft ein Arbeitsverzeichnis kanonisch gegen die erlaubten Wurzeln und gibt
  *  den aufgelösten, symlink-freien Pfad zurück. Synchron, damit ein
- *  Supervisor-Respawn ohne Zustandslücke vor dem Spawn validieren kann. */
-export function validateCwdSync(value: string, allowedRoots: string[]): string {
+ *  Supervisor-Respawn ohne Zustandslücke vor dem Spawn validieren kann.
+ *  `deniedRoots` (S-011, z. B. Server-Config) schlägt `allowedRoots`. */
+export function validateCwdSync(value: string, allowedRoots: string[], deniedRoots: string[] = []): string {
   let cwd: string;
   try { cwd = resolve(value); }
   catch { throw new TerminalFailure("INVALID_CWD", "Das Arbeitsverzeichnis ist ungültig."); }
   const roots = canonicalRootCandidates(allowedRoots);
+  const denied = canonicalRootCandidates(deniedRoots);
   if (!anyContained(roots, cwd)) {
     throw new TerminalFailure("INVALID_CWD", "Das Arbeitsverzeichnis liegt außerhalb der erlaubten Bereiche.");
+  }
+  if (denied.length > 0 && anyContained(denied, cwd)) {
+    throw new TerminalFailure("INVALID_CWD", "Das Arbeitsverzeichnis liegt in einem geschützten Serverbereich.");
   }
   let details;
   try { details = statSync(cwd); }
@@ -187,10 +202,13 @@ export function validateCwdSync(value: string, allowedRoots: string[]): string {
   if (!anyContained(roots, canonical)) {
     throw new TerminalFailure("INVALID_CWD", "Das Arbeitsverzeichnis liegt außerhalb der erlaubten Bereiche.");
   }
+  if (denied.length > 0 && anyContained(denied, canonical)) {
+    throw new TerminalFailure("INVALID_CWD", "Das Arbeitsverzeichnis liegt in einem geschützten Serverbereich.");
+  }
   return canonical;
 }
 
 /** Asynchrone Fassade für Aufrufer, die bereits in einem Promise-Kontext leben. */
-export async function validateCwd(value: string, allowedRoots: string[]): Promise<string> {
-  return validateCwdSync(value, allowedRoots);
+export async function validateCwd(value: string, allowedRoots: string[], deniedRoots: string[] = []): Promise<string> {
+  return validateCwdSync(value, allowedRoots, deniedRoots);
 }

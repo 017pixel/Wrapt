@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { NotificationDatabase } from "./database.js";
+import { NOTIFICATION_MAX_UNREAD_ACTIVE, NotificationDatabase } from "./database.js";
 
 const temporaryDirectories: string[] = [];
 afterEach(() => {
@@ -174,6 +174,58 @@ describe("Benachrichtigungsdatenbank", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("kappt ungelesene aktive Meldungen auf das Maximum (älteste auto-resolved)", () => {
+    const directory = mkdtempSync(join(tmpdir(), "wrapt-notifications-"));
+    temporaryDirectories.push(directory);
+    const database = new NotificationDatabase(join(directory, "wrapt.sqlite"));
+    const first = database.create({ source: "terminal", category: "terminal", sourceIcon: "terminal", kind: "terminal.completed", severity: "success", title: "Erste", body: "alt" });
+    for (let index = 0; index < 2_000; index += 1) {
+      database.create({ source: "terminal", category: "terminal", sourceIcon: "terminal", kind: "terminal.completed", severity: "success", title: `Meldung ${index}`, body: "neu" });
+    }
+    // create() ruft prune(): Der Zähler bleibt begrenzt, die älteste ist resolved.
+    expect(database.list().unreadCount).toBeLessThanOrEqual(NOTIFICATION_MAX_UNREAD_ACTIVE);
+    expect(database.get(first.id)?.state).toBe("resolved");
+    expect(database.prune()).toBe(0);
+    expect(database.list().unreadCount).toBeLessThanOrEqual(NOTIFICATION_MAX_UNREAD_ACTIVE);
+    database.close();
+  });
+
+  it("gleicht setPresence in Batches ab (2k Datensätze ohne unbegrenztes IN)", () => {
+    const directory = mkdtempSync(join(tmpdir(), "wrapt-notifications-"));
+    temporaryDirectories.push(directory);
+    const database = new NotificationDatabase(join(directory, "wrapt.sqlite"));
+    for (let index = 0; index < 2_000; index += 1) {
+      database.create({ source: "t3", category: "coding-agent", sourceIcon: "t3", kind: "agent.completed", severity: "success", title: `Aufgabe ${index}`, body: "fertig", meta: { threadId: "thread-1" } });
+    }
+    const unreadBefore = database.list().unreadCount;
+    expect(unreadBefore).toBeGreaterThan(0);
+    expect(unreadBefore).toBeLessThanOrEqual(NOTIFICATION_MAX_UNREAD_ACTIVE);
+    // Deterministisch statt Wall-Clock: Batches sind im Code auf PRESENCE_BATCH_SIZE
+    // begrenzt (LIMIT-Schleife), daher wächst kein einzelnes IN(...) mit der Zeilenzahl.
+    const prepared: string[] = [];
+    const inner = (database as unknown as { db: { prepare: (sql: string) => unknown } }).db;
+    const originalPrepare = inner.prepare.bind(inner);
+    inner.prepare = ((sql: string) => {
+      prepared.push(sql);
+      return originalPrepare(sql);
+    }) as typeof inner.prepare;
+    try {
+      expect(database.setPresence({ source: "t3", threadId: "thread-1" })).toBe(unreadBefore);
+    } finally {
+      inner.prepare = originalPrepare;
+    }
+    const selects = prepared.filter((sql) => sql.trimStart().startsWith("SELECT"));
+    expect(selects.length).toBe(Math.ceil(unreadBefore / 200));
+    expect(selects.every((sql) => sql.includes("LIMIT ?"))).toBe(true);
+    const updates = prepared.filter((sql) => sql.trimStart().startsWith("UPDATE"));
+    for (const sql of updates) {
+      // 200 Batch-Ids + read_at: kein unbegrenztes IN(...).
+      expect(sql.match(/\?/g)?.length ?? 0).toBeLessThanOrEqual(201);
+    }
+    expect(database.list().unreadCount).toBe(0);
+    database.close();
   });
 
 });

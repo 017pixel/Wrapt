@@ -27,4 +27,19 @@ describe("ProjectRegistryDatabase", () => {
     expect(reopened.list()).toEqual([first.project]);
     reopened.close();
   });
+
+  it("bleibt bei parallelem Register desselben Pfads idempotent (D-010)", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "workbench-project-registry-"));
+    directories.push(directory);
+    const databasePath = join(directory, "workbench.sqlite");
+    const projectPath = join(directory, "Gleiches Projekt");
+    const first = new ProjectRegistryDatabase(databasePath);
+    const second = new ProjectRegistryDatabase(databasePath);
+    const [left, right] = [first.register(projectPath), second.register(projectPath)];
+    expect([left.created, right.created].sort()).toEqual([false, true]);
+    expect(left.project).toEqual(right.project);
+    expect(first.list()).toHaveLength(1);
+    first.close();
+    second.close();
+  });
 });

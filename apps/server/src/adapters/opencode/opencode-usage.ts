@@ -2,46 +2,55 @@ import { DatabaseSync } from "node:sqlite";
 import type { CodexbarCostPayload } from "../codexbar/codexbar-schemas.js";
 
 /**
+ * Ergebnis des lokalen OpenCode-Imports (D-014): Statt `null` für alles
+ * unterscheidet der Aufruf „keine Datenbank" (normal, wenn OpenCode ungenutzt
+ * ist) von „nicht lesbar" (gesperrt, korrupt — sichtbarer Sync-Fehler).
+ */
+export type OpenCodeUsageResult =
+  | { ok: true; payload: CodexbarCostPayload }
+  | { ok: false; reason: "missing" | "unreadable"; message: string };
+
+function failure(reason: "missing" | "unreadable", error: unknown): OpenCodeUsageResult {
+  const message = error instanceof Error ? error.message : "Unbekannter Lesefehler";
+  return { ok: false, reason, message: message.slice(0, 500) };
+}
+
+/**
  * Liest die lokale OpenCode-SQLite-Datenbank (komplette Session-Historie) und
  * überführt Modell- und Projektnutzung in das gemeinsame Kostenformat. Die
  * Datenbank gehört dem laufenden OpenCode-Prozess und wird deshalb read-only
- * geöffnet. Fehlt die Datenbank oder ist sie gesperrt, liefert der Aufruf null,
- * damit der Sync nicht bricht.
+ * geöffnet.
  */
-export function readOpenCodeUsage(databasePath: string): CodexbarCostPayload | null {
-  let db: DatabaseSync;
+export function readOpenCodeUsage(databasePath: string): OpenCodeUsageResult {
   try {
-    db = new DatabaseSync(databasePath, { readOnly: true, timeout: 3_000 });
-  } catch {
-    return null;
-  }
-  try {
-    const breakdowns = db.prepare(`
+    const db = new DatabaseSync(databasePath, { readOnly: true, timeout: 3_000 });
+    try {
+      const breakdowns = db.prepare(`
       SELECT date(time_created / 1000, 'unixepoch') AS date,
-             json_extract(model, '$.id') AS model,
-             SUM(tokens_input) AS inputTokens,
-             SUM(tokens_output) AS outputTokens,
-             SUM(tokens_cache_read) AS cacheReadTokens,
-             SUM(tokens_cache_write) AS cacheCreationTokens,
-             SUM(tokens_input + tokens_output + tokens_reasoning + tokens_cache_read + tokens_cache_write) AS totalTokens,
-             SUM(cost) AS totalCost
-      FROM session
-      WHERE model IS NOT NULL AND model != ''
-      GROUP BY date, model
-      ORDER BY date
+              json_extract(model, '$.id') AS model,
+              SUM(tokens_input) AS inputTokens,
+              SUM(tokens_output) AS outputTokens,
+              SUM(tokens_cache_read) AS cacheReadTokens,
+              SUM(tokens_cache_write) AS cacheCreationTokens,
+              SUM(tokens_input + tokens_output + tokens_reasoning + tokens_cache_read + tokens_cache_write) AS totalTokens,
+              SUM(cost) AS totalCost
+       FROM session
+       WHERE model IS NOT NULL AND model != ''
+       GROUP BY date, model
+       ORDER BY date
     `).all() as Array<{
       date: string; model: string; inputTokens: number; outputTokens: number;
       cacheReadTokens: number; cacheCreationTokens: number; totalTokens: number; totalCost: number;
     }>;
     const projectRows = db.prepare(`
       SELECT directory AS projectPath,
-             SUM(tokens_input + tokens_output + tokens_reasoning + tokens_cache_read + tokens_cache_write) AS totalTokens,
-             SUM(cost) AS totalCost
-      FROM session
-      WHERE directory IS NOT NULL AND directory != ''
-      GROUP BY directory
-      HAVING totalTokens > 0 OR totalCost > 0
-      ORDER BY totalTokens DESC
+              SUM(tokens_input + tokens_output + tokens_reasoning + tokens_cache_read + tokens_cache_write) AS totalTokens,
+              SUM(cost) AS totalCost
+       FROM session
+       WHERE directory IS NOT NULL AND directory != ''
+       GROUP BY directory
+       HAVING totalTokens > 0 OR totalCost > 0
+       ORDER BY totalTokens DESC
     `).all() as Array<{ projectPath: string; totalTokens: number; totalCost: number }>;
 
     const dailyByDate = new Map<string, { date: string; inputTokens: number; outputTokens: number; cacheReadTokens: number; cacheCreationTokens: number; totalTokens: number; totalCost: number; modelBreakdowns: Array<{ modelName: string; totalTokens: number; cost: number }> }>();
@@ -58,21 +67,29 @@ export function readOpenCodeUsage(databasePath: string): CodexbarCostPayload | n
     }
 
     return {
-      provider: "opencode",
-      source: "local",
-      updatedAt: new Date().toISOString(),
-      daily: [...dailyByDate.values()],
-      projects: projectRows.map((row) => ({
-        project: row.projectPath,
-        projectPath: row.projectPath,
-        name: row.projectPath.split("/").filter(Boolean).at(-1) ?? row.projectPath,
-        totalTokens: row.totalTokens,
-        totalCost: row.totalCost,
-      })),
+      ok: true,
+      payload: {
+        provider: "opencode",
+        source: "local",
+        updatedAt: new Date().toISOString(),
+        daily: [...dailyByDate.values()],
+        projects: projectRows.map((row) => ({
+          project: row.projectPath,
+          projectPath: row.projectPath,
+          name: row.projectPath.split("/").filter(Boolean).at(-1) ?? row.projectPath,
+          totalTokens: row.totalTokens,
+          totalCost: row.totalCost,
+        })),
+      },
     };
-  } catch {
-    return null;
-  } finally {
-    db.close();
+    } catch (error) {
+      return failure("unreadable", error);
+    } finally {
+      db.close();
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    const reason = /ENOENT|no such file|unable to open/i.test(message) ? "missing" : "unreadable";
+    return failure(reason, error);
   }
 }

@@ -22,14 +22,30 @@ const protectedPrefixes = [
   "/api/auth/",
 ];
 
-// Der Preview-Doctor authentifiziert sich selbst über Loopback-Verbindung und
-// Capability-Token; eine Tailscale-Identität darf ihn nicht vorab blockieren.
-// Dasselbe gilt für den Open-in-Editor-Kanal: Das T3-`code`-Shim spricht
-// ausschließlich über Loopback und ein eigenes Capability-Token.
+// Inventar der ungeschützten API-Pfade (A-010, S-004): Diese Routen prüfen die
+// Workbench-Identität bewusst nicht, weil sie eigene Capability-Token tragen.
+// - /api/v1/previews/doctor/* — Preview-Doctor, Loopback + Capability-Token
+//   (siehe previews/routes.ts requireCapability).
+// - /api/v1/editor/* — Open-in-Editor, Loopback + Capability-Token
+//   (siehe services/editorOpen.ts). Der WebSocket /editor/ws verlangt Same-Origin.
+// - /api/v1/health — lesender Liveness-Punkt ohne Identität (S-008).
+// Alle übrigen /api/*-Routen verlangen eine erlaubte Identität; Mutationen ohne
+// Origin-/Fetch-Metadata-Header (CLI, systemd) passieren requireMutationOrigin
+// still, Browser-Mutationen mit fremder Origin werden mit 403 abgelehnt.
 const unprotectedApiPrefixes = [
   "/api/v1/previews/doctor/",
   "/api/v1/editor/",
 ];
+
+/**
+ * Warntext bei mehreren erlaubten Identitäten (S-004): Die Workbench trennt
+ * Mandanten nicht — Orbit, Notizen, Dateisystem, Projekte, Skills und
+ * Benachrichtigungen sind global sichtbar. Gibt null bei Single-User-Betrieb.
+ */
+export function allowedUsersIsolationWarning(allowedUsers: readonly string[]): string | null {
+  if (allowedUsers.length <= 1) return null;
+  return `Es sind ${allowedUsers.length} Workbench-Benutzer erlaubt, aber Daten (Orbit, Notizen, Dateien, Projekte, Skills) werden nicht pro Benutzer getrennt. Nur vertrauenswürdige allowedUsers eintragen.`;
+}
 
 // T3 authenticates its root WebSocket with its own session cookie or ticket.
 // Browser WebSocket upgrades do not reliably carry the Tailscale identity

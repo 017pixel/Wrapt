@@ -209,4 +209,35 @@ describe("FileManagerService", () => {
   it("schützt den Root vor dem Löschen", async () => {
     await expect(service.remove({ path: root })).rejects.toMatchObject({ code: "FILESYSTEM_ROOT_PROTECTED" });
   });
+
+  // S-011: Server-Config (.env, wrapt.local.json) ist über den Dateimanager
+  // schreibgeschützt; Lesen bleibt für die Selbst-Entwicklung erlaubt.
+  it("verweigert Schreiben im Config-Bereich, erlaubt aber Lesen", async () => {
+    const config = join(root, "config");
+    await mkdir(config, { recursive: true });
+    await writeFile(join(config, "lesbar.txt"), "lesbar");
+    await writeFile(join(root, ".env"), "GEHEIM=1");
+    const guarded = new FileManagerService(root, 4_096, 1024 * 1024, join(root, "state.sqlite"), [config, join(root, ".env")]);
+    try {
+      await expect(guarded.upload({ directory: config, filename: "neu.txt", stream: Readable.from("x") }))
+        .rejects.toMatchObject({ code: "FILESYSTEM_CONFIG_PROTECTED" });
+      await expect(guarded.mkdir({ path: config, name: "neu" }))
+        .rejects.toMatchObject({ code: "FILESYSTEM_CONFIG_PROTECTED" });
+      await expect(guarded.upload({ directory: root, filename: ".env", stream: Readable.from("x") }))
+        .rejects.toMatchObject({ code: "FILESYSTEM_CONFIG_PROTECTED" });
+      await expect(guarded.remove({ path: join(config, "lesbar.txt") }))
+        .rejects.toMatchObject({ code: "FILESYSTEM_CONFIG_PROTECTED" });
+      const preview = await guarded.textPreview({ path: join(config, "lesbar.txt") });
+      expect(preview.text).toContain("lesbar");
+      // Außerhalb des Config-Bereichs bleibt Schreiben erlaubt.
+      const entry = await guarded.upload({ directory: root, filename: "frei.txt", stream: Readable.from("frei") });
+      expect(entry.kind).toBe("file");
+      await guarded.remove({ path: join(root, "frei.txt") });
+    } finally {
+      guarded.close();
+    }
+    await rm(join(config, "lesbar.txt"));
+    await rm(join(root, ".env"));
+    await rm(config, { recursive: true });
+  });
 });
