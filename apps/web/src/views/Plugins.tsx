@@ -27,6 +27,8 @@ export function Plugins() {
   const [chooserOpen, setChooserOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<{ id: string; name: string } | null>(null);
   const [uninstallTarget, setUninstallTarget] = useState<ExtensionRegistrySummary | null>(null);
+  const [uninstallPending, setUninstallPending] = useState(false);
+  const [uninstallError, setUninstallError] = useState<string | null>(null);
   const [tab, setTab] = useHashTab(pluginTabs.map((item) => item.id), "plugins:", "allgemein");
 
   const createDraft = async (content: PluginDraftContent, mode: PluginDraftContent["creationMode"]) => {
@@ -62,19 +64,21 @@ export function Plugins() {
     }
   };
 
-  const deleteDraft = async (id: string) => {
+  const deleteDraft = async (id: string): Promise<boolean> => {
     try {
       await apiClient.deletePluginDraft(id);
       setNotice({ text: "Plugin-Draft wurde gelöscht.", tone: "info" });
       await client.invalidateQueries({ queryKey: ["plugins"] });
       await client.invalidateQueries({ queryKey: ["extensions"] });
+      return true;
     } catch (error) {
       setNotice({ text: error instanceof Error ? error.message : "Der Plugin-Draft konnte nicht gelöscht werden.", tone: "bad" });
+      return false;
     }
   };
 
-  const runInstalledOperation = async (plugin: ExtensionRegistrySummary, operation: "enable" | "disable" | "uninstall") => {
-    if (!registry.data) return;
+  const runInstalledOperation = async (plugin: ExtensionRegistrySummary, operation: "enable" | "disable" | "uninstall"): Promise<boolean> => {
+    if (!registry.data) return false;
     try {
       if (operation === "uninstall") {
         await apiClient.dispatchExtensionOperation({ operation, extensionId: plugin.id, expectedRevision: registry.data.revision, data: "delete" });
@@ -84,8 +88,10 @@ export function Plugins() {
       setNotice({ text: operation === "uninstall" ? `„${plugin.name}“ wurde deinstalliert.` : `„${plugin.name}“ wurde ${operation === "enable" ? "aktiviert" : "deaktiviert"}.`, tone: "info" });
       await client.invalidateQueries({ queryKey: ["extensions"] });
       await client.invalidateQueries({ queryKey: ["plugins"] });
+      return true;
     } catch (error) {
       setNotice({ text: error instanceof Error ? error.message : "Die Plugin-Verwaltung ist fehlgeschlagen.", tone: "bad" });
+      return false;
     }
   };
 
@@ -125,9 +131,18 @@ export function Plugins() {
   const pluginInstalled = registry.data?.extensions.filter((item) => item.lifecycle !== "available" && item.id.startsWith("wrapt.example.")) ?? [];
   return <div className="page-scroll"><div className="page-frame plugins-page">
     {notice ? <PluginNotice tone={notice.tone} onClose={() => setNotice(null)}><span>{notice.text}</span></PluginNotice> : null}
-    <PluginOverview activeTab={tab as PluginTabId} examples={examples.data?.examples ?? []} drafts={drafts.data?.drafts ?? []} catalogEntries={catalog.data?.entries ?? []} installed={pluginInstalled} onCreate={() => setChooserOpen(true)} onTabChange={setTab} onDeleteDraft={(id) => void deleteDraft(id)} onActivateDraft={(id) => void activateDraft(id)} onDeactivateDraft={(id) => void deactivateDraft(id)} onEditInstalled={(plugin) => void editInstalled(plugin)} onToggleInstalled={(plugin) => void runInstalledOperation(plugin, plugin.lifecycle === "active" ? "disable" : "enable")} onUninstallInstalled={setUninstallTarget} />
+    <PluginOverview activeTab={tab as PluginTabId} examples={examples.data?.examples ?? []} drafts={drafts.data?.drafts ?? []} catalogEntries={catalog.data?.entries ?? []} installed={pluginInstalled} onCreate={() => setChooserOpen(true)} onTabChange={setTab} onDeleteDraft={deleteDraft} onActivateDraft={(id) => void activateDraft(id)} onDeactivateDraft={(id) => void deactivateDraft(id)} onEditInstalled={(plugin) => void editInstalled(plugin)} onToggleInstalled={(plugin) => void runInstalledOperation(plugin, plugin.lifecycle === "active" ? "disable" : "enable")} onUninstallInstalled={setUninstallTarget} />
     <PluginCreationChooser open={chooserOpen || editTarget !== null} purpose={editTarget ? "edit" : "create"} {...(editTarget ? { pluginName: editTarget.name } : {})} onClose={() => { setChooserOpen(false); setEditTarget(null); }} onSelect={editTarget ? onSelectEditMode : onSelectCreationMode} />
-    <ConfirmDialog open={uninstallTarget !== null} title={`„${uninstallTarget?.name ?? "Plugin"}“ deinstallieren?`} description="Das Plugin wird aus Wrapt entfernt. Ein eigener Draft bleibt erhalten und kann später erneut aktiviert werden." confirmLabel="Deinstallieren" danger onConfirm={() => { if (uninstallTarget) void runInstalledOperation(uninstallTarget, "uninstall"); setUninstallTarget(null); }} onClose={() => setUninstallTarget(null)} />
+    <ConfirmDialog open={uninstallTarget !== null} title={`„${uninstallTarget?.name ?? "Plugin"}“ deinstallieren?`} description="Das Plugin wird aus Wrapt entfernt. Ein eigener Draft bleibt erhalten und kann später erneut aktiviert werden." confirmLabel={uninstallPending ? "Wird deinstalliert …" : "Deinstallieren"} danger confirmPending={uninstallPending} error={uninstallError} onConfirm={() => {
+      const target = uninstallTarget;
+      if (!target || uninstallPending) return;
+      setUninstallPending(true);
+      setUninstallError(null);
+      void runInstalledOperation(target, "uninstall").then((ok) => {
+        if (ok) setUninstallTarget(null);
+        else setUninstallError("Das Plugin konnte nicht deinstalliert werden (siehe Hinweis oben).");
+      }).finally(() => setUninstallPending(false));
+    }} onClose={() => { setUninstallError(null); setUninstallPending(false); setUninstallTarget(null); }} />
   </div></div>;
 }
 

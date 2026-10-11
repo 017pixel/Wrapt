@@ -31,7 +31,7 @@ interface PluginOverviewProps {
   installed: ExtensionRegistrySummary[];
   onCreate: () => void;
   onTabChange: (tab: PluginTabId) => void;
-  onDeleteDraft: (id: string) => void;
+  onDeleteDraft: (id: string) => Promise<boolean> | boolean | void;
   onActivateDraft?: (id: string) => void;
   onDeactivateDraft: (id: string) => void;
   onEditInstalled?: (plugin: ExtensionRegistrySummary) => void;
@@ -62,6 +62,8 @@ export function PluginOverview({ activeTab, examples, drafts, catalogEntries, in
   const navigation = useNavigationRegistry();
   const tabsRef = useRef<HTMLElement>(null);
   const [deleteTarget, setDeleteTarget] = useState<PluginDraft | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const active = installed.filter((item) => item.lifecycle === "active").length + drafts.filter((draft) => draft.activationStatus === "active").length;
   const disabled = installed.filter((item) => item.lifecycle === "disabled").length + drafts.filter((draft) => draft.activationStatus === "disabled").length;
   const errors = installed.filter((item) => ["crashed", "quarantined", "incompatible", "migration-failed"].includes(item.lifecycle)).length + drafts.filter((draft) => draft.activationStatus === "error").length;
@@ -144,6 +146,19 @@ export function PluginOverview({ activeTab, examples, drafts, catalogEntries, in
       })}</div> : <p className="plugins-muted">Keine installierten Store-Beispiele. Öffne den Tab „Installieren“, um ein lokales Beispiel hinzuzufügen.</p>}
     </section> : null}
 
-    <ConfirmDialog open={deleteTarget !== null} title={`„${deleteTarget?.name ?? "Plugin"}“ löschen?`} description="Der Draft und das lokal erzeugte Plugin-Paket werden entfernt. Diese Aktion kann nicht rückgängig gemacht werden." confirmLabel="Endgültig löschen" danger onConfirm={() => { if (deleteTarget) onDeleteDraft(deleteTarget.id); setDeleteTarget(null); }} onClose={() => setDeleteTarget(null)} />
+    <ConfirmDialog open={deleteTarget !== null} title={`„${deleteTarget?.name ?? "Plugin"}“ löschen?`} description="Der Draft und das lokal erzeugte Plugin-Paket werden entfernt. Diese Aktion kann nicht rückgängig gemacht werden." confirmLabel={deletePending ? "Wird gelöscht …" : "Endgültig löschen"} danger confirmPending={deletePending} error={deleteError} onConfirm={() => {
+      const target = deleteTarget;
+      if (!target || deletePending) return;
+      setDeletePending(true);
+      setDeleteError(null);
+      void Promise.resolve(onDeleteDraft(target.id)).then((ok) => {
+        if (ok === false) setDeleteError("Der Draft konnte nicht gelöscht werden (siehe Hinweis oben).");
+        else setDeleteTarget(null);
+      }).catch(() => {
+        setDeleteError("Der Draft konnte nicht gelöscht werden.");
+      }).finally(() => {
+        setDeletePending(false);
+      });
+    }} onClose={() => { setDeleteError(null); setDeletePending(false); setDeleteTarget(null); }} />
   </>;
 }

@@ -5,7 +5,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { bootstrapBuiltinContributions } from "./extensions/builtinContributions";
 import { migrateLegacyBrowserStorage } from "./lib/legacyStorageMigration";
-import { addBreadcrumb, installGlobalErrorHandlers, subscribeToCrash } from "./lib/crashReport";
+import { addBreadcrumb, formatQueryErrorBreadcrumb, installGlobalErrorHandlers, subscribeToCrash } from "./lib/crashReport";
 import { apiClient } from "./lib/apiClient";
 import { preloadDashboardArtwork } from "./lib/dashboardArtworkPreload";
 import { synchronizeExistingPushDevice } from "./lib/webPushDevice";
@@ -33,7 +33,7 @@ try {
 // die Auswahl im localStorage steht und nur JS sie lesen kann.
 preloadDashboardArtwork();
 
-const [{ App }, { CrashReportDialog }, { ErrorBoundary }] = await Promise.all([
+const [{ App }, { CrashReportDialog, CrashToastRegion }, { ErrorBoundary }] = await Promise.all([
   import("./App"),
   import("./components/CrashReportDialog"),
   import("./components/ErrorBoundary"),
@@ -63,11 +63,11 @@ subscribeToCrash((report) => {
 });
 
 // Fehlgeschlagene Abfragen als Breadcrumb — im Crash-Report sieht man dann,
-// ob dem Absturz ein Backend-Problem vorausging.
+// ob dem Absturz ein Backend-Problem vorausging. Der Schlüssel ist gekürzt und
+// geschwärzt, damit keine E-Mails oder Pfade im Verlauf landen.
 queryClient.getQueryCache().subscribe((event) => {
   if (event.type !== "updated" || event.query.state.status !== "error") return;
-  const error = event.query.state.error;
-  addBreadcrumb(`Query fehlgeschlagen [${JSON.stringify(event.query.queryKey)}]: ${error instanceof Error ? error.message : String(error)}`);
+  addBreadcrumb(formatQueryErrorBreadcrumb(event.query.queryKey, event.query.state.error));
 });
 
 createRoot(root).render(
@@ -76,6 +76,7 @@ createRoot(root).render(
       {/* Der Dialog steht außerhalb der Boundary — er muss auch dann noch rendern,
           wenn die gesamte App beim Rendern abgestürzt ist. */}
       <CrashReportDialog />
+      <CrashToastRegion />
       <ErrorBoundary label="Wrapt">
         <App />
       </ErrorBoundary>

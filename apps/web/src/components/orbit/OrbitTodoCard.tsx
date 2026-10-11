@@ -3,6 +3,7 @@ import type { OrbitTodoItem } from "../../lib/orbitTodo";
 import { parseOrbitTodo, serializeOrbitTodo } from "../../lib/orbitTodo";
 import { useOrbitStore } from "../../stores/orbit";
 import { PlusIcon, TodoIcon, TrashIcon } from "../icons";
+import { ConfirmDialog } from "../ModalDialog";
 
 interface OrbitTodoCardProps {
   id: string;
@@ -13,6 +14,7 @@ interface OrbitTodoCardProps {
 export function OrbitTodoCard({ id, title, content }: OrbitTodoCardProps) {
   const updateNode = useOrbitStore((state) => state.updateNode);
   const [draft, setDraft] = useState("");
+  const [loeschKandidat, setLoeschKandidat] = useState<OrbitTodoItem | null>(null);
   const items = useMemo(() => parseOrbitTodo(content), [content]);
   const completed = items.filter((item) => item.done).length;
   const saveItems = (next: OrbitTodoItem[]) => updateNode(id, { content: serializeOrbitTodo(next) });
@@ -35,7 +37,7 @@ export function OrbitTodoCard({ id, title, content }: OrbitTodoCardProps) {
           <div className={`orbit-todo-item ${item.done ? "is-done" : ""}`} role="listitem" key={item.id}>
             <input type="checkbox" checked={item.done} aria-label={`Aufgabe ${index + 1} abhaken`} onChange={(event) => saveItems(items.map((candidate) => candidate.id === item.id ? { ...candidate, done: event.target.checked } : candidate))} />
             <input value={item.text} aria-label={`Aufgabe ${index + 1}`} maxLength={500} onChange={(event) => saveItems(items.map((candidate) => candidate.id === item.id ? { ...candidate, text: event.target.value } : candidate))} />
-            <button type="button" aria-label={`Aufgabe ${index + 1} löschen`} onClick={() => saveItems(items.filter((candidate) => candidate.id !== item.id))}><TrashIcon className="h-4 w-4" /></button>
+            <button type="button" aria-label={`Aufgabe ${index + 1} löschen`} onClick={() => setLoeschKandidat(item)}><TrashIcon className="h-4 w-4" /></button>
           </div>
         ))}
         {items.length === 0 ? <div className="orbit-todo-empty"><TodoIcon className="h-5 w-5" /><span>Keine Aufgaben</span><small>Füge unten den ersten Schritt hinzu.</small></div> : null}
@@ -45,6 +47,20 @@ export function OrbitTodoCard({ id, title, content }: OrbitTodoCardProps) {
         <button type="submit" aria-label="Aufgabe hinzufügen" disabled={!draft.trim() || items.length >= 250}><PlusIcon className="h-4 w-4" /></button>
       </form>
       <small>{items.length >= 250 ? "Maximal 250 Aufgaben" : `${Math.max(0, items.length - completed)} offen`}</small>
+      {/* Wie im FileManager: Erst bestätigen, erst dann speichern. */}
+      <ConfirmDialog
+        open={loeschKandidat !== null}
+        title="Aufgabe löschen?"
+        description={loeschKandidat ? `„${loeschKandidat.text}“ wird aus „${title}“ entfernt.` : ""}
+        confirmLabel="Löschen"
+        danger
+        onConfirm={() => {
+          if (!loeschKandidat) return;
+          saveItems(items.filter((candidate) => candidate.id !== loeschKandidat.id));
+          setLoeschKandidat(null);
+        }}
+        onClose={() => setLoeschKandidat(null)}
+      />
     </div>
   );
 }

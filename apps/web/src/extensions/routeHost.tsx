@@ -2,6 +2,7 @@ import {
   lazy,
   Suspense,
   useRef,
+  useState,
   type ComponentType,
   type LazyExoticComponent,
   type ReactNode,
@@ -39,13 +40,36 @@ export function NotFound() {
 // baute sie neu auf. Genau deshalb luden T3 Code, Terminal und Code-Server bei
 // jedem Wechsel neu, obwohl der PersistentOutlet sie hielt. Nach einem Absturz
 // setzt die Boundary sich über ihren eigenen Knopf „Erneut versuchen" zurück.
-export function DeferredRoute({ children }: { children: ReactNode }) {
+export function DeferredRoute({ children, onRetry }: { children: ReactNode; onRetry?: () => void }) {
   const location = useLocation();
   const mountedPath = useRef(location.pathname);
   return (
-    <ErrorBoundary key={mountedPath.current} label="Diese Ansicht">
+    <ErrorBoundary key={mountedPath.current} label="Diese Ansicht" onRetry={onRetry}>
       <Suspense fallback={<RouteFallback />}>{children}</Suspense>
     </ErrorBoundary>
+  );
+}
+
+/**
+ * Routen-Variante von DeferredRoute: Die Lazy-Seite wird bei jedem Render über
+ * den Cache aufgelöst. Schlägt der Import fehl und der Nutzer drückt „Erneut
+ * versuchen", leert die Boundary zuerst den Lazy-Cache und hängt die Route
+ * danach mit neuem Schlüssel ein — der Import startet damit wirklich neu,
+ * statt die abgelehnte Promise erneut zu werfen.
+ */
+export function DeferredPageRoute({ page }: { page: OwnedPageRegistration }) {
+  const [salt, setSalt] = useState(0);
+  const Page = pageComponent(page);
+  return (
+    <DeferredRoute
+      key={salt}
+      onRetry={() => {
+        invalidateLazyPageCache();
+        setSalt((current) => current + 1);
+      }}
+    >
+      <Page />
+    </DeferredRoute>
   );
 }
 
@@ -57,6 +81,16 @@ interface CachedLazyPage {
 }
 
 const lazyPageCache = new Map<string, CachedLazyPage>();
+
+/**
+ * Verwirft alle zwischengespeicherten Lazy-Seiten. Die Boundary ruft das beim
+ * manuellen Retry auf (siehe DeferredPageRoute): Ohne das würde dieselbe
+ * abgelehnte lazy()-Komponente sofort erneut werfen und „Erneut versuchen"
+ * wirkungslos blinken.
+ */
+export function invalidateLazyPageCache(): void {
+  lazyPageCache.clear();
+}
 
 /**
  * Löst die Page-Komponente einer Registrierung auf. Eager-Pages kommen aus
@@ -89,8 +123,7 @@ function routeElement(
   _route: OwnedRouteRegistration,
   page: OwnedPageRegistration,
 ): ReactNode {
-  const Page = pageComponent(page);
-  return <DeferredRoute><Page /></DeferredRoute>;
+  return <DeferredPageRoute page={page} />;
 }
 
 export function CanonicalAliasRedirect({ target }: { target: string }) {

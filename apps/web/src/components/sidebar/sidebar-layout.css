@@ -70,17 +70,18 @@
 
 /* --- Auf-/Zu-Animation ----------------------------------------------------
    Prinzip: Die Breite animiert über `.sidebar-shell` (siehe index.css), alle
-   Inhalte bleiben eingehängt. Icons behalten exakt ihre Position — nur Texte
-   blenden per Fade + leichtem Slide aus. Darum rückt nichts mehr zur Mitte.
-   Beim Schließen verschwindet der Text sofort (kein Quetschen), beim Öffnen
-   wartet er ca. 100 ms, bis die Breite weitgehend steht. */
+   Inhalte bleiben eingehängt. Eingeklappt rücken die Icons weich in die Mitte
+   (justify + Padding gleichen sich an), Texte blenden per Fade + leichtem
+   Slide aus. Beim Schließen verschwindet der Text sofort (kein Quetschen),
+   beim Öffnen wartet er ca. 100 ms, bis die Breite weitgehend steht. */
 
 .sidebar-shell .sidebar-item {
   justify-content: flex-start;
   transition:
     background var(--duration-base) var(--ease-standard),
     color var(--duration-base) var(--ease-standard),
-    gap var(--duration-base) var(--ease-standard);
+    gap var(--duration-base) var(--ease-standard),
+    padding var(--duration-slow) var(--ease-standard);
 }
 
 .sidebar-shell .sidebar-item-icon {
@@ -116,6 +117,10 @@
 }
 
 .sidebar-shell.is-collapsed .sidebar-item {
+  justify-content: center;
+  margin: 1px 8px;
+  padding-right: 0;
+  padding-left: 0;
   gap: 0;
 }
 
@@ -127,6 +132,13 @@
   pointer-events: none;
   transition-delay: 0ms;
   transition-duration: var(--duration-fast), var(--duration-base), var(--duration-slow);
+}
+
+/* Eingeklappt: Scrollbar-Platz nicht reservieren, sonst rücken die
+   zentrierten Icons optisch nach links. */
+.sidebar-shell.is-collapsed .sidebar-scroll,
+.sidebar-shell.is-collapsed .sidebar-orbit-library {
+  scrollbar-gutter: auto;
 }
 
 /* Markenlabel: Logo bleibt stehen, nur der Schriftzug blendet aus. */

@@ -3,7 +3,7 @@ import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-quer
 import { CopyIcon, DownloadIcon, EditIcon, ExternalLinkIcon, FileIcon, FolderIcon, FolderOpenIcon, GalerieIcon, PlusIcon, RefreshIcon, SearchIcon, TrashIcon, UploadIcon } from "../icons";
 import type { OrbitAsset, GalleryFolder } from "@wrapt/contracts";
 import { apiClient } from "../../lib/apiClient";
-import { ContentDialog } from "../ModalDialog";
+import { ContentDialog, ConfirmDialog } from "../ModalDialog";
 
 export type GalleryVariant = "media" | "files";
 
@@ -149,6 +149,9 @@ export function OrbitGalleryNode({ variant = "media" }: { variant?: GalleryVaria
   const [renameTarget, setRenameTarget] = useState<OrbitAsset | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<OrbitAsset | null>(null);
+  const [folderDeleteTarget, setFolderDeleteTarget] = useState<GalleryFolder | null>(null);
+  const [folderDeletePending, setFolderDeletePending] = useState(false);
+  const [folderDeleteError, setFolderDeleteError] = useState<string | null>(null);
   const [newFolderName, setNewFolderName] = useState("");
   const [editingFolder, setEditingFolder] = useState<GalleryFolder | null>(null);
   const [editingFolderName, setEditingFolderName] = useState("");
@@ -253,13 +256,19 @@ export function OrbitGalleryNode({ variant = "media" }: { variant?: GalleryVaria
   };
 
   const handleDeleteFolder = async (folder: GalleryFolder) => {
+    if (folderDeletePending) return;
+    setFolderDeletePending(true);
+    setFolderDeleteError(null);
     try {
       await config.deleteFolder(folder.id);
       await queryClient.invalidateQueries({ queryKey: config.foldersQueryKey });
       if (selectedFolderId === folder.id) setSelectedFolderId(null);
       setStatus("Ordner wurde gelöscht.");
+      setFolderDeleteTarget(null);
     } catch {
-      setStatus("Ordner konnte nicht gelöscht werden.");
+      setFolderDeleteError("Ordner konnte nicht gelöscht werden.");
+    } finally {
+      setFolderDeletePending(false);
     }
   };
 
@@ -290,7 +299,7 @@ export function OrbitGalleryNode({ variant = "media" }: { variant?: GalleryVaria
             <FolderOpenIcon className="h-3.5 w-3.5" /><span>{folder.name}</span><span className="orbit-gallery-folder-count">{folder.fileCount}</span>
           </button>
           <button type="button" className="orbit-gallery-folder-rename" onClick={() => { setEditingFolder(folder); setEditingFolderName(folder.name); }} title="Ordner umbenennen"><EditIcon className="h-3 w-3" /></button>
-          <button type="button" className="orbit-gallery-folder-delete" onClick={() => void handleDeleteFolder(folder)} title="Ordner löschen"><TrashIcon className="h-3 w-3" /></button>
+          <button type="button" className="orbit-gallery-folder-delete" onClick={() => { setFolderDeleteError(null); setFolderDeleteTarget(folder); }} title="Ordner löschen" aria-label={`Ordner ${folder.name} löschen`}><TrashIcon className="h-3 w-3" /></button>
         </div>)}
         {showNewFolder ? <div className="orbit-gallery-folder-new">
           <input type="text" value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)} placeholder="Ordnername" autoFocus onKeyDown={(e) => { if (e.key === "Enter") void handleCreateFolder(); if (e.key === "Escape") { setShowNewFolder(false); setNewFolderName(""); } }} />
@@ -348,5 +357,16 @@ export function OrbitGalleryNode({ variant = "media" }: { variant?: GalleryVaria
         </div>
       </div>
     </div> : null}
+    <ConfirmDialog
+      open={folderDeleteTarget !== null}
+      title="Ordner löschen?"
+      description={folderDeleteTarget ? `„${folderDeleteTarget.name}“ wird aus der Galerie entfernt.` : ""}
+      confirmLabel={folderDeletePending ? "Wird gelöscht …" : "Ordner löschen"}
+      danger
+      confirmPending={folderDeletePending}
+      error={folderDeleteError}
+      onConfirm={() => { if (folderDeleteTarget) void handleDeleteFolder(folderDeleteTarget); }}
+      onClose={() => { setFolderDeleteError(null); setFolderDeleteTarget(null); }}
+    />
   </section>;
 }

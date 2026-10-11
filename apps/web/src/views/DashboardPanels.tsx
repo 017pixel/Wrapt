@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
-import { WarningIcon } from "../components/icons";
+import { RefreshIcon, WarningIcon } from "../components/icons";
+import { formatRequestId, queryErrorGuide } from "../lib/queryErrorGuide";
 
 export function Panel({
   name,
@@ -39,11 +40,16 @@ export function Panel({
   );
 }
 
-export function PanelError({ message }: { message: string }) {
+export function PanelError({ message, error, onRetry }: { message: string; error?: unknown; onRetry?: () => void }) {
+  const guide = error === undefined ? null : queryErrorGuide(error, message);
+  const requestZeile = guide ? formatRequestId(guide.requestId) : null;
   return (
     <div className="dash-notice is-bad" role="alert">
       <WarningIcon className="h-4 w-4 shrink-0" />
-      <span>{message}</span>
+      <span>
+        {guide ? <><strong>{guide.titel}: </strong>{guide.ursache} {guide.aktion} {guide.docsHinweis ? `${guide.docsHinweis} ` : ""}{requestZeile ?? ""}</> : message}
+      </span>
+      {onRetry ? <button type="button" className="quiet-button min-h-11 px-4" onClick={onRetry}><RefreshIcon className="h-4 w-4" /> Erneut versuchen</button> : null}
     </div>
   );
 }
@@ -60,7 +66,7 @@ export function PanelSkeleton({ label, rows = 3 }: { label: string; rows?: numbe
 }
 
 export function queryMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
+  return queryErrorGuide(error, fallback).ursache;
 }
 
 export function statusTone(state: string): "default" | "ok" | "warn" | "bad" {

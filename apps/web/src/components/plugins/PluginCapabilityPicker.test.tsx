@@ -31,4 +31,26 @@ describe("Visuelle Plugin-Flächen", () => {
       }),
     }));
   });
+
+  it("löscht eine Fähigkeit erst nach Bestätigung im Dialog", () => {
+    const onChange = vi.fn();
+    const draft = emptyPluginDraft();
+    draft.capabilities = [{
+      id: "aktion-1",
+      label: "Export starten",
+      kind: "action",
+      surface: "page",
+      description: "Eine kontrollierte Plugin-Aktion.",
+      permission: null,
+      enabled: true,
+    }];
+    render(<PluginCapabilityPicker draft={draft} onChange={onChange} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Fähigkeit 1 löschen" }));
+    // Noch nichts gelöscht: Erst der Dialog, dann die Änderung.
+    expect(onChange).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    expect(onChange).toHaveBeenCalledWith({ capabilities: [] });
+  });
 });

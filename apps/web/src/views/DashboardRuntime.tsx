@@ -168,6 +168,7 @@ export function RuntimePanel({
     mutationFn: (session: TerminalSession) => apiClient.closeTerminalSession(session.id),
     onSuccess: () => {
       setActionError(null);
+      setSessionToClose(null);
       void sessions.refetch();
     },
     onError: (mutationError: unknown) => {
@@ -182,6 +183,7 @@ export function RuntimePanel({
     },
     onSuccess: () => {
       setActionError(null);
+      setGroupToClose(null);
       void sessions.refetch();
     },
     onError: (mutationError: unknown) => {
@@ -255,8 +257,10 @@ export function RuntimePanel({
         description={`${sessionToClose ? terminalKindLabels[sessionToClose.kind] : "Diese Terminalsitzung"} wird beendet und aus der Session-Liste entfernt.`}
         confirmLabel={closeSession.isPending ? "Wird gelöscht …" : "Beenden und löschen"}
         danger
+        confirmPending={closeSession.isPending}
+        error={sessionToClose ? actionError : null}
         onConfirm={() => { if (sessionToClose) closeSession.mutate(sessionToClose); }}
-        onClose={() => setSessionToClose(null)}
+        onClose={() => { setActionError(null); setSessionToClose(null); }}
       />
       <ConfirmDialog
         open={groupToClose !== null}
@@ -264,8 +268,10 @@ export function RuntimePanel({
         description={groupToClose ? `${groupToClose.sessions.length} ${groupToClose.sessions.length === 1 ? "Session" : "Sessions"} von ${groupToClose.projectName} werden beendet und aus der Session-Liste entfernt.` : "Alle Sessions werden beendet."}
         confirmLabel={closeGroup.isPending ? "Wird gelöscht …" : "Alle beenden und löschen"}
         danger
+        confirmPending={closeGroup.isPending}
+        error={groupToClose ? actionError : null}
         onConfirm={() => { if (groupToClose) closeGroup.mutate(groupToClose); }}
-        onClose={() => setGroupToClose(null)}
+        onClose={() => { setActionError(null); setGroupToClose(null); }}
       />
     </Panel>
   );

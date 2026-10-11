@@ -1,5 +1,7 @@
+import { useState } from "react";
 import type { PluginCapability, PluginDraftContent, PluginSurface, PluginSurfaceContribution } from "@wrapt/contracts";
 import { PlusIcon, TrashIcon } from "../icons";
+import { ConfirmDialog } from "../ModalDialog";
 import { PluginHelpPopover } from "./PluginHelpPopover";
 import { togglePluginSurface } from "./pluginSurfaceState";
 
@@ -30,6 +32,7 @@ interface PluginCapabilityPickerProps {
 }
 
 export function PluginCapabilityPicker({ draft, onChange }: PluginCapabilityPickerProps) {
+  const [loeschIndex, setLoeschIndex] = useState<number | null>(null);
   const toggleSurface = (surface: PluginSurface) => {
     onChange(togglePluginSurface(draft, surface));
   };
@@ -70,8 +73,21 @@ export function PluginCapabilityPicker({ draft, onChange }: PluginCapabilityPick
       <select value={capability.surface} aria-label={`Oberfläche Fähigkeit ${index + 1}`} onChange={(event) => updateCapability(index, { surface: event.target.value as PluginSurface })}>{surfaceOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
       <input value={capability.permission ?? ""} placeholder="Permission optional" aria-label={`Permission Fähigkeit ${index + 1}`} onChange={(event) => updateCapability(index, { permission: event.target.value || null })} />
       <label className="plugin-capability-toggle"><input type="checkbox" checked={capability.enabled} onChange={(event) => updateCapability(index, { enabled: event.target.checked })} /><span>Aktiv</span></label>
-      <button type="button" className="icon-button danger" onClick={() => onChange({ capabilities: draft.capabilities.filter((_, itemIndex) => itemIndex !== index) })} aria-label={`Fähigkeit ${index + 1} löschen`}><TrashIcon className="h-4 w-4" /></button>
+      <button type="button" className="icon-button danger" onClick={() => setLoeschIndex(index)} aria-label={`Fähigkeit ${index + 1} löschen`}><TrashIcon className="h-4 w-4" /></button>
       <textarea value={capability.description} aria-label={`Beschreibung Fähigkeit ${index + 1}`} onChange={(event) => updateCapability(index, { description: event.target.value })} />
     </div>)}</div> : <p className="plugins-muted">Noch keine zusätzliche Fähigkeit. Eine Plugin-Seite funktioniert auch ohne Aktionen.</p>}
+    <ConfirmDialog
+      open={loeschIndex !== null}
+      title="Fähigkeit löschen?"
+      description={loeschIndex !== null && draft.capabilities[loeschIndex] ? `„${draft.capabilities[loeschIndex].label}“ wird aus dem Draft entfernt.` : ""}
+      confirmLabel="Löschen"
+      danger
+      onConfirm={() => {
+        if (loeschIndex === null) return;
+        onChange({ capabilities: draft.capabilities.filter((_, itemIndex) => itemIndex !== loeschIndex) });
+        setLoeschIndex(null);
+      }}
+      onClose={() => setLoeschIndex(null)}
+    />
   </section>;
 }

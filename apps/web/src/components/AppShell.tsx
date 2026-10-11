@@ -3,6 +3,7 @@ import { Link, useLocation, useSearchParams } from "react-router";
 import { useShallow } from "zustand/react/shallow";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronRightIcon, MenuIcon, RestoreIcon } from "./icons";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { Sidebar } from "./Sidebar";
 import { MobileNav } from "./MobileNav";
 import { StatusBar, CompactSystemStatus } from "./StatusBar";
@@ -300,17 +301,17 @@ export function AppShell() {
       <TerminalSessionsSync />
       <NotificationCenter />
       <ViewPresenceReporter />
-      {showsNavigationSidebar ? <Sidebar
+      {showsNavigationSidebar ? <ErrorBoundary label="Navigation"><Sidebar
         collapsed={sidebar.collapsed}
         width={hasTabletSidebar ? Math.max(208, Math.min(sidebar.width, Math.round(responsive.width * 0.22))) : sidebar.width}
         onToggle={sidebar.toggleCollapsed}
         onResize={sidebar.setWidth}
-      /> : null}
+      /></ErrorBoundary> : null}
       <div
         className={`content-column ${isOrbit ? "is-orbit" : ""}`}
         inert={mobileNavigationOpen && !hasTabletSidebar ? true : undefined}
       >
-        {!isOrbit ? <header className="topbar">
+        {!isOrbit ? <ErrorBoundary label="Kopfbereich"><header className="topbar">
           {showNavigationTrigger ? <button
             ref={navigationTriggerRef}
             type="button"
@@ -339,13 +340,13 @@ export function AppShell() {
             <PluginTopbar />
             {(isStandaloneT3 || isStandaloneOpenCode || location.pathname === "/code-editor") ? <div id="topbar-tool-actions" className="topbar-tool-actions" aria-label={`${title} Aktionen`} /> : hasStandaloneToolMenu ? <StandaloneRouteActions terminalFocus={terminalFocus} onTerminalFocusChange={setTerminalFocus} /> : null}
           </div>
-        </header> : isOrbit ? (showNavigationTrigger ? <button ref={navigationTriggerRef} type="button" className="orbit-app-menu mobile-nav-trigger" onClick={() => setMobileNavigationOpen(true)} aria-label="Navigation öffnen"><MenuIcon className="h-[18px] w-[18px]" /></button> : null) : null}
+        </header></ErrorBoundary> : isOrbit ? (showNavigationTrigger ? <button ref={navigationTriggerRef} type="button" className="orbit-app-menu mobile-nav-trigger" onClick={() => setMobileNavigationOpen(true)} aria-label="Navigation öffnen"><MenuIcon className="h-[18px] w-[18px]" /></button> : null) : null}
         {!online ? <div className="connection-banner" role="status"><span>Offline</span><strong>Live-Daten und Remote-Werkzeuge sind vorübergehend nicht verfügbar.</strong></div> : null}
         <main ref={mainRef} id="main-content" tabIndex={-1} className="relative min-h-0 flex-1 overflow-hidden">
           <PersistentOutlet />
         </main>
         <PwaInstallHint />
-        {showsNavigationSidebar ? <StatusBar /> : <CompactSystemStatus />}
+        {showsNavigationSidebar ? <ErrorBoundary label="Statusleiste"><StatusBar /></ErrorBoundary> : <ErrorBoundary label="Statusleiste"><CompactSystemStatus /></ErrorBoundary>}
       </div>
       {terminalFocus ? <button type="button" className="terminal-focus-exit" onClick={() => setTerminalFocus(false)} aria-label="Vollbild verlassen" title="Vollbild verlassen"><RestoreIcon className="h-4 w-4" /></button> : null}
       <MobileNav open={mobileNavigationOpen && !hasTabletSidebar} onClose={closeMobileNavigation} triggerRef={navigationTriggerRef} />

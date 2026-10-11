@@ -171,7 +171,7 @@ export function PluginStore({ examples }: PluginStoreProps) {
       {catalog.isLoading || registry.isLoading ? <p className="plugins-muted">Store-Status wird geladen.</p> : null}
       {examples.length === 0 && !catalog.isLoading ? <p className="plugins-muted">Noch keine lokalen Beispiele gefunden.</p> : null}
       <p className="plugins-store-note"><ExtensionsIcon className="h-3.5 w-3.5" />Der Store bleibt in v1 absichtlich lokal. Es gibt keine Remote-Quelle und jede Installation läuft über dieselbe Berechtigungs- und Lifecycle-Prüfung wie in den Einstellungen.</p>
-      <ConfirmDialog open={removeTarget !== null} title={`„${removeTarget?.name ?? "Plugin"}“ deinstallieren?`} description="Das Plugin wird aus Wrapt entfernt. Die lokale Plugin-Datei im Repository bleibt erhalten." confirmLabel="Deinstallieren" danger onConfirm={() => void uninstall()} onClose={() => setRemoveTarget(null)} />
+      <ConfirmDialog open={removeTarget !== null} title={`„${removeTarget?.name ?? "Plugin"}“ deinstallieren?`} description="Das Plugin wird aus Wrapt entfernt. Die lokale Plugin-Datei im Repository bleibt erhalten." confirmLabel={removeTarget !== null && busyId === removeTarget.id ? "Wird deinstalliert …" : "Deinstallieren"} danger confirmPending={removeTarget !== null && busyId === removeTarget.id} error={notice?.tone === "bad" ? notice.text : null} onConfirm={() => void uninstall()} onClose={() => setRemoveTarget(null)} />
     </section>
   );
 }
