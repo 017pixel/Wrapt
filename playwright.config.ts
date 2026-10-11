@@ -52,7 +52,11 @@ export default defineConfig<object, { personaName: "frisch" | "normal" | "heavy"
       name: `personas-${personaName}`, testDir: "./e2e", testMatch: /journeys\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], personaName: personaName as "frisch" | "normal" | "heavy" | "konfiguriert" },
     })),
-    { name: "personas", testDir: "./e2e", testIgnore: /journeys\.spec\.ts/,
+    // Die Personas-Specs verstellen globale Einstellungen (Theme, Start-App,
+    // Navigation, Palette, Registry, Plugins). Jeder Worker startet zwar einen
+    // eigenen Server, doch der parallele Stapel wurde unter CI-Last flaky —
+    // darum laufen sie serialisiert wie die historischen Specs.
+    { name: "personas", testDir: "./e2e", testIgnore: /journeys\.spec\.ts/, fullyParallel: false, workers: 1,
       use: { ...devices["Desktop Chrome"], personaName: "normal" } },
     // Historische Specs teilen sich Identitäten, Konfiguration und Orbit-Dokument.
     // Ihre Serialisierung bleibt erhalten, die neuen Personas sind workerisoliert.

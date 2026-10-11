@@ -59,6 +59,11 @@ export async function startWorkerServer(workerIndex: number) {
       WRAPT_E2E_PORT: String(port),
       WRAPT_E2E_T3_CHANNEL: "stable",
       WRAPT_E2E_USER: identity["tailscale-user-login"],
+      // Funktionstests pollen API und Browser aus einer Identität: Das
+      // Produktions-Limit (1200/min) würde mitten im Lauf 429 werfen und den
+      // Restore kaskadierend abbrechen. Der Schutz selbst bleibt über
+      // Unit-Tests mit kleinen Budgets abgedeckt.
+      API_RATE_LIMIT_MAX: "100000",
     },
   });
   child.stdout.pipe(log);

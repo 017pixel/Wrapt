@@ -1,7 +1,33 @@
 import { expect, test } from "@playwright/test";
+import type { APIRequestContext } from "@playwright/test";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { previewIdentity, previewsEnabled, previewsReason } from "./helpers/previews";
+
+/**
+ * S-013: Der erste Start einer Projektlaufzeit verlangt die explizite
+ * Befehlsfreigabe. Der Hash kommt aus den Fehlerdetails der 409-Antwort.
+ */
+async function startDevServer(request: APIRequestContext, projectId: string) {
+  const path = `/api/v1/previews/dev-servers/${encodeURIComponent(projectId)}/start`;
+  const started = await request.post(path, { headers: previewIdentity });
+  if (started.status() !== 409) {
+    expect(started.ok()).toBeTruthy();
+    return started;
+  }
+  const body = await started.json() as { error?: { code?: string; details?: { commandHash?: string } } };
+  expect(body.error?.code).toBe("PREVIEW_COMMAND_UNCONFIRMED");
+  const commandHash = body.error?.details?.commandHash;
+  expect(commandHash).toBeTruthy();
+  const confirmed = await request.post(`/api/v1/previews/dev-servers/${encodeURIComponent(projectId)}/confirm`, {
+    headers: previewIdentity,
+    data: { commandHash },
+  });
+  expect(confirmed.ok()).toBeTruthy();
+  const retry = await request.post(path, { headers: previewIdentity });
+  expect(retry.ok()).toBeTruthy();
+  return retry;
+}
 
 /**
  * Regression: Der Status einer mehrteiligen Projektlaufzeit muss Dienste aus
@@ -59,8 +85,7 @@ setInterval(() => {}, 1_000);
 
     try {
       await test.step("Laufzeit über die API starten", async () => {
-        const started = await request.post(`/api/v1/previews/dev-servers/${encodeURIComponent(projectId)}/start`, { headers: previewIdentity });
-        expect(started.ok()).toBeTruthy();
+        await startDevServer(request, projectId);
       });
 
       await test.step("Beide Dienste melden running", async () => {

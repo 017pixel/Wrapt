@@ -37,7 +37,11 @@ test.describe("Lokale Previews", () => {
     const bound = slots.slots.find((slot) => slot.id === session.bindings[0]!.slotId)!;
     expect(bound.targetPort).toBe(fixturePorts.spa);
     expect(bound.affinityStatus).toBe("own");
-    expect(session.bindings[0]!.publicUrl).toBe(bound.publicUrl);
+    // Die Sitzungs-URL trägt zusätzlich das Slot-Token (Gateway-Auth), die
+    // Slot-URL nicht. Verglichen wird ohne Query, das Token wird eigens geprüft.
+    const bindingUrl = new URL(session.bindings[0]!.publicUrl);
+    expect(`${bindingUrl.origin}${bindingUrl.pathname}`).toBe(bound.publicUrl);
+    expect(bindingUrl.searchParams.get("slotToken")).toBeTruthy();
     const publicPort = new URL(session.bindings[0]!.publicUrl).hostname === "127.0.0.1" ? bound.internalPort : bound.publicPort;
     expect(new URL(session.bindings[0]!.publicUrl).port).toBe(String(publicPort));
 
@@ -261,6 +265,10 @@ createServer((_request, response) => {
         // dann startet die Laufzeit.
         await expect(page.locator(".preview-hub-urlbar code")).toContainText(/Port \d+ wird beim Öffnen über einen sicheren Slot veröffentlicht/);
         await page.locator(".preview-hub-command").getByRole("button", { name: "Alles starten" }).click();
+        // S-013: Der erste Start verlangt die explizite Befehlsfreigabe.
+        const confirm = page.getByRole("dialog", { name: "Befehl bestätigen" });
+        await expect(confirm).toBeVisible();
+        await confirm.getByRole("button", { name: "Bestätigen & starten" }).click();
         await expect(page.locator(".preview-hub-command .preview-hub-state.is-running")).toBeVisible({ timeout: 30_000 });
         await expect(page.getByRole("button", { name: "Im neuen Tab öffnen" })).toBeEnabled();
       });
