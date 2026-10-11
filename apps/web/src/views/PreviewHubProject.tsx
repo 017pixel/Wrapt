@@ -6,7 +6,7 @@ import {
   ActivityIcon, CopyIcon, DatabaseIcon, ExternalLinkIcon,
   MoreIcon, PlayIcon, RefreshIcon, ServerIcon, ServicesIcon, TerminalIcon, WarningIcon, WorkbenchIcon,
 } from "../components/icons";
-import { apiClient } from "../lib/apiClient";
+import { apiClient, ApiClientError } from "../lib/apiClient";
 import { writeClipboardText } from "../lib/clipboard";
 import { openPreviewLiveWindow, openPreviewWindow } from "../lib/previewExternalOpen";
 import { findOrbitPreviewNodeByTarget } from "../lib/orbitResourceLookup";
@@ -19,6 +19,7 @@ import { withPreviewSlotRecovery, type PreviewSlotRecoveryPhase } from "../lib/p
 import { useSidebarPreferences } from "../stores/sidebarPreferences";
 
 import { PreviewTargetMenu } from "./PreviewTargetMenu";
+import { ConfirmDialog } from "../components/ModalDialog";
 
 type LogFilter = "all" | PreviewRuntimeLogLevel;
 type DirectOpenMode = "tab" | "window";
@@ -79,6 +80,13 @@ export function PreviewHubProject({ project, routeActive, orbitBoards }: { proje
   const [copied, setCopied] = useState(false);
   const [actionError, setActionError] = useState<unknown>(null);
   const [launchPhase, setLaunchPhase] = useState<PreviewSlotRecoveryPhase | null>(null);
+  const [confirmOffer, setConfirmOffer] = useState<{
+    action: "start" | "restart";
+    commandHash: string;
+    commandPreview: string;
+    projectPath: string;
+  } | null>(null);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const configuredPreviewApplied = useRef<string | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
 
@@ -122,7 +130,36 @@ export function PreviewHubProject({ project, routeActive, orbitBoards }: { proje
       return apiClient.restartPreviewDevServer(projectId);
     },
     onSuccess: async (nextStatus) => { queryClient.setQueryData(["preview-dev-server", projectId], nextStatus); await refresh(); },
-    onError: (error) => setActionError(error instanceof Error ? error.message : "Die Aktion ist fehlgeschlagen."),
+    onError: (error, action) => {
+      // S-013: Unbestätigte Befehle öffnen den Freigabe-Dialog statt einer
+      // Fehlermeldung. Der Hash kommt aus den Fehlerdetails der 409-Antwort.
+      if (error instanceof ApiClientError && error.code === "PREVIEW_COMMAND_UNCONFIRMED" && action !== "stop") {
+        const details = error.details ?? {};
+        const commandHash = typeof details.commandHash === "string" ? details.commandHash : null;
+        const commandPreview = typeof details.commandPreview === "string" ? details.commandPreview : null;
+        const projectPath = typeof details.projectPath === "string" ? details.projectPath : null;
+        if (commandHash && commandPreview && projectPath) {
+          setActionError(null);
+          setConfirmError(null);
+          setConfirmOffer({ action, commandHash, commandPreview, projectPath });
+          return;
+        }
+      }
+      setActionError(error instanceof Error ? error.message : "Die Aktion ist fehlgeschlagen.");
+    },
+  });
+  const confirmMutation = useMutation({
+    mutationFn: async () => {
+      if (!confirmOffer) throw new Error("Kein Befehl zur Bestätigung.");
+      await apiClient.confirmPreviewDevServer(projectId, confirmOffer.commandHash);
+      return confirmOffer.action;
+    },
+    onSuccess: (action) => {
+      setConfirmOffer(null);
+      setConfirmError(null);
+      processMutation.mutate(action);
+    },
+    onError: (error) => setConfirmError(error instanceof Error ? error.message : "Die Bestätigung ist fehlgeschlagen."),
   });
   const savePort = useMutation({
     mutationFn: async (port: number) => apiClient.savePreviewDevServerMainPort(projectId, port),
@@ -301,5 +338,15 @@ export function PreviewHubProject({ project, routeActive, orbitBoards }: { proje
         <div className="preview-hub-log-output" ref={logRef} role="log" aria-live="polite">{selectedLogs.map((line, index) => <div className="preview-hub-log-line" data-level={line.level} key={`${line.serviceId}-${index}-${line.text}`}><span>{line.serviceName}</span><code>{line.text}</code></div>)}{!selectedLogs.length ? <div className="preview-hub-log-empty">{visibleState === "starting" ? <><ActivityIcon /><strong>Dev-Server werden gestartet</strong><span>Die erste Ausgabe erscheint automatisch, sobald der Prozess antwortet.</span></> : status?.state === "running" ? <><ActivityIcon /><strong>Dev-Server läuft</strong><span>Der gewählte Dienst oder Filter hat momentan keine passenden Einträge.</span></> : <><TerminalIcon /><strong>Die Projektlaufzeit ist nicht aktiv</strong><span>Nach dem Start erscheinen die Ausgaben hier getrennt nach Dienst und Log-Level.</span></>}</div> : null}</div>
       </section>
     </div>
+    <ConfirmDialog
+      open={confirmOffer !== null}
+      title="Befehl bestätigen"
+      description={confirmOffer ? `Nur vertrauenswürdige Repos starten. Pfad: ${confirmOffer.projectPath} — Befehle: ${confirmOffer.commandPreview}` : ""}
+      confirmLabel={confirmMutation.isPending ? "Wird bestätigt …" : "Bestätigen & starten"}
+      confirmPending={confirmMutation.isPending}
+      error={confirmError}
+      onConfirm={() => { if (!confirmMutation.isPending) confirmMutation.mutate(); }}
+      onClose={() => { confirmMutation.reset(); setConfirmError(null); setConfirmOffer(null); }}
+    />
   </>;
 }

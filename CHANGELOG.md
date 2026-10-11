@@ -8,6 +8,7 @@ Alle relevanten Änderungen werden in kurzen Stichpunkten dokumentiert.
 - Skills-Seite mit drei Gruppen: Globale Regeln, Skills und Hermes-Skills stehen in einem Baum mit Zählern, Suche über alles und Badges für defekte oder beschreibungslose Einträge.
 - Hermes-Skills lassen sich direkt verwalten: anlegen mit Kategorie, umbenennen und löschen inklusive aller Verweise.
 - Globale Regeln im Baum: die verteilte AGENTS.md und die Hermes-Regeln öffnen sich im selben Editor.
+- Preview-Laufzeiten starten erst nach expliziter Befehlsfreigabe: Befehl und Pfad stehen im Dialog, erst nach Bestätigen läuft der Start.
 
 ### Verändert
 - Skills-Seitenleiste aufgeräumt: kein Pfad unten, kein Kopf oben, dünnere Scrollbar, Dateiname und Skill-Name stehen nebeneinander.

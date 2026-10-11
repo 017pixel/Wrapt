@@ -2,6 +2,7 @@ import {
   previewDependenciesResponseSchema,
   previewDevicePreferenceSchema,
   previewDevServerLogsSchema,
+  previewDevServerConfirmResponseSchema,
   previewDevServerStatusSchema,
   previewDevServersResponseSchema,
   previewDiagnosticsResponseSchema,
@@ -50,6 +51,8 @@ export const previewsApi = {
   previewRuntimeProfile: (projectId: string, signal?: AbortSignal) => request(`/previews/dev-servers/${encodeURIComponent(projectId)}/profile`, previewRuntimeProfileSchema, signal),
   previewDevServerLogs: (projectId: string, signal?: AbortSignal) => request(`/previews/dev-servers/${encodeURIComponent(projectId)}/logs`, previewDevServerLogsSchema, signal),
   startPreviewDevServer: (projectId: string) => mutate(`/previews/dev-servers/${encodeURIComponent(projectId)}/start`, "POST", previewDevServerStatusSchema),
+  confirmPreviewDevServer: (projectId: string, commandHash: string) =>
+    mutate(`/previews/dev-servers/${encodeURIComponent(projectId)}/confirm`, "POST", previewDevServerConfirmResponseSchema, { commandHash }),
   launchPreviewRuntime: (projectId: string) => queuePreviewSessionRequest(`preview-runtime:${projectId}`, () => mutate(`/previews/dev-servers/${encodeURIComponent(projectId)}/launch`, "POST", previewRuntimeLaunchSchema)),
   stopPreviewDevServer: (projectId: string) => mutate(`/previews/dev-servers/${encodeURIComponent(projectId)}/stop`, "POST", previewDevServerStatusSchema),
   restartPreviewDevServer: (projectId: string) => mutate(`/previews/dev-servers/${encodeURIComponent(projectId)}/restart`, "POST", previewDevServerStatusSchema),
