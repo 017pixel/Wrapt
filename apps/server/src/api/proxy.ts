@@ -1,7 +1,7 @@
 import { lookup as dnsLookup } from "node:dns";
 import { promises as dnsPromises } from "node:dns";
 import { isIP, type LookupFunction } from "node:net";
-import { Agent } from "undici";
+import { Agent, fetch as undiciFetch } from "undici";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { settings } from "../config/settings.js";
 import { isPublicAddress } from "../security/public-http.js";
@@ -128,13 +128,17 @@ export function createProxyHandler(
         // IP-Recheck nach jedem Redirect: Die Allowlist allein schützt nicht
         // vor Rebinding eines freigegebenen DNS-Namens auf Loopback/Link-Local.
         await checkProxyRedirectTarget(current, pins, resolveAll, true);
-        upstream = await fetch(current.href, {
+        // S-012: Fetch und Agent stammen aus demselben undici-Paket. Der
+        // globale Fetch versteht auf Node 22 den v8-Dispatcher nicht
+        // ("invalid onRequestStart method") — mit undiciFetch passt das Paar
+        // auf jeder Node-Version zusammen.
+        upstream = (await undiciFetch(current.href, {
           method: "GET",
           headers: { accept: request.headers.accept ?? "*/*" },
           redirect: "manual",
           signal: controller.signal,
           dispatcher: agent,
-        } as unknown as RequestInit);
+        })) as unknown as Response;
         if (![301, 302, 303, 307, 308].includes(upstream.status)) break;
         const location = upstream.headers.get("location");
         await upstream.body?.cancel();
