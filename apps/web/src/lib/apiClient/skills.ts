@@ -5,7 +5,9 @@ import {
   skillEditorReadResponseSchema,
   skillEditorStatusResponseSchema,
   skillEditorTreeResponseSchema,
+  type HermesSkillEditorCreateRequest,
   type SkillEditorCreateRequest,
+  type SkillEditorScope,
   type SkillEditorWriteRequest,
 } from "@wrapt/contracts";
 import { mutate, request, WRAPT_SYNC_VERSION } from "./transport.js";
@@ -34,8 +36,11 @@ export const skillsApi = {
   saveSkillEditorFile: (body: SkillEditorWriteRequest) => mutate("/skills/file", "PUT", skillEditorReadResponseSchema, body),
   saveSkillEditorFileOnUnload,
   createSkill: (body: SkillEditorCreateRequest) => mutate("/skills", "POST", skillEditorCreateResponseSchema, body),
-  renameSkill: (name: string, newName: string) => mutate("/skills/rename", "POST", skillEditorCreateResponseSchema, { name, newName }),
-  deleteSkill: (name: string) => mutate(`/skills/${encodeURIComponent(name)}`, "DELETE", null),
+  createHermesSkill: (body: HermesSkillEditorCreateRequest) => mutate("/skills/hermes", "POST", skillEditorCreateResponseSchema, body),
+  renameSkill: (name: string, newName: string, scope: SkillEditorScope = "skills") =>
+    mutate("/skills/rename", "POST", skillEditorCreateResponseSchema, { name, newName, scope }),
+  deleteSkill: (name: string, scope: SkillEditorScope = "skills") =>
+    mutate(`/skills/${encodeURIComponent(name)}${scope === "hermes" ? "?scope=hermes" : ""}`, "DELETE", null),
   skillGitPreview: (signal?: AbortSignal) => request("/skills/git/preview", skillEditorGitPreviewResponseSchema, signal),
   commitSkills: (intent: string) => mutate("/skills/git/commit", "POST", skillEditorGitResponseSchema, { intent }),
   pushSkills: () => mutate("/skills/git/push", "POST", skillEditorGitResponseSchema),

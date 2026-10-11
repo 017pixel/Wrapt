@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { SkillEditorNode, SkillEditorReadResponse } from "@wrapt/contracts";
+import type {
+  HermesSkillEditorNode,
+  SkillEditorCreateResponse,
+  SkillEditorNode,
+  SkillEditorReadResponse,
+  SkillEditorRuleEntry,
+  SkillEditorScope,
+} from "@wrapt/contracts";
 import { ApiClientError, apiClient } from "./apiClient";
 
 export const SKILL_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -54,6 +61,68 @@ export function skillFrontmatterWarnings(content: string, skillName: string | nu
 export function skillForPath(skills: SkillEditorNode[], path: string | null): SkillEditorNode | null {
   if (!path) return null;
   return skills.find((skill) => path === skill.path || path.startsWith(`${skill.path}/`)) ?? null;
+}
+
+/**
+ * Erste öffnbare Datei eines intakten Skills: bevorzugt editierbar, sonst die
+ * erste Datei (Stand alter Server). Verzeichnisse und kaputte Skills entfallen.
+ */
+export function firstSkillFilePath(skill: Pick<SkillEditorNode, "broken" | "files"> | null | undefined): string | null {
+  if (!skill || skill.broken) return null;
+  return skill.files.find((file) => file.editable)?.path ?? skill.files[0]?.path ?? null;
+}
+
+/** Gültigkeitsbereich für Skill-Mutationen: klassische Skills oder Hermes-Skills. */
+export type SkillScope = SkillEditorScope;
+
+/** Feste Zeile der Gruppe „Globale Regeln" (Backend-Feld `ruleEntries`). */
+export type SkillRuleEntry = SkillEditorRuleEntry;
+
+/** Hermes-Eintrag: klassischer Skill-Knoten plus Kategorie aus dem Ordnernamen. */
+export type HermesSkillNode = HermesSkillEditorNode;
+
+/** Hermes-Skills nach Kategorie gruppieren (beide Ebenen deutsch sortiert). */
+export function groupHermesByCategory(skills: HermesSkillNode[]): { category: string; skills: HermesSkillNode[] }[] {
+  const groups = new Map<string, HermesSkillNode[]>();
+  for (const skill of skills) {
+    const list = groups.get(skill.category) ?? [];
+    list.push(skill);
+    groups.set(skill.category, list);
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => a.localeCompare(b, "de"))
+    .map(([category, list]) => ({
+      category,
+      skills: [...list].sort((a, b) => a.name.localeCompare(b.name, "de")),
+    }));
+}
+
+/** Freitexttreffer über Name, Beschreibung und Dateinamen (Nadel bereits kleingeschrieben). */
+export function skillMatchesQuery(
+  skill: Pick<SkillEditorNode, "name" | "description" | "files">,
+  needle: string,
+): boolean {
+  if (!needle) return true;
+  if (skill.name.toLocaleLowerCase("de").includes(needle)) return true;
+  if ((skill.description ?? "").toLocaleLowerCase("de").includes(needle)) return true;
+  return skill.files.some((file) => file.name.toLocaleLowerCase("de").includes(needle));
+}
+
+type HermesCreateInput = { name: string; description: string; category: string; license?: string };
+
+/** Legt einen Hermes-Skill an (Kategorie wird im Dialog validiert). */
+export async function createHermesSkillSafe(input: HermesCreateInput): Promise<SkillEditorCreateResponse | undefined> {
+  return apiClient.createHermesSkill(input);
+}
+
+/** Benennt einen Skill um; scope „hermes" für Hermes-Skills. */
+export async function renameSkillScoped(name: string, newName: string, scope: SkillScope = "skills"): Promise<SkillEditorCreateResponse | undefined> {
+  return apiClient.renameSkill(name, newName, scope);
+}
+
+/** Löscht einen Skill; scope „hermes" für Hermes-Skills. */
+export async function deleteSkillScoped(name: string, scope: SkillScope = "skills"): Promise<void> {
+  await apiClient.deleteSkill(name, scope);
 }
 
 export function formatClockTime(value: string): string {

@@ -2,7 +2,7 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
-export type SkillEditorJobOperation = "create" | "rename" | "delete";
+export type SkillEditorJobOperation = "create" | "rename" | "delete" | "create-hermes" | "rename-hermes" | "delete-hermes";
 export type SkillEditorJobState = "running" | "completed" | "failed" | "needs-recovery";
 
 export interface SkillEditorJob {
@@ -51,7 +51,8 @@ export class SkillEditorJobStore {
   constructor(path: string) {
     mkdirSync(dirname(path), { recursive: true });
     this.db = new DatabaseSync(path);
-    this.db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000");
+    // NORMAL statt FULL: Mit WAL ist NORMAL absturzsicher (fsync am Checkpoint statt pro Commit, P-010).
+    this.db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000");
     this.db.exec(`CREATE TABLE IF NOT EXISTS skill_editor_jobs (
       key TEXT PRIMARY KEY,
       operation TEXT NOT NULL,

@@ -30,6 +30,19 @@ describe("Commit-Nachrichten", () => {
     expect(summarizeChanges(records).changes).toEqual([{ name: "neu", action: "geaendert" }]);
   });
 
+  it("erkennt Hermes-Skills mit Kategorie im Namen", () => {
+    const records = parseStatusRecords([
+      "?? hermes-skills/devops/neu/SKILL.md",
+      " M hermes-skills/software-development/bestehend/SKILL.md",
+      " D hermes-skills/devops/weg/SKILL.md",
+    ].join("\0") + "\0");
+    expect(summarizeChanges(records).changes).toEqual([
+      { name: "devops/neu", action: "hinzugefuegt" },
+      { name: "devops/weg", action: "entfernt" },
+      { name: "software-development/bestehend", action: "geaendert" },
+    ]);
+  });
+
   it("formuliert je nach Art der Änderung", () => {
     expect(buildCommitMessage([{ name: "a", action: "hinzugefuegt" }, { name: "b", action: "hinzugefuegt" }], false).title).toBe("feat: skill a, b hinzugefuegt");
     expect(buildCommitMessage([{ name: "a", action: "entfernt" }], false).title).toBe("chore: skill a entfernt");
@@ -115,6 +128,17 @@ describe("Git", () => {
     const preview = await service.gitPreview();
     expect(preview).toMatchObject({ paths: [], changes: [], notice: "Es gibt nichts zu committen." });
     await expect(service.gitCommit({ intent: preview.intent || "0".repeat(16) })).resolves.toMatchObject({ committed: false, notice: "Es gibt nichts zu committen." });
+  });
+
+  it("zeigt Hermes-Änderungen im selben Repo ohne neuen Git-Weg", async () => {
+    // Das Skills-Repo deckt hermes-skills/ bereits ab — die Allowlist genügt.
+    const { service, repository } = await fixture();
+    await initGitRepository(repository);
+    await service.createHermesSkill({ name: "hermes-beta", category: "devops", description: "Zweiter Hermes-Skill" });
+
+    const preview = await service.gitPreview();
+    expect(preview.paths).toContain("hermes-skills/devops/hermes-beta");
+    expect(preview.changes).toContainEqual({ name: "devops/hermes-beta", action: "hinzugefuegt" });
   });
 
   it("lehnt Git ohne konfiguriertes Repository ab", async () => {

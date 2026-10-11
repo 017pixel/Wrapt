@@ -1,4 +1,4 @@
-import { lstat, mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import { lstat, mkdir, readFile, readdir, readlink, rm, symlink, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -215,5 +215,102 @@ describe("Skills anlegen, umbenennen und löschen", () => {
   it("meldet einen unbekannten Skill", async () => {
     const { service } = await fixture();
     await expect(service.deleteSkill({ name: "gibtsnicht" })).rejects.toMatchObject({ statusCode: 404, code: "SKILLS_NOT_FOUND" });
+  });
+});
+
+describe("Hermes-Skills", () => {
+  it("listet Regeleinträge und Hermes-Skills mit Kategorie", async () => {
+    const { service, root, hermesAgents } = await fixture();
+    const tree = await service.list();
+    expect(tree.ruleEntries).toMatchObject([
+      { id: "global", label: "AGENTS.md global", path: join(root, "AGENTS.md"), editable: true },
+      { id: "hermes", label: "Hermes AGENTS.md", path: hermesAgents, editable: true },
+    ]);
+    expect(tree.ruleEntries[0]?.symlinkTarget).toBeNull();
+    expect(tree.hermesSkills).toHaveLength(1);
+    expect(tree.hermesSkills[0]).toMatchObject({
+      name: "hermes-alpha",
+      category: "devops",
+      description: "Erster Hermes-Skill",
+      symlink: false,
+      broken: false,
+    });
+    expect(tree.hermesSkills[0]?.files.map((file) => file.name)).toEqual(["SKILL.md"]);
+  });
+
+  it("lässt den Hermes-Teil weg, wenn nichts konfiguriert ist", async () => {
+    const { service } = await fixture({ withHermes: false });
+    const tree = await service.list();
+    expect(tree.ruleEntries.map((entry) => entry.id)).toEqual(["global"]);
+    expect(tree.hermesSkills).toEqual([]);
+  });
+
+  it("liest und schreibt Hermes-Dateien über den Repo-Pfad", async () => {
+    const { service, hermesSkills, repository } = await fixture();
+    const path = join(hermesSkills, "devops/hermes-alpha/SKILL.md");
+    const before = await service.readFile({ path });
+    expect(before.content).toContain("Erster Hermes-Skill");
+    const saved = await service.writeFile({ path, content: skillFile("hermes-alpha", "Neu beschrieben"), expectedRevision: before.revisionToken });
+    expect(saved.content).toContain("Neu beschrieben");
+    await expect(readFile(join(repository, "hermes-skills/devops/hermes-alpha/SKILL.md"), "utf8")).resolves.toContain("Neu beschrieben");
+  });
+
+  it("liest die Hermes-Regeldatei als Einzeldatei", async () => {
+    const { service, hermesAgents } = await fixture();
+    await expect(service.readFile({ path: hermesAgents })).resolves.toMatchObject({ name: "AGENTS.md" });
+  });
+
+  it("legt einen Hermes-Skill mit Rückverweis an", async () => {
+    const { service, hermesSkills, hermesLinks } = await fixture();
+    const result = await service.createHermesSkill({ name: "beta", category: "devops", description: "Zweiter Hermes-Skill", license: "MIT" });
+
+    expect(result.readmeUpdated).toBe(false);
+    expect(result.notice).toBeNull();
+    expect(result.propagated).toEqual([join(hermesLinks, "devops/beta")]);
+    const content = await readFile(join(hermesSkills, "devops/beta/SKILL.md"), "utf8");
+    expect(content).toBe("---\nname: beta\ndescription: Zweiter Hermes-Skill\nlicense: MIT\n---\n\n# beta\n");
+    // Quelle im Repo, Verweis am Hermes-Platz — dieselbe Richtung wie im Bestand.
+    await expect(readlink(join(hermesLinks, "devops/beta"))).resolves.toBe(join(hermesSkills, "devops/beta"));
+    await expect(service.readFile({ path: result.path })).resolves.toMatchObject({ name: "SKILL.md" });
+  });
+
+  it("lehnt belegte Namen und ungültige Kategorien ab", async () => {
+    const { service } = await fixture();
+    await expect(service.createHermesSkill({ name: "hermes-alpha", category: "software-development", description: "x" }))
+      .rejects.toMatchObject({ statusCode: 409, code: "SKILLS_NAME_TAKEN" });
+    await expect(service.createHermesSkill({ name: "neu", category: "Falsch!", description: "x" }))
+      .rejects.toMatchObject({ statusCode: 400, code: "SKILLS_NAME_INVALID" });
+  });
+
+  it("benennt Ordner, Verweis und Frontmatter um", async () => {
+    const { service, hermesSkills, hermesLinks } = await fixture();
+    const result = await service.renameHermesSkill({ name: "hermes-alpha", newName: "gamma" });
+
+    expect(result.name).toBe("gamma");
+    await expect(readdir(join(hermesSkills, "devops"))).resolves.toEqual(["gamma"]);
+    await expect(readdir(join(hermesLinks, "devops"))).resolves.toEqual(["gamma"]);
+    await expect(readlink(join(hermesLinks, "devops/gamma"))).resolves.toBe(join(hermesSkills, "devops/gamma"));
+    await expect(readFile(join(hermesSkills, "devops/gamma/SKILL.md"), "utf8")).resolves.toContain("name: gamma");
+  });
+
+  it("löscht Ordner und Rückverweis", async () => {
+    const { service, hermesSkills, hermesLinks } = await fixture();
+    await service.deleteHermesSkill({ name: "hermes-alpha" });
+
+    await expect(readdir(join(hermesSkills, "devops"))).resolves.toEqual([]);
+    await expect(readdir(join(hermesLinks, "devops"))).resolves.toEqual([]);
+  });
+
+  it("meldet unbekannte und mehrdeutige Hermes-Namen", async () => {
+    const { service, hermesSkills } = await fixture();
+    await expect(service.deleteHermesSkill({ name: "gibtsnicht" })).rejects.toMatchObject({ statusCode: 404, code: "SKILLS_NOT_FOUND" });
+    await mkdir(join(hermesSkills, "software-development/hermes-alpha"), { recursive: true });
+    await expect(service.deleteHermesSkill({ name: "hermes-alpha" })).rejects.toMatchObject({ statusCode: 409, code: "SKILLS_NAME_AMBIGUOUS" });
+  });
+
+  it("lehnt Hermes-Mutationen ohne Konfiguration ab", async () => {
+    const { service } = await fixture({ withHermes: false });
+    await expect(service.createHermesSkill({ name: "x", category: "devops", description: "x" }))
+      .rejects.toMatchObject({ statusCode: 400, code: "SKILLS_HERMES_MISSING" });
   });
 });

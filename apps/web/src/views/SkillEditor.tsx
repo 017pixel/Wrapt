@@ -1,8 +1,17 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { SkillEditorCreateResponse, SkillEditorFile, SkillEditorGitPreviewResponse, SkillEditorGitResponse, SkillEditorNode } from "@wrapt/contracts";
+import type { SkillEditorCreateResponse, SkillEditorFile, SkillEditorGitResponse, SkillEditorNode, SkillEditorTreeResponse } from "@wrapt/contracts";
 import { apiClient } from "../lib/apiClient";
-import { skillForPath, skillFrontmatterWarnings, useAutosave } from "../lib/skillEditor";
+import {
+  createHermesSkillSafe,
+  deleteSkillScoped,
+  firstSkillFilePath,
+  renameSkillScoped,
+  skillForPath,
+  skillFrontmatterWarnings,
+  useAutosave,
+  type SkillScope,
+} from "../lib/skillEditor";
 import { useResponsiveShell } from "../lib/useResponsiveShell";
 import { usePaneWidth } from "../lib/usePaneWidth";
 import { AutosaveStatus } from "../components/skillEditor/AutosaveStatus";
@@ -11,7 +20,7 @@ import { NewSkillDialog } from "../components/skillEditor/NewSkillDialog";
 import { SkillGitBar } from "../components/skillEditor/SkillGitBar";
 import { SkillTree } from "../components/skillEditor/SkillTree";
 import { ConfirmDialog, PromptDialog } from "../components/ModalDialog";
-import { CloseIcon, FolderTreeIcon, PlusIcon, SearchIcon } from "../components/icons";
+import { CloseIcon, FolderTreeIcon, SearchIcon } from "../components/icons";
 
 const treeQueryKey = ["skills", "tree"] as const;
 const statusQueryKey = ["skills", "status"] as const;
@@ -24,23 +33,43 @@ export function SkillEditor() {
   const status = useQuery({ queryKey: statusQueryKey, queryFn: ({ signal }) => apiClient.skillEditorStatus(signal), staleTime: 10_000 });
   const tree = useQuery({ queryKey: treeQueryKey, queryFn: ({ signal }) => apiClient.skillEditorTree(signal), staleTime: 10_000 });
 
+  // Backend-Track-Felder (ruleEntries, hermesSkills) — bei alten Ständen ohne
+  // die Felder greift der Baum auf agentsFile zurück, hier mit ?? [] defensiv.
+  // Eigene Memos, damit die Referenz bei jedem Render stabil bleibt.
+  const ruleEntries = useMemo(() => tree.data?.ruleEntries ?? [], [tree.data]);
+  const hermesSkills = useMemo(() => tree.data?.hermesSkills ?? [], [tree.data]);
+  const hermesCategories = useMemo(
+    () => [...new Set(hermesSkills.map((skill) => skill.category))].sort((a, b) => a.localeCompare(b, "de")),
+    [hermesSkills],
+  );
+  const allSkills = useMemo<SkillEditorNode[]>(
+    () => [...(tree.data?.skills ?? []), ...hermesSkills],
+    [hermesSkills, tree.data?.skills],
+  );
+
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [treeOpen, setTreeOpen] = useState(false);
   const [treeQuery, setTreeQuery] = useState("");
   const treePaneWidth = usePaneWidth({ storageKey: "wrapt.skills.tree-width.v1", initial: 280, min: 200, max: 460 });
   const [creating, setCreating] = useState(false);
-  const [renaming, setRenaming] = useState<SkillEditorNode | null>(null);
-  const [deleting, setDeleting] = useState<SkillEditorNode | null>(null);
+  const [creatingHermes, setCreatingHermes] = useState(false);
+  const [renaming, setRenaming] = useState<{ node: SkillEditorNode; scope: SkillScope } | null>(null);
+  const [deleting, setDeleting] = useState<{ node: SkillEditorNode; scope: SkillScope } | null>(null);
   const [actionMessage, setActionMessage] = useState<{ tone: "ok" | "bad"; text: string } | null>(null);
-  const [gitPreview, setGitPreview] = useState<SkillEditorGitPreviewResponse | null>(null);
   const [gitResult, setGitResult] = useState<SkillEditorGitResponse | null>(null);
 
   // Ohne Auswahl stehen die globalen Regeln im Editor — der häufigste Einstieg.
+  // Fehlende Dateien (editable false ohne Ziel) werden übersprungen, damit
+  // kein 404-Fallback im Editor landet.
+  const firstOpenPath = useCallback(() => ruleEntries.find((rule) => rule.editable)?.path
+    ?? (tree.data?.agentsFile?.editable ? tree.data.agentsFile.path : null)
+    ?? firstSkillFilePath(tree.data?.skills.find((skill) => !skill.broken))
+    ?? firstSkillFilePath(hermesSkills.find((skill) => !skill.broken))
+    ?? null, [hermesSkills, ruleEntries, tree.data]);
   useEffect(() => {
     if (selectedPath !== null || !tree.data) return;
-    const fallback = tree.data.agentsFile?.path ?? tree.data.skills.find((skill) => !skill.broken)?.files[0]?.path ?? null;
-    setSelectedPath(fallback);
-  }, [selectedPath, tree.data]);
+    setSelectedPath(firstOpenPath());
+  }, [firstOpenPath, selectedPath, tree.data]);
 
   const file = useQuery({
     queryKey: ["skills", "file", selectedPath],
@@ -59,7 +88,7 @@ export function SkillEditor() {
     }, [queryClient]),
   });
 
-  const activeSkill = useMemo(() => skillForPath(tree.data?.skills ?? [], selectedPath), [selectedPath, tree.data?.skills]);
+  const activeSkill = useMemo(() => skillForPath(allSkills, selectedPath), [selectedPath, allSkills]);
   const warnings = useMemo(
     () => (selectedPath?.endsWith("/SKILL.md") ? skillFrontmatterWarnings(autosave.content, activeSkill?.name ?? null) : []),
     [activeSkill?.name, autosave.content, selectedPath],
@@ -99,30 +128,44 @@ export function SkillEditor() {
     onSuccess: (result) => { if (result) void applyResult(result, "angelegt"); },
     onError: failed,
   });
+  const createHermesMutation = useMutation({
+    mutationFn: (input: { name: string; description: string; category: string; license?: string }) => createHermesSkillSafe(input),
+    onSuccess: (result) => { if (result) void applyResult(result, "angelegt"); },
+    onError: failed,
+  });
   const renameMutation = useMutation({
-    mutationFn: (input: { name: string; newName: string }) => apiClient.renameSkill(input.name, input.newName),
+    mutationFn: (input: { name: string; newName: string; scope: SkillScope }) => renameSkillScoped(input.name, input.newName, input.scope),
     onSuccess: (result) => { if (result) void applyResult(result, "umbenannt"); },
     onError: failed,
   });
   const deleteMutation = useMutation({
-    mutationFn: (name: string) => apiClient.deleteSkill(name),
-    onSuccess: async (_result, name) => {
-      setSelectedPath(tree.data?.agentsFile?.path ?? null);
+    mutationFn: (input: { name: string; scope: SkillScope }) => deleteSkillScoped(input.name, input.scope),
+    onSuccess: async (_result, input) => {
+      // Erst Auswahl lösen (kein 404 auf die gelöschte Datei), dann aus den
+      // frischen Baumdaten wählen statt aus dem Stand vor dem Löschen.
+      setSelectedPath(null);
       await refreshTree();
-      setActionMessage({ tone: "ok", text: `Skill „${name}" samt Verweisen entfernt.` });
+      const fresh = queryClient.getQueryData<SkillEditorTreeResponse>(treeQueryKey);
+      setSelectedPath(
+        fresh?.ruleEntries?.find((rule) => rule.editable)?.path
+          ?? (fresh?.agentsFile?.editable ? fresh.agentsFile.path : null)
+          ?? firstSkillFilePath(fresh?.skills.find((skill) => !skill.broken))
+          ?? firstSkillFilePath(fresh?.hermesSkills?.find((skill) => !skill.broken))
+          ?? null,
+      );
+      setActionMessage({ tone: "ok", text: `Skill „${input.name}" samt Verweisen entfernt.` });
+      setDeleting(null);
     },
     onError: failed,
   });
   const previewMutation = useMutation({
     mutationFn: () => apiClient.skillGitPreview(),
-    onSuccess: (result) => setGitPreview(result ?? null),
     onError: failed,
   });
   const commitMutation = useMutation({
     mutationFn: (intent: string) => apiClient.commitSkills(intent),
     onSuccess: async (result) => {
       setGitResult(result ?? null);
-      setGitPreview(null);
       await Promise.all([queryClient.invalidateQueries({ queryKey: statusQueryKey }), refreshTree()]);
     },
     onError: failed,
@@ -136,6 +179,26 @@ export function SkillEditor() {
     onError: failed,
   });
 
+  // Ein Knopf für alles: Vorschau prüfen, committen, pushen. Leere Vorschau
+  // bricht still ab, Fehler landen über die Mutationen in der Leiste.
+  const commitAndPush = useCallback(() => {
+    if (previewMutation.isPending || commitMutation.isPending || pushMutation.isPending) return;
+    void (async () => {
+      const preview = await previewMutation.mutateAsync();
+      if (!preview || preview.paths.length === 0) return;
+      const committed = await commitMutation.mutateAsync(preview.intent);
+      if (!committed) return;
+      await pushMutation.mutateAsync();
+    })().catch(failed);
+  }, [commitMutation, failed, previewMutation, pushMutation]);
+
+  const handleRename = useCallback((node: SkillEditorNode, scope: SkillScope = "skills") => {
+    setRenaming({ node, scope });
+  }, []);
+  const handleDelete = useCallback((node: SkillEditorNode, scope: SkillScope = "skills") => {
+    setDeleting({ node, scope });
+  }, []);
+
   const readError = file.isError ? (file.error instanceof Error ? file.error.message : "Die Datei konnte nicht geladen werden.") : null;
 
   const treePane = (
@@ -143,18 +206,6 @@ export function SkillEditor() {
       className={`skill-editor-tree-pane ${compact ? "is-drawer" : ""} ${treeOpen ? "is-open" : ""}`}
       style={compact ? undefined : { width: `${treePaneWidth.width}px` }}
     >
-      <div className="skill-editor-pane-head">
-        <span className="skill-editor-pane-title">Skill-Ordner</span>
-        {compact ? (
-          <button type="button" className="icon-button" onClick={() => setTreeOpen(false)} aria-label="Baum schließen">
-            <CloseIcon className="h-4 w-4" />
-          </button>
-        ) : (
-          <button type="button" className="icon-button" onClick={() => setCreating(true)} aria-label="Neuen Skill anlegen" title="Neuen Skill anlegen">
-            <PlusIcon className="h-4 w-4" />
-          </button>
-        )}
-      </div>
       {/* Bei über dreißig Skills ist Scrollen der langsamste Weg zum Ziel. */}
       <label className="skill-editor-tree-search" title="Skills filtern">
         <SearchIcon className="h-3.5 w-3.5" aria-hidden />
@@ -170,12 +221,12 @@ export function SkillEditor() {
               selectedPath={selectedPath}
               onSelect={(entry) => void openFile(entry)}
               onCreate={() => setCreating(true)}
-              onRename={setRenaming}
-              onDelete={setDeleting}
+              onCreateHermes={() => setCreatingHermes(true)}
+              onRename={handleRename}
+              onDelete={handleDelete}
               query={treeQuery}
             />
           ) : null}
-      {tree.data ? <p className="skill-editor-root-path" title={tree.data.rootDirectory}>{tree.data.rootDirectory}</p> : null}
       {!compact ? <div
         className="pane-resize-handle"
         role="separator"
@@ -252,39 +303,50 @@ export function SkillEditor() {
       {status.data?.repositoryConfigured ? (
         <SkillGitBar
           repository={status.data.repository}
-          preview={gitPreview}
           result={gitResult}
           busy={previewMutation.isPending || commitMutation.isPending || pushMutation.isPending}
-          onPreview={() => previewMutation.mutate()}
-          onCommit={(intent) => commitMutation.mutate(intent)}
-          onPush={() => pushMutation.mutate()}
+          onCommitAndPush={commitAndPush}
         />
       ) : null}
 
       <NewSkillDialog
         open={creating}
         busy={createMutation.isPending}
+        mode="skills"
         onClose={() => setCreating(false)}
         onCreate={(input) => createMutation.mutate(input)}
       />
+      <NewSkillDialog
+        open={creatingHermes}
+        busy={createHermesMutation.isPending}
+        mode="hermes"
+        categories={hermesCategories}
+        onClose={() => setCreatingHermes(false)}
+        onCreate={(input) => {
+          if (!input.category) { failed(new Error("Bitte eine Kategorie wählen oder neu tippen.")); return; }
+          createHermesMutation.mutate({ name: input.name, description: input.description, category: input.category, ...(input.license ? { license: input.license } : {}) });
+        }}
+      />
       <PromptDialog
         open={renaming !== null}
-        title="Skill umbenennen"
+        title={renaming?.scope === "hermes" ? "Hermes-Skill umbenennen" : "Skill umbenennen"}
         description="Ordner, alle Verweise und der Frontmatter-Name werden mit umbenannt."
         label="Neuer Name"
-        initialValue={renaming?.name ?? ""}
+        initialValue={renaming?.node.name ?? ""}
         confirmLabel="Umbenennen"
-        onConfirm={(value) => { if (renaming) renameMutation.mutate({ name: renaming.name, newName: value }); }}
+        onConfirm={(value) => { if (renaming) renameMutation.mutate({ name: renaming.node.name, newName: value, scope: renaming.scope }); }}
         onClose={() => setRenaming(null)}
       />
       <ConfirmDialog
         open={deleting !== null}
-        title={`Skill „${deleting?.name ?? ""}" löschen`}
+        title={`${deleting?.scope === "hermes" ? "Hermes-Skill" : "Skill"} „${deleting?.node.name ?? ""}" löschen`}
         description="Der Skill-Ordner, alle Verweise in den Harness-Verzeichnissen und die README-Zeile werden entfernt. Das lässt sich nur über Git zurückholen."
-        confirmLabel="Endgültig löschen"
+        confirmLabel={deleteMutation.isPending ? "Wird gelöscht …" : "Endgültig löschen"}
         danger
-        onConfirm={() => { if (deleting) deleteMutation.mutate(deleting.name); }}
-        onClose={() => setDeleting(null)}
+        confirmPending={deleteMutation.isPending}
+        error={deleting && deleteMutation.error instanceof Error ? deleteMutation.error.message : null}
+        onConfirm={() => { if (deleting) deleteMutation.mutate({ name: deleting.node.name, scope: deleting.scope }); }}
+        onClose={() => { deleteMutation.reset(); setDeleting(null); }}
       />
     </div>
   );

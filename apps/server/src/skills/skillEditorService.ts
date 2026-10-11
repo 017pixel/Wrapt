@@ -1,14 +1,12 @@
-import type { Dirent, Stats } from "node:fs";
-import { chmod, lstat, readFile, readdir, realpath, rename, rm, stat, writeFile } from "node:fs/promises";
-import { createHash } from "node:crypto";
-import { basename, dirname, isAbsolute, join, normalize, resolve } from "node:path";
+import type { Dirent } from "node:fs";
+import { lstat, readFile, readdir, stat } from "node:fs/promises";
+import { join } from "node:path";
 import {
-  skillEditorReadResponseSchema,
   skillEditorStatusResponseSchema,
   skillEditorTreeResponseSchema,
+  type HermesSkillEditorCreateRequest,
   type SkillEditorCreateRequest,
   type SkillEditorCreateResponse,
-  type SkillEditorFile,
   type SkillEditorGitPreviewResponse,
   type SkillEditorGitResponse,
   type SkillEditorNode,
@@ -19,13 +17,15 @@ import {
 import { execa } from "execa";
 import { SkillGitRepository } from "./skillGitRepository.js";
 import { SkillEditorJobStore, type SkillEditorJobOperation } from "./skillEditorJobs.js";
+import { SkillFileStore } from "./skillEditorFiles.js";
 import { SkillMutations } from "./skillEditorMutations.js";
+import { HermesMutations } from "./hermesSkillMutations.js";
+import { assertHermesName, findHermesSkill, hermesLinkBaseFor, hermesNameTaken, listHermesSkills, listRuleEntries } from "./hermesSkills.js";
 import { parseSkillFrontmatter } from "./skillEditorText.js";
 import { AppError } from "../utils/errors.js";
 import { canonicalRootCandidates, contained } from "../utils/pathRoots.js";
 
 const SKILL_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const MAXIMUM_TREE_DEPTH = 8;
 
 /** Journal-Schlüssel: gleiche Operation auf gleichen Namen ist wiederaufnehmbar. */
 function jobKey(operation: SkillEditorJobOperation, name: string, newName: string | null): string {
@@ -39,26 +39,14 @@ export interface SkillEditorOptions {
   propagateDirectories: string[];
   /** Git-Repository mit den echten Skill-Ordnern; ohne Angabe entfällt der Git-Teil. */
   repositoryDirectory: string | null;
+  /** Hermes-Skillquelle (hermes-skills/); ohne Angabe entfällt der Hermes-Teil. */
+  hermesSkillsDirectory?: string | null;
+  /** Globale Hermes-Regeln als Einzeldatei; ohne Angabe entfällt der Eintrag. */
+  hermesAgentsPath?: string | null;
   autosaveDebounceMilliseconds: number;
   maxFileBytes: number;
   /** SQLite-Datei für das Recovery-Journal der Skill-Operationen. */
   jobDatabasePath: string;
-}
-
-function filesystemFailure(error: unknown): never {
-  const code = (error as NodeJS.ErrnoException).code;
-  if (code === "ENOENT") throw new AppError(404, "SKILLS_PATH_NOT_FOUND", "Diese Datei wurde nicht gefunden.");
-  if (code === "EACCES" || code === "EPERM") throw new AppError(403, "SKILLS_PATH_INACCESSIBLE", "Diese Datei ist nicht lesbar.");
-  throw error;
-}
-
-/** `stat` mit Symlink-Auflösung; `null` steht für einen Verweis ins Leere. */
-async function statOrNull(path: string): Promise<Stats | null> {
-  try {
-    return await stat(path);
-  } catch {
-    return null;
-  }
 }
 
 async function exists(path: string): Promise<boolean> {
@@ -69,16 +57,6 @@ async function exists(path: string): Promise<boolean> {
     if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
     throw error;
   }
-}
-
-/**
- * Inhaltsgebundener Revisionstoken aus Mtime, Größe und SHA-256 des Inhalts.
- * Nur so lässt sich eine externe Änderung von einer reinen Berührung der Datei
- * unterscheiden und ein stiller Überschreibvorgang ausschließen.
- */
-function revisionTokenOf(details: Stats, buffer: Buffer): string {
-  const contentHash = createHash("sha256").update(buffer).digest("hex");
-  return createHash("sha256").update(`${details.mtimeMs}\n${details.size}\n${contentHash}`).digest("hex");
 }
 
 export {
@@ -92,16 +70,27 @@ export {
 export class SkillEditorService {
   private readonly allowedRoots: string[];
   private readonly jobs: SkillEditorJobStore;
+  private readonly files: SkillFileStore;
   private readonly mutations: SkillMutations;
+  private readonly hermes: HermesMutations | null;
   private readonly jobLocks = new Map<string, Promise<unknown>>();
 
   constructor(private readonly options: SkillEditorOptions) {
+    const hermesSkillsDirectory = options.hermesSkillsDirectory ?? null;
     this.allowedRoots = canonicalRootCandidates([
       options.rootDirectory,
       ...options.propagateDirectories,
       ...(options.repositoryDirectory ? [options.repositoryDirectory] : []),
+      ...(hermesSkillsDirectory ? [hermesSkillsDirectory] : []),
     ]);
     this.jobs = new SkillEditorJobStore(options.jobDatabasePath);
+    this.files = new SkillFileStore({
+      rootDirectory: options.rootDirectory,
+      hermesSkillsDirectory,
+      hermesAgentsPath: options.hermesAgentsPath ?? null,
+      allowedRoots: this.allowedRoots,
+      maxFileBytes: options.maxFileBytes,
+    });
     this.mutations = new SkillMutations({
       skillsDirectory: this.skillsDirectory,
       propagateDirectories: options.propagateDirectories,
@@ -110,6 +99,13 @@ export class SkillEditorService {
       physicalPath: (name) => this.physicalPath(name),
       assertAllowedTarget: (canonical) => this.assertAllowedTarget(canonical),
     });
+    this.hermes = hermesSkillsDirectory
+      ? new HermesMutations({
+        hermesSkillsDirectory,
+        linkBase: hermesLinkBaseFor(options.hermesAgentsPath ?? null),
+        assertAllowedTarget: (canonical) => this.assertAllowedTarget(canonical),
+      })
+      : null;
   }
 
   close() { this.jobs.close(); }
@@ -120,101 +116,15 @@ export class SkillEditorService {
 
   // --- Pfadprüfung ----------------------------------------------------------
 
-  /**
-   * Der angeforderte Pfad muss vor der Auflösung innerhalb des Root-Ordners liegen.
-   * Anders als der Dateimanager folgt der Skill-Editor Symlinks bewusst — die Skills
-   * *sind* Verweise ins Repository —, das Ziel muss aber in einem erlaubten Bereich landen.
-   */
-  private requestedPath(input: string): string {
-    const value = input.trim();
-    if (!value) throw new AppError(400, "SKILLS_PATH_REQUIRED", "Es wurde kein Pfad angegeben.");
-    const requested = isAbsolute(value) ? normalize(value) : resolve(this.options.rootDirectory, value);
-    if (!contained(this.options.rootDirectory, requested)) {
-      throw new AppError(403, "SKILLS_PATH_OUTSIDE_ROOT", "Der Pfad liegt außerhalb des Skill-Ordners.");
-    }
-    return requested;
-  }
-
   private assertAllowedTarget(canonical: string): void {
     if (this.allowedRoots.some((root) => contained(root, canonical))) return;
     throw new AppError(403, "SKILLS_PATH_OUTSIDE_ROOT", "Der Verweis führt aus den erlaubten Skill-Ordnern heraus.");
   }
 
-  /** Pfad auflösen und auf Datei/Ordner prüfen; kaputte Verweise werden benannt. */
-  private async resolveExisting(input: string, expect: "file" | "directory"): Promise<{ requested: string; canonical: string; details: Stats }> {
-    const requested = this.requestedPath(input);
-    let details: Stats;
-    try {
-      details = await stat(requested);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT" && await exists(requested)) {
-        throw new AppError(409, "SKILLS_SYMLINK_BROKEN", "Dieser Verweis zeigt ins Leere. Das Ziel wurde verschoben oder gelöscht.");
-      }
-      filesystemFailure(error);
-    }
-    if (expect === "file" && !details.isFile()) throw new AppError(400, "SKILLS_PATH_NOT_FILE", "Der angegebene Pfad ist keine Datei.");
-    if (expect === "directory" && !details.isDirectory()) throw new AppError(400, "SKILLS_PATH_NOT_DIRECTORY", "Der angegebene Pfad ist kein Ordner.");
-    const canonical = await realpath(requested).catch(filesystemFailure);
-    this.assertAllowedTarget(canonical);
-    return { requested, canonical, details };
-  }
-
   // --- Baum -----------------------------------------------------------------
 
-  private async fileEntry(path: string, name = basename(path)): Promise<SkillEditorFile | null> {
-    let link: Stats;
-    try {
-      link = await lstat(path);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return null;
-      throw error;
-    }
-    const isSymbolicLink = link.isSymbolicLink();
-    // Kaputter Verweis: bleibt im Baum sichtbar, ist aber nicht bearbeitbar.
-    const details = await statOrNull(path);
-    if (details && !details.isFile() && !details.isDirectory()) return null;
-    const kind: SkillEditorFile["kind"] = details?.isDirectory() ? "directory" : "file";
-    return {
-      name,
-      path,
-      kind,
-      sizeBytes: details?.isFile() ? details.size : null,
-      modifiedAt: details ? details.mtime.toISOString() : null,
-      symlink: isSymbolicLink,
-      broken: details === null,
-      editable: Boolean(details?.isFile() && details.size <= this.options.maxFileBytes),
-    };
-  }
-
-  private async walk(directory: string, depth: number): Promise<SkillEditorFile[]> {
-    if (depth >= MAXIMUM_TREE_DEPTH) return [];
-    let dirents: Dirent[];
-    try {
-      dirents = await readdir(directory, { withFileTypes: true });
-    } catch {
-      return [];
-    }
-    dirents.sort((left, right) => {
-      // `SKILL.md` gehört nach oben: sie ist die Datei, die fast immer gemeint ist.
-      if (depth === 0 && (left.name === "SKILL.md" || right.name === "SKILL.md")) {
-        return Number(right.name === "SKILL.md") - Number(left.name === "SKILL.md");
-      }
-      return left.name.localeCompare(right.name, "de", { sensitivity: "base" });
-    });
-    const files: SkillEditorFile[] = [];
-    for (const dirent of dirents) {
-      if (dirent.name === ".git" || dirent.name === "node_modules") continue;
-      const path = join(directory, dirent.name);
-      const entry = await this.fileEntry(path, dirent.name);
-      if (!entry) continue;
-      files.push(entry);
-      if (entry.kind === "directory" && !entry.broken) files.push(...await this.walk(path, depth + 1));
-    }
-    return files;
-  }
-
   async list(): Promise<SkillEditorTreeResponse> {
-    const agentsFile = await this.fileEntry(join(this.options.rootDirectory, "AGENTS.md"));
+    const agentsFile = await this.files.fileEntry(join(this.options.rootDirectory, "AGENTS.md"));
     let dirents: Dirent[] = [];
     try {
       dirents = await readdir(this.skillsDirectory, { withFileTypes: true });
@@ -227,7 +137,7 @@ export class SkillEditorService {
     for (const dirent of dirents) {
       if (dirent.name.startsWith(".")) continue;
       const path = join(this.skillsDirectory, dirent.name);
-      const details = await statOrNull(path);
+      const details = await stat(path).catch(() => null);
       // Nur Skill-Ordner (und kaputte Verweise, die einmal Ordner waren) gehören in den Baum.
       if (details && !details.isDirectory()) continue;
       const broken = details === null;
@@ -243,10 +153,21 @@ export class SkillEditorService {
         modifiedAt: details ? details.mtime.toISOString() : null,
         symlink: dirent.isSymbolicLink(),
         broken,
-        files: broken ? [] : await this.walk(path, 0),
+        files: broken ? [] : await this.files.walk(path, 0),
       });
     }
-    return skillEditorTreeResponseSchema.parse({ rootDirectory: this.options.rootDirectory, agentsFile, skills });
+    const hermesSkillsDirectory = this.options.hermesSkillsDirectory ?? null;
+    return skillEditorTreeResponseSchema.parse({
+      rootDirectory: this.options.rootDirectory,
+      agentsFile,
+      ruleEntries: await listRuleEntries({
+        rootDirectory: this.options.rootDirectory,
+        hermesAgentsPath: this.options.hermesAgentsPath ?? null,
+        maxFileBytes: this.options.maxFileBytes,
+      }),
+      skills,
+      hermesSkills: hermesSkillsDirectory ? await listHermesSkills(hermesSkillsDirectory, this.files) : [],
+    });
   }
 
   async status(): Promise<SkillEditorStatusResponse> {
@@ -273,78 +194,15 @@ export class SkillEditorService {
   }
 
   // --- Lesen und Schreiben --------------------------------------------------
+  // Pfadbasiert für alle Gruppen (Harness-Skills, Hermes-Skills, Regeleinträge);
+  // die Zugriffs- und Konfliktlogik liegt im SkillFileStore.
 
   async readFile(input: { path: string }): Promise<SkillEditorReadResponse> {
-    const { requested, canonical, details } = await this.resolveExisting(input.path, "file");
-    if (details.size > this.options.maxFileBytes) {
-      throw new AppError(413, "SKILLS_FILE_TOO_LARGE", "Diese Datei ist zu groß für den Editor.", { limitBytes: this.options.maxFileBytes });
-    }
-    const buffer = await readFile(canonical).catch(filesystemFailure);
-    let content: string;
-    try {
-      content = new TextDecoder("utf-8", { fatal: true }).decode(buffer);
-    } catch {
-      throw new AppError(415, "SKILLS_NOT_TEXT", "Diese Datei ist kein Textdokument und kann nicht bearbeitet werden.");
-    }
-    return skillEditorReadResponseSchema.parse({
-      path: requested,
-      name: basename(requested),
-      content,
-      modifiedAt: details.mtime.toISOString(),
-      sizeBytes: details.size,
-      revisionToken: revisionTokenOf(details, buffer),
-    });
+    return this.files.readFile(input);
   }
 
-  /** Aktueller Revisionstoken einer Datei (frisch gelesen). */
-  private async revisionAt(canonical: string): Promise<{ token: string; modifiedAt: string }> {
-    const details = await stat(canonical).catch(filesystemFailure);
-    if (details.size > this.options.maxFileBytes) {
-      throw new AppError(413, "SKILLS_FILE_TOO_LARGE", "Diese Datei ist zu groß für den Editor.", { limitBytes: this.options.maxFileBytes });
-    }
-    const buffer = await readFile(canonical).catch(filesystemFailure);
-    return { token: revisionTokenOf(details, buffer), modifiedAt: details.mtime.toISOString() };
-  }
-
-  /**
-   * Atomar und bedingt schreiben: Temp-Datei im Zielverzeichnis, erneute
-   * Token-Prüfung unmittelbar vor dem `rename`, dann atomarer Replace. Eine
-   * externe Änderung wird damit nie still überschrieben; der erfolgreiche Save
-   * bezieht sich auf genau den geprüften Revisionstoken.
-   */
   async writeFile(input: { path: string; content: string; expectedRevision?: string | null | undefined; expectedModifiedAt?: string | null | undefined }): Promise<SkillEditorReadResponse> {
-    const { requested, canonical, details } = await this.resolveExisting(input.path, "file");
-    if (input.content.length > this.options.maxFileBytes) {
-      throw new AppError(413, "SKILLS_FILE_TOO_LARGE", "Der Inhalt überschreitet das Größenlimit.", { limitBytes: this.options.maxFileBytes });
-    }
-    const currentBuffer = await readFile(canonical).catch(filesystemFailure);
-    const current = { token: revisionTokenOf(details, currentBuffer), modifiedAt: details.mtime.toISOString() };
-    if (input.expectedRevision !== undefined && input.expectedRevision !== null && input.expectedRevision !== current.token) {
-      throw new AppError(409, "SKILLS_CONFLICT", "Diese Datei wurde zwischenzeitlich außerhalb der Workbench geändert.", { serverModifiedAt: current.modifiedAt, revisionToken: current.token });
-    }
-    if ((input.expectedRevision === undefined || input.expectedRevision === null)
-      && input.expectedModifiedAt != null && input.expectedModifiedAt !== current.modifiedAt) {
-      // Legacy-Erwartungswert älterer Clients: mtime allein ist schwächer,
-      // wird aber weiterhin als Konfliktsignal behandelt.
-      throw new AppError(409, "SKILLS_CONFLICT", "Diese Datei wurde zwischenzeitlich außerhalb der Workbench geändert.", { serverModifiedAt: current.modifiedAt, revisionToken: current.token });
-    }
-    const temporary = join(dirname(canonical), `.wrapt-skill-${process.pid}-${Date.now()}.tmp`);
-    try {
-      await writeFile(temporary, input.content, { encoding: "utf8", mode: 0o600 });
-      // Bestehende Rechte übernehmen, damit eine Bearbeitung keine Datei-Rechte verschiebt.
-      await chmod(temporary, details.mode & 0o777);
-      const beforeReplace = await this.revisionAt(canonical);
-      if (beforeReplace.token !== current.token) {
-        await rm(temporary, { force: true }).catch(() => undefined);
-        throw new AppError(409, "SKILLS_CONFLICT", "Diese Datei wurde während des Speicherns außerhalb der Workbench geändert.", { serverModifiedAt: beforeReplace.modifiedAt, revisionToken: beforeReplace.token });
-      }
-      await rename(temporary, canonical);
-    } catch (error) {
-      await rm(temporary, { force: true }).catch(() => undefined);
-      if (error instanceof AppError) throw error;
-      filesystemFailure(error);
-    }
-    return this.readFile({ path: requested });
+    return this.files.writeFile(input);
   }
 
   // --- Skills anlegen, umbenennen, löschen ----------------------------------
@@ -411,6 +269,54 @@ export class SkillEditorService {
     await this.runJob(key, "delete", { name: input.name }, (onProgress) => this.mutations.ensureSkillRemoved(input.name, onProgress));
   }
 
+  // --- Hermes-Skills ----------------------------------------------------------
+  // Quelle im Repo (hermes-skills/<kategorie>/<name>), Rückverweis am Hermes-Platz.
+
+  private requireHermes(): HermesMutations {
+    if (!this.hermes || !(this.options.hermesSkillsDirectory ?? null)) {
+      throw new AppError(400, "SKILLS_HERMES_MISSING", "Es ist kein Hermes-Skillverzeichnis konfiguriert.");
+    }
+    return this.hermes;
+  }
+
+  async createHermesSkill(input: HermesSkillEditorCreateRequest): Promise<SkillEditorCreateResponse> {
+    const mutations = this.requireHermes();
+    const directory = this.options.hermesSkillsDirectory!;
+    this.assertName(input.name);
+    assertHermesName(input.category, "Kategorie");
+    const key = jobKey("create-hermes", `${input.category}/${input.name}`, null);
+    if (!this.pendingJob(key) && await hermesNameTaken(directory, input.name)) {
+      throw new AppError(409, "SKILLS_NAME_TAKEN", `Ein Hermes-Skill mit dem Namen „${input.name}" existiert bereits.`);
+    }
+    const payload = { name: input.name, category: input.category, description: input.description, ...(input.license ? { license: input.license } : {}) };
+    return this.runJob(key, "create-hermes", payload, (onProgress) => mutations.ensureHermesSkillCreated(input, onProgress));
+  }
+
+  async renameHermesSkill(input: { name: string; newName: string }): Promise<SkillEditorCreateResponse> {
+    const mutations = this.requireHermes();
+    const directory = this.options.hermesSkillsDirectory!;
+    this.assertName(input.name);
+    this.assertName(input.newName);
+    if (input.name === input.newName) throw new AppError(400, "SKILLS_SAME_NAME", "Der Name ist unverändert.");
+    const location = await findHermesSkill(directory, input.name);
+    const key = jobKey("rename-hermes", `${location.category}/${input.name}`, input.newName);
+    if (!this.pendingJob(key) && await hermesNameTaken(directory, input.newName)) {
+      throw new AppError(409, "SKILLS_NAME_TAKEN", `Ein Hermes-Skill mit dem Namen „${input.newName}" existiert bereits.`);
+    }
+    const payload = { category: location.category, name: input.name, newName: input.newName };
+    return this.runJob(key, "rename-hermes", payload, (onProgress) => mutations.ensureHermesSkillRenamed(payload, onProgress));
+  }
+
+  async deleteHermesSkill(input: { name: string }): Promise<void> {
+    const mutations = this.requireHermes();
+    const directory = this.options.hermesSkillsDirectory!;
+    this.assertName(input.name);
+    const location = await findHermesSkill(directory, input.name);
+    const key = jobKey("delete-hermes", `${location.category}/${input.name}`, null);
+    const payload = { category: location.category, name: input.name };
+    await this.runJob(key, "delete-hermes", payload, (onProgress) => mutations.ensureHermesSkillRemoved(payload.category, payload.name, onProgress));
+  }
+
   // --- Recovery -------------------------------------------------------------
 
   /** Nimmt unterbrochene Skill-Operationen beim Start idempotent wieder auf. */
@@ -426,6 +332,16 @@ export class SkillEditorService {
         } else if (job.operation === "rename") {
           const payload = job.payload as { name: string; newName: string };
           this.jobs.complete(job.key, await this.mutations.ensureSkillRenamed(payload, onProgress));
+        } else if (job.operation === "create-hermes") {
+          const payload = job.payload as unknown as HermesSkillEditorCreateRequest;
+          this.jobs.complete(job.key, await this.requireHermes().ensureHermesSkillCreated(payload, onProgress));
+        } else if (job.operation === "rename-hermes") {
+          const payload = job.payload as { category: string; name: string; newName: string };
+          this.jobs.complete(job.key, await this.requireHermes().ensureHermesSkillRenamed(payload, onProgress));
+        } else if (job.operation === "delete-hermes") {
+          const payload = job.payload as { category: string; name: string };
+          await this.requireHermes().ensureHermesSkillRemoved(payload.category, payload.name, onProgress);
+          this.jobs.complete(job.key, null);
         } else {
           const payload = job.payload as { name: string };
           await this.mutations.ensureSkillRemoved(payload.name, onProgress);

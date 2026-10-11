@@ -45,11 +45,16 @@ interface MarkdownEditorProps {
   disabled?: boolean;
 }
 
+export function stripFrontmatter(value: string): string {
+  if (!value.startsWith("---")) return value;
+  return value.replace(/^---\r?\n[\s\S]*?\r?\n---(\r?\n)*/, "");
+}
+
 export function MarkdownEditor({ value, onChange, onBlur, warnings, disabled = false }: MarkdownEditorProps) {
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const areaRef = useRef<HTMLTextAreaElement>(null);
   const html = useMemo(
-    () => (mode === "preview" ? DOMPurify.sanitize(markdown.parse(value, { async: false }) as string, { ADD_ATTR: ["target"] }) : ""),
+    () => (mode === "preview" ? DOMPurify.sanitize(markdown.parse(stripFrontmatter(value), { async: false }) as string, { ADD_ATTR: ["target"] }) : ""),
     [mode, value],
   );
 

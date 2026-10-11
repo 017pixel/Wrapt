@@ -85,6 +85,14 @@ export function summarizeChanges(records: StatusRecord[]): { changes: SkillEdito
   const states = new Map<string, Set<string>>();
   let globalRulesChanged = false;
   for (const record of records) {
+    const hermes = /^hermes-skills\/([^/]+)\/([^/]+)/.exec(record.path);
+    if (hermes) {
+      // Hermes-Skills teilen sich das Skills-Repo; der Name trägt die Kategorie.
+      const bucket = states.get(`${hermes[1]}/${hermes[2]}`) ?? new Set<string>();
+      bucket.add(record.code.trim());
+      states.set(`${hermes[1]}/${hermes[2]}`, bucket);
+      continue;
+    }
     const match = /^skills\/([^/]+)/.exec(record.path);
     if (!match) {
       if (record.path === "AGENTS.md" || record.path === "README.md") globalRulesChanged = true;
@@ -107,6 +115,8 @@ export function summarizeChanges(records: StatusRecord[]): { changes: SkillEdito
 }
 
 function skillRoot(path: string): string | null {
+  const hermes = /^(hermes-skills\/[^/]+\/[^/]+)(\/|$)/.exec(path);
+  if (hermes) return hermes[1]!;
   const match = /^(skills\/[^/]+)(\/|$)/.exec(path);
   if (!match) return null;
   return match[1]!;
@@ -116,6 +126,11 @@ function allowedRoot(record: StatusRecord): string | null {
   if (record.path === "README.md" || record.path === "AGENTS.md") return record.path;
   const root = skillRoot(record.path);
   if (!root) return null;
+  if (root.startsWith("hermes-skills/")) {
+    // hermes-skills/<kategorie>/<name>: beide Segmente folgen den Skillregeln.
+    const [, category, name] = root.split("/");
+    return category && name && SKILL_NAME_PATTERN.test(category) && SKILL_NAME_PATTERN.test(name) ? root : null;
+  }
   const name = root.slice("skills/".length);
   return SKILL_NAME_PATTERN.test(name) ? root : null;
 }

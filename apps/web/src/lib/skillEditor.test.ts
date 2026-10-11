@@ -3,7 +3,7 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SkillEditorReadResponse } from "@wrapt/contracts";
 import { ApiClientError, apiClient } from "./apiClient";
-import { isValidSkillName, skillForPath, skillFrontmatterWarnings, useAutosave } from "./skillEditor";
+import { firstSkillFilePath, isValidSkillName, skillForPath, skillFrontmatterWarnings, useAutosave } from "./skillEditor";
 
 /** Ausstehende Mikrotasks der Speicherkette abarbeiten (fake timers schließen waitFor aus). */
 async function settle(): Promise<void> {
@@ -39,6 +39,16 @@ describe("Namen und Frontmatter", () => {
     expect(skillForPath(skills, "/root/skills/alpha/SKILL.md")?.name).toBe("alpha");
     expect(skillForPath(skills, "/root/AGENTS.md")).toBeNull();
     expect(skillForPath(skills, null)).toBeNull();
+  });
+
+  it("wählt die erste editierbare Datei eines Skills", () => {
+    const entry = (name: string, path: string, kind: "file" | "directory", editable: boolean) => (
+      { name, path, kind, sizeBytes: 1, modifiedAt: null, symlink: false, broken: false, editable });
+    const files = [entry("docs", "/s/d/docs", "directory", false), entry("SKILL.md", "/s/d/SKILL.md", "file", true)];
+    expect(firstSkillFilePath({ broken: false, files })).toBe("/s/d/SKILL.md");
+    expect(firstSkillFilePath({ broken: true, files })).toBeNull();
+    expect(firstSkillFilePath({ broken: false, files: [] })).toBeNull();
+    expect(firstSkillFilePath(null)).toBeNull();
   });
 });
 
