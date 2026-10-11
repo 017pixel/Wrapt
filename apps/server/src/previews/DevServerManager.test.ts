@@ -1,13 +1,41 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
-import { sanitizeDevServerPath } from "./DevServerManager.js";
+import { sanitizeDevServerPath, type PreviewDevServerManager } from "./DevServerManager.js";
+import type { PreviewDevServerDatabase } from "./devServerDatabase.js";
 import { harness } from "./testing/devServerHarness.js";
+
+// S-013: Starts brauchen eine bestätigte Befehls-Vorschau. Der Helfer legt
+// die Bestätigung für den aktuellen Stand (nach Config-Änderungen aufrufen)
+// ab und startet danach. Die Bestätigung liegt in der geteilten Datenbank und
+// gilt auch für frische Manager (Backend-Neustart) und Watchdog-Restarts.
+async function startConfirmed(
+  manager: PreviewDevServerManager,
+  database: PreviewDevServerDatabase,
+  userId: string,
+  projectId: string,
+) {
+  const preview = await manager.commandPreview(projectId);
+  database.saveCommandConfirmation(userId, projectId, preview.commandHash, preview.commandPreview, preview.projectPath);
+  return manager.start(userId, projectId);
+}
+
+async function launchConfirmed(
+  manager: PreviewDevServerManager,
+  database: PreviewDevServerDatabase,
+  userId: string,
+  projectId: string,
+) {
+  const preview = await manager.commandPreview(projectId);
+  database.saveCommandConfirmation(userId, projectId, preview.commandHash, preview.commandPreview, preview.projectPath);
+  return manager.launch(userId, projectId);
+}
 
 describe("PreviewDevServerManager", () => {
   it("übernimmt eine laufende tmux-Sitzung nach einem Backend-Neustart", async () => {
-    const { create, supervisor } = await harness();
-    expect((await create().start("user@example.test", "projekt")).state).toBe("running");
+    const { create, database, supervisor } = await harness();
+    const manager = create();
+    expect((await startConfirmed(manager, database, "user@example.test", "projekt")).state).toBe("running");
     const paneQuery = supervisor.commands.find((args) => args[0] === "list-panes");
     expect(paneQuery).toContain("-s");
     const format = paneQuery?.[paneQuery.indexOf("-F") + 1];
@@ -20,8 +48,8 @@ describe("PreviewDevServerManager", () => {
   });
 
   it("startet den Dev-Server mit explizitem PATH über env", async () => {
-    const { create, supervisor, project } = await harness();
-    await create().start("user@example.test", "projekt");
+    const { create, database, supervisor, project } = await harness();
+    await startConfirmed(create(), database, "user@example.test", "projekt");
     const command = supervisor.commands.find((args) => args[0] === "new-session");
     const last = command?.at(-1) ?? "";
     expect(last.startsWith("'/usr/bin/env'")).toBe(true);
@@ -31,7 +59,7 @@ describe("PreviewDevServerManager", () => {
   });
 
   it("startet Frontend, API und Datenbank gemeinsam als getrennte überwachte Dienste", async () => {
-    const { create, supervisor, project } = await harness();
+    const { create, database, supervisor, project } = await harness();
     await writeFile(join(project.path, "preview.config.json"), JSON.stringify({
       version: 1,
       mainService: "frontend",
@@ -41,7 +69,7 @@ describe("PreviewDevServerManager", () => {
         { id: "database", name: "Datenbank", role: "database", command: "npm run db:dev", port: null, portMode: "none" },
       ],
     }));
-    const status = await create().start("user@example.test", "projekt");
+    const status = await startConfirmed(create(), database, "user@example.test", "projekt");
     const session = [...supervisor.sessions.values()][0];
     expect(session?.panes.map((pane) => pane.name)).toEqual(["frontend", "api", "database"]);
     expect(status.services.map((service) => [service.role, service.port, service.state])).toEqual([
@@ -55,9 +83,13 @@ describe("PreviewDevServerManager", () => {
   });
 
   it("weist gleichzeitig gestarteten Projekten unterschiedliche Ports zu und behält sie nach einem Backend-Neustart", async () => {
-    const { create, addProject } = await harness();
+    const { create, database, addProject } = await harness();
     await addProject("zweites-projekt");
     const manager = create();
+    for (const projectId of ["projekt", "zweites-projekt"]) {
+      const preview = await manager.commandPreview(projectId);
+      database.saveCommandConfirmation("user@example.test", projectId, preview.commandHash, preview.commandPreview, preview.projectPath);
+    }
     const [first, second] = await Promise.all([
       manager.start("user@example.test", "projekt"),
       manager.start("user@example.test", "zweites-projekt"),
@@ -67,14 +99,16 @@ describe("PreviewDevServerManager", () => {
   });
 
   it("lässt feste Ports kompatibel und meldet ihren Konflikt konkret", async () => {
-    const { create, addProject } = await harness();
+    const { create, database, addProject } = await harness();
     const second = await addProject("festes-projekt");
     await writeFile(join(second.path, "preview.config.json"), JSON.stringify({
       version: 1,
       services: [{ id: "web", name: "Web", role: "frontend", command: "npm run dev", port: 1234, portMode: "environment" }],
     }));
     const manager = create();
-    await manager.start("user@example.test", "projekt");
+    await startConfirmed(manager, database, "user@example.test", "projekt");
+    const preview = await manager.commandPreview("festes-projekt");
+    database.saveCommandConfirmation("user@example.test", "festes-projekt", preview.commandHash, preview.commandPreview, preview.projectPath);
     await expect(manager.start("user@example.test", "festes-projekt")).rejects.toMatchObject({ code: "PREVIEW_RUNTIME_PORT_BUSY" });
   });
 
@@ -125,9 +159,9 @@ describe("PreviewDevServerManager", () => {
   });
 
   it("startet beim Launch die Laufzeit und liefert die direkte veröffentlichte URL", async () => {
-    const { create } = await harness();
+    const { create, database } = await harness();
     const manager = create(async () => ({ url: "https://server.test.ts.net:8451/", sessionId: "11111111-1111-4111-8111-111111111111" }));
-    const launched = await manager.launch("user@example.test", "projekt");
+    const launched = await launchConfirmed(manager, database, "user@example.test", "projekt");
     expect(launched.publication.url).toBe("https://server.test.ts.net:8451/");
     expect(launched.status).toMatchObject({ state: "running", mainPort: 1234, publicUrl: "https://server.test.ts.net:8451/" });
     await manager.releasePublication("user@example.test", "projekt");
@@ -136,14 +170,14 @@ describe("PreviewDevServerManager", () => {
   });
 
   it("startet die Projektprozesse auch dann, wenn noch kein Preview-Slot veröffentlicht werden kann", async () => {
-    const { create } = await harness();
+    const { create, database } = await harness();
     let publications = 0;
     const manager = create(async () => {
       publications += 1;
       throw new Error("Keine Preview-Slots frei");
     });
 
-    await expect(manager.start("user@example.test", "projekt")).resolves.toMatchObject({ state: "running", publicUrl: null });
+    await expect(startConfirmed(manager, database, "user@example.test", "projekt")).resolves.toMatchObject({ state: "running", publicUrl: null });
     await manager.tick();
     expect(publications).toBe(0);
     await expect(manager.launch("user@example.test", "projekt")).rejects.toThrow(/Keine Preview-Slots frei/);
@@ -152,13 +186,13 @@ describe("PreviewDevServerManager", () => {
   });
 
   it("erneuert nur eine ausdrücklich geöffnete Preview nach einem Backend-Neustart", async () => {
-    const { create } = await harness();
+    const { create, database } = await harness();
     let publications = 0;
     const publish = async () => {
       publications += 1;
       return { url: "https://server.test.ts.net:8451/", sessionId: "11111111-1111-4111-8111-111111111111" };
     };
-    await create(publish).launch("user@example.test", "projekt");
+    await launchConfirmed(create(publish), database, "user@example.test", "projekt");
     expect(publications).toBe(1);
 
     await create(publish).tick();
@@ -166,7 +200,7 @@ describe("PreviewDevServerManager", () => {
   });
 
   it("überwacht alle Fenster einer Sitzung, nicht nur das erste", async () => {
-    const { create, supervisor, project } = await harness();
+    const { create, database, supervisor, project } = await harness();
     await writeFile(join(project.path, "preview.config.json"), JSON.stringify({
       version: 1,
       services: [
@@ -175,7 +209,7 @@ describe("PreviewDevServerManager", () => {
       ],
     }));
     const manager = create();
-    const status = await manager.start("user@example.test", "projekt");
+    const status = await startConfirmed(manager, database, "user@example.test", "projekt");
     expect(status.services.map((service) => service.state)).toEqual(["running", "running"]);
 
     const name = [...supervisor.sessions.keys()][0]!;
@@ -194,7 +228,7 @@ describe("PreviewDevServerManager", () => {
   });
 
   it("baut eine teilweise fehlgeschlagene Sitzung beim Start vollständig neu auf", async () => {
-    const { create, supervisor, project } = await harness();
+    const { create, database, supervisor, project } = await harness();
     await writeFile(join(project.path, "preview.config.json"), JSON.stringify({
       version: 1,
       services: [
@@ -203,18 +237,19 @@ describe("PreviewDevServerManager", () => {
       ],
     }));
     const manager = create();
-    await manager.start("user@example.test", "projekt");
+    await startConfirmed(manager, database, "user@example.test", "projekt");
     const name = [...supervisor.sessions.keys()][0]!;
     supervisor.sessions.get(name)!.panes[1]!.dead = true;
     supervisor.sessions.get(name)!.panes[1]!.exitCode = 1;
-    const status = await manager.start("user@example.test", "projekt");
+    const status = await startConfirmed(manager, database, "user@example.test", "projekt");
     expect(status.services.map((service) => service.state)).toEqual(["running", "running"]);
     expect(supervisor.commands.filter((command) => command[0] === "new-session")).toHaveLength(2);
   });
 
   it("entfernt Terminal-Steuersequenzen aus Logs und speichert den Öffnungsmodus", async () => {
-    const { create } = await harness();
-    await create().start("user@example.test", "projekt");
+    const { create, database } = await harness();
+    const manager = create();
+    await startConfirmed(manager, database, "user@example.test", "projekt");
     const logs = await create().logs("user@example.test", "projekt");
     expect(logs.output).toContain("error");
     expect(logs.output).not.toContain("\u001b");
@@ -223,9 +258,9 @@ describe("PreviewDevServerManager", () => {
   });
 
   it("startet einen abgestürzten Dev-Server automatisch neu", async () => {
-    const { create, supervisor } = await harness();
+    const { create, database, supervisor } = await harness();
     const manager = create();
-    await manager.start("user@example.test", "projekt");
+    await startConfirmed(manager, database, "user@example.test", "projekt");
     const name = [...supervisor.sessions.keys()][0]!;
     supervisor.sessions.get(name)!.dead = true;
     supervisor.sessions.get(name)!.exitCode = 1;
@@ -236,9 +271,9 @@ describe("PreviewDevServerManager", () => {
   });
 
   it("holt auch nach einem Backend-Neustart tote Sessions anhand der tmux-Optionen hoch", async () => {
-    const { create, supervisor } = await harness();
+    const { create, database, supervisor } = await harness();
     const manager = create();
-    await manager.start("user@example.test", "projekt");
+    await startConfirmed(manager, database, "user@example.test", "projekt");
     const name = [...supervisor.sessions.keys()][0]!;
     supervisor.sessions.get(name)!.dead = true;
     supervisor.sessions.get(name)!.exitCode = 1;
@@ -248,9 +283,9 @@ describe("PreviewDevServerManager", () => {
   });
 
   it("startet eine Session nach explizitem Stop nicht neu", async () => {
-    const { create, supervisor } = await harness();
+    const { create, database, supervisor } = await harness();
     const manager = create();
-    await manager.start("user@example.test", "projekt");
+    await startConfirmed(manager, database, "user@example.test", "projekt");
     await manager.stop("user@example.test", "projekt");
     const starts = supervisor.commands.filter((command) => command[0] === "new-session").length;
     await manager.tick();
@@ -258,9 +293,9 @@ describe("PreviewDevServerManager", () => {
   });
 
   it("bremst wiederholte Abstürze mit einem Backoff-Fenster", async () => {
-    const { create, supervisor } = await harness();
+    const { create, database, supervisor } = await harness();
     const manager = create();
-    await manager.start("user@example.test", "projekt");
+    await startConfirmed(manager, database, "user@example.test", "projekt");
     const name = [...supervisor.sessions.keys()][0]!;
     for (let index = 0; index < 4; index += 1) {
       await manager.tick();
@@ -274,9 +309,9 @@ describe("PreviewDevServerManager", () => {
   });
 
   it("ignoriert normal beendete Sessions beim Auto-Restart", async () => {
-    const { create, supervisor } = await harness();
+    const { create, database, supervisor } = await harness();
     const manager = create();
-    await manager.start("user@example.test", "projekt");
+    await startConfirmed(manager, database, "user@example.test", "projekt");
     const name = [...supervisor.sessions.keys()][0]!;
     supervisor.sessions.get(name)!.dead = true;
     supervisor.sessions.get(name)!.exitCode = 0;
