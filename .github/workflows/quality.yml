@@ -64,14 +64,20 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # Der Deployment-Test startet den gebauten Server direkt aus apps/server/dist.
-      - run: pnpm build
       # Preview-Laufzeiten starten über tmux auf dem separaten Preview-Socket.
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends tmux
-      - run: pnpm exec playwright install --with-deps chromium firefox webkit
-      - run: pnpm test:extension-deployment
+      - name: Playwright-Version ermitteln
+        id: playwright
+        run: echo "version=$(pnpm exec playwright --version | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium
+      - run: pnpm exec playwright install --with-deps chromium
+      # Playwright baut einmal; der Deployment-Test verwendet danach denselben Server-Build.
       - run: pnpm test:e2e
-      - if: failure()
+      - run: pnpm test:extension-deployment
+      - if: always()
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report
