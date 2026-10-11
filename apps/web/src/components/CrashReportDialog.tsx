@@ -134,7 +134,7 @@ export function CrashToastRegion() {
   if (!toast) return null;
 
   return (
-    <div className="fixed right-4 bottom-4 z-[300] max-w-sm" role="status" aria-live="polite">
+    <div className="fixed right-4 bottom-4 z-[300] max-w-sm" role="status" aria-live="polite" aria-label={toast.message}>
       <div className="dash-notice is-warn">
         <span className="min-w-0">{toast.message}</span>
         <button type="button" className="quiet-button min-h-11 min-w-11 shrink-0" onClick={dismissToast} aria-label="Hinweis schließen">
