@@ -17,6 +17,7 @@ import type {
 } from "@wrapt/contracts";
 import { AppError } from "../utils/errors.js";
 import type { PreviewDevServerDatabase } from "./devServerDatabase.js";
+import { assertDevServerCommandConfirmed, devServerCommandPreview, type DevServerCommandPreview } from "./devServerConfirmations.js";
 import { detectRuntimeProfile, type RuntimeProfileResult } from "./runtimeProfiles.js";
 
 interface CommandResult { status: number | null; stdout: string; stderr: string }
@@ -24,6 +25,12 @@ type CommandRunner = (args: string[], timeoutMilliseconds: number) => CommandRes
 
 const DEFAULT_PREVIEW_TMUX_SOCKET = "wrapt-previews";
 const RUNTIME_PORTS_OPTION = "@wrapt_runtime_ports";
+
+// S-006: Projekt-Code läuft als Server-Benutzer (gleiche UID) und kann die
+// Workbench-API erreichen. Dieser Hinweis steht in jeder Statusantwort, damit
+// die Oberfläche ihn beim Start bestätigen kann.
+export const PREVIEW_TRUST_HINT =
+  "Nur vertrauenswürdige Repos starten: Preview-Befehle laufen als Server-Benutzer.";
 
 export interface PreviewDevServerManagerOptions {
   database: PreviewDevServerDatabase;
@@ -99,6 +106,12 @@ export class PreviewDevServerManager {
     }
   }
 
+  /** S-013: Aktuelle Befehls-Vorschau mit Hash für die explizite Bestätigung. */
+  async commandPreview(projectId: string): Promise<DevServerCommandPreview> {
+    const project = await this.resolveProject(projectId);
+    return devServerCommandPreview(projectId, project.path, await this.profile(projectId));
+  }
+
   async status(userId: string, projectId: string): Promise<PreviewDevServerStatus> {
     let detectedProfile: RuntimeProfileResult;
     try {
@@ -127,7 +140,8 @@ export class PreviewDevServerManager {
       projectId, state: aggregate,
       command: services.length === 1 ? services[0]!.command : `${services.length} Dienste gemeinsam`,
       mainPort, mainServiceId, profileSource: profile.source, services,
-      allowedPorts: [...this.options.allowedProjectPorts], warnings: profile.warnings,
+      allowedPorts: [...this.options.allowedProjectPorts],
+      warnings: profile.warnings.includes(PREVIEW_TRUST_HINT) ? profile.warnings : [...profile.warnings, PREVIEW_TRUST_HINT],
       publicUrl: publication?.url ?? null,
       pid: running[0]?.pid ?? null,
       startedAt: running.map((service) => service.startedAt).filter((value): value is string => value !== null).sort()[0] ?? null,
@@ -157,6 +171,9 @@ export class PreviewDevServerManager {
   private async startUnlocked(userId: string, projectId: string): Promise<PreviewDevServerStatus> {
     const project = await this.resolveProject(projectId);
     const detectedProfile = await this.profile(projectId);
+    // S-013: Unbestätigte Projekt-Befehle starten nicht — weder manuell noch
+    // über den Watchdog (autoRestart nutzt denselben Pfad).
+    assertDevServerCommandConfirmed(this.options.database, userId, devServerCommandPreview(projectId, project.path, detectedProfile));
     const name = this.sessionName(userId, projectId);
     const panes = this.panes(name);
     if (panes.length > 0 && !panes.some((pane) => pane.dead)) return this.status(userId, projectId);

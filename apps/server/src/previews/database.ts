@@ -85,7 +85,7 @@ export interface RepairAuditEntry {
  * Persistenz aller Preview-Daten in der bestehenden Workbench-SQLite. Bindings,
  * Slotzustände und Affinitäten werden ausschließlich in `BEGIN IMMEDIATE`
  * geändert, damit eine Routing-Revision entweder vollständig oder gar nicht
- * sichtbar wird.
+ * sichtbar wird. Haltbarkeit: WAL + synchronous=NORMAL (P-010).
  */
 export class PreviewSlotDatabase {
   private readonly db: DatabaseSync;
@@ -93,7 +93,7 @@ export class PreviewSlotDatabase {
   constructor(path: string) {
     mkdirSync(dirname(path), { recursive: true });
     this.db = new DatabaseSync(path);
-    this.db.exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON");
+    this.db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON");
     this.migrate();
   }
 

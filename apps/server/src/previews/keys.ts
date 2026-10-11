@@ -71,6 +71,11 @@ export class PreviewSecrets {
     return this.read("preview-agent-capability", 32).toString("base64");
   }
 
+  /** Geheimnis für Slot-Token (S-005). Eigene Datei, nie über API oder Log. */
+  slotTokenSecret(): string {
+    return this.read("preview-slot-token.key", 32).toString("base64");
+  }
+
   /** Stabile Pseudonym-ID einer Benutzeridentität für persistierte Logs. */
   pseudonym(userId: string): string {
     return createHmac("sha256", this.logHmacKey()).update(userId).digest("hex").slice(0, 32);

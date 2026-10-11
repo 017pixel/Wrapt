@@ -15,6 +15,13 @@ import {
 } from "./bridge.js";
 import type { PreviewSlotDefinition, SlotRoute } from "./routing.js";
 import { AppError } from "../utils/errors.js";
+import { RateBudget } from "../utils/rate-budget.js";
+import {
+  EXTERNAL_REDIRECT_WARN_ROUTE, assertSlotAccess, cookieDomainWarnings, devServerDownPage,
+  externalRedirectWarnPage, externalRedirectWarnUrl, isExternalRedirectTarget, sanitizeSlotCookies,
+} from "./gateway-auth.js";
+
+export { cookieDomainWarnings, devServerDownPage };
 
 export type HeaderBag = Record<string, string | string[] | undefined>;
 
@@ -105,14 +112,6 @@ export function rewriteLinkHeader(value: string, mapping: Record<string, string>
     .join(", ");
 }
 
-/** Meldet `Domain=localhost`-Cookies, ohne sie still umzuschreiben. */
-export function cookieDomainWarnings(setCookie: string | string[] | undefined): string[] {
-  const values = Array.isArray(setCookie) ? setCookie : setCookie ? [setCookie] : [];
-  return values
-    .filter((cookie) => /;\s*domain\s*=\s*(localhost|127\.0\.0\.1)\s*(;|$)/i.test(cookie))
-    .map((cookie) => cookie.split(";")[0]?.split("=")[0]?.trim() ?? "cookie");
-}
-
 function parseCspDirectives(value: string): Map<string, string[]> {
   const directives = new Map<string, string[]>();
   for (const part of value.split(";")) {
@@ -179,37 +178,6 @@ export function adjustEmbeddingPolicy(headers: HeaderBag, options: { workbenchOr
   return { headers: result, changes };
 }
 
-/**
- * Verständliche 502-Seite, wenn der Zielport nicht antwortet. Sie lädt sich mit
- * einem Zähler im sessionStorage der Slot-Origin begrenzt selbst neu, damit das
- * Preview nach einem automatischen Devserver-Neustart ohne Nutzereingriff
- * wiederkommt. Nach zehn Versuchen stoppt der Reload; ein späteres manuelles
- * Neuladen startet frisch.
- */
-export function devServerDownPage(): string {
-  return "<!doctype html><html lang=\"de\"><head><meta charset=\"utf-8\"><title>Preview nicht erreichbar</title>"
-    + "<script>"
-    + "(function(){"
-    + "try{"
-    + "var key='wrapt:preview-retry';"
-    + "var raw=window.sessionStorage.getItem(key);"
-    + "var now=Date.now();"
-    + "var attempt=0;"
-    + "if(raw){try{var state=JSON.parse(raw);"
-    + "if(state&&typeof state.n==='number'&&typeof state.at==='number'&&now-state.at<120000)attempt=state.n+1;"
-    + "}catch(e){attempt=0}}"
-    + "if(attempt<10){window.sessionStorage.setItem(key,JSON.stringify({n:attempt,at:now}));"
-    + "window.setTimeout(function(){window.location.reload()},5000);"
-    + "}else{window.sessionStorage.removeItem(key)}"
-    + "}catch(e){}"
-    + "})();"
-    + "</script>"
-    + "</head><body>"
-    + "<p style=\"font:14px sans-serif\">Der Entwicklungs-Server antwortet gerade nicht. "
-    + "Die Workbench versucht, ihn automatisch neu zu starten; diese Seite lädt sich selbst neu.</p>"
-    + "</body></html>";
-}
-
 export interface GatewayDiagnosticEvent {
   slotId: number;
   sessionId: string | null;
@@ -238,6 +206,8 @@ export interface PreviewGatewayOptions {
     maxStorageKeys: number;
   };
   onDiagnostic?: (event: GatewayDiagnosticEvent) => void;
+  /** Slot-Token-Prüfung (S-005). `requireToken` bleibt aus, bis apps/web Token an Slot-URLs hängt. */
+  slotToken?: { secret: string; requireToken: boolean };
 }
 
 interface RequestContext {
@@ -362,7 +332,7 @@ export class PreviewGateway {
     });
   }
 
-  private resolveRoute(slotId: number): SlotRoute {
+  private resolveRoute(slotId: number, rawUrl?: string, headers?: HeaderBag): SlotRoute {
     const route = this.options.route(slotId);
     if (!route) {
       throw new AppError(503, "PREVIEW_SLOT_UNASSIGNED", "Dieser Preview-Slot ist noch keinem Devserver zugewiesen.");
@@ -370,6 +340,7 @@ export class PreviewGateway {
     if (route.state === "quarantined") {
       throw new AppError(409, "PREVIEW_SLOT_QUARANTINED", "Dieser Preview-Slot steht in Quarantäne und liefert keine Inhalte aus.");
     }
+    if (rawUrl !== undefined) assertSlotAccess(route, rawUrl, headers ?? {}, { ...this.options.slotToken });
     return route;
   }
 
@@ -377,7 +348,15 @@ export class PreviewGateway {
     const listener = Fastify({ logger: false, trustProxy: ["127.0.0.1", "::1"] });
     await listener.register(replyFrom);
     await listener.register(websocket);
+    // Fachliche Fehler (403/409/429/503) als knappe Codes statt generischem 500.
+    listener.setErrorHandler((error, _request, reply) => {
+      if (error instanceof AppError) return reply.status(error.statusCode).send({ error: error.code });
+      return reply.status(500).send({ error: "INTERNAL_ERROR" });
+    });
     const publicOrigin = () => new URL(this.options.publicUrlForSlot(definition.id)).origin;
+    // Eigenes Budget pro Slot-Listener (S-009): 600 Requests/Minute teilen sich
+    // alle Tabs dieses Slots. Legitime Nutzung liegt weit darunter.
+    const rateBudget = new RateBudget({ maxEvents: 600, windowMilliseconds: 60_000 });
 
     // Reservierte Routen. Sie erreichen den Devserver nie.
     listener.get(PREVIEW_BRIDGE_ROUTE, { config: { rateLimit: false } }, async (_request, reply) => {
@@ -415,11 +394,17 @@ export class PreviewGateway {
         .status(204)
         .send(),
     );
+    // Warnseite für externe Redirects (S-012): kein stiller Weg aus der Slot-Origin.
+    listener.get(EXTERNAL_REDIRECT_WARN_ROUTE, { config: { rateLimit: false } }, async (request, reply) => {
+      const query = request.query as Record<string, unknown>;
+      const target = typeof query.ziel === "string" ? query.ziel : "";
+      return reply.type("text/html; charset=utf-8").header("cache-control", "no-store").send(externalRedirectWarnPage(target));
+    });
 
     const proxyHttp = (request: FastifyRequest, reply: FastifyReply) => {
       let route: SlotRoute;
       try {
-        route = this.resolveRoute(definition.id);
+        route = this.resolveRoute(definition.id, request.raw.url ?? request.url, request.headers as HeaderBag);
       } catch (error) {
         // Browser sehen statt rohem JSON eine verständliche Seite: Die nackte
         // Slot-URL funktioniert nur, solange eine Session diese Origin besitzt.
@@ -432,6 +417,9 @@ export class PreviewGateway {
           );
         }
         throw error;
+      }
+      if (!rateBudget.tryConsume("http")) {
+        return reply.status(429).send({ error: "PREVIEW_GATEWAY_RATE_LIMITED" });
       }
       const startedAt = Date.now();
       const origin = publicOrigin();
@@ -463,19 +451,25 @@ export class PreviewGateway {
           const rewritten = adjusted.headers;
           for (const header of ["location", "content-location"]) {
             const value = rewritten[header];
-            if (typeof value === "string") rewritten[header] = rewriteLocalUrl(value, route.mapping);
+            if (typeof value === "string") {
+              const local = rewriteLocalUrl(value, route.mapping);
+              // Externe Ziele verlassen die Slot-Origin (S-012): Warnseite statt stillem Redirect.
+              rewritten[header] = isExternalRedirectTarget(local, route.mapping) ? externalRedirectWarnUrl(local) : local;
+            }
           }
           if (typeof rewritten.link === "string") rewritten.link = rewriteLinkHeader(rewritten.link, route.mapping);
-          for (const name of cookieDomainWarnings(rewritten["set-cookie"])) {
+          const slotCookies = sanitizeSlotCookies(rewritten["set-cookie"]);
+          rewritten["set-cookie"] = slotCookies.kept;
+          for (const name of slotCookies.removed) {
             this.diagnostic({
               slotId: definition.id,
               sessionId: route.sessionId,
               routingRevision: this.options.routingRevision(),
               category: "routing",
               severity: "warn",
-              message: `Cookie „${name}" nutzt Domain=localhost und gilt hostweit für alle Slots.`,
+              message: `Cookie „${name}" nutzt Domain=localhost und wurde entfernt (gälte hostweit für alle Slots).`,
               route: request.url,
-              metadata: { limitation: "cookies-share-host" },
+              metadata: { limitation: "cookies-share-host", removed: true },
             });
           }
           if (adjusted.changes.length > 0) {
@@ -600,7 +594,13 @@ export class PreviewGateway {
         helmet: false,
         handler: proxyHttp,
         wsHandler: (socket, request) => {
-          const route = this.resolveRoute(definition.id);
+          let route: SlotRoute;
+          try {
+            route = this.resolveRoute(definition.id, request.raw.url ?? request.url, request.headers as HeaderBag);
+          } catch {
+            socket.close(1008, "Preview-Slot ist nicht freigegeben");
+            return;
+          }
           const upstreamOrigin = route.role === "dependency" && route.primaryTarget
             ? `${route.primaryTarget.targetProtocol}://127.0.0.1:${route.primaryTarget.targetPort}`
             : undefined;

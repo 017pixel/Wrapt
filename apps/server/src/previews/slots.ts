@@ -18,6 +18,10 @@ import {
 import { AppError } from "../utils/errors.js";
 import type { PreviewSlotDatabase, BindingRow, SessionRow } from "./database.js";
 import { PreviewGateway, type GatewayDiagnosticEvent } from "./gateway.js";
+import { deriveSlotToken } from "./gateway-auth.js";
+import { defaultFlags, type PreviewFlags } from "./slot-flags.js";
+
+export type { PreviewFlags } from "./slot-flags.js";
 import { PREVIEW_BRIDGE_VERSION } from "./bridge.js";
 import {
   bindingFingerprint,
@@ -50,32 +54,9 @@ export interface PreviewSlotServiceOptions {
   workbenchOrigins?: string[];
   flags?: Partial<PreviewFlags>;
   onDiagnostic?: (event: GatewayDiagnosticEvent) => void;
+  /** Geheimnis für Slot-Token (S-005). Ohne Geheimnis bleibt der Datenpfad tokenlos. */
+  slotTokenSecret?: string;
 }
-
-export interface PreviewFlags {
-  gatewayV2Enabled: boolean;
-  bridgeEnabled: boolean;
-  diagnosticsEnabled: boolean;
-  storageSyncEnabled: boolean;
-  slotResetEnabled: boolean;
-  maxInjectableHtmlBytes: number;
-  maxStorageBytes: number;
-  maxStorageKeys: number;
-  /** Testmodus: Slot-Origins als `http://127.0.0.1:<internalPort>` ausgeben. */
-  loopbackPublicOrigins: boolean;
-}
-
-const defaultFlags: PreviewFlags = {
-  gatewayV2Enabled: false,
-  bridgeEnabled: false,
-  diagnosticsEnabled: false,
-  storageSyncEnabled: false,
-  slotResetEnabled: false,
-  maxInjectableHtmlBytes: 2_097_152,
-  maxStorageBytes: 262_144,
-  maxStorageKeys: 1_000,
-  loopbackPublicOrigins: false,
-};
 
 /**
  * Fachliche Klammer um Datenbank, Routing-Snapshot, Gateway und Slot-Reset.
@@ -91,12 +72,14 @@ export class PreviewSlotService {
   private readonly forbiddenTargetPorts: Set<number>;
   private readonly flags: PreviewFlags;
   private readonly gateway: PreviewGateway;
+  private readonly slotTokenSecret: string | null;
   private snapshot: RoutingSnapshot = emptyRoutingSnapshot;
 
   constructor(options: PreviewSlotServiceOptions) {
     this.database = options.database;
     this.hostname = options.hostname;
     this.flags = { ...defaultFlags, ...options.flags };
+    this.slotTokenSecret = options.slotTokenSecret ?? null;
     this.forbiddenTargetPorts = new Set([
       ...options.slotPorts,
       ...options.publicPorts,
@@ -124,6 +107,9 @@ export class PreviewSlotService {
         maxStorageKeys: this.flags.maxStorageKeys,
       },
       ...(options.onDiagnostic ? { onDiagnostic: options.onDiagnostic } : {}),
+      ...(this.slotTokenSecret === null
+        ? {}
+        : { slotToken: { secret: this.slotTokenSecret, requireToken: this.flags.requireSlotToken } }),
     });
     this.publish();
   }
@@ -139,6 +125,17 @@ export class PreviewSlotService {
     return this.flags.loopbackPublicOrigins
       ? `http://127.0.0.1:${definition.internalPort}/`
       : `https://${this.hostname}:${definition.publicPort}/`;
+  }
+
+  /**
+   * Slot-URL für eine Session (S-005): Mit konfiguriertem Geheimnis hängt das
+   * unerratbare Token an, das der Listener prüft. Ohne Geheimnis identisch zu
+   * `publicUrl` — bestehende Clients und Tests bleiben unverändert.
+   */
+  sessionSlotUrl(slotId: number, sessionId: string): string {
+    const base = this.publicUrl(slotId);
+    if (this.slotTokenSecret === null) return base;
+    return `${base}?slotToken=${deriveSlotToken(this.slotTokenSecret, sessionId)}`;
   }
 
   /**
@@ -626,7 +623,7 @@ export class PreviewSlotService {
         targetPort: binding.targetPort,
         targetProtocol: binding.targetProtocol,
         slotId: binding.slotId,
-        publicUrl: this.publicUrl(binding.slotId),
+        publicUrl: this.sessionSlotUrl(binding.slotId, session.id),
       })),
     });
   }

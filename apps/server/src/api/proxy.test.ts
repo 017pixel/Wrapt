@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import Fastify from "fastify";
 import { apiErrorSchema } from "@wrapt/contracts";
 import { AppError } from "../utils/errors.js";
-import { createProxyHandler } from "./proxy.js";
+import { checkProxyRedirectTarget, createPinningLookup, createProxyHandler } from "./proxy.js";
 
 let upstream: Server;
 let upstreamOrigin: string;
@@ -107,5 +107,71 @@ describe("proxy handler", () => {
     expect(response.headers["x-frame-options"]).toBeUndefined();
     expect(response.headers["content-security-policy"]).toContain("frame-ancestors 'none'");
     await app.close();
+  });
+
+  it("blocks redirects leaving the allowlisted origin with 403", async () => {
+    upstream.removeAllListeners("request");
+    upstream.on("request", (request, response) => {
+      if (request.url === "/fremd") {
+        response.writeHead(302, { location: "https://other.invalid/beute" });
+        response.end();
+        return;
+      }
+      if (request.url === "/weiter") {
+        response.writeHead(302, { location: `${upstreamOrigin}/asset.png` });
+        response.end();
+        return;
+      }
+      response.writeHead(200, { "content-type": "image/png" });
+      response.end("png");
+    });
+    const app = makeApp([upstreamOrigin]);
+    const foreign = await app.inject({ url: `/proxy/${encodeURIComponent(upstreamOrigin + "/fremd")}` });
+    expect(foreign.statusCode).toBe(403);
+    expect(foreign.json()).toMatchObject({ error: { code: "PROXY_REDIRECT_FORBIDDEN" } });
+    const internal = await app.inject({ url: `/proxy/${encodeURIComponent(upstreamOrigin + "/weiter")}` });
+    expect(internal.statusCode).toBe(200);
+    expect(internal.body).toBe("png");
+    await app.close();
+  });
+});
+
+describe("DNS-Rebinding-Schutz (S-012)", () => {
+  it("blockiert private Adressen ohne Allowlist-Kontext", async () => {
+    const pins = new Map<string, string[]>();
+    await expect(checkProxyRedirectTarget(
+      new URL("http://anbieter.example/daten"),
+      pins,
+      async () => [{ address: "127.0.0.1", family: 4 }],
+    )).rejects.toMatchObject({ statusCode: 403, code: "PROXY_DNS_BLOCKED" });
+  });
+
+  it("blockiert das Umbiegen eines Namens auf eine andere Adresse", async () => {
+    const pins = new Map<string, string[]>();
+    const target = new URL("http://anbieter.example/daten");
+    await checkProxyRedirectTarget(target, pins, async () => [{ address: "93.184.216.34", family: 4 }], true);
+    await expect(checkProxyRedirectTarget(
+      target, pins, async () => [{ address: "93.184.216.35", family: 4 }], true,
+    )).rejects.toMatchObject({ statusCode: 403, code: "PROXY_REBINDING_BLOCKED" });
+  });
+
+  it("lässt stabile öffentliche Auflösungen passieren und IP-Literale unangetastet", async () => {
+    const pins = new Map<string, string[]>();
+    const target = new URL("http://anbieter.example/daten");
+    const resolveAll = async () => [{ address: "93.184.216.34", family: 4 }];
+    await checkProxyRedirectTarget(target, pins, resolveAll, true);
+    await checkProxyRedirectTarget(target, pins, resolveAll, true);
+    await checkProxyRedirectTarget(new URL("http://127.0.0.1:3010/api/v1/health"), pins, resolveAll, true);
+  });
+
+  it("blockiert Rebinding auch auf Socket-Ebene", async () => {
+    const pins = new Map<string, string[]>([["anbieter.example", ["93.184.216.34"]]]);
+    const lookup = createPinningLookup(pins, true, (_hostname, _options, callback) => {
+      callback(null, [{ address: "93.184.216.35", family: 4 }]);
+    });
+    const failure = await new Promise<Error | null>((resolve) => {
+      lookup("anbieter.example", { all: true, verbatim: true }, ((error: Error | null) => resolve(error)) as never);
+    });
+    expect(failure).toBeInstanceOf(Error);
   });
 });

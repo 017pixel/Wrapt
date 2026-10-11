@@ -11,6 +11,7 @@ import { changeDevicePreviewScaleFactor, DevicePreviewFrame } from "../DevicePre
 import { PreviewDiagnosticsSheet } from "./PreviewDiagnosticsSheet";
 import { useRouteActivity } from "../../lib/routeActivity";
 import { runPreviewSlotReset } from "../../lib/previewSlotRecovery";
+import { formatRequestId, queryErrorGuide } from "../../lib/queryErrorGuide";
 import type { PreviewViewportSize } from "../../lib/previewViewport";
 import { PreviewRuntimeControls } from "./PreviewRuntimeControls";
 import { usePreviewRuntimeSession } from "./usePreviewRuntimeSession";
@@ -211,7 +212,8 @@ export function LocalPreviewRuntime({
     }
   };
 
-  const quarantined = error?.includes("Quarantäne") ?? false;
+  const errorGuide = error ? queryErrorGuide(error, "Die Preview konnte nicht geöffnet werden.") : null;
+  const errorRequestZeile = errorGuide ? formatRequestId(errorGuide.requestId) : null;
 
   return (
     <div ref={containerRef} className="preview-slot-frame">
@@ -228,11 +230,12 @@ export function LocalPreviewRuntime({
         </div>
       ) : null}
 
-      {error ? (
-        <div className="preview-slot-error">
-          {quarantined ? <WarningIcon className="h-5 w-5" /> : <WarningIcon className="h-5 w-5" />}
-          <span>{error}</span>
-          <button type="button" onClick={() => { assignmentRef.current = null; setRetryKey((value) => value + 1); }}>Erneut versuchen</button>
+      {errorGuide ? (
+        <div className="preview-slot-error" role="alert">
+          <WarningIcon className="h-5 w-5" />
+          <span><strong>{errorGuide.titel}: </strong>{errorGuide.ursache} {errorGuide.aktion} {errorGuide.docsHinweis ? `${errorGuide.docsHinweis} ` : ""}{errorRequestZeile ?? ""}</span>
+          <button type="button" className="min-h-11 px-4" onClick={() => setDiagnosticsOpen(true)}>Diagnose öffnen</button>
+          <button type="button" className="min-h-11 px-4" onClick={() => { assignmentRef.current = null; setRetryKey((value) => value + 1); }}>Erneut versuchen</button>
         </div>
       ) : null}
 

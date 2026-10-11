@@ -14,6 +14,7 @@ import { orbitPreviewSessionKey } from "../lib/previewWindow";
 import { queueOrbitPayload } from "../lib/orbitPalette";
 import { previewSlotUrl } from "../lib/previewTargets";
 import { wraptQueries } from "../lib/queryOptions";
+import { formatRequestId, queryErrorGuide } from "../lib/queryErrorGuide";
 import { withPreviewSlotRecovery, type PreviewSlotRecoveryPhase } from "../lib/previewSlotRecovery";
 import { useSidebarPreferences } from "../stores/sidebarPreferences";
 
@@ -76,7 +77,7 @@ export function PreviewHubProject({ project, routeActive, orbitBoards }: { proje
   const [filter, setFilter] = useState<LogFilter>("all");
   const [serviceFilter, setServiceFilter] = useState("all");
   const [copied, setCopied] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<unknown>(null);
   const [launchPhase, setLaunchPhase] = useState<PreviewSlotRecoveryPhase | null>(null);
   const configuredPreviewApplied = useRef<string | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
@@ -215,7 +216,9 @@ export function PreviewHubProject({ project, routeActive, orbitBoards }: { proje
     }, { replace: true });
   };
 
-  const errorMessage = actionError ?? (statusQuery.error instanceof Error ? statusQuery.error.message : null) ?? status?.message;
+  const rawError = actionError ?? statusQuery.error ?? status?.message ?? null;
+  const errorGuide = rawError === null ? null : queryErrorGuide(rawError, "Die Preview-Aktion ist fehlgeschlagen.");
+  const errorRequestZeile = errorGuide ? formatRequestId(errorGuide.requestId) : null;
   const servicePorts = status?.services.filter((service) => service.port !== null) ?? [];
   const runningServices = status?.services.filter((service) => service.state === "running").length ?? 0;
   const sourceLabel = status?.profileSource === "configured" ? "preview.config.json" : "Automatisch erkannt";
@@ -245,7 +248,7 @@ export function PreviewHubProject({ project, routeActive, orbitBoards }: { proje
         </button>
       </div>
     </header>
-    {errorMessage ? <div className="preview-hub-alert is-error"><WarningIcon /><span>{errorMessage}</span></div> : null}
+    {errorGuide ? <div className="preview-hub-alert is-error" role="alert"><WarningIcon /><span className="min-w-0"><strong>{errorGuide.titel}: </strong>{errorGuide.ursache} {errorGuide.aktion} {errorGuide.docsHinweis ? `${errorGuide.docsHinweis} ` : ""}{errorRequestZeile ?? ""}</span><span className="ml-auto shrink-0"><button type="button" className="quiet-button min-h-11 px-4" onClick={() => { setActionError(null); void refresh(); }}><RefreshIcon /> Erneut versuchen</button></span></div> : null}
     {launchPhase ? <div className="preview-hub-alert is-progress" role="status"><ActivityIcon /><span>{launchPhaseLabels[launchPhase]}</span></div> : null}
     {status?.warnings.map((warning) => <div className="preview-hub-alert is-warning" key={warning}><WarningIcon /><span>{warning}</span></div>)}
     <div className="preview-hub-grid">
