@@ -113,7 +113,7 @@ const notesNavigation: readonly NavigationRegistration[] = Object.freeze([
     }),
     runtime: Object.freeze({
       icon: NoteIcon,
-      preferenceKey: "notizen" as const,
+      legacyVisibilityKey: "notizen" as const,
     }),
   }),
 ]);

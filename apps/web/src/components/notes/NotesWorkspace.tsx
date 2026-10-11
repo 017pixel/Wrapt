@@ -225,7 +225,7 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
   const sidebarRendered = !windowMode;
 
   return (
-    <div className="notes-workspace">
+    <div className="notes-workspace" data-testid="notes-workspace">
       {sidebarRendered ? (
         <NotesSidebar
           collapsed={sidebarCollapsed && !isDrawerSidebar}

@@ -67,6 +67,57 @@ describe("NotesDatabase", () => {
     raw.close();
   });
 
+  it("weist parallele Metadaten-Updates gleicher Basis mit 409 zurück", async () => {
+    const { path, db } = await database();
+    const note = db.create({ title: "Notiz", parentId: null });
+
+    // Erste Sitzung gewinnt und erhöht die Revision.
+    const first = db.update(note.id, { folderId: null, expectedRevision: 1 });
+    expect(first.revision).toBe(2);
+
+    // Zweite Sitzung auf alter Basis (Revision 1) verliert mit 409.
+    let statusCode = 0;
+    let code = "";
+    try {
+      db.update(note.id, { favorite: true, expectedRevision: 1 });
+    } catch (error) {
+      expect(error).toBeInstanceOf(AppError);
+      statusCode = (error as AppError).statusCode;
+      code = (error as AppError).code;
+    }
+    expect(statusCode).toBe(409);
+    expect(code).toBe("NOTE_REVISION_CONFLICT");
+    // Der Gewinnerstand bleibt unangetastet.
+    expect(db.get(note.id)).toMatchObject({ revision: 2, favorite: false });
+    db.close();
+
+    // Der verworfene Versuch liegt als Konfliktsicherung vor.
+    const raw = new DatabaseSync(path, { readOnly: true });
+    const backup = raw.prepare("SELECT note_id, content, expected_revision, current_revision FROM note_conflict_backups").get() as {
+      note_id: string;
+      content: string;
+      expected_revision: number;
+      current_revision: number;
+    };
+    expect(backup.note_id).toBe(note.id);
+    expect(backup.expected_revision).toBe(1);
+    expect(backup.current_revision).toBe(2);
+    expect(JSON.parse(backup.content)).toMatchObject({ kind: "metadata" });
+    raw.close();
+  });
+
+  it("prüft auch move() gegen die erwartete Revision", async () => {
+    const { db } = await database();
+    const parent = db.create({ title: "Ordner", parentId: null });
+    const note = db.create({ title: "Notiz", parentId: null });
+
+    const moved = db.move(note.id, { parentId: parent.id, beforeId: null, expectedRevision: 1 });
+    expect(moved.parentId).toBe(parent.id);
+    expect(moved.revision).toBe(2);
+    expect(() => db.move(note.id, { parentId: null, beforeId: null, expectedRevision: 1 })).toThrowError(AppError);
+    db.close();
+  });
+
   it("aktualisiert Metadaten und sortiert Geschwister stabil", async () => {
     const { db } = await database();
     const first = db.create({ title: "Erste", parentId: null });

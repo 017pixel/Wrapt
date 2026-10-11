@@ -106,7 +106,7 @@ export function NoteHeader({
           </span>
         ))}
         <span className="notes-note-current" title={note.title}>{note.title}</span>
-        <span className="notes-save-state" data-state={saveState} role="status">
+        <span className="notes-save-state" data-testid="note-save-state" data-state={saveState} role="status">
           {noteSaveStateLabels[saveState]}
         </span>
       </nav>

@@ -119,7 +119,8 @@ export class NotesDatabase {
   constructor(path: string) {
     mkdirSync(dirname(path), { recursive: true });
     this.db = new DatabaseSync(path);
-    this.db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON");
+    // P-010: NORMAL statt FULL (WAL bleibt haltbar); busy_timeout für Schreib-Tx belassen.
+    this.db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON");
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS notes (
         id TEXT PRIMARY KEY,
@@ -252,9 +253,30 @@ export class NotesDatabase {
       favorite: input.favorite ?? current.favorite,
       archived: input.archived ?? current.archived,
     };
-    this.db
-      .prepare(`UPDATE notes SET title=?, icon=?, cover_asset_id=?, parent_id=?, folder_id=?, sort_order=?, favorite=?, archived=?, updated_at=?
+    // Mit gesetzter Revision gilt optimistisches Sperren wie bei saveContent:
+    // atomares UPDATE mit Revisionsbedingung, danach revision+1. Ohne Wert
+    // (Altdaten) bleibt das Schreiben blind und die Revision unverändert.
+    if (input.expectedRevision === undefined || input.expectedRevision === null) {
+      this.db
+        .prepare(`UPDATE notes SET title=?, icon=?, cover_asset_id=?, parent_id=?, folder_id=?, sort_order=?, favorite=?, archived=?, updated_at=?
         WHERE id=?`)
+        .run(
+          next.title,
+          next.icon,
+          next.coverAssetId,
+          next.parentId,
+          next.parentId === null ? next.folderId : null,
+          next.sortOrder,
+          next.favorite ? 1 : 0,
+          next.archived ? 1 : 0,
+          new Date().toISOString(),
+          noteId,
+        );
+      return this.get(noteId)!;
+    }
+    const changed = this.db
+      .prepare(`UPDATE notes SET title=?, icon=?, cover_asset_id=?, parent_id=?, folder_id=?, sort_order=?, favorite=?, archived=?, revision=revision+1, updated_at=?
+        WHERE id=? AND revision=?`)
       .run(
         next.title,
         next.icon,
@@ -266,14 +288,21 @@ export class NotesDatabase {
         next.archived ? 1 : 0,
         new Date().toISOString(),
         noteId,
+        input.expectedRevision,
       );
+    if (changed.changes === 0) {
+      this.writeMetadataConflictBackup(noteId, input, input.expectedRevision, current.revision);
+      throw new AppError(409, "NOTE_REVISION_CONFLICT", "Diese Notiz wurde anderweitig geändert. Bitte aktualisiere die Ansicht und versuche es erneut.");
+    }
     return this.get(noteId)!;
   }
 
   move(noteId: string, input: MoveNoteRequest): Note {
+    const expectedRevision = input.expectedRevision ?? undefined;
     return moveNoteInOrder(this.db, noteId, input, () => this.update(noteId, {
       parentId: input.parentId,
       ...(input.folderId === undefined ? {} : { folderId: input.folderId }),
+      ...(expectedRevision === undefined ? {} : { expectedRevision }),
     }));
   }
 
@@ -348,5 +377,17 @@ export class NotesDatabase {
     this.db.prepare(`DELETE FROM note_conflict_backups WHERE id NOT IN (
       SELECT id FROM note_conflict_backups ORDER BY id DESC LIMIT 100
     )`).run();
+  }
+
+  /**
+   * Sichert einen verworfenen Metadaten-Versuch wie saveContent: Der Versuch
+   * geht nicht verloren, sondern landet als JSON in `note_conflict_backups`.
+   */
+  private writeMetadataConflictBackup(noteId: string, input: UpdateNoteRequest, expectedRevision: number, currentRevision: number): void {
+    this.db
+      .prepare(`INSERT INTO note_conflict_backups(note_id, content, expected_revision, current_revision, created_at)
+        VALUES (?, ?, ?, ?, ?)`)
+      .run(noteId, JSON.stringify({ kind: "metadata", attempted: input }), expectedRevision, currentRevision, new Date().toISOString());
+    this.pruneConflictBackups();
   }
 }

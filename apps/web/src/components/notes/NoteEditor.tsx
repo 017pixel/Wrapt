@@ -169,6 +169,7 @@ export function NoteEditor({
         attributes: {
           class: compact ? "note-editor-content is-compact" : "note-editor-content",
           spellcheck: "true",
+          "data-testid": "note-editor",
           ...(ariaLabel ? { "aria-label": ariaLabel } : {}),
         },
       },

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Note, UpdateNoteRequest } from "@wrapt/contracts";
+import { NOTE_TITLE_MAX_LENGTH } from "@wrapt/contracts";
 import { IconPicker } from "./icons/IconPicker.js";
 import { NotePageIcon } from "./icons/NotePageIcon.js";
 
@@ -114,6 +115,7 @@ export function NoteTitle({ note, onPatch, disabled = false }: NoteTitleProps) {
         placeholder="Notiz"
         aria-label="Notiztitel"
         rows={1}
+        maxLength={NOTE_TITLE_MAX_LENGTH}
         onChange={(event) => changeTitle(event.target.value.replace(/[\r\n]+/g, " "))}
         onBlur={() => {
           if (timerRef.current !== null) {
