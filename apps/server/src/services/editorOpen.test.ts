@@ -59,6 +59,25 @@ describe("Open-in-Editor-API", () => {
     const foreign = await app.inject({ method: "POST", url: "/api/v1/editor/open", remoteAddress: "10.0.0.5", headers: { authorization: `Bearer ${token}` }, payload: { path: "/tmp/x" } });
     expect(foreign.statusCode).toBe(403);
 
+    // S-006: Proxy-Header dürfen die Loopback-Prüfung nie beeinflussen — nur
+    // die echte Transportschicht (socket.remoteAddress) zählt.
+    const spoofed = await app.inject({
+      method: "POST",
+      url: "/api/v1/editor/open",
+      remoteAddress: "10.0.0.5",
+      headers: { authorization: `Bearer ${token}`, "x-forwarded-for": "127.0.0.1" },
+      payload: { path: "/tmp/x" },
+    });
+    expect(spoofed.statusCode).toBe(403);
+    const loopbackWithForwarded = await app.inject({
+      method: "POST",
+      url: "/api/v1/editor/open",
+      remoteAddress: "127.0.0.1",
+      headers: { authorization: `Bearer ${token}`, "x-forwarded-for": "10.0.0.5" },
+      payload: { path: "/tmp/x" },
+    });
+    expect(loopbackWithForwarded.statusCode).toBe(202);
+
     const accepted = await app.inject({ method: "POST", url: "/api/v1/editor/open", headers: { authorization: `Bearer ${token}` }, payload: { path: "/tmp/x" } });
     expect(accepted.statusCode).toBe(202);
     expect(accepted.json()).toEqual({ accepted: true });

@@ -5,8 +5,10 @@ import replyFrom from "@fastify/reply-from";
 import WebSocket from "ws";
 import { settings } from "../config/settings.js";
 import { isWebSocketOriginAllowed } from "../security/same-origin.js";
+import { RateBudget } from "../utils/rate-budget.js";
 import { bridgeWebSockets, type WebSocketBridgeObserver } from "../utils/websocketBridge.js";
 import { t3RouteBridgeScript } from "./t3RouteBridge.js";
+import { mergeProxyContentSecurityPolicy } from "./proxy-csp.js";
 
 const t3Prefix = "/t3";
 // Genau eine Instanz, unabhängig vom Kanal. Adresse aus der Config, damit Proxy,
@@ -22,7 +24,8 @@ const maxInjectedHtmlBytes = 4 * 1024 * 1024;
 // lässt sich nicht abfangen: `window.location.assign` ist in Chrome und
 // Firefox eine nicht überschreibbare Browser-Property. Das Script fängt
 // deshalb den Klick auf alle T3-„Open"-Einträge ab (kompakter Toolbar-Button,
-// Panel-Zeile „Open in …", Menüeinträge), liest den Zielordner aus den
+// Panel-Zeile „Open in …" im Thread-Details-Panel, Menüeinträge), liest den
+// Zielordner aus den
 // React-Props der Komponente und öffnet ihn auf der Code-Editor-Seite der
 // Workbench: eingebettet per postMessage an das umgebende ToolPanel, im
 // eigenständigen Fenster direkt als `/code-editor`-Navigation. Ohne
@@ -34,7 +37,10 @@ export const remoteEditorFallbackScript = `<script>
   const messageType = "wrapt:open-editor";
   const mark = "data-wrapt-editor-fallback";
   const preloaded = new Set();
-  const inMenu = (element) => !!element.closest('[role="menu"], [role="dialog"], [class*="thread-details-action"]');
+  // Die Thread-Details-Fläche trägt seit dem Nightly-Umbau das Attribut
+  // data-thread-details-panel (inline als <aside>, als Popover in einem
+  // role="dialog"); ältere Versionen nutzten die Klasse thread-details-action.
+  const inMenu = (element) => !!element.closest('[role="menu"], [role="dialog"], [data-thread-details-panel], [class*="thread-details-action"]');
   // Reine Trefferprüfung ohne Markierung: Der Preload nutzt sie ebenfalls,
   // damit Hover auf bereits gebundenen Einträgen weiter vorlädt.
   // Nur Buttons und Menüeinträge zählen; andere Elemente mit passendem Text
@@ -87,7 +93,7 @@ export const remoteEditorFallbackScript = `<script>
     }
   };
   const preloadEditor = (target) => {
-    const element = target instanceof Element ? element.closest("button, [role=menuitem]") : null;
+    const element = target instanceof Element ? target.closest("button, [role=menuitem]") : null;
     if (!element || !matchesOpenButton(element)) return;
     const folder = openInCwdFrom(element) ?? "";
     if (preloaded.has(folder)) return;
@@ -187,9 +193,15 @@ export function t3OpenInCwdFromFiber(element: unknown): string | null {
 
 export const t3HttpRoutes = [
   "/", "/t3/*", "/assets/*", "/.well-known/t3/*", "/api/auth/*",
-  "/api/assets/*", "/api/attachments/*", "/api/orchestration/*", "/api/connect/*", "/api/t3-connect/*", "/api/observability/*", "/api/pull-requests/*", "/oauth/*",
+  "/api/assets/*", "/api/attachments/*", "/api/orchestration/*", "/api/connect/*", "/api/t3-connect/*", "/api/observability/*", "/api/pull-requests/*", "/api/preview-stream/*", "/oauth/*",
   "/favicon.ico", "/apple-touch-icon.png", "/manifest.webmanifest",
 ] as const;
+
+// Routen mit WebSocket-Upgrade: T3s integrierte Browser-Fläche streamt über
+// /api/preview-stream/ws (Thread- und Tab-ID als Query). Ohne wsHandler
+// antwortet der Proxy mit 404 und die Fläche zeigt „Browser connection was
+// refused". /ws bleibt der Kanal für RPC und Session-State.
+export const t3WebSocketRoutes = ["/ws", "/api/preview-stream/*"] as const;
 
 function contentType(headers: IncomingHttpHeaders): string {
   const value = headers["content-type"];
@@ -213,6 +225,8 @@ function rewriteResponseHeaders(headers: IncomingHttpHeaders): IncomingHttpHeade
     delete result["content-length"];
     delete result["content-encoding"];
     result["cache-control"] = "no-store, no-cache, must-revalidate";
+    // S-007: Upstream-CSP mergen statt entfernen (Einbettungs-Härtung).
+    return mergeProxyContentSecurityPolicy(result).headers;
   }
   return result;
 }
@@ -245,8 +259,20 @@ function proxyHeaders(request: FastifyRequest, headers: Record<string, string | 
   };
 }
 
+// Eigenes Budget für den T3-Proxy (S-009): 600 Requests/Minute pro Identität.
+// Der globale API-Limiter nimmt /t3 bewusst aus; ohne eigenes Budget wäre der
+// teuerste Pfad unlimitiert. Normale Nutzung (Assets + API) liegt weit darunter.
+const t3RateBudget = new RateBudget({ maxEvents: 600, windowMilliseconds: 60_000 });
+
+function t3RateKey(request: FastifyRequest): string {
+  const identity = request.headers["tailscale-user-login"];
+  return typeof identity === "string" && identity.length > 0 ? identity : request.ip;
+}
+
 function proxyHttp(request: FastifyRequest, reply: FastifyReply) {
-  reply.removeHeader("content-security-policy");
+  if (!t3RateBudget.tryConsume(t3RateKey(request))) {
+    return reply.status(429).send({ error: "T3_RATE_LIMITED" });
+  }
   return reply.from(`${t3HttpUpstream}${upstreamPath(request.raw.url ?? request.url)}`, {
     rewriteRequestHeaders: (_originalRequest, headers) => proxyHeaders(request, headers),
     rewriteHeaders: (headers) => rewriteResponseHeaders(headers),
@@ -279,7 +305,14 @@ function proxyHttp(request: FastifyRequest, reply: FastifyReply) {
 }
 
 async function proxyIndex(_request: FastifyRequest, reply: FastifyReply) {
-  const response = await fetch(`${t3HttpUpstream}/`);
+  let response: Response;
+  try {
+    // Harte Schranke wie beim Hermes-Client (D-013/D-017.6): Ohne Timeout hängt
+    // der Request bei totem T3-Port bis zum globalen Server-Timeout.
+    response = await fetch(`${t3HttpUpstream}/`, { signal: AbortSignal.timeout(10_000) });
+  } catch {
+    return reply.status(502).type("text/plain").send("T3 Code ist nicht erreichbar.");
+  }
   if (!response.ok) {
     await response.body?.cancel();
     return reply.status(response.status).type("text/plain").send("T3 Code ist nicht erreichbar.");
@@ -300,7 +333,11 @@ async function proxyIndex(_request: FastifyRequest, reply: FastifyReply) {
       chunks.push(Buffer.from(value));
     }
   }
-  reply.removeHeader("content-security-policy");
+  const upstreamCsp = response.headers.get("content-security-policy");
+  const mergedPolicy = mergeProxyContentSecurityPolicy(
+    upstreamCsp ? { "content-security-policy": upstreamCsp } : {},
+  ).headers["content-security-policy"];
+  if (typeof mergedPolicy === "string") reply.header("content-security-policy", mergedPolicy);
   return reply.type("text/html").send(injectT3HtmlBridge(Buffer.concat(chunks, bytes).toString("utf8")));
 }
 
@@ -344,9 +381,15 @@ export async function registerT3Proxy(app: FastifyInstance, observer?: WebSocket
 
     scope.route({ method: "GET", url: "/t3", config: { rateLimit: false }, helmet: false, handler: proxyIndex });
     for (const url of t3HttpRoutes) {
-      scope.route({ method: "GET", url, config: { rateLimit: false }, helmet: false, handler: proxyHttp });
+      // WebSocket-Routen bekommen ihren Upgrade-Handler unten; hier nur die
+      // übrigen Methoden, damit Fastify keine doppelte GET-Route meldet.
+      if (!(t3WebSocketRoutes as readonly string[]).includes(url)) {
+        scope.route({ method: "GET", url, config: { rateLimit: false }, helmet: false, handler: proxyHttp });
+      }
       scope.route({ method: ["DELETE", "PATCH", "POST", "PUT", "OPTIONS"], url, config: { rateLimit: false }, helmet: false, handler: proxyHttp });
     }
-    scope.route({ method: "GET", url: "/ws", config: { rateLimit: false }, helmet: false, handler: proxyHttp, wsHandler: (source, request) => proxyWebSocket(source, request, observer) });
+    for (const url of t3WebSocketRoutes) {
+      scope.route({ method: "GET", url, config: { rateLimit: false }, helmet: false, handler: proxyHttp, wsHandler: (source, request) => proxyWebSocket(source, request, observer) });
+    }
   });
 }

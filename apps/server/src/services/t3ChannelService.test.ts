@@ -3,11 +3,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { loadWraptConfig, persistT3Channel, readConfiguredT3Channel } from "../config/wrapt-config.js";
-import { channelFromVersion, parseVersionOutput } from "./t3ChannelService.js";
+import { channelFromVersion, nightlyChannelWarning, parseVersionOutput } from "./t3ChannelService.js";
 
 describe("T3-Kanal aus der Version", () => {
   it("erkennt Nightly an der Vorabversion", () => {
     expect(channelFromVersion("0.0.29-nightly.20260725.899")).toBe("nightly");
+  });
+
+  it("warnt beim Nightly-Wechsel vor ungeprüftem Upstream in der Workbench-Origin", () => {
+    expect(nightlyChannelWarning("nightly")).toContain("state.sqlite");
+    expect(nightlyChannelWarning("stable")).toBeNull();
   });
 
   it("wertet alles ohne Nightly-Kennung als Stable", () => {

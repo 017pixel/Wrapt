@@ -74,10 +74,11 @@ async function status(): Promise<T3ChannelStatusResponse> {
 // Speichert nur die Auswahl. Paketwechsel und Prozess-Neustart übernimmt der
 // bestehende Neustart-Flow (scripts/sync-t3-channel.sh) — bewusst kein Auto-Neustart.
 async function setChannel(channel: T3Channel): Promise<T3ChannelStatusResponse> {
+  const warning = nightlyChannelWarning(channel);
+  if (warning) console.warn(`Wrapt: T3-Kanal Nightly gewählt — ${warning}`);
   try {
     persistT3Channel(settings.configDirectory, channel);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+  } catch (error) {    const message = error instanceof Error ? error.message : String(error);
     throw new AppError(
       500,
       "T3_CHANNEL_NOT_SAVED",
@@ -85,6 +86,15 @@ async function setChannel(channel: T3Channel): Promise<T3ChannelStatusResponse> 
     );
   }
   return status();
+}
+
+// S-007: Nightly baut ungeprüften Upstream-Code in die Workbench-Origin ein
+// (Pfad-Proxy, Inline-Scripts nötig). Warnung beim Kanalwechsel, weil weder
+// das Status-Schema noch die Settings-Oberfläche ein Warnfeld tragen.
+export function nightlyChannelWarning(channel: T3Channel): string | null {
+  return channel === "nightly"
+    ? "Nightly enthält ungeprüfte Upstream-Builds mit vollem Zugriff auf die Workbench-Origin. Nur für vertrauenswürdige Netze; vorher state.sqlite sichern."
+    : null;
 }
 
 export const t3ChannelService = {

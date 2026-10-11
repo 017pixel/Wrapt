@@ -22,7 +22,9 @@ const maxClients = 64;
 const connected = new Set<WebSocket>();
 
 function isLoopback(request: FastifyRequest): boolean {
-  const address = request.ip;
+  // Echte Transportschicht statt request.ip: Der Proxy-Header (X-Forwarded-For)
+  // darf die Loopback-Prüfung nie beeinflussen (S-006, Muster previews/routes).
+  const address = request.socket.remoteAddress ?? "";
   return address === "127.0.0.1" || address === "::1" || address === "::ffff:127.0.0.1";
 }
 
