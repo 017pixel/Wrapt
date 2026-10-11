@@ -92,39 +92,6 @@ export const readinessResponseSchema = z.object({
   })),
 });
 
-export const restartTargetSchema = z.enum(["frontend", "backend", "both"]);
-export const restartRequestSchema = z.object({ target: restartTargetSchema });
-export const restartResponseSchema = z.object({
-  status: z.literal("accepted"),
-  jobId: z.string().uuid(),
-  target: restartTargetSchema,
-  // Basiswerte zum Zeitpunkt des Auslösens, damit der Client den Abschluss erkennen kann.
-  bootId: z.string().min(1),
-  webBuildId: z.number().int().nullable(),
-  logFile: z.string().min(1),
-});
-
-export const restartPhaseSchema = z.enum(["idle", "running", "succeeded", "failed"]);
-// Fortschritt des letzten Neustarts. Das Skript schreibt den Zustand nach
-// data/restart-logs/last-status.json; das UI pollt ihn und zeigt bei Fehlern
-// direkt den Build-Ausschnitt statt nur „Zeitüberschreitung".
-export const restartStatusResponseSchema = z.object({
-  jobId: z.string().uuid().nullable(),
-  phase: restartPhaseSchema,
-  target: restartTargetSchema.nullable(),
-  exitCode: z.number().int().nullable(),
-  // Der zuletzt begonnene Schritt, z. B. "Baue Frontend (@wrapt/web) …".
-  step: z.string(),
-  message: z.string(),
-  startedAt: z.string().nullable(),
-  updatedAt: z.string().nullable(),
-  // Ende des Build-Logs, ANSI-bereinigt — das ist die eigentliche Fehlermeldung.
-  logTail: z.string(),
-  logFile: z.string().nullable(),
-  bootId: z.string().min(1),
-  webBuildId: z.number().int().nullable(),
-});
-
 // T3 Code läuft als genau eine Instanz hinter dem /t3-Proxy. Der Kanal bestimmt nur,
 // welches npm-Paket (t3@latest bzw. t3@nightly) beim nächsten Neustart installiert wird —
 // beide Kanäle teilen sich dasselbe Datenverzeichnis (~/.t3/userdata).
@@ -832,9 +799,7 @@ export const fileManagerSearchResponseSchema = z.object({
   truncated: z.boolean(),
 });
 // --- KI-Skills (Skill-Editor) -----------------------------------------------
-// Der Editor arbeitet direkt auf dem globalen Harness-Ordner. Skills liegen dort
-// als Symlinks auf das Skills-Repository, deshalb tragen Baumeinträge eigene
-// Kennzeichen für Verweis und kaputten Verweis.
+// Editor für den globalen Harness-Ordner; Skills sind Symlinks aufs Skills-Repo.
 export const skillNameSchema = z.string().trim().min(1).max(64).regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Nur Kleinbuchstaben, Ziffern und Bindestriche.");
 
 export const skillEditorFileSchema = z.object({
@@ -856,15 +821,19 @@ export const skillEditorNodeSchema = z.object({
   broken: z.boolean(),
   files: z.array(skillEditorFileSchema),
 });
+// Regeleintrag im Skill-Baum (Harness- und Hermes-Regeln).
+export const skillEditorRuleEntrySchema = z.object({ id: z.string().min(1), label: z.string().min(1), path: z.string().startsWith("/"),
+  editable: z.boolean(), symlinkTarget: z.string().startsWith("/").nullable() });
+// Hermes-Skillknoten: Skill-Knoten plus Kategorie (hermes-skills/<kategorie>/<name>).
+export const hermesSkillEditorNodeSchema = skillEditorNodeSchema.extend({ category: z.string().min(1) });
 export const skillEditorTreeResponseSchema = z.object({
   rootDirectory: z.string().startsWith("/"),
   agentsFile: skillEditorFileSchema.nullable(),
+  ruleEntries: z.array(skillEditorRuleEntrySchema).default([]),
   skills: z.array(skillEditorNodeSchema),
+  hermesSkills: z.array(hermesSkillEditorNodeSchema).default([]),
 });
-export const skillEditorRepositoryStatusSchema = z.object({
-  branch: z.string(),
-  dirtyCount: z.number().int().nonnegative(),
-});
+export const skillEditorRepositoryStatusSchema = z.object({ branch: z.string(), dirtyCount: z.number().int().nonnegative() });
 export const skillEditorStatusResponseSchema = z.object({
   rootDirectory: z.string().startsWith("/"),
   repositoryConfigured: z.boolean(),
@@ -886,12 +855,10 @@ export const skillEditorWriteRequestSchema = z.object({
   path: z.string().trim().min(1).max(4_096),
   content: z.string().max(2_097_152),
   expectedRevision: z.string().min(16).nullable().optional(),
-  // Bestehende Clients senden weiterhin die Änderungszeit; der Server behandelt
-  // sie als schwächeren Erwartungswert, wenn kein Revisionstoken vorliegt.
+  // Ältere Clients senden die Änderungszeit als schwächeren Erwartungswert.
   expectedModifiedAt: isoDateSchema.nullable().optional(),
 }).refine(
-  // Ein bewusstes Überschreiben muss als `null` sichtbar sein; ein fehlendes
-  // Feld wäre ein stiller Force-Write und wird abgelehnt.
+  // Bewusstes Überschreiben braucht `null`; fehlende Felder werden abgelehnt.
   (value) => value.expectedRevision !== undefined || value.expectedModifiedAt !== undefined,
   "Für konfliktfreies Speichern ist ein Erwartungswert erforderlich.",
 );
@@ -900,6 +867,10 @@ export const skillEditorCreateRequestSchema = z.object({
   description: z.string().trim().min(1).max(1_024),
   license: z.string().trim().min(1).max(120).optional(),
 });
+// Hermes-Anlage: normaler Skill plus Kategorie (hermes-skills/<kategorie>/<name>).
+export const hermesSkillEditorCreateRequestSchema = skillEditorCreateRequestSchema.extend({ category: skillNameSchema });
+// Gültigkeitsbereich; ohne Angabe gilt der Bestand ("skills").
+export const skillEditorScopeSchema = z.enum(["skills", "hermes"]);
 export const skillEditorCreateResponseSchema = z.object({
   path: z.string().startsWith("/"),
   name: skillNameSchema,
@@ -910,12 +881,10 @@ export const skillEditorCreateResponseSchema = z.object({
 export const skillEditorRenameRequestSchema = z.object({
   name: skillNameSchema,
   newName: skillNameSchema,
+  scope: skillEditorScopeSchema.default("skills"),
 });
-export const skillEditorDeleteRequestSchema = z.object({ name: skillNameSchema });
-export const skillEditorGitChangeSchema = z.object({
-  name: z.string().min(1),
-  action: z.enum(["hinzugefuegt", "geaendert", "entfernt"]),
-});
+export const skillEditorDeleteRequestSchema = z.object({ name: skillNameSchema, scope: skillEditorScopeSchema.default("skills") });
+export const skillEditorGitChangeSchema = z.object({ name: z.string().min(1), action: z.enum(["hinzugefuegt", "geaendert", "entfernt"]) });
 export const skillEditorGitResponseSchema = z.object({
   committed: z.boolean(),
   pushed: z.boolean(),
@@ -942,9 +911,7 @@ export const skillEditorGitPreviewResponseSchema = z.object({
   errorTail: z.string().nullable(),
   notice: z.string().nullable(),
 });
-export const skillEditorGitCommitRequestSchema = z.object({
-  intent: z.string().min(16),
-});
+export const skillEditorGitCommitRequestSchema = z.object({ intent: z.string().min(16) });
 
 export const registerProjectRequestSchema = z.object({
   path: z.string().trim().min(1).max(4_096),
@@ -1117,6 +1084,8 @@ export const loginSessionResponseSchema = z.object({
   terminalKind: z.enum(["codex", "opencode", "claude"]),
   command: z.string().min(1),
 });
+// Explizite Recovery-Saga (D-009): Journale abgeschlossen, Reparaturfehler als Warnungen.
+export const accountReconcileResponseSchema = z.object({ reconciledProviders: z.array(usageProviderIdSchema), warnings: z.array(z.object({ provider: usageProviderIdSchema, message: z.string().min(1).max(500) })) });
 
 // Timeline-Lane für die Multi-Account-Limitübersicht. Jede Lane steht für genau
 // einen Account eines Providers. Die Limitfenster nutzen die bestehende
@@ -1143,11 +1112,9 @@ export const usageTimelineResponseSchema = z.object({
   lastSuccessfulFetchAt: isoDateSchema.nullable(),
 });
 
-export const usageSyncStatusSchema = z.object({
-  running: z.boolean(),
-  liveRunning: z.boolean().default(false), // Limitdaten sind meist vor der Auswertung fertig
-  lastCompletedAt: isoDateSchema.nullable(),
-});
+// Sichtbare Sync-Fehler je Zweig (D-014): Meldung plus Alter statt Stille.
+export const usageSyncBranchErrorSchema = z.object({ message: z.string().min(1).max(500), at: isoDateSchema });
+export const usageSyncStatusSchema = z.object({ running: z.boolean(), liveRunning: z.boolean().default(false), lastCompletedAt: isoDateSchema.nullable(), limitsError: usageSyncBranchErrorSchema.nullable().default(null), analyticsError: usageSyncBranchErrorSchema.nullable().default(null), branchErrors: z.record(z.string(), z.object({ count: z.number().int().nonnegative(), lastMessage: z.string().min(1).max(500), lastAt: isoDateSchema })).default({}) });
 
 export const WRAPT_LIMITS = {
   maxResidentTools: 10,
@@ -1771,11 +1738,6 @@ export type HealthResponse = z.infer<typeof healthResponseSchema>;
 export type DashboardSection = z.infer<typeof dashboardSectionSchema>;
 export type DashboardConfig = z.infer<typeof dashboardConfigSchema>;
 export type ReadinessResponse = z.infer<typeof readinessResponseSchema>;
-export type RestartTarget = z.infer<typeof restartTargetSchema>;
-export type RestartRequest = z.infer<typeof restartRequestSchema>;
-export type RestartResponse = z.infer<typeof restartResponseSchema>;
-export type RestartPhase = z.infer<typeof restartPhaseSchema>;
-export type RestartStatusResponse = z.infer<typeof restartStatusResponseSchema>;
 export type T3Channel = z.infer<typeof t3ChannelSchema>;
 export type T3ChannelRequest = z.infer<typeof t3ChannelRequestSchema>;
 export type T3ChannelStatusResponse = z.infer<typeof t3ChannelStatusResponseSchema>;
@@ -1866,12 +1828,16 @@ export type FileManagerTextPreviewResponse = z.infer<typeof fileManagerTextPrevi
 export type FileManagerSearchResponse = z.infer<typeof fileManagerSearchResponseSchema>;
 export type SkillEditorFile = z.infer<typeof skillEditorFileSchema>;
 export type SkillEditorNode = z.infer<typeof skillEditorNodeSchema>;
+export type SkillEditorRuleEntry = z.infer<typeof skillEditorRuleEntrySchema>;
+export type HermesSkillEditorNode = z.infer<typeof hermesSkillEditorNodeSchema>;
+export type SkillEditorScope = z.infer<typeof skillEditorScopeSchema>;
 export type SkillEditorTreeResponse = z.infer<typeof skillEditorTreeResponseSchema>;
 export type SkillEditorRepositoryStatus = z.infer<typeof skillEditorRepositoryStatusSchema>;
 export type SkillEditorStatusResponse = z.infer<typeof skillEditorStatusResponseSchema>;
 export type SkillEditorReadResponse = z.infer<typeof skillEditorReadResponseSchema>;
 export type SkillEditorWriteRequest = z.infer<typeof skillEditorWriteRequestSchema>;
 export type SkillEditorCreateRequest = z.infer<typeof skillEditorCreateRequestSchema>;
+export type HermesSkillEditorCreateRequest = z.infer<typeof hermesSkillEditorCreateRequestSchema>;
 export type SkillEditorCreateResponse = z.infer<typeof skillEditorCreateResponseSchema>;
 export type SkillEditorRenameRequest = z.infer<typeof skillEditorRenameRequestSchema>;
 export type SkillEditorDeleteRequest = z.infer<typeof skillEditorDeleteRequestSchema>;
@@ -1902,6 +1868,7 @@ export type UpdateAccountRequest = z.infer<typeof updateAccountRequestSchema>;
 export type AccountResponse = z.infer<typeof accountResponseSchema>;
 export type ActivateAccountResponse = z.infer<typeof activateAccountResponseSchema>;
 export type LoginSessionResponse = z.infer<typeof loginSessionResponseSchema>;
+export type AccountReconcileResponse = z.infer<typeof accountReconcileResponseSchema>;
 export type UsageTimelineStatus = z.infer<typeof usageTimelineStatusSchema>;
 export type UsageTimelineLane = z.infer<typeof usageTimelineLaneSchema>;
 export type UsageTimelineResponse = z.infer<typeof usageTimelineResponseSchema>;

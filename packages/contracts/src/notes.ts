@@ -107,6 +107,9 @@ export const updateNoteRequestSchema = z
     sortOrder: noteSortOrderSchema.optional(),
     favorite: z.boolean().optional(),
     archived: z.boolean().optional(),
+    // Optionale Revisionsprüfung gegen stille Überschreibungen (zwei Tabs).
+    // Fehlt der Wert (Altdaten), bleibt das Update ein blindes Schreiben.
+    expectedRevision: z.number().int().min(1).nullable().optional(),
   })
   .superRefine((input, context) => {
     if (Object.values(input).every((value) => value === undefined)) {
@@ -126,6 +129,8 @@ export const moveNoteRequestSchema = z.object({
   parentId: noteIdSchema.nullable(),
   folderId: noteIdSchema.nullable().optional(),
   beforeId: noteIdSchema.nullable().default(null),
+  // Wie bei Metadaten-Updates: nur geprüft, wenn gesetzt (Altdaten: blind).
+  expectedRevision: z.number().int().min(1).nullable().optional(),
 });
 export type MoveNoteRequest = z.infer<typeof moveNoteRequestSchema>;
 

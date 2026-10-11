@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   createNoteRequestSchema,
+  moveNoteRequestSchema,
   noteSchema,
   noteSearchQuerySchema,
   notesListResponseSchema,
@@ -79,6 +80,16 @@ describe("notes-vertraege", () => {
     expect(() => updateNoteRequestSchema.parse({})).toThrow();
     const parsed = updateNoteRequestSchema.parse({ favorite: true });
     expect(parsed.favorite).toBe(true);
+  });
+
+  it("nimmt die optionale Revision für optimistisches Sperren entgegen", () => {
+    // Abwärtskompatibel: ohne Feld bleibt das Update blind (Altdaten).
+    expect(updateNoteRequestSchema.parse({ favorite: true }).expectedRevision).toBeUndefined();
+    expect(updateNoteRequestSchema.parse({ favorite: true, expectedRevision: 3 }).expectedRevision).toBe(3);
+    expect(updateNoteRequestSchema.parse({ favorite: true, expectedRevision: null }).expectedRevision).toBeNull();
+    expect(() => updateNoteRequestSchema.parse({ favorite: true, expectedRevision: 0 })).toThrow();
+    expect(moveNoteRequestSchema.parse({ parentId: null }).expectedRevision).toBeUndefined();
+    expect(moveNoteRequestSchema.parse({ parentId: null, expectedRevision: 2 }).expectedRevision).toBe(2);
   });
 
   it("verlangt beim Speichern von Inhalt eine Revision", () => {
