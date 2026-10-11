@@ -26,7 +26,7 @@
   "apps/web/src/views/PreviewHub.tsx": 611,
   "apps/web/src/views/Settings.tsx": 657,
   "docs/configuration.md": 525,
-  "packages/contracts/src/index.ts": 1938,
+  "packages/contracts/src/index.ts": 1841,
   "packages/extension-contracts/src/contributions.test.ts": 556,
   "packages/extension-contracts/src/contributions.ts": 535,
   "packages/extension-contracts/src/management.ts": 607,
