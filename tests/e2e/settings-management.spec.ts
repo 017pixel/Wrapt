@@ -151,7 +151,8 @@ test("testet Capybara-Vorschau und Schalter", async ({ page }) => {
   const preview = page.getByRole("button", { name: "Capybara testen" });
   await expect(preview).toBeVisible();
   const sprite = preview.locator("img");
-  await expect(sprite).toHaveAttribute("src", /^data:image\/png;base64,/);
+  // Sprites laufen als gehashte Asset-URLs statt Base64 im Startpaket.
+  await expect(sprite).toHaveAttribute("src", /^(\/wrapt\/assets\/capybara-.*\.png|data:image\/png;base64,)/);
   await expect.poll(() => sprite.evaluate((image) => ({ width: image.naturalWidth, height: image.naturalHeight })))
     .toEqual({ width: 64, height: 64 });
 

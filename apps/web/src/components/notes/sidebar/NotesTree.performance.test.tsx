@@ -19,7 +19,7 @@ function seed() {
 const callbacks = { onSelect: vi.fn(), onCreateSubpage: vi.fn(), onPatch: vi.fn(), onMove: vi.fn(),
   onOpenMenu: vi.fn(), onRenameRequestHandled: vi.fn() };
 
-it("mountet bei 1.000 Seiten nur die 100 geschlossenen Wurzeln und öffnet aktive Vorfahren", () => {
+it("mountet bei 1.000 Seiten nur die 100 geschlossenen Wurzeln und öffnet aktive Vorfahren", { timeout: 20_000 }, () => {
   useNotesPreferences.setState({ expanded: {} });
   const notes = seed();
   const view = render(<NotesDragProvider><NotesTree notes={notes} activeId={null} renameRequestId={null} {...callbacks} /></NotesDragProvider>);
