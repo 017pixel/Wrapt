@@ -43,6 +43,8 @@ export class UsageDatabase {
         UNIQUE(account_key, provider, window_id, captured_at)
       );
       CREATE INDEX IF NOT EXISTS usage_snapshot_lookup ON usage_snapshots(account_key, window_id, resets_at, captured_at);
+      CREATE INDEX IF NOT EXISTS usage_snapshots_captured ON usage_snapshots(captured_at);
+      CREATE INDEX IF NOT EXISTS usage_snapshots_resets ON usage_snapshots(resets_at) WHERE resets_at IS NOT NULL;
       CREATE TABLE IF NOT EXISTS daily_usage (
         provider TEXT NOT NULL, date TEXT NOT NULL, input_tokens INTEGER NOT NULL,
         output_tokens INTEGER NOT NULL, cache_read_tokens INTEGER NOT NULL,
@@ -238,6 +240,9 @@ export class UsageDatabase {
 
   forecasts(): UsageForecast[] {
     type ForecastRow = {accountKey:string;provider:UsageProviderId;windowId:"primary"|"secondary"|"tertiary";windowMinutes:number|null;resetsAt:string;usedPercent:number;capturedAt:string};
+    // Absichtlich JS-Zeit statt datetime('now'): Fake-Timer in Tests steuern Date.now,
+    // SQLite-now liefe dagegen auf Echtzeit und würde Prognosen im Test leerlaufen lassen.
+    const nowIso = new Date().toISOString();
     const rows = this.db.prepare(`WITH ranked AS (
       SELECT account_key accountKey, provider, window_id windowId,
         window_minutes windowMinutes, resets_at resetsAt, used_percent usedPercent, captured_at capturedAt,
@@ -246,10 +251,10 @@ export class UsageDatabase {
           ORDER BY captured_at DESC
         ) sample_rank
       FROM usage_snapshots
-      WHERE resets_at IS NOT NULL AND resets_at > datetime('now')
+      WHERE resets_at IS NOT NULL AND resets_at > ?
     )
     SELECT accountKey, provider, windowId, windowMinutes, resetsAt, usedPercent, capturedAt
-    FROM ranked WHERE sample_rank <= 96 ORDER BY capturedAt`).all() as ForecastRow[];
+    FROM ranked WHERE sample_rank <= 96 ORDER BY capturedAt`).all(nowIso) as ForecastRow[];
     const byIdentity = new Map<string, ForecastRow[]>();
     for (const row of rows) {
       const key = `${row.provider}|${row.accountKey}|${row.windowId}`;
