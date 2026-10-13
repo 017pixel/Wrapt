@@ -1,0 +1,110 @@
+/* Gemeinsamer Rahmen der Statusleisten-Popups (Limit- und Changelog-Card).
+   Alle Farben, Radien und Timings kommen aus dem @theme-Block von index.css. */
+
+.shc {
+  /* Kanten und Spuren aus weißer Transparenz ableiten statt aus den Ink-Stufen.
+     Im ausgelieferten Theme sind `--color-line`, `--color-ink-600` und
+     `--color-ink-850` gleich `#191919` — ein Rahmen aus einer dieser Stufen
+     wäre auf der Karte unsichtbar. `color-mix` auf `--color-text` folgt der
+     Projektvorgabe und bleibt über jedes Theme hinweg ablesbar. */
+  --shc-edge: color-mix(in oklab, var(--color-text) 11%, transparent);
+  --shc-edge-soft: color-mix(in oklab, var(--color-text) 6%, transparent);
+  --shc-track: color-mix(in oklab, var(--color-text) 9%, transparent);
+
+  position: fixed;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--shc-edge);
+  border-radius: var(--radius);
+  background: var(--color-ink-850);
+  color: var(--color-text);
+  box-shadow: var(--shadow-popover);
+  transform-origin: 100% 100%;
+  animation: shc-in var(--duration-base) var(--ease-standard);
+}
+
+.shc-scroll {
+  display: flex;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  min-height: 0;
+  flex-direction: column;
+  scrollbar-width: thin;
+  scrollbar-color: var(--shc-track) transparent;
+}
+
+.shc-content { display: flex; flex: none; flex-direction: column; }
+
+.shc[data-placement="below"] { transform-origin: 100% 0; }
+
+@keyframes shc-in {
+  from { opacity: 0; transform: translateY(6px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Der Pfeil ist ein gedrehtes Quadrat mit derselben Füllung wie die Karte;
+   dieselbe Geometrie wie die Mascot-Blase an derselben Stelle im Bild. */
+.shc-arrow {
+  position: absolute;
+  bottom: -5px;
+  width: 9px;
+  height: 9px;
+  transform: rotate(45deg);
+  border-right: 1px solid var(--shc-edge);
+  border-bottom: 1px solid var(--shc-edge);
+  border-radius: 0 0 3px 0;
+  background: var(--color-ink-850);
+  pointer-events: none;
+}
+
+.shc[data-placement="below"] .shc-arrow {
+  bottom: auto;
+  top: -5px;
+  border: 0;
+  border-top: 1px solid var(--shc-edge);
+  border-left: 1px solid var(--shc-edge);
+  border-radius: 3px 0 0 0;
+}
+
+.shc-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--shc-edge-soft);
+  padding: var(--space-4);
+}
+
+.shc-head h2 { margin: 0; font-size: var(--text-md); font-weight: 600; }
+.shc-meta { margin-left: auto; color: var(--color-muted); font-size: var(--text-sm); }
+
+.shc-foot {
+  flex: none;
+  border-top: 1px solid var(--shc-edge-soft);
+  padding: 0 var(--space-4);
+}
+
+.shc-foot-link {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-muted);
+  font-size: var(--text-base);
+  text-decoration: none;
+}
+
+.shc-foot-link:hover { color: var(--color-text); }
+.shc-foot-link svg { margin-left: auto; }
+.shc :focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+@media (max-width: 480px) {
+  .shc-head { flex-wrap: wrap; }
+  .shc-meta { margin-left: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shc { animation: none; }
+  .shc-foot-link { transition: none; }
+}

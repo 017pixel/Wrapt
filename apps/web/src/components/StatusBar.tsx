@@ -9,7 +9,8 @@ import { statusBarRegistry } from "../extensions/statusBarRegistry";
 import { openGlobalContextMenu } from "./context-menu/contextMenuEvents";
 import { hostContextMenuId } from "../extensions/hostContextMenus";
 import { StatusMascot } from "./mascot/StatusMascot";
-import { useUsageLimitsHover } from "./usage/useUsageLimitsHover";
+import { useStatusHoverCard } from "./status/useStatusHoverCard";
+import { ChangelogHoverCard } from "./status/ChangelogHoverCard";
 import { limitsCardProviders } from "./usage/usageLimitsCard";
 import { UsageLimitsHoverCard } from "./usage/UsageLimitsHoverCard";
 
@@ -119,7 +120,8 @@ export function StatusBar() {
     void queryClient.invalidateQueries({ queryKey: ["usage"] });
   };
   const statusBarStyle = { "--status-limit-font-size": `${menuConfig.statusBar.fontSizePx}px` } as CSSProperties;
-  const limitsHover = useUsageLimitsHover();
+  const limitsHover = useStatusHoverCard();
+  const versionHover = useStatusHoverCard();
   // Einmal pro Render-Takt: die Zeitbasis wird an einem Ort bestimmt, damit
   // alle Provider in der Karte dieselbe „jetzt"-Referenz benutzen.
   const cardProviders = limitsCardProviders(
@@ -130,10 +132,24 @@ export function StatusBar() {
 
   return (
     <footer className={`status-bar hidden md:flex${mascot.data?.mascot.enabled === true ? " has-mascot" : ""}`}>
-      <span className="status-bar-item">
+      <button
+        type="button"
+        ref={versionHover.triggerRef}
+        className={`status-bar-item status-version${versionHover.open ? " is-open" : ""}`}
+        aria-label="Changelog öffnen"
+        aria-expanded={versionHover.open}
+        onPointerEnter={versionHover.onPointerEnter}
+        onPointerLeave={versionHover.onPointerLeave}
+        onClick={() => versionHover.toggle()}
+      >
         {health.isLoading ? <Spinner /> : <StateDot state={health.isError ? "error" : "active"} />}
         <span className="status-bar-value font-mono">v{health.data?.version ?? "—"}</span>
-      </span>
+        <span className="status-version-caret" aria-hidden="true">
+          <svg width="9" height="9" viewBox="0 0 12 12" fill="none">
+            <path d="M2.5 4.5L6 8l3.5-3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+      </button>
       <StatusMascot />
       {visibleProviders.length > 0 ? (
         <Link
@@ -195,6 +211,15 @@ export function StatusBar() {
           onPointerEnter={limitsHover.onCardPointerEnter}
           onPointerLeave={limitsHover.onCardPointerLeave}
           onBlur={limitsHover.onCardBlur}
+        />
+      ) : null}
+      {versionHover.open && versionHover.anchor ? (
+        <ChangelogHoverCard
+          anchor={versionHover.anchor}
+          version={health.data?.version ?? null}
+          onPointerEnter={versionHover.onCardPointerEnter}
+          onPointerLeave={versionHover.onCardPointerLeave}
+          onBlur={versionHover.onCardBlur}
         />
       ) : null}
     </footer>

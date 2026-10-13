@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
- * Öffnungszustand der Limit-Card in der Statusleiste.
+ * Öffnungszustand einer Hover-Card in der Statusleiste.
  *
  * Zwei Wege führen zur geöffneten Karte: Verweilen mit der Maus nach 700 ms
  * oder ein direkter Tipp. Der Verzögerungsweg gilt nur bei feiner Zeiger-
@@ -11,7 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 const OPEN_DELAY_MS = 700;
 const CLOSE_DELAY_MS = 200;
 
-export interface UsageLimitsHoverState {
+export interface StatusHoverCardState {
   /** True, solange die Karte sichtbar ist. */
   open: boolean;
   /** Der Element-Rechteck des Triggers; Position und Pointer-Gate stammen daraus. */
@@ -33,7 +33,7 @@ function canHover(): boolean {
   return typeof window.matchMedia !== "function" || window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 }
 
-export function useUsageLimitsHover(): UsageLimitsHoverState {
+export function useStatusHoverCard(): StatusHoverCardState {
   const [open, setOpen] = useState(false);
   const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   const trigger = useRef<HTMLElement | null>(null);

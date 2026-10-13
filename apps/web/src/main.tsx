@@ -15,6 +15,8 @@ import "./visual-system.css";
 import "./components/usage/usage-mobile.css";
 import "./components/usage/usage-filters.css";
 import "./components/usage/usage-limits-card.css";
+import "./components/status/status-hover-card.css";
+import "./components/status/changelog-card.css";
 import "./components/usage/account-list.css";
 import "./components/mobile/mobile-experience.css";
 
