@@ -1,6 +1,6 @@
 {
   "name": "wrapt",
-  "version": "2.2.9",
+  "version": "2.4.0",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@10.29.2",
@@ -31,7 +31,7 @@
     "start": "pnpm --filter @wrapt/server start",
     "extension:create": "node scripts/extensions/create.mjs",
     "extension:validate": "node scripts/extensions/validate.mjs",
-    "test:docs": "node --test docs-webseite/src/markdown.test.mjs",
+    "test:docs": "node --test docs-webseite/src/markdown.test.mjs docs-webseite/scripts/changelog-source.test.mjs",
     "typecheck:e2e": "tsc -p e2e/tsconfig.json --noEmit"
   },
   "devDependencies": {

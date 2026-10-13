@@ -239,6 +239,9 @@ importers:
       highlight.js:
         specifier: ^11.12.0
         version: 11.12.0
+      highlight.js-notes:
+        specifier: npm:highlight.js@11.11.2
+        version: highlight.js@11.11.2
       katex:
         specifier: ^0.18.7
         version: 0.18.7
