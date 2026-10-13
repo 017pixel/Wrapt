@@ -3,6 +3,7 @@ import type { DragEvent, ReactNode } from "react";
 import { ChevronRightIcon, PlusIcon } from "../../icons";
 import { useNotesPreferences } from "../../../stores/notesPreferences.js";
 import { NOTE_DRAG_TYPE, NOTE_SECTION_DRAG_TYPE, useNotesDrag } from "./NotesDragContext.js";
+import { NotesCollapse } from "./NotesCollapse.js";
 
 interface Props {
   id: string;
@@ -58,8 +59,6 @@ export function NotesSection({ id, title, children, onCreate, onDropNote, action
       {actions}
       {onCreate ? <button type="button" className="notes-group-action is-create" aria-label={`Neue Seite in ${title}`} onClick={onCreate}><PlusIcon aria-hidden /></button> : null}
     </div>
-    <div className="notes-group-content" data-collapsed={collapsed} inert={collapsed ? true : undefined} aria-hidden={collapsed || undefined}>
-      <div id={`notes-${id}-list`} aria-labelledby={`notes-${id}-heading`}>{children}</div>
-    </div>
+    <NotesCollapse collapsed={collapsed} id={`notes-${id}-list`} labelledBy={`notes-${id}-heading`}>{children}</NotesCollapse>
   </section>;
 }

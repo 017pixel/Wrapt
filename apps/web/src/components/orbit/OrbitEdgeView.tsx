@@ -1,8 +1,10 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
+import "./OrbitEdgeView.css";
 import { BaseEdge, EdgeLabelRenderer, useStore, type EdgeProps } from "@xyflow/react";
 import type { OrbitEdge } from "@wrapt/contracts";
 import { collisionFreeEdgeLabelPoint } from "../../lib/orbitEdgeLabel";
 import { useOrbitStore } from "../../stores/orbit";
+import { selectOrbitGeometry } from "../../lib/orbitGeometry";
 
 type Point = { x: number; y: number };
 type OrbitFlowEdgeData = { orbit: OrbitEdge; color: string };
@@ -91,10 +93,13 @@ function OrbitEdgeComponent({ id, sourceX, sourceY, targetX, targetY, selected, 
   const payload = data as OrbitFlowEdgeData | undefined;
   const edge = payload?.orbit;
   const updateEdge = useOrbitStore((state) => state.updateEdge);
-  const nodes = useOrbitStore((state) => state.document.boards.find((board) => board.id === state.document.activeBoardId)?.nodes ?? []);
+  const nodes = useOrbitStore((state) => selectOrbitGeometry(state.document.boards.find((board) => board.id === state.document.activeBoardId)?.nodes ?? []));
   const viewportZoom = useStore((state) => state.transform[2]);
   const [dragPoints, setDragPoints] = useState<Point[] | null>(null);
-  const dragRef = useRef<{ index: number; origin: Point; clientX: number; clientY: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const zoomRef = useRef(viewportZoom);
+  zoomRef.current = viewportZoom;
+  const dragRef = useRef<{ index: number; origin: Point; clientX: number; clientY: number; pointerId: number } | null>(null);
   const pointsRef = useRef<Point[] | null>(null);
   const sourceSide = edge?.sourceSide ?? (sourceX <= targetX ? "right" : "left");
   const route = useMemo(() => orthogonalRoute(
@@ -104,32 +109,47 @@ function OrbitEdgeComponent({ id, sourceX, sourceY, targetX, targetY, selected, 
     sourceSide,
   ), [dragPoints, edge?.waypoints, sourceSide, sourceX, sourceY, targetX, targetY]);
   const path = useMemo(() => roundedPath(route), [route]);
-  const controls = useMemo(() => sampledControls(route), [route]);
+  const controls = useMemo(() => dragPoints ?? sampledControls(route), [dragPoints, route]);
   const labelPoint = useMemo(() => collisionFreeEdgeLabelPoint(route, edge?.label ?? "", nodes), [edge?.label, nodes, route]);
 
   useEffect(() => {
+    if (!dragging) return;
     const move = (event: PointerEvent) => {
       const drag = dragRef.current;
       const current = pointsRef.current;
-      if (!drag || !current) return;
+      if (!drag || !current || event.pointerId !== drag.pointerId) return;
       const next = current.map((point, index) => index === drag.index ? {
-        x: drag.origin.x + (event.clientX - drag.clientX) / viewportZoom,
-        y: drag.origin.y + (event.clientY - drag.clientY) / viewportZoom,
+        x: drag.origin.x + (event.clientX - drag.clientX) / zoomRef.current,
+        y: drag.origin.y + (event.clientY - drag.clientY) / zoomRef.current,
       } : point);
       pointsRef.current = next;
       setDragPoints(next);
     };
-    const up = () => {
-      if (!dragRef.current || !pointsRef.current) return;
-      updateEdge(id, { waypoints: pointsRef.current.map((point) => ({ x: Math.round(point.x), y: Math.round(point.y) })) });
+    const clear = () => {
       dragRef.current = null;
       pointsRef.current = null;
       setDragPoints(null);
+      setDragging(false);
     };
+    const up = (event: PointerEvent) => {
+      if (!dragRef.current || !pointsRef.current) return;
+      if (event.pointerId !== dragRef.current.pointerId) return;
+      updateEdge(id, { waypoints: pointsRef.current.map((point) => ({ x: Math.round(point.x), y: Math.round(point.y) })) });
+      clear();
+    };
+    const cancel = (event: PointerEvent) => { if (event.pointerId === dragRef.current?.pointerId) clear(); };
+    const key = (event: KeyboardEvent) => { if (event.key === "Escape") { event.preventDefault(); clear(); } };
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
-    return () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); };
-  }, [id, updateEdge, viewportZoom]);
+    window.addEventListener("pointercancel", cancel);
+    window.addEventListener("keydown", key);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", cancel);
+      window.removeEventListener("keydown", key);
+    };
+  }, [dragging, id, updateEdge]);
 
   if (!edge) return null;
   return (
@@ -139,19 +159,28 @@ function OrbitEdgeComponent({ id, sourceX, sourceY, targetX, targetY, selected, 
       {selected && edge.kind === "manual" ? <EdgeLabelRenderer>{controls.map((point, index) => (
         <button
           type="button"
-          key={`${index}-${Math.round(point.x)}-${Math.round(point.y)}`}
+          key={index}
           className="orbit-edge-waypoint nodrag nopan"
-          style={{ transform: `translate(-50%, -50%) translate(${point.x}px, ${point.y}px)` }}
+          style={{ transform: `translate(${point.x}px, ${point.y}px) scale(${1 / viewportZoom}) translate(-50%, -50%)`, pointerEvents: "all" }}
           aria-label={`Linienpunkt ${index + 1} verschieben`}
           onPointerDown={(event) => {
             event.preventDefault();
             event.stopPropagation();
+            event.currentTarget.setPointerCapture?.(event.pointerId);
             const initial = controls.map((control) => ({ ...control }));
-            dragRef.current = { index, origin: initial[index]!, clientX: event.clientX, clientY: event.clientY };
+            dragRef.current = { index, origin: initial[index]!, clientX: event.clientX, clientY: event.clientY, pointerId: event.pointerId };
             pointsRef.current = initial;
             setDragPoints(initial);
+            setDragging(true);
           }}
-        />
+          onLostPointerCapture={(event) => {
+            if (dragRef.current?.pointerId !== event.pointerId) return;
+            dragRef.current = null;
+            pointsRef.current = null;
+            setDragPoints(null);
+            setDragging(false);
+          }}
+        ><span className="orbit-edge-waypoint-dot" aria-hidden /></button>
       ))}</EdgeLabelRenderer> : null}
     </>
   );

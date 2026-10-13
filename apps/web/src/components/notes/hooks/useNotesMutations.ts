@@ -1,8 +1,9 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { Note, UpdateNoteRequest } from "@wrapt/contracts";
 import { apiClient } from "../../../lib/apiClient";
 import { newNoteTitle } from "../noteTitles.js";
 import type { NotesDropResult } from "../sidebar/treeDrop.js";
+import { cacheSavedNote, publishMovedNote, publishSavedNote } from "../noteQueryUpdates.js";
 
 interface Options {
   appendParentReference: (parentId: string, note: Note) => Promise<boolean>;
@@ -13,6 +14,7 @@ interface Options {
 }
 
 export function useNotesMutations(options: Options) {
+  const queryClient = useQueryClient();
   const createMutation = useMutation({
     mutationFn: async (input: { parentId: string | null; folderId?: string | null; favorite?: boolean }) => {
       const created = await apiClient.createNote({ title: newNoteTitle(), ...input });
@@ -20,9 +22,12 @@ export function useNotesMutations(options: Options) {
       return created.note;
     },
     onSuccess: async (note, variables) => {
+      cacheSavedNote(queryClient, note);
       if (variables.parentId !== null && !await options.appendParentReference(variables.parentId, note)) {
         options.showActionError("Unterseite erstellt; der Verweis konnte nicht gespeichert werden.");
       }
+      // Der Verweis kann durch einen fremden Editor geschrieben worden sein.
+      if (variables.parentId !== null) void queryClient.invalidateQueries({ queryKey: ["notes", "detail", variables.parentId], exact: true });
       void options.invalidateNotes();
       options.onSelectNote(note.id);
       options.closeMobileSidebar();
@@ -36,7 +41,7 @@ export function useNotesMutations(options: Options) {
       if (!response) throw new Error("Die Änderung konnte nicht gespeichert werden.");
       return response.note;
     },
-    onSuccess: () => void options.invalidateNotes(),
+    onSuccess: (note) => void publishSavedNote(queryClient, note),
     onError: () => options.showActionError("Die Änderung konnte nicht gespeichert werden."),
   });
   const moveMutation = useMutation({
@@ -49,7 +54,7 @@ export function useNotesMutations(options: Options) {
       if (!response) throw new Error("Die Seite konnte nicht verschoben werden.");
       return response.note;
     },
-    onSuccess: () => void options.invalidateNotes(),
+    onSuccess: (note) => void publishMovedNote(queryClient, note),
     onError: () => options.showActionError("Die Seite konnte nicht verschoben werden."),
   });
   return { createMutation, patchMutation, moveMutation };

@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { ExternalLinkIcon, FullscreenIcon, MoreIcon, RefreshIcon, RestoreIcon } from "./icons";
+import { ExternalLinkIcon, FullscreenIcon, InfoIcon, MoreIcon, RefreshIcon, RestoreIcon } from "./icons";
 
 interface ToolActionMenuProps {
   externalHref: string;
   isFullscreen: boolean;
   onFullscreen: () => void | Promise<void>;
   onReload: () => void;
+  onGitHubSignIn?: () => void;
   className?: string;
 }
 
-export function ToolActionMenu({ externalHref, isFullscreen, onFullscreen, onReload, className = "" }: ToolActionMenuProps) {
+export function ToolActionMenu({ externalHref, isFullscreen, onFullscreen, onReload, onGitHubSignIn, className = "" }: ToolActionMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -53,6 +54,13 @@ export function ToolActionMenu({ externalHref, isFullscreen, onFullscreen, onRel
       </button>
       {open ? (
         <div className="tool-actions-popover" role="menu" aria-label="Werkzeugaktionen">
+          {onGitHubSignIn ? <button type="button" role="menuitem" className="tool-actions-sign-in" onClick={() => run(() => {
+            triggerRef.current?.focus();
+            onGitHubSignIn();
+          })}>
+            <InfoIcon className="h-4 w-4" />
+            GitHub und Sync
+          </button> : null}
           <button type="button" role="menuitem" onClick={() => run(onReload)}>
             <RefreshIcon className="h-4 w-4" />
             Neu laden

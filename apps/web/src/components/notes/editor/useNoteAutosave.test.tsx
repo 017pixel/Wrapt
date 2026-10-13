@@ -23,7 +23,7 @@ it("sperrt Autosave während eines Konflikts und speichert die eigene Fassung er
   const { result } = renderHook(() => useNoteAutosave({
     noteId: serverNote.id,
     revision: 1,
-    getMarkdown: () => draft,
+    captureMarkdown: () => { const snapshot = draft; return () => snapshot; },
     onSaved,
   }));
 
@@ -64,7 +64,7 @@ it("lädt die Serverrevision als neue Grundlage für spätere Änderungen", asyn
   const { result } = renderHook(() => useNoteAutosave({
     noteId: serverNote.id,
     revision: 1,
-    getMarkdown: () => "Änderung nach Serverfassung",
+    captureMarkdown: () => () => "Änderung nach Serverfassung",
     onSaved: vi.fn(),
   }));
 
@@ -103,7 +103,7 @@ it("bewahrt Eingaben, die während eines laufenden Speicherns dazukommen", async
   const { result } = renderHook(() => useNoteAutosave({
     noteId: serverNote.id,
     revision: 1,
-    getMarkdown: () => draft,
+    captureMarkdown: () => { const snapshot = draft; return () => snapshot; },
     onSaved: vi.fn(),
   }));
 

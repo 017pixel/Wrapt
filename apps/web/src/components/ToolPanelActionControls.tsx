@@ -1,9 +1,10 @@
-import type { MouseEventHandler } from "react";
+import { useState, type MouseEventHandler } from "react";
 import type { Panel } from "@wrapt/contracts";
 import type { DevicePresetId } from "../config/devicePresets";
 import { DevicePickerButton } from "./DevicePickerButton";
 import { DeviceRotateIcon, ExternalLinkIcon, FullscreenIcon, RefreshIcon, RestoreIcon, CloseIcon } from "./icons";
 import { ToolActionMenu } from "./ToolActionMenu";
+import { CodeServerSignIn } from "./CodeServerSignIn";
 import type { ResolvedPanel } from "./toolPanelResolution";
 import "./tool-panel-actions.css";
 
@@ -44,25 +45,41 @@ export function ToolPanelActionControls({
   onContextMenu,
   onToggleFullscreen,
 }: ToolPanelActionControlsProps) {
+  const [signInOpen, setSignInOpen] = useState(false);
   if (resolved === null || minimal || actionPlacement === "hidden") return null;
+  const hasSignInHelp = panel.type === "code-server" && resolved.embed && !resolved.reason && externalToolUrl;
+  const signInDialog = hasSignInHelp
+    ? <CodeServerSignIn editorUrl={externalToolUrl} open={signInOpen} onClose={() => setSignInOpen(false)} /> : null;
+  const actionMenu = <ToolActionMenu
+    className="is-inline"
+    externalHref={externalToolUrl ?? window.location.href}
+    isFullscreen={isMaximized}
+    onFullscreen={onToggleFullscreen}
+    onReload={onReload}
+    {...(hasSignInHelp ? { onGitHubSignIn: () => setSignInOpen(true) } : {})}
+  />;
 
   if (standalone) {
     return (
       <div className="panel-standalone-actions" onContextMenu={onContextMenu}>
+        {signInDialog}
         {isMaximized ? <button type="button" title="Wiederherstellen" aria-label="Wiederherstellen" onClick={onToggleFullscreen} className="icon-button"><RestoreIcon className="h-4 w-4" /></button> : null}
-        <ToolActionMenu
-          className="is-inline"
-          externalHref={externalToolUrl ?? window.location.href}
-          isFullscreen={isMaximized}
-          onFullscreen={onToggleFullscreen}
-          onReload={onReload}
-        />
+        {actionMenu}
       </div>
     );
   }
 
+  if (panel.type === "code-server") {
+    return <div className={`panel-island ${actionPlacement === "topbar" ? "is-topbar is-flat-toolbar" : ""} ${isMaximized ? "is-maximized-actions" : ""}`} onContextMenu={onContextMenu}>
+      {signInDialog}
+      {isMaximized ? <button type="button" title="Wiederherstellen" aria-label="Wiederherstellen" onClick={onToggleFullscreen} className="icon-button"><RestoreIcon className="h-4 w-4" /></button> : null}
+      {actionMenu}
+      <button type="button" title="Schließen" aria-label="Schließen" onClick={onClose} className="icon-button danger"><CloseIcon className="h-4 w-4" /></button>
+    </div>;
+  }
+
   return (
-    <div className={`panel-island ${actionPlacement === "topbar" ? "is-topbar" : ""} ${actionPlacement === "topbar" && panel.type === "code-server" ? "is-flat-toolbar" : ""} ${isMaximized ? "is-maximized-actions" : ""}`} onContextMenu={onContextMenu}>
+    <div className={`panel-island ${actionPlacement === "topbar" ? "is-topbar" : ""} ${isMaximized ? "is-maximized-actions" : ""}`} onContextMenu={onContextMenu}>
       {panel.type === "preview" ? <DevicePickerButton deviceId={deviceId} onChange={onDeviceChange} /> : null}
       {panel.type === "preview" && deviceId !== "responsive" ? <button type="button" title="Ausrichtung drehen" aria-label="Ausrichtung drehen" onClick={onRotate} className="icon-button"><DeviceRotateIcon className="h-4 w-4" /></button> : null}
       {panel.type === "preview" && resolved.targetPort ? <span className="preview-slot-badge">{previewSlotId ? `SLOT ${previewSlotId}` : "SLOT"}</span> : null}

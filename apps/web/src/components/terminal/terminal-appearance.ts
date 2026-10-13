@@ -1,6 +1,7 @@
 import type { MutableRefObject } from "react";
-import type { Terminal } from "@xterm/xterm";
-import { isCompactTerminal, terminalFontSizeForRenderScale, themeFromDashboard } from "./terminal-utils";
+import type { ITheme, Terminal } from "@xterm/xterm";
+import { isCompactTerminal, terminalFontSizeForRenderScale } from "./terminal-utils";
+import { terminalThemesEqual, themeFromDashboard } from "./terminal-theme";
 
 export const terminalScaleResizeDelayMs = 120;
 
@@ -97,15 +98,23 @@ export function attachTerminalAppearance(terminal: Terminal, mount: HTMLElement,
   viewport?.addEventListener("resize", onViewportChange);
   viewport?.addEventListener("scroll", onViewportChange);
 
+  // Palette-Wechsel des Dashboards übernehmen, ohne xterm, Sitzung oder
+  // Transport neu aufzubauen: Es wird nur das Theme der laufenden Instanz
+  // ersetzt und neu gezeichnet. Der Vergleich verhindert ein Neuzeichnen bei
+  // fremden Inline-Styles auf <html> (z. B. der Terminal-Sidebar-Breite).
+  let appliedTheme: ITheme | null = terminal.options.theme ?? null;
   const themes = new MutationObserver(() => {
     if (themeRefreshRef.current !== null) return;
     themeRefreshRef.current = window.setTimeout(() => {
       themeRefreshRef.current = null;
-      terminal.options.theme = themeFromDashboard(mount);
-      terminal.refresh(0, terminal.rows - 1);
+      const next = themeFromDashboard(mount);
+      if (appliedTheme && terminalThemesEqual(appliedTheme, next)) return;
+      appliedTheme = next;
+      terminal.options.theme = next;
+      if (terminal.rows > 0) terminal.refresh(0, terminal.rows - 1);
     }, 16);
   });
-  themes.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style"] });
+  themes.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "style", "data-theme-preset"] });
 
   return () => {
     observer.disconnect();

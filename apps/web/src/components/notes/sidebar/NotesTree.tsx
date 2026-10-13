@@ -6,6 +6,7 @@ import { useNotesPreferences } from "../../../stores/notesPreferences.js";
 import { NotesTreeItem, type NotesTreeActions } from "./NotesTreeItem.js";
 import { buildSidebarTree, type SidebarTreeNode } from "./sidebarTree.js";
 import { resolveNotesDrop, type NotesDropResult, type NotesDropZone } from "./treeDrop.js";
+import { NotesCollapse } from "./NotesCollapse.js";
 
 interface NotesTreeProps {
   notes: readonly NoteSummary[];
@@ -45,11 +46,11 @@ export function NotesTree({
   const expandTimerRef = useRef<number | null>(null);
 
   const tree = useMemo(() => buildSidebarTree(notes), [notes]);
+  const byId = useMemo(() => new Map(notes.map((note) => [note.id, note])), [notes]);
 
   // Beim Öffnen einer Notiz den Pfad aufklappen, damit sie sichtbar ist.
   useEffect(() => {
     if (activeId === null) return;
-    const byId = new Map(notes.map((note) => [note.id, note]));
     const chain: string[] = [];
     let current = byId.get(activeId);
     const guard = new Set<string>();
@@ -59,12 +60,11 @@ export function NotesTree({
       current = byId.get(current.parentId);
     }
     if (chain.length > 0) expandNotes(chain);
-  }, [activeId, notes, expandNotes]);
+  }, [activeId, byId, expandNotes]);
 
   useEffect(() => {
     if (renameRequestId === null) return;
     setRenamingId(renameRequestId);
-    const byId = new Map(notes.map((note) => [note.id, note]));
     const ancestors: string[] = [];
     let current = byId.get(renameRequestId);
     const guard = new Set<string>();
@@ -75,7 +75,7 @@ export function NotesTree({
     }
     if (ancestors.length > 0) expandNotes(ancestors);
     onRenameRequestHandled();
-  }, [expandNotes, notes, onRenameRequestHandled, renameRequestId]);
+  }, [expandNotes, byId, onRenameRequestHandled, renameRequestId]);
 
   const clearExpandTimer = useCallback(() => {
     if (expandTimerRef.current !== null) {
@@ -178,9 +178,9 @@ export function NotesTree({
         actions={actions}
       >
         {node.children.length > 0 ? (
-          <div className="notes-group-content" data-collapsed={!isExpanded} inert={!isExpanded ? true : undefined} aria-hidden={!isExpanded || undefined}><div className="notes-tree-children">
-            {node.children.map((child) => renderNode(child, depth + 1))}
-          </div></div>
+          <NotesCollapse collapsed={!isExpanded} className="notes-tree-children">
+            {() => node.children.map((child) => renderNode(child, depth + 1))}
+          </NotesCollapse>
         ) : null}
       </NotesTreeItem>
     );

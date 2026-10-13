@@ -201,7 +201,12 @@ export function NoteEditor({
     return () => scroll.removeEventListener("pointerdown", focusBlank);
   }, [editor, compact]);
 
-  const getMarkdown = useCallback(() => editor?.getMarkdown() ?? null, [editor]);
+  const captureMarkdown = useCallback(() => {
+    if (!editor || editor.isDestroyed || !editor.storage.markdown?.manager) return null;
+    const document = editor.state.doc;
+    const manager = editor.storage.markdown.manager;
+    return () => manager.serialize(document.toJSON());
+  }, [editor]);
   const loadedNoteIdRef = useRef<string | null>(null);
   const loadedRevisionRef = useRef<number | null>(null);
   const handleSaved = useCallback((saved: Note) => {
@@ -215,7 +220,7 @@ export function NoteEditor({
   const autosave = useNoteAutosave({
     noteId: note.id,
     revision: note.revision,
-    getMarkdown,
+    captureMarkdown,
     onSaved: handleSaved,
   });
   const { schedule, flush, acceptServerNote, getDraftContent, conflictNote, state } = autosave;

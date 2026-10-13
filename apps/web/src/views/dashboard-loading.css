@@ -1,0 +1,15 @@
+/* Gleiche Typografie und Kartenhöhen während und nach dem Laden. */
+.dash-vital-value .dash-vital-placeholder {
+  width: 3ch;
+  height: 1em;
+  font-size: inherit;
+}
+
+/* Neue Dienstdaten verändern die Rasterhöhe, nicht die Position des Charts. */
+.dash-server-body,
+.dash-recent-project-list {
+  align-self: start;
+}
+
+.dash-disk-summary .dash-skeleton-line { width: 8ch; height: 1.5em; }
+.dash-disk-list small .dash-skeleton-line { width: 12ch; height: 1.5em; }

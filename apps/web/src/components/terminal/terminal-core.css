@@ -22,14 +22,22 @@
   }
   .terminal-tree-actions {
     display: grid;
-    width: 44px;
-    min-height: 44px;
+    width: 32px;
+    min-height: 32px;
     flex: none;
     place-items: center;
     border: 0;
     border-radius: var(--radius-sm);
     background: transparent;
     color: var(--color-faint);
+    transition: opacity var(--duration-fast) var(--ease-standard), background var(--duration-fast), color var(--duration-fast);
+  }
+  /* Auf Maus-Geräten erscheint die Aktion erst beim Überfahren der Zeile oder
+     bei Fokus — die Liste bleibt ruhig. Touch-Geräte zeigen sie dauerhaft. */
+  @media (hover: hover) and (pointer: fine) {
+    .terminal-tree-actions { opacity: 0; pointer-events: none; }
+    .terminal-tree-row:hover .terminal-tree-actions,
+    .terminal-tree-row:focus-within .terminal-tree-actions { opacity: 1; pointer-events: auto; }
   }
   .terminal-tree-actions:hover,
   .terminal-tree-actions:focus-visible { background: var(--color-ink-800); color: var(--color-text); }
@@ -50,4 +58,43 @@
     font-size: var(--text-xs);
   }
   .terminal-connection-banner button { min-height: 44px; padding-inline: var(--space-3); color: var(--color-accent); }
+
+  /* --- Terminal-Baum ---------------------------------------------------
+     Ordner klappen weich über eine Grid-Zeile auf und zu; geschlossene Kinder
+     sind inert, damit Fokus und Vorlesen sie nicht erreichen. Die
+     Verbindungslinien sitzen auf den Listenpunkten und enden in einem Bogen
+     beim letzten Eintrag — daraus entsteht die Baumform. */
+  .terminal-tree { margin: 0; padding: 0; list-style: none; }
+  .terminal-tree-collapse { display: grid; grid-template-rows: 1fr; opacity: 1; transition: grid-template-rows var(--duration-base) var(--ease-standard), opacity var(--duration-fast) var(--ease-standard); }
+  .terminal-tree-collapse[data-collapsed="true"] { grid-template-rows: 0fr; opacity: 0; }
+  .terminal-tree-collapse > .terminal-tree-children { min-height: 0; overflow: hidden; }
+  .terminal-tree-collapse[data-collapsed="true"] > .terminal-tree-children { visibility: hidden; transition: visibility var(--duration-base); }
+  .terminal-tree-children { margin: 0 0 0 16px; padding: 0; list-style: none; }
+  .terminal-tree-children > li { position: relative; }
+  .terminal-tree-children > li::before { position: absolute; top: 0; bottom: 0; left: 0; width: 1px; background: var(--color-ink-700); content: ""; }
+  .terminal-tree-children > li:last-child::before { bottom: 50%; }
+  .terminal-tree-children > li::after { position: absolute; top: 50%; left: 0; width: 9px; height: 1px; background: var(--color-ink-700); content: ""; transform: translateY(-.5px); }
+  .terminal-tree-chevron svg { transition: transform var(--duration-base) var(--ease-standard); }
+  .terminal-tree-chevron svg.is-expanded { transform: rotate(90deg); }
+  /* Beim Auf- und Zuklappen wechseln sich Ordner- und Offen-Icon ab; der kurze
+     Pop erklärt den Zustandswechsel, ohne Aufmerksamkeit auf sich zu ziehen. */
+  .terminal-tree-row.is-folder .terminal-tree-icon svg { animation: terminal-tree-icon-pop var(--duration-base) var(--ease-standard); }
+  @keyframes terminal-tree-icon-pop {
+    from { transform: scale(.8); opacity: .5; }
+    to { transform: scale(1); opacity: 1; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .terminal-tree-collapse, .terminal-tree-collapse > .terminal-tree-children,
+    .terminal-tree-row, .terminal-tree-chevron svg, .terminal-tree-row.is-folder .terminal-tree-icon svg {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
 }
+
+/* xterm.css färbt den Scrollback-Container mit einer unlayered Regel fest
+   schwarz ein und schlägt damit jede Regel in `@layer components`. Diese
+   Regel liegt bewusst außerhalb des Layers und hält freie Flächen unter dem
+   Terminalraster auf der Flächenfarbe des Terminals, statt als schwarzer
+   Rand zu erscheinen. */
+.terminal-viewport .xterm-viewport { background-color: var(--color-ink-950); }

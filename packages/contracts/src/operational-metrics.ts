@@ -66,6 +66,7 @@ export const operationalMetricsSchema = z.object({
     entries: z.number().int().nonnegative(),
     latestAt: isoDateSchema.nullable(),
     outboxPending: z.number().int().nonnegative().default(0),
+    checkedSequence: z.number().int().nonnegative().optional(),
   }),
   orbit: z.object({
     pendingBackups: z.number().int().nonnegative(),

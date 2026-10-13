@@ -2,7 +2,6 @@ import { useState } from "react";
 import type { ServerMetrics } from "@wrapt/contracts";
 import { Meter, loadTone } from "../components/charts";
 import { formatBytes } from "../lib/format";
-import { PanelSkeleton } from "./DashboardPanels";
 
 const VISIBLE_DISKS = 3;
 
@@ -46,7 +45,15 @@ export function DashboardStorageList({ disks, isPending }: { disks: Disk[]; isPe
         {!isPending && ordered.length ? <span>{ordered.length}</span> : null}
       </div>
       {isPending ? (
-        <PanelSkeleton label="Laufwerke laden" rows={2} />
+        <ul className="dash-disk-list" aria-label="Laufwerke laden" aria-busy>
+          {Array.from({ length: VISIBLE_DISKS }, (_, index) => (
+            <li key={index} aria-hidden>
+              <div className="dash-disk-summary"><span className="dash-skeleton-line" /></div>
+              <Meter value={0} label="Belegung wird geladen" />
+              <small><span className="dash-skeleton-line" /></small>
+            </li>
+          ))}
+        </ul>
       ) : ordered.length ? (
         <>
           <ul className="dash-disk-list">

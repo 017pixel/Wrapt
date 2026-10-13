@@ -364,6 +364,7 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
                 className="h-full w-full border-0 bg-white"
                 allowFullScreen
                 referrerPolicy="same-origin"
+                {...(panel.type === "code-server" ? { allow: "clipboard-read 'self'; clipboard-write 'self'" } : {})}
                 {...(panel.type === "t3-code" ? { allow: "local-network-access; local-network; loopback-network" } : {})}
               />
             </DevicePreviewFrame>

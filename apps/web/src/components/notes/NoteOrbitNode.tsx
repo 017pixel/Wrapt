@@ -4,9 +4,11 @@ import type { OrbitNode } from "@wrapt/contracts";
 import { apiClient } from "../../lib/apiClient";
 import { notesWindowUrl, notesWorkspaceUrl } from "../../lib/notesRoutes";
 import { wraptQueries } from "../../lib/queryOptions";
+import { useRouteActivity } from "../../lib/routeActivity";
 import { useOrbitStore } from "../../stores/orbit";
 import { ExternalLinkIcon, FullscreenIcon, LoaderIcon } from "../icons";
 import { NoteEditor } from "./NoteEditor.js";
+import { invalidateNoteSummaries, publishSavedNote } from "./noteQueryUpdates.js";
 
 interface NoteOrbitNodeProps {
   id: string;
@@ -24,6 +26,7 @@ function useActiveOrbitNode(id: string): OrbitNode | undefined {
  * Verweis) automatisch mit einer Notiz und rendert den kompakten Editor.
  */
 export function NoteOrbitNode({ id }: NoteOrbitNodeProps) {
+  const routeActive = useRouteActivity();
   const node = useActiveOrbitNode(id);
   const updateNode = useOrbitStore((state) => state.updateNode);
   const queryClient = useQueryClient();
@@ -37,7 +40,7 @@ export function NoteOrbitNode({ id }: NoteOrbitNodeProps) {
   const noteId = node?.noteId ?? null;
   const noteQuery = useQuery({
     ...wraptQueries.note(noteId ?? ""),
-    enabled: noteId !== null,
+    enabled: routeActive && noteId !== null,
   });
   const note = noteQuery.data?.note ?? null;
 
@@ -58,7 +61,7 @@ export function NoteOrbitNode({ id }: NoteOrbitNodeProps) {
           });
         }
         updateNode(id, { noteId: created.id });
-        void queryClient.invalidateQueries({ queryKey: ["notes"] });
+        void invalidateNoteSummaries(queryClient);
       })
       .catch(() => {
         requestedRef.current = false;
@@ -88,8 +91,7 @@ export function NoteOrbitNode({ id }: NoteOrbitNodeProps) {
         if (!updated?.note) throw new Error("Notiztitel konnte nicht gespeichert werden.");
         lastSyncedTitleRef.current = updated.note.title;
         succeeded = true;
-        queryClient.setQueryData(wraptQueries.note(note.id).queryKey, updated);
-        void queryClient.invalidateQueries({ queryKey: ["notes"] });
+        void publishSavedNote(queryClient, updated.note);
       }).catch(() => setRenameError(true)).finally(() => {
         renamePendingRef.current = false;
         if (succeeded) setRenameRetry((value) => value + 1);
@@ -161,7 +163,7 @@ export function NoteOrbitNode({ id }: NoteOrbitNodeProps) {
         note={note}
         compact
         ariaLabel="Neue Notiz bearbeiten"
-        onSaved={() => void queryClient.invalidateQueries({ queryKey: ["notes"] })}
+        onSaved={(saved) => void publishSavedNote(queryClient, saved)}
       />
     </div>
   );

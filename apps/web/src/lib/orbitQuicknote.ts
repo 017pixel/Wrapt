@@ -2,6 +2,7 @@ import { useCallback, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router";
 import { apiClient } from "./apiClient";
+import { publishSavedNote } from "../components/notes/noteQueryUpdates.js";
 
 export function useOrbitQuicknote(onStatus: (message: string) => void) {
   const navigate = useNavigate();
@@ -13,7 +14,7 @@ export function useOrbitQuicknote(onStatus: (message: string) => void) {
     pending.current = true;
     try {
       const result = await apiClient.createGlobalQuicknote();
-      void queryClient.invalidateQueries({ queryKey: ["notes"] });
+      void publishSavedNote(queryClient, result.note);
       onStatus("Globale Schnellnotiz erstellt.");
       navigate(`/orbit/notizen?note=${encodeURIComponent(result.note.id)}`);
     } catch {

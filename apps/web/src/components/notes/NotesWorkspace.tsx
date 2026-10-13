@@ -5,6 +5,7 @@ import { apiClient } from "../../lib/apiClient";
 import { useMediaQuery } from "../../lib/useMediaQuery";
 import { notesWindowUrl, notesWorkspaceUrl } from "../../lib/notesRoutes";
 import { wraptQueries } from "../../lib/queryOptions";
+import { useRouteActivity } from "../../lib/routeActivity";
 import { useNotesPreferences } from "../../stores/notesPreferences";
 import { QueryBoundary } from "../QueryBoundary";
 import { NoteEditor } from "./NoteEditor.js";
@@ -19,6 +20,7 @@ import { NotesCommandPalette } from "./search/NotesCommandPalette.js";
 import { NotesSidebar } from "./sidebar/NotesSidebar.js";
 import type { NoteSaveState } from "./editor/useNoteAutosave.js";
 import { useLastOpenedNote } from "./useLastOpenedNote.js";
+import { invalidateNoteSummaries, publishSavedNote } from "./noteQueryUpdates.js";
 
 interface NotesWorkspaceProps {
   noteId: string | null;
@@ -30,13 +32,14 @@ interface NotesWorkspaceProps {
 const NOTE_WINDOW_FEATURES = "popup=yes,noopener=yes,noreferrer=yes,width=1100,height=820";
 
 export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: NotesWorkspaceProps) {
+  const routeActive = useRouteActivity();
   const queryClient = useQueryClient();
   const listQuery = useQuery(wraptQueries.notesList());
   const notes = useMemo(() => listQuery.data?.notes ?? [], [listQuery.data]);
 
   const noteQuery = useQuery({
     ...wraptQueries.note(noteId ?? ""),
-    enabled: noteId !== null,
+    enabled: routeActive && noteId !== null,
   });
 
   const [saveState, setSaveState] = useState<NoteSaveState>("saved");
@@ -71,7 +74,7 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
   }, []);
 
   const invalidateNotes = useCallback(
-    () => queryClient.invalidateQueries({ queryKey: ["notes"] }),
+    () => invalidateNoteSummaries(queryClient),
     [queryClient],
   );
 
@@ -85,10 +88,9 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
   // eingefügten Seiten-Verweis).
   const handleEditorSaved = useCallback(
     (saved: Note) => {
-      queryClient.setQueryData(["notes", "detail", saved.id], { note: saved });
-      void invalidateNotes();
+      void publishSavedNote(queryClient, saved);
     },
-    [invalidateNotes, queryClient],
+    [queryClient],
   );
 
   const handleSelect = useCallback(

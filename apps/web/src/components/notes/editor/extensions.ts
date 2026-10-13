@@ -26,6 +26,7 @@ import { Column, ColumnList } from "./ColumnsNodes.js";
 import { bulletListRule, orderedListRule, taskItemRule } from "./listInputRules.js";
 import { LinkSafety } from "./LinkSafety.js";
 import { lowlight } from "./lowlight.js";
+import { lazyCodeHighlightPlugins } from "./lazyCodeHighlight.js";
 import { MarkdownPaste } from "./MarkdownPaste.js";
 import { NoteMention } from "./NoteMention.js";
 import { NoteMentionView } from "./NoteMentionView.js";
@@ -60,6 +61,7 @@ const CalloutWithView = Callout.extend({
 
 const CodeBlockWithView = CodeBlockLowlight.extend({
   addNodeView: () => ReactNodeViewRenderer(CodeBlockView),
+  addProseMirrorPlugins() { return lazyCodeHighlightPlugins(this.parent?.() ?? []); },
 });
 
 const TableOfContentsWithView = TableOfContentsBlock.extend({

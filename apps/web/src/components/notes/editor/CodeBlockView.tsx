@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from "@tiptap/react";
-import { lowlight } from "./lowlight.js";
+import { noteCodeLanguages } from "./lowlight.js";
 
 /** Codeblock mit Sprachwahl und Kopierknopf. */
 export function CodeBlockView({ node, updateAttributes, editor }: NodeViewProps) {
   const [copied, setCopied] = useState(false);
-  const languages = useMemo(() => lowlight.listLanguages().sort(), []);
+  const languages = noteCodeLanguages;
   const language = (node.attrs.language ?? "plaintext") as string;
 
   useEffect(() => {

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { TerminalWorkspaceOperation, TerminalWorkspaceV2 } from "@wrapt/contracts";
+import { TERMINAL_WORKSPACE_OPERATION_LIMIT } from "@wrapt/contracts";
 import { ApiClientError, apiClient } from "../../lib/apiClient";
 import { useTerminalWorkspaceStore } from "../../stores/terminalWorkspace";
 
@@ -89,7 +90,9 @@ export function TerminalWorkspaceSync() {
   useEffect(() => {
     if (!hydrated || !dirty || saving || pendingOps.length === 0) return;
     writePending({ revision, operations: pendingOps });
-    const snapshot = { revision, operations: pendingOps };
+    // Der Recoverypuffer enthält weiterhin alle Operationen. Nur der
+    // bestätigte Präfix wird entfernt, weitere Batches folgen geordnet.
+    const snapshot = { revision, operations: pendingOps.slice(0, TERMINAL_WORKSPACE_OPERATION_LIMIT) };
     // Neue Runtime erst nach dem Server-Ack starten: Beim Schließen eines
     // frischen Browserkontexts muss ihr Pane bereits serverseitig existieren.
     const delay = pendingOps.some((operation) => operation.type === "createEntry") ? 0 : SAVE_DELAY_MS;
@@ -105,7 +108,7 @@ export function TerminalWorkspaceSync() {
               useTerminalWorkspaceStore.getState().markSyncError("Das Terminal-Layout konnte nicht gespeichert werden.");
               return;
             }
-            useTerminalWorkspaceStore.getState().reconcileSaved(response.document, response.revision, snapshot.operations);
+            useTerminalWorkspaceStore.getState().reconcileSaved(response.document, response.revision, latest.operations);
             conflictAttemptsRef.current = 0;
             const current = useTerminalWorkspaceStore.getState();
             if (current.pendingOps.length === 0) writePending(null);
@@ -128,7 +131,7 @@ export function TerminalWorkspaceSync() {
               const operations = current.pendingOps.length > 0 ? current.pendingOps : latest.operations;
               current.rebaseRemote(remote.document, remote.revision, operations);
               current.markSaving(true);
-              latest = { revision: remote.revision, operations };
+              latest = { revision: remote.revision, operations: operations.slice(0, TERMINAL_WORKSPACE_OPERATION_LIMIT) };
               continue;
             }
             retryRef.current = window.setTimeout(() => useTerminalWorkspaceStore.getState().markSyncError(

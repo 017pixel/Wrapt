@@ -1,3 +1,4 @@
+import type { UseQueryResult } from "@tanstack/react-query";
 import type { CSSProperties, ReactNode } from "react";
 import { RefreshIcon, WarningIcon } from "../components/icons";
 import { formatRequestId, queryErrorGuide } from "../lib/queryErrorGuide";
@@ -79,4 +80,19 @@ export function statusTone(state: string): "default" | "ok" | "warn" | "bad" {
 export function formatDashboardPath(path: string): string {
   const parts = path.split("/").filter(Boolean);
   return parts.length > 3 ? `…/${parts.slice(-2).join("/")}` : path;
+}
+
+export type DashboardQuery<T> = UseQueryResult<T, Error>;
+
+export function Facts({ items, min = "132px" }: { items: { label: string; value: string; mono?: boolean }[]; min?: string }) {
+  return (
+    <dl className="dash-facts" style={{ "--dash-fact-min": min } as CSSProperties}>
+      {items.map((item) => (
+        <div key={item.label}>
+          <dt>{item.label}</dt>
+          <dd className={item.mono === false ? "" : "font-mono"}>{item.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
 }

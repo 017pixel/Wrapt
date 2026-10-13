@@ -7,11 +7,13 @@ import { writeClipboardText } from "../../../lib/clipboard";
 import { applyTerminalRenderScale, attachTerminalAppearance, createTerminalScaleResizeScheduler } from "../terminal-appearance";
 import { attachTerminalInput } from "../terminal-input";
 import { useTerminalOutput } from "../useTerminalOutput";
-import { isCompactTerminal, mouseWheelSequence, terminalFontSizeForRenderScale, terminalKeySequence, themeFromDashboard } from "../terminal-utils";
+import { isCompactTerminal, mouseWheelSequence, terminalFontSizeForRenderScale, terminalKeySequence } from "../terminal-utils";
+import { themeFromDashboard } from "../terminal-theme";
 import type { ClientMessage, TerminalMeta, TerminalStatus } from "../terminal-types";
 import type { TerminalSubscription } from "../transport/TerminalTransport";
 import { createRendererCore } from "./rendererCore";
 import type { TerminalRenderer, TerminalRendererOptions } from "./rendererTypes";
+import { useOrbitTerminalActivity } from "../../orbit/useOrbitTerminalActivity";
 
 /**
  * Renderer-Engine V2: Eine xterm-Instanz pro sichtbarem Pane, verbunden über
@@ -21,12 +23,12 @@ import type { TerminalRenderer, TerminalRendererOptions } from "./rendererTypes"
  * Subscription, sobald er unsichtbar wird — kein ANSI-Parsing im Hintergrund.
  */
 export function useTerminalRenderer(options: TerminalRendererOptions): TerminalRenderer {
-  const { instanceId, kind, projectId, initialCwd, mode, accountId, active, focused, renderScale, onMetaChange } = options;
+  const { instanceId, kind, projectId, initialCwd, mode, accountId, focused, renderScale, onMetaChange } = options;
 
   const mountRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
-  const activeRef = useRef(active);
+  const activeRef = useRef(options.active);
   const focusedRef = useRef(focused);
   const kindRef = useRef(kind);
   const sessionRef = useRef<string | null>(null);
@@ -46,7 +48,6 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
   const scaleResizeSchedulerRef = useRef<ReturnType<typeof createTerminalScaleResizeScheduler> | null>(null);
   const renderScaleRef = useRef(renderScale);
   const cwdRef = useRef("–");
-  activeRef.current = active;
   renderScaleRef.current = renderScale;
 
   // Beim Antippen wird der Ref im PointerDown-Handler sofort gesetzt. Ein
@@ -56,6 +57,11 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
   }, [focused]);
 
   const [status, setStatusState] = useState<TerminalStatus>("connecting");
+  // Auch entfernte neue Tools starten wie bisher. Erst nach dem ersten
+  // vollständigen Sync darf ihr Browser-Abo ruhen, niemals die Runtime.
+  const active = useOrbitTerminalActivity(mountRef, options.active,
+    status !== "connecting" && (hasLiveStateRef.current || status === "error" || status === "exited"));
+  activeRef.current = active;
   const [cwd, setCwdState] = useState("–");
   const [error, setErrorState] = useState<string | null>(null);
   const [restartBanner, setRestartBannerState] = useState<{ message: string } | null>(null);
@@ -162,7 +168,8 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
     disposedRef.current = false;
     const compact = isCompactTerminal(mount);
     const terminal = new Terminal({
-      cursorBlink: true,
+      // Bei reduzierter Bewegung bleibt der Cursor stehen statt zu blinken.
+      cursorBlink: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches !== true,
       cursorStyle: "block",
       cursorInactiveStyle: "outline",
       convertEol: false,
@@ -170,6 +177,9 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
       lineHeight: 1,
       letterSpacing: 0,
       customGlyphs: true,
+      // Auf macOS wählt Alt+Ziehen wie im nativen Terminal Text aus, auch
+      // während die Anwendung Mausereignisse verfolgt.
+      macOptionClickForcesSelection: true,
       scrollback: 10_000,
       scrollSensitivity: 1,
       smoothScrollDuration: 0,
@@ -268,12 +278,15 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
   }, []);
 
   useEffect(() => {
+    // Entfernte Panes messen während einer Canvasbewegung keine neuen
+    // Schriftmetriken. Bei Rückkehr gelten sofort Zoom und Raster von jetzt.
+    if (!active) return;
     const terminal = terminalRef.current;
     if (!terminal || !applyTerminalRenderScale(terminal, renderScale, isCompactTerminal(mountRef.current))) return;
     const scheduler = scaleResizeSchedulerRef.current;
     if (scheduler) scheduler.schedule();
     else fitAndReport();
-  }, [fitAndReport, renderScale]);
+  }, [active, fitAndReport, renderScale]);
 
   const pasteIntoTerminal = useCallback((text: string) => {
     const terminal = terminalRef.current;

@@ -44,6 +44,46 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+it("serialisiert einen 30-Zeichen-Burst erst einmal nach der Schreibpause", async () => {
+  vi.useFakeTimers();
+  const save = vi.spyOn(apiClient, "saveNoteContent").mockResolvedValue({ status: "saved", note: { ...note, revision: 2 } });
+  const { editor } = renderEditor();
+  const serialize = vi.spyOn(editor.storage.markdown.manager, "serialize");
+  const getJson = vi.spyOn(editor, "getJSON");
+  act(() => {
+    for (const character of "abcdefghijklmnopqrstuvwxyz1234") editor.commands.insertContent(character);
+  });
+  expect(serialize).not.toHaveBeenCalled();
+  expect(getJson).not.toHaveBeenCalled();
+  await act(async () => { await vi.advanceTimersByTimeAsync(800); });
+  expect(serialize).toHaveBeenCalledOnce();
+  expect(save).toHaveBeenCalledOnce();
+  expect(save.mock.calls[0]?.[1].content).toContain("abcdefghijklmnopqrstuvwxyz1234");
+});
+
+it("sichert beim sofortigen Notizwechsel den alten Snapshot nach dem Laden der neuen Notiz", async () => {
+  vi.useFakeTimers();
+  const save = vi.spyOn(apiClient, "saveNoteContent").mockResolvedValue({ status: "saved", note: { ...note, revision: 2 } });
+  const { editor, rerenderNote } = renderEditor();
+  act(() => editor.commands.setContent("<p>Letzter Tastendruck A</p>"));
+  rerenderNote({ ...note, id: "notiz-b", content: "Neue Notiz B" });
+  expect(editor.getText()).toBe("Neue Notiz B");
+  await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+  expect(save).toHaveBeenCalledWith("notiz-a", { content: "Letzter Tastendruck A", expectedRevision: 1 });
+  expect(editor.getText()).toBe("Neue Notiz B");
+});
+
+it("pagehide und Unmount sichern dieselbe neueste Generation ohne doppelten Save", async () => {
+  vi.useFakeTimers();
+  const save = vi.spyOn(apiClient, "saveNoteContent").mockResolvedValue({ status: "saved", note: { ...note, revision: 2 } });
+  const { editor } = renderEditor();
+  act(() => editor.commands.setContent("<p>Vor dem Schließen</p>"));
+  act(() => window.dispatchEvent(new Event("pagehide")));
+  cleanup();
+  await act(async () => { await Promise.resolve(); await Promise.resolve(); });
+  expect(save).toHaveBeenCalledExactlyOnceWith(note.id, { content: "Vor dem Schließen", expectedRevision: 1 });
+});
+
 it("behält Dokument und Cursor bei einer eigenen Speicherbestätigung", async () => {
   vi.useFakeTimers();
   const saved = { ...note, content: "Anfang neu Ende", revision: 2 };

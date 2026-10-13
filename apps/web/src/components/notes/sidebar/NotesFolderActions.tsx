@@ -5,6 +5,7 @@ import { apiClient } from "../../../lib/apiClient";
 import { FolderIcon, MoreIcon } from "../../icons";
 import { PromptDialog } from "../../ModalDialog.js";
 import { useDismissible } from "../hooks/useDismissible.js";
+import { invalidateNoteFolder } from "../noteQueryUpdates.js";
 
 /** Erstellen und Bearbeiten von Ordnern verändern keine Notizinhalte. */
 export function NotesFolderActions({ folder }: { folder?: NoteFolder }) {
@@ -18,7 +19,10 @@ export function NotesFolderActions({ folder }: { folder?: NoteFolder }) {
       if (folder && remove) return apiClient.deleteNoteFolder(folder.id);
       return folder ? apiClient.updateNoteFolder(folder.id, { name: name! }) : apiClient.createNoteFolder(name!);
     },
-    onSuccess: () => { setDialogOpen(false); setMenuOpen(false); void queryClient.invalidateQueries({ queryKey: ["notes"] }); },
+    onSuccess: (_data, variables) => {
+      setDialogOpen(false); setMenuOpen(false);
+      void invalidateNoteFolder(queryClient, variables.remove ? folder?.id : undefined);
+    },
   });
   return <div className="notes-folder-actions" ref={rootRef}>
     <button type="button" className={folder ? "notes-group-action" : "notes-sidebar-folder-new"}

@@ -1,4 +1,3 @@
-import type { ITheme } from "@xterm/xterm";
 import {
   baseTerminalFontSize,
   compactTerminalFontSize,
@@ -133,25 +132,6 @@ export function terminalKeySequence(key: string, modifiers: { ctrl?: boolean; al
   }
   if (modifiers.alt) data = `\x1b${data}`;
   return data;
-}
-
-export function themeFromDashboard(mount: HTMLElement | null): ITheme {
-  const styles = getComputedStyle(mount ?? document.documentElement);
-  // Alle Farben kommen ausschließlich aus dem @theme-Block (F01-13). Leere
-  // Werte können nur bei einem defekten Theme auftreten; dann greift xterm
-  // auf seine Standardpalette zurück.
-  const value = (name: string) => styles.getPropertyValue(name).trim();
-  return {
-    background: value("--color-ink-950"),
-    foreground: value("--color-text"),
-    cursor: value("--ansi-green"),
-    selectionBackground: value("--ansi-selection"),
-    black: value("--ansi-black"), red: value("--ansi-red"), green: value("--ansi-green"), yellow: value("--ansi-yellow"),
-    blue: value("--ansi-blue"), magenta: value("--ansi-magenta"), cyan: value("--ansi-cyan"), white: value("--ansi-white"),
-    brightBlack: value("--ansi-bright-black"), brightRed: value("--ansi-bright-red"), brightGreen: value("--ansi-bright-green"),
-    brightYellow: value("--ansi-bright-yellow"), brightBlue: value("--ansi-bright-blue"), brightMagenta: value("--ansi-bright-magenta"),
-    brightCyan: value("--ansi-bright-cyan"), brightWhite: value("--ansi-bright-white"),
-  };
 }
 
 export function createUuid(): string {

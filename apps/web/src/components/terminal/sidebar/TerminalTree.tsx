@@ -1,6 +1,6 @@
 import { isAbsoluteFilesystemPath } from "@wrapt/contracts";
 import type { TerminalEntry, TerminalFolder, TerminalWorkspaceV2 } from "@wrapt/contracts";
-import { ChevronDownIcon, ChevronRightIcon, FolderIcon, FolderOpenIcon, MoreIcon, PinIcon, TerminalIcon } from "../../icons";
+import { ChevronRightIcon, FolderIcon, FolderOpenIcon, MoreIcon, PinIcon, TerminalIcon } from "../../icons";
 import { childrenOfFolder, entryByRuntime, layoutRuntimeIds } from "../workspace/terminalWorkspaceModel";
 import type { TerminalStatus } from "../terminal-types";
 import type { DndDropTarget, RowHandlers } from "./useTerminalDnd";
@@ -167,9 +167,10 @@ export function TerminalTree({ document, folderId, depth, areaId, meta, cwds, se
             type="button"
             className="terminal-tree-chevron"
             aria-label={isCollapsed ? "Ordner aufklappen" : "Ordner zuklappen"}
+            aria-expanded={!isCollapsed}
             onClick={() => callbacks.onToggleCollapse(folder.id)}
           >
-            {isCollapsed ? <ChevronRightIcon className="h-3 w-3" /> : <ChevronDownIcon className="h-3 w-3" />}
+            <ChevronRightIcon className={`h-3 w-3 ${isCollapsed ? "" : "is-expanded"}`} />
           </button>
           <span className="terminal-tree-icon">{folder.collapsed ? <FolderIcon className="h-4 w-4" /> : <FolderOpenIcon className="h-4 w-4" />}</span>
           {isEditing ? (
@@ -190,10 +191,12 @@ export function TerminalTree({ document, folderId, depth, areaId, meta, cwds, se
           <span className="terminal-tree-count">{children.entries.length + children.folders.length}</span>
           <button type="button" className="terminal-tree-actions" aria-label={`Aktionen für ${folder.name}`} onPointerDown={(event) => event.stopPropagation()} onClick={(event) => { event.stopPropagation(); callbacks.onContextMenu(event, "folder", folder.id); }}><MoreIcon className="h-4 w-4" /></button>
         </div>
-        {!isCollapsed ? <ul className="terminal-tree-children">
-          {children.entries.map((entry) => renderEntry(entry, level + 1))}
-          {children.folders.map((child) => renderFolder(child, level + 1, nextAncestors))}
-        </ul> : null}
+        <div className="terminal-tree-collapse" data-collapsed={isCollapsed} inert={isCollapsed || undefined} aria-hidden={isCollapsed || undefined}>
+          <ul className="terminal-tree-children">
+            {children.entries.map((entry) => renderEntry(entry, level + 1))}
+            {children.folders.map((child) => renderFolder(child, level + 1, nextAncestors))}
+          </ul>
+        </div>
       </li>
     );
   };

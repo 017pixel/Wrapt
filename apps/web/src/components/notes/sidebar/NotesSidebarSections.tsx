@@ -8,6 +8,7 @@ import { NotesSection } from "./NotesSection.js";
 import { NotesFolderActions } from "./NotesFolderActions.js";
 import { NotesDragProvider, NOTE_DRAG_TYPE, useNotesDrag } from "./NotesDragContext.js";
 import type { NotesDropResult } from "./treeDrop.js";
+import { buildSidebarIndex } from "./sidebarIndex.js";
 
 export interface NotesSidebarSectionsProps {
   notes: readonly NoteSummary[];
@@ -28,7 +29,8 @@ function SidebarSections(props: NotesSidebarSectionsProps) {
   const favoriteOrder = useNotesPreferences((state) => state.favoriteOrder);
   const moveFavorite = useNotesPreferences((state) => state.moveFavorite);
   const drag = useNotesDrag();
-  const active = useMemo(() => notes.filter((note) => !note.archived), [notes]);
+  const index = useMemo(() => buildSidebarIndex(notes), [notes]);
+  const { active } = index;
   const favorites = active.filter((note) => note.favorite).sort((a, b) => {
     const left = favoriteOrder.indexOf(a.id), right = favoriteOrder.indexOf(b.id);
     return (left < 0 ? favoriteOrder.length : left) - (right < 0 ? favoriteOrder.length : right) || a.sortOrder - b.sortOrder;
@@ -64,15 +66,7 @@ function SidebarSections(props: NotesSidebarSectionsProps) {
     <NotesTree notes={active} {...treeProps} />
   </NotesSection>);
   for (const folder of folders) {
-    const byId = new Map(active.map((note) => [note.id, note]));
-    const members = active.filter((note) => {
-      const seen = new Set<string>();
-      let root = note;
-      while (root.parentId && byId.has(root.parentId) && !seen.has(root.parentId)) {
-        seen.add(root.parentId); root = byId.get(root.parentId)!;
-      }
-      return root.folderId === folder.id;
-    });
+    const members = index.byFolder.get(folder.id) ?? [];
     groups.set(`folder:${folder.id}`, <NotesSection id={`folder:${folder.id}`} title={folder.name}
       onCreate={() => onCreatePage(null, { folderId: folder.id })} onDropNote={(id) => dropInFolder(id, folder.id)}
       actions={<NotesFolderActions folder={folder} />}>

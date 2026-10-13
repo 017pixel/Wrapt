@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-const TERMINAL_HOVER_PREVIEW_DELAY_MS = 1_000;
+const TERMINAL_HOVER_PREVIEW_DELAY_MS = 300;
 
 export interface TerminalHoverPreviewState {
   entryId: string;

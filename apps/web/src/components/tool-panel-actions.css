@@ -4,7 +4,12 @@
   gap: var(--space-1);
 }
 
-.panel-standalone-actions .tool-actions-menu.is-inline {
+.panel-standalone-actions .tool-actions-menu.is-inline,
+.panel-island .tool-actions-menu.is-inline {
   position: relative;
   inset: auto;
+}
+
+.tool-actions-popover .tool-actions-sign-in {
+  min-height: 44px;
 }

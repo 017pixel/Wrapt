@@ -116,6 +116,18 @@ describe("standalone T3 Code actions", () => {
 
     await waitFor(() => expect(target.querySelector(".panel-standalone-actions .tool-actions-menu.is-inline")).not.toBeNull());
     expect(screen.getByTitle("Editor").getAttribute("src")).toBe("/editor/?folder=%2Ftmp%2Fwrapt");
+    expect(screen.getByTitle("Editor").getAttribute("allow")).toBe("clipboard-read 'self'; clipboard-write 'self'");
+    const editor = screen.getByTitle("Editor");
+    expect(screen.queryByRole("button", { name: "GitHub und Sync" })).toBeNull();
+    fireEvent.click(within(target).getByRole("button", { name: "Werkzeugaktionen" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "GitHub und Sync" }));
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(screen.getByRole("dialog", { name: "GitHub, Copilot und Settings Sync" })).not.toBeNull();
+    expect(screen.getByRole("link", { name: "github.com/login/device" }).getAttribute("href")).toBe("https://github.com/login/device");
+    expect(screen.getByRole("link", { name: "Editor in neuem Tab" }).getAttribute("href")).toBe("/editor/?folder=%2Ftmp%2Fwrapt");
+    expect(screen.getByTitle("Editor")).toBe(editor);
+    fireEvent.click(screen.getByRole("button", { name: "Zum Editor" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     fireEvent.click(within(target).getByRole("button", { name: "Werkzeugaktionen" }));
     expect(screen.getByRole("menuitem", { name: "Neu laden" })).not.toBeNull();
     expect(screen.getByRole("menuitem", { name: "In neuem Tab öffnen" })).not.toBeNull();

@@ -1,129 +1,46 @@
 import { useQuery } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
 import { wraptQueries } from "../../lib/queryOptions";
-import { useOrbitStore } from "../../stores/orbit";
-import { CapybaraConfetti } from "./CapybaraConfetti";
-import { CapybaraSprite } from "./CapybaraSprite";
-import { CapybaraZzz } from "./CapybaraZzz";
-import { mascotContextFrom, mascotMood, selectMascotLine } from "./mascotLines";
-import {
-  CAPYBARA_ITEM_WIDTH,
-  WALK_STEP_MS,
-  useCapybaraBehavior,
-  usePrefersReducedMotion,
-} from "./useCapybaraBehavior";
-import { useMascotReactions, type MascotReaction } from "./useMascotReactions";
+import { RefreshIcon } from "../icons";
+import { isDynamicImportFailure } from "../../lib/routeModules";
+import type { StatusMascotCreature } from "./StatusMascotCreature";
 
-const BUBBLE_VISIBLE_MS = 4_200;
-const STATUS_SPRITE_SIZE = 88;
+type Creature = typeof StatusMascotCreature;
+let loading: Promise<Creature> | undefined;
 
-/**
- * Capybara in der Statusleiste. Die Komponente lädt ihren Zustand selbst,
- * damit sie später ohne Umbau an anderen Stellen der Oberfläche leben kann.
- */
-export function StatusMascot() {
-  const mascot = useQuery(wraptQueries.mascot());
-  if (mascot.data?.mascot.enabled !== true) return null;
-  return <StatusMascotCreature scale={mascot.data.mascot.scale} />;
+function loadCreature(): Promise<Creature> {
+  if (!loading) loading = import("./StatusMascotCreature").then(async (module) => {
+    await module.prepareStatusMascot();
+    return module.StatusMascotCreature;
+  }).catch((error: unknown) => { loading = undefined; throw error; });
+  return loading;
 }
 
-function StatusMascotCreature({ scale }: { readonly scale: number }) {
-  const health = useQuery(wraptQueries.health());
-  const usage = useQuery(wraptQueries.usage());
-  const orbitDirty = useOrbitStore((state) => state.dirty);
-  const orbitSaving = useOrbitStore((state) => state.saving);
-  const reducedMotion = usePrefersReducedMotion();
-
-  const context = mascotContextFrom(
-    usage.data?.providers ?? [],
-    health.isError,
-    orbitDirty || orbitSaving,
-  );
-  const mood = mascotMood(context);
-  const stageRef = useRef<HTMLDivElement>(null);
-  const [stageWidth, setStageWidth] = useState(0);
+/** Die Konfiguration bleibt klein; deaktivierte Maskottchen laden keine Sprites. */
+export function StatusMascot() {
+  const mascot = useQuery(wraptQueries.mascot());
+  const enabled = mascot.data?.mascot.enabled === true;
+  const [Creature, setCreature] = useState<Creature | null>(null);
+  const [failed, setFailed] = useState(false);
+  const [reloadRequired, setReloadRequired] = useState(false);
+  const [retry, setRetry] = useState(0);
   useEffect(() => {
-    const element = stageRef.current;
-    if (element === null) return;
-    const update = () => setStageWidth(element.clientWidth);
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, []);
-  const itemWidth = Math.round(CAPYBARA_ITEM_WIDTH * scale);
-  const spriteSize = Math.round(STATUS_SPRITE_SIZE * scale);
-  const stage = useMemo(
-    () => ({ width: stageWidth, itemWidth }),
-    [stageWidth, itemWidth],
-  );
-  const behavior = useCapybaraBehavior(mood, reducedMotion, stage);
-  const react = useCallback(
-    (reaction: MascotReaction) => behavior.play(reaction),
-    [behavior],
-  );
-  useMascotReactions(react);
-
-  const [line, setLine] = useState<string | null>(null);
-  const [lineKey, setLineKey] = useState(0);
-  const lastLine = useRef<string | undefined>(undefined);
-  const bubbleTimer = useRef<number | null>(null);
-
-  useEffect(
-    () => () => {
-      if (bubbleTimer.current !== null) window.clearTimeout(bubbleTimer.current);
-    },
-    [],
-  );
-
-  const handlePoke = useCallback(() => {
-    behavior.poke();
-    const next = selectMascotLine(context, Math.random, lastLine.current);
-    lastLine.current = next;
-    setLine(next);
-    setLineKey((key) => key + 1);
-    if (bubbleTimer.current !== null) window.clearTimeout(bubbleTimer.current);
-    bubbleTimer.current = window.setTimeout(() => {
-      setLine(null);
-      bubbleTimer.current = null;
-    }, BUBBLE_VISIBLE_MS);
-  }, [behavior, context]);
-
-  return (
-    <div
-      className={`status-mascot is-${mood}`}
-      data-frame={behavior.frame}
-      data-action={behavior.action}
-      data-facing={behavior.facing}
-      data-mood={mood}
-      data-sleeping={String(behavior.sleeping)}
-      data-scale={String(scale)}
-      style={{
-        "--capy-offset": `${behavior.offset}px`,
-        "--capy-item-width": `${itemWidth}px`,
-        "--capy-sprite-size": `${spriteSize}px`,
-        "--capy-step": `${WALK_STEP_MS}ms`,
-      } as CSSProperties}
-    >
-      <div ref={stageRef} className="status-mascot-stage">
-        <button
-          type="button"
-          className="status-mascot-button"
-          onClick={handlePoke}
-          aria-label="Capybara begrüßen"
-        >
-          <CapybaraSprite frame={behavior.frame} size={spriteSize} label="Capybara-Maskottchen" />
-          {behavior.sleeping ? <CapybaraZzz /> : null}
-          {behavior.frame === "party" ? <CapybaraConfetti /> : null}
-        </button>
-      </div>
-      {line !== null ? (
-        <span className="status-mascot-bubble-anchor">
-          <span key={lineKey} className="status-mascot-bubble" role="status">
-            {line}
-          </span>
-        </span>
-      ) : null}
+    if (!enabled || Creature) return;
+    let active = true;
+    setFailed(false);
+    setReloadRequired(false);
+    void loadCreature().then((loaded) => { if (active) setCreature(() => loaded); })
+      .catch((error: unknown) => { if (active) { setFailed(true); setReloadRequired(isDynamicImportFailure(error)); } });
+    return () => { active = false; };
+  }, [enabled, Creature, retry]);
+  if (!enabled) return null;
+  if (Creature) return <Creature scale={mascot.data!.mascot.scale} />;
+  return <div className="status-mascot" aria-busy={!failed}>
+    <div className="status-mascot-stage">
+      {failed ? <button type="button" className="quiet-button min-h-11 min-w-11"
+        aria-label={reloadRequired ? "Workbench neu laden" : "Maskottchen erneut laden"}
+        title={reloadRequired ? "Workbench neu laden" : "Maskottchen erneut laden"}
+        onClick={() => { if (reloadRequired) window.location.reload(); else setRetry((value) => value + 1); }}><RefreshIcon className="h-4 w-4" /></button> : null}
     </div>
-  );
+  </div>;
 }

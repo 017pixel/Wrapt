@@ -85,7 +85,7 @@ export default defineConfig(({mode}) => {
     // eigener Pfad "dashboard-artwork" enthält, sonst alle anderen
     // Inline-Assets verlieren würde.
     assetsInlineLimit: (filePath, content) =>
-      /\/src\/assets\/dashboard-artwork\/[^/]+$/.test(filePath) ? false : content.length < 4096,
+      (/\/src\/assets\/dashboard-artwork\/[^/]+$/.test(filePath) || /\/src\/components\/mascot\/assets\/[^/]+$/.test(filePath)) ? false : content.length < 4096,
   },
   test: {
     setupFiles: ["src/test/setup.ts"],

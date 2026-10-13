@@ -1,6 +1,6 @@
 {
   "name": "@wrapt/web",
-  "version": "2.2.9",
+  "version": "2.4.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -46,6 +46,7 @@
     "@xyflow/react": "12.11.6",
     "dompurify": "^3.4.16",
     "highlight.js": "^11.12.0",
+    "highlight.js-notes": "npm:highlight.js@11.11.2",
     "katex": "^0.18.7",
     "lowlight": "^3.3.0",
     "marked": "^18.0.13",

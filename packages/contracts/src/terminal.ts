@@ -192,9 +192,10 @@ export const terminalWorkspaceOperationSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("setPaneLayout"), areaId: z.string().min(1).max(160), layout: terminalPaneLayoutSchema.nullable() }),
   z.object({ type: z.literal("setFocusedPane"), areaId: z.string().min(1).max(160), paneId: z.string().min(1).max(160).nullable() }),
 ]);
+export const TERMINAL_WORKSPACE_OPERATION_LIMIT = 50;
 export const terminalWorkspaceOpsRequestSchema = z.object({
   expectedRevision: z.number().int().nonnegative(),
-  operations: z.array(terminalWorkspaceOperationSchema).max(50),
+  operations: z.array(terminalWorkspaceOperationSchema).max(TERMINAL_WORKSPACE_OPERATION_LIMIT),
 });
 export type TerminalEntry = z.infer<typeof terminalEntrySchema>;
 export type TerminalEntryPatch = z.infer<typeof terminalEntryPatchSchema>;

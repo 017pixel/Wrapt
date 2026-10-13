@@ -17,7 +17,8 @@ export const noteSaveStateLabels: Record<NoteSaveState, string> = {
 export interface NoteAutosaveOptions {
   noteId: string;
   revision: number;
-  getMarkdown: () => string | null;
+  /** Hält den aktuellen immutable Dokumentsnapshot ohne Serialisierung fest. */
+  captureMarkdown: () => (() => string) | null;
   /** Wird nach jedem erfolgreichen Speichern gerufen (frische Revision). */
   onSaved: (note: Note) => void;
 }
@@ -25,14 +26,17 @@ export interface NoteAutosaveOptions {
 interface NoteDraft {
   noteId: string;
   version: number;
-  content: string;
+  serialize: () => string;
+  content?: string;
 }
+
+function draftContent(draft: NoteDraft): string { return draft.content ??= draft.serialize(); }
 
 /**
  * Autosave für Notizen: entprellt Änderungen, serialisiert Speichervorgänge und
  * macht Revisionskonflikte sichtbar, statt still zu überschreiben.
  */
-export function useNoteAutosave({ noteId, revision, getMarkdown, onSaved }: NoteAutosaveOptions) {
+export function useNoteAutosave({ noteId, revision, captureMarkdown, onSaved }: NoteAutosaveOptions) {
   const [state, setState] = useState<NoteSaveState>("saved");
   const [conflictNote, setConflictNote] = useState<Note | null>(null);
   const activeNoteIdRef = useRef(noteId);
@@ -86,7 +90,7 @@ export function useNoteAutosave({ noteId, revision, getMarkdown, onSaved }: Note
       publishState(draft.noteId, "saving");
       try {
         const result = await apiClient.saveNoteContent(draft.noteId, {
-          content: draft.content,
+          content: draftContent(draft),
           expectedRevision: revisionsRef.current.get(draft.noteId) ?? 1,
         });
         if (!result) {
@@ -135,15 +139,18 @@ export function useNoteAutosave({ noteId, revision, getMarkdown, onSaved }: Note
     if (draft && !conflictsRef.current.has(noteId)) void run(draft);
   }, [noteId, run]);
 
-  const getDraftContent = useCallback((id: string) => draftsRef.current.get(id)?.content ?? null, []);
+  const getDraftContent = useCallback((id: string) => {
+    const draft = draftsRef.current.get(id);
+    return draft ? draftContent(draft) : null;
+  }, []);
 
   const captureDraft = useCallback((): NoteDraft | null => {
-    const content = getMarkdown();
-    if (content === null) return null;
-    const draft = { noteId, version: ++nextVersionRef.current, content };
+    const serialize = captureMarkdown();
+    if (serialize === null) return null;
+    const draft = { noteId, version: ++nextVersionRef.current, serialize };
     draftsRef.current.set(noteId, draft);
     return draft;
-  }, [getMarkdown, noteId]);
+  }, [captureMarkdown, noteId]);
 
   const schedule = useCallback(() => {
     if (conflictsRef.current.has(noteId)) {
@@ -205,6 +212,11 @@ export function useNoteAutosave({ noteId, revision, getMarkdown, onSaved }: Note
     const draft = draftsRef.current.get(noteId) ?? captureDraft();
     if (draft) void run(draft);
   }, [captureDraft, noteId, publishState, run]);
+
+  useEffect(() => {
+    window.addEventListener("pagehide", flush);
+    return () => window.removeEventListener("pagehide", flush);
+  }, [flush]);
 
   useEffect(() => {
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
