@@ -4,6 +4,7 @@ import { existsSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { escapeHtml, renderMarkdown } from "./src/markdown.mjs";
+import { changelogArchivePaths } from "./scripts/changelog-source.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, "..");
@@ -156,7 +157,12 @@ function versionSet(markdown) {
 function publishedVersions() {
   try {
     const tracked = execFileSync("git", ["show", "HEAD:CHANGELOG.md"], { cwd: repoRoot, stdio: ["ignore", "pipe", "ignore"] }).toString("utf8");
-    return versionSet(tracked);
+    const versions = versionSet(tracked);
+    for (const path of changelogArchivePaths(tracked)) {
+      const archive = execFileSync("git", ["show", `HEAD:${path}`], { cwd: repoRoot, stdio: ["ignore", "pipe", "ignore"] }).toString("utf8");
+      for (const version of versionSet(archive)) versions.add(version);
+    }
+    return versions;
   } catch {
     return new Set();
   }

@@ -118,6 +118,25 @@ T3 Code, OpenCode Web und code-server bleiben bewusst in Iframes: Sie sind eigen
 
 Nicht besuchte Routen werden als getrennte Vite-Chunks gebaut und bei Browser-Leerlauf vorab geladen. Der Build erzeugt Brotli- und Gzip-Dateien vorab, damit die Server-CPU sie nicht bei jedem ersten Abruf neu berechnen muss. Gehashte Assets erhalten immutable Browser-Caches; HTML und Service Worker bleiben revalidierbar, damit neue Releases sofort erkannt werden.
 
+## Performancegrenzen
+
+Die [Umsetzung des Performanceplans](performance-implementation.md) beschreibt
+Konfiguration, Messungen und Grenzen. Build-Dateimetriken teilen einen
+releasegebundenen Snapshot; HTTP-/Event-Loop-Daten bleiben frisch. Die volle
+Auditkette läuft in einem einzelnen Readonly-Worker mit konsistentem Snapshot
+und bestehender TTL-/Mutationsinvalidierung.
+
+Orbit schreibt Dokument und Backup-Outbox weiterhin atomar in SQLite. Ein
+geordneter Worker bestätigt Sicherungen erst nach Datei-/Directory-fsync und
+Rename. Ungesicherte Revisionen bleiben erhalten und werden beim Start
+nachgeholt. tmux-Steuerung wartet asynchron und ordnet Mutationen je Session.
+Terminalnachrichten bleiben je Runtime in Reihenfolge.
+
+Notizlisten lesen vorbereitete Excerpts. Geschlossene Bäume mounten Kinder
+erst bei Bedarf, Markdown entsteht nach Schreibbursts aus einem immutable
+Editorsnapshot. Entfernte Orbit-Terminals pausieren Browser-Abos mit Overscan;
+DOM, Iframes, Scrollback und Serverprozesse bleiben erhalten.
+
 ## Dateimanager
 
 Der Dateimanager (`apps/server/src/filesystem/fileManagerService.ts`) arbeitet direkt auf dem

@@ -103,6 +103,13 @@ Nachweis läuft mit `pnpm test:extension-deployment` und verändert keine aktive
 - Ein Dialog `Unable to read file ... (Canceled)` ist meist die Folge dieses abgerissenen code-server-WebSockets, kein Dateirechtefehler. Nach stabiler Socket-Verbindung lässt sich dieselbe Datei ohne Reload wieder öffnen.
 - Auf Mobilgeräten den Editor maximieren oder extern öffnen. Der Container entfernt Abstände und hält die Aktionsleiste unten; die interne VS-Code-Oberfläche selbst bleibt code-server-eigen.
 
+## GitHub, Copilot und Settings Sync im Editor
+
+Die Repository-Anmeldung funktioniert per Gerätecode. Copilot Chat und natives
+Settings Sync benötigen Unterstützung im Editor selbst; die geprüfte code-server-
+Installation bietet diese nicht. Diagnose und der vorbereitete alternative Anschluss
+stehen in [GitHub im Editor](editor-authentication.md).
+
 ## Preview meldet `PROXY_ERROR`
 
 - Den Vite-Dienst lokal mit `curl -f http://127.0.0.1:1234/` prüfen.
