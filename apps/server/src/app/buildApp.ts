@@ -61,7 +61,7 @@ export async function buildApp(options: BuildAppOptions = {}) {
   await registerOpenCodeWebProxy(app, {
     onEvent: (event) => dependencies.operationalMetrics.recordWebSocket("OpenCode", event),
   });
-  await registerHermesDashboardProxy(app);
+  await registerHermesDashboardProxy(app, { onEvent: (event) => dependencies.operationalMetrics.recordWebSocket("Hermes", event) });
 
   const t3ClientUrl = dependencies.servicesConfig.services
     .find((service) => service.id === "t3-code")?.publicUrl ?? null;

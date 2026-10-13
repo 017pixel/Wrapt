@@ -87,11 +87,11 @@ export async function registerHermesRoutes(app: FastifyInstance, options: {
   app.get("/hermes/cron", async () => { ensureEnabled(); return options.sessions.cron(); });
   app.get("/hermes/results", async (request) => { ensureEnabled(); const query = queryParams(request); return options.sessions.results({ ...(query.source ? { source: query.source as HermesSessionSource } : {}), ...(query.status ? { status: query.status } : {}), offset: query.offset, limit: query.limit }); });
   app.get("/hermes/models", async () => { ensureEnabled(); return options.sessions.models(); });
-  app.post("/hermes/models/select", async (request) => { ensureEnabled(); const model = z.object({ model: z.string().min(1).max(200) }).parse(request.body); await options.sessions.selectModel(model.model); return options.sessions.models(); });
-  app.post("/hermes/services/action", async (request) => { ensureEnabled(); return performServiceAction(request.body); });
+  app.post("/hermes/models/select", async (request) => { ensureEnabled(); const model = z.object({ model: z.string().min(1).max(200) }).parse(request.body); try { await options.sessions.selectModel(model.model); } finally { options.status.invalidate(); } return options.sessions.models(); });
+  app.post("/hermes/services/action", async (request) => { ensureEnabled(); try { return await performServiceAction(request.body); } finally { options.status.invalidate(); } });
   app.get("/hermes/update/status", async () => { ensureEnabled(); return readHermesUpdateState(); });
-  app.post("/hermes/update/check", async () => { ensureEnabled(); return checkUpdate(); });
-  app.post("/hermes/update/run", async () => { ensureEnabled(); await startUpdateService(true); return readHermesUpdateState(); });
+  app.post("/hermes/update/check", async () => { ensureEnabled(); try { return await checkUpdate(); } finally { options.status.invalidate(true); } });
+  app.post("/hermes/update/run", async () => { ensureEnabled(); try { await startUpdateService(true); } finally { options.status.invalidate(true); } return readHermesUpdateState(); });
   app.get("/hermes/diagnostics", async () => { ensureEnabled(); return diagnostics(options); });
   app.post("/hermes/diagnostics/run", async () => { ensureEnabled(); return diagnostics(options); });
 

@@ -11,12 +11,13 @@ interface RuntimeDependencyOptions {
   usageDatabase: UsageDatabase;
 }
 
-export function createRuntimeDependencies(options: RuntimeDependencyOptions) {
+export async function createRuntimeDependencies(options: RuntimeDependencyOptions) {
   const terminalSupervisor = settings.terminalSupervisor === "tmux"
     ? new TmuxSupervisor(settings.tmuxPath, settings.tmuxSocketPath ?? defaultTerminalSocketPath(settings.dataDirectory))
     : null;
+  await terminalSupervisor?.ready();
   if (settings.runtimeMode !== "test" && (settings.runtimeMode === "production" || process.platform === "darwin")) {
-    terminalSupervisor?.ensureSupervisorUnit();
+    await terminalSupervisor?.ensureSupervisorUnit();
   }
 
   const terminals = new TerminalManager({
@@ -48,5 +49,6 @@ export function createRuntimeDependencies(options: RuntimeDependencyOptions) {
     },
   });
 
+  await terminals.ready();
   return { terminalSupervisor, terminals };
 }

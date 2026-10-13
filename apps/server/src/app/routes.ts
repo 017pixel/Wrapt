@@ -7,7 +7,7 @@ import { registerApiRoutes } from "../api/routes.js";
 import { settings } from "../config/settings.js";
 import { registerExtensionRoutes } from "../extensions/routes.js";
 import { extensionDatabaseBackupStatus } from "../extensions/backup.js";
-import { readWebBuildMetrics } from "../observability/web-build-metrics.js";
+import { createWebBuildMetricsReader } from "../observability/web-build-metrics.js";
 import { registerHermesRoutes } from "../hermes/routes.js";
 import { registerNotificationRoutes } from "../notifications/routes.js";
 import { registerPluginRoutes } from "../plugins/routes.js";
@@ -24,6 +24,7 @@ import { AppError } from "../utils/errors.js";
 import type { AppDependencies } from "./dependencies.js";
 
 export async function registerApplicationRoutes(app: FastifyInstance, deps: AppDependencies) {
+  const webBuildMetrics = createWebBuildMetricsReader(settings.webDistDirectory, settings.webBuildMetricsCacheMilliseconds);
   await app.register(async (scope) => {
     await scope.register(multipart, { limits: { files: 1, fileSize: settings.orbitAssetMaxFileBytes } });
     await registerApiRoutes(scope, {
@@ -65,11 +66,14 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
       readinessResponseSchema.parse({ status, timestamp: new Date().toISOString(), checks }),
     );
   });
-  app.get("/api/v1/system/operational-metrics", async () => operationalMetricsSchema.parse({
+  app.get<{ Querystring: { refresh?: string } }>("/api/v1/system/operational-metrics", async (request) => {
+    if (request.query.refresh === "true") webBuildMetrics.clear();
+    const [build, audit] = await Promise.all([webBuildMetrics.get(), deps.operationalAudit.verifyAsync()]);
+    return operationalMetricsSchema.parse({
     ...deps.operationalMetrics.snapshot(),
     push: deps.notificationPush.metrics(),
-    build: readWebBuildMetrics(settings.webDistDirectory),
-    audit: { ...deps.operationalAudit.verify(), outboxPending: deps.operationalAudit.outboxPending() },
+    build,
+    audit: { ...audit, outboxPending: deps.operationalAudit.outboxPending() },
     orbit: deps.orbitDatabase.maintenanceStatus(),
     preview: (() => {
       const slots = deps.previewSlots.list().slots;
@@ -85,7 +89,8 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
       recoveredTransientOperations: deps.extensionDatabase.recoveredTransientOperationCount(),
       backup: extensionDatabaseBackupStatus(deps.extensionBackupDirectory),
     },
-  }));
+    });
+  });
   await app.register(registerPreviewRoutes, {
     prefix: "/api/v1",
     slots: deps.previewSlots,

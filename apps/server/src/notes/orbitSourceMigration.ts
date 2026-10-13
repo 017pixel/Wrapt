@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { orbitWorkspaceSchema, type OrbitNode, type OrbitWorkspace } from "@wrapt/contracts";
 import { settings } from "../config/settings.js";
+import { createNoteExcerpt } from "./excerpt.js";
 import { orbitTodoMarkdown } from "./orbitTodoMarkdown.js";
 
 interface OrbitRow {
@@ -106,8 +107,8 @@ function importSource(database: DatabaseSync, source: SourceToImport): string {
       throw new Error(`Quelle und Zielnotiz für ${source.sourceId} wurden gleichzeitig geändert; Migration sicher angehalten.`);
     }
     if (sourceChanged) {
-      database.prepare(`UPDATE notes SET title=?, content=?, revision=revision+1, updated_at=? WHERE id=?`)
-        .run(source.title, source.importedContent, new Date().toISOString(), existing.noteId);
+      database.prepare(`UPDATE notes SET title=?, content=?, excerpt=?, revision=revision+1, updated_at=? WHERE id=?`)
+        .run(source.title, source.importedContent, createNoteExcerpt(source.importedContent), new Date().toISOString(), existing.noteId);
       database.prepare(`UPDATE note_source_migrations SET source_hash=?, source_type=?, source_title=?, source_content=?,
           imported_title=?, imported_content=?, migrated_at=? WHERE source_id=?`)
         .run(hashSource(source), source.sourceType, source.title, source.sourceContent, source.title,
@@ -120,9 +121,9 @@ function importSource(database: DatabaseSync, source: SourceToImport): string {
   let noteId = stableNoteId(source.sourceId);
   if (database.prepare("SELECT 1 FROM notes WHERE id=?").get(noteId)) noteId = randomUUID();
   const now = new Date().toISOString();
-  database.prepare(`INSERT INTO notes(id,title,content,parent_id,sort_order,favorite,archived,revision,created_at,updated_at)
-    VALUES(?,?,?,NULL,?,0,0,1,?,?)`)
-    .run(noteId, source.title, source.importedContent, nextRootOrder(database), now, now);
+  database.prepare(`INSERT INTO notes(id,title,content,excerpt,parent_id,sort_order,favorite,archived,revision,created_at,updated_at)
+    VALUES(?,?,?,?,NULL,?,0,0,1,?,?)`)
+    .run(noteId, source.title, source.importedContent, createNoteExcerpt(source.importedContent), nextRootOrder(database), now, now);
   database.prepare(`INSERT INTO note_source_migrations(
     source_id,target_note_id,source_hash,source_type,source_title,source_content,imported_title,imported_content,migrated_at
   ) VALUES(?,?,?,?,?,?,?,?,?)`).run(

@@ -24,7 +24,7 @@ export async function startBackgroundServices(app: FastifyInstance, deps: AppDep
     deps.hermesResultSync.start();
     deps.t3StatusSync.start();
     deps.terminalStatusSync.start();
-    deps.agentSessionSync.start();
+    await deps.agentSessionSync.start();
   }
   await deps.previewSlots.startListeners();
   if (!isolatedTest) deps.previewDevServers.startWatchdog();
@@ -41,26 +41,27 @@ export async function startBackgroundServices(app: FastifyInstance, deps: AppDep
 export function registerShutdown(app: FastifyInstance, deps: AppDependencies, state: LifecycleState) {
   app.addHook("onClose", async () => {
     systemService.stopMetricsHistory();
-    deps.previewDevServers.stopWatchdog();
+    await deps.previewDevServers.close();
     deps.liveUsage.stop();
     await deps.analytics.stop();
     await deps.usageTimeline.stop();
     await deps.hermesResultSync.stop();
-    deps.t3StatusSync.stop();
+    await deps.t3StatusSync.stop();
     deps.terminalStatusSync.stop();
-    deps.agentSessionSync.stop();
+    await deps.agentSessionSync.stop();
     await deps.previewSlots.stopListeners();
     if (state.previewLogRotation) clearInterval(state.previewLogRotation);
     await deps.previewDiagnostics.close();
     await deps.hermesManager.close();
-    deps.terminals.shutdown();
+    await deps.terminals.shutdown();
+    await deps.terminalSupervisor?.close();
     deps.operationalMetrics.close();
     deps.previewDevServerDatabase.close();
     deps.previewSlotDatabase.close();
     deps.terminalDatabase.close();
     await deps.notificationPush.close();
     deps.notificationDatabase.close();
-    deps.orbitDatabase.close();
+    await deps.orbitDatabase.close();
     deps.notesDatabase.close();
     deps.orbitAssets.close();
     deps.fileGallery.close();
@@ -68,7 +69,7 @@ export function registerShutdown(app: FastifyInstance, deps: AppDependencies, st
     deps.skillEditor.close();
     deps.projectRegistryDatabase.close();
     deps.projectActivityDatabase.close();
-    deps.operationalAudit.close();
+    await deps.operationalAudit.close();
     deps.usageDatabase.close();
     deps.extensionDatabase.close();
   });

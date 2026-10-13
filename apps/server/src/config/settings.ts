@@ -8,6 +8,8 @@ import { defaultTerminalSupervisor } from "../terminal/shell.js";
 import { loadWraptConfig } from "./wrapt-config.js";
 import { canonicalizeWraptEnvironment } from "./environment.js";
 import { resolveAgentHomeSettings } from "./agent-home-settings.js";
+import { performanceSettingsShape, resolvePerformanceSettings } from "./performance-settings.js";
+import { editorSettingsShape, resolveEditorSettings } from "./editor-settings.js";
 import { isLoopbackHost } from "./loopback.js";
 import { resolveTmuxExecutable } from "../system/platform.js";
 import {
@@ -68,6 +70,7 @@ const settingsSchema = z.object({
   SERVICE_CACHE_MS: integerFromEnvironment(10_000),
   LOCAL_PORT_CACHE_MS: integerFromEnvironment(5_000),
   AUDIT_VERIFY_CACHE_MS: boundedIntegerFromEnvironment(5_000, 1_000, 60_000),
+  ...performanceSettingsShape,
   LOCAL_PORT_PROBE_TIMEOUT_MS: boundedIntegerFromEnvironment(450, 100, 3_000),
   REQUEST_TIMEOUT_MS: integerFromEnvironment(3_000),
   COMPRESSION_THRESHOLD_BYTES: integerFromEnvironment(1_024),
@@ -141,6 +144,7 @@ const settingsSchema = z.object({
   T3_NPM_PACKAGE: z.string().min(1).default(wb.t3.npmPackage),
   T3_HOST: z.string().min(1).default(wb.t3.host),
   T3_PORT: integerFromEnvironment(wb.t3.port),
+  ...editorSettingsShape,
   T3_SERVICE_UNIT: z.string().min(1).default(wb.t3.serviceUnit),
   T3_WEBSOCKET_PENDING_BYTES: boundedIntegerFromEnvironment(wb.t3.websocketPendingBytes, 65_536, 268_435_456),
   T3_WEBSOCKET_BUFFERED_BYTES: boundedIntegerFromEnvironment(wb.t3.websocketBufferedBytes, 131_072, 536_870_912),
@@ -294,6 +298,7 @@ export const settings = Object.freeze({
   serviceCacheMilliseconds: environment.SERVICE_CACHE_MS,
   localPortCacheMilliseconds: environment.LOCAL_PORT_CACHE_MS,
   auditVerifyCacheMilliseconds: environment.AUDIT_VERIFY_CACHE_MS,
+  ...resolvePerformanceSettings(environment),
   localPortProbeTimeoutMilliseconds: environment.LOCAL_PORT_PROBE_TIMEOUT_MS,
   requestTimeoutMilliseconds: environment.REQUEST_TIMEOUT_MS,
   compressionThresholdBytes: environment.COMPRESSION_THRESHOLD_BYTES,
@@ -350,6 +355,7 @@ export const settings = Object.freeze({
   t3NpmPackage: environment.T3_NPM_PACKAGE,
   t3Host: environment.T3_HOST,
   t3Port: environment.T3_PORT,
+  ...resolveEditorSettings(environment),
   t3ServiceUnit: environment.T3_SERVICE_UNIT,
   t3WebSocketPendingBytes: environment.T3_WEBSOCKET_PENDING_BYTES,
   t3WebSocketBufferedBytes: environment.T3_WEBSOCKET_BUFFERED_BYTES,

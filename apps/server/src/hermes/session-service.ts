@@ -33,7 +33,9 @@ function rawSessions(value: unknown): unknown[] {
   return Array.isArray(data.sessions) ? data.sessions : Array.isArray(value) ? value : [];
 }
 
-function projectForCwd(cwd: string | null, projects: readonly Project[]): string | null {
+type ProjectReference = Pick<Project, "id" | "path">;
+
+function projectForCwd(cwd: string | null, projects: readonly ProjectReference[]): string | null {
   if (!cwd) return null;
   return projects.find((project) => project.path === cwd)?.id ?? null;
 }
@@ -42,14 +44,14 @@ export class HermesSessionService {
   constructor(
     private readonly client: HermesDashboardClient,
     private readonly manager: HermesAcpManager,
-    private readonly projects: () => Promise<readonly Project[]> = async () => [],
+    private readonly projects: () => Promise<readonly ProjectReference[]> = async () => [],
   ) {}
 
   async listSessions(options: { limit: number; offset: number; query?: string; source?: HermesSessionSource }): Promise<ReturnType<typeof hermesSessionsResponseSchema.parse>> {
-    const raw = options.query?.trim()
-      ? await this.client.get(`/api/sessions/search?q=${encodeURIComponent(options.query.trim())}&limit=${options.limit}`)
-      : await this.client.get(`/api/sessions?limit=${options.limit}&offset=${options.offset}`);
-    const projects = await this.projects();
+    const path = options.query?.trim()
+      ? `/api/sessions/search?q=${encodeURIComponent(options.query.trim())}&limit=${options.limit}`
+      : `/api/sessions?limit=${options.limit}&offset=${options.offset}`;
+    const [raw, projects] = await Promise.all([this.client.get(path), this.projects()]);
     const data = object(raw);
     const items = options.query?.trim() && Array.isArray(data.results) ? data.results : rawSessions(raw);
     const sessions = items.map((item) => this.normalizeSession(item, projects)).filter((item) => !options.source || item.source === options.source);
@@ -62,8 +64,8 @@ export class HermesSessionService {
   }
 
   async getSessionSummary(sessionId: string): Promise<HermesSession> {
-    const raw = await this.getSession(sessionId);
-    const summary = this.normalizeSession(object(raw).session ?? raw, await this.projects());
+    const [raw, projects] = await Promise.all([this.getSession(sessionId), this.projects()]);
+    const summary = this.normalizeSession(object(raw).session ?? raw, projects);
     if (summary.id !== sessionId) throw new HermesClientError("SESSION_NOT_FOUND", "Die Hermes-Session wurde nicht gefunden.", 404, false);
     return summary;
   }
@@ -141,7 +143,7 @@ export class HermesSessionService {
     await this.client.post("/api/model/set", { scope: "main", provider, model: modelName });
   }
 
-  private normalizeSession(value: unknown, projects: readonly Project[]): HermesSession {
+  private normalizeSession(value: unknown, projects: readonly ProjectReference[]): HermesSession {
     const item = object(value);
     const id = String(item.id ?? item.session_id ?? "");
     const model = typeof item.model === "string" ? item.model : null;

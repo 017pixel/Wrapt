@@ -9,6 +9,7 @@ import { RateBudget } from "../utils/rate-budget.js";
 import { mergeProxyContentSecurityPolicy } from "../services/proxy-csp.js";
 import { routeBridgeScript } from "./route-bridge.js";
 import { hermesAuthority } from "./token.js";
+import { bridgeWebSockets, type WebSocketBridgeObserver } from "../utils/websocketBridge.js";
 
 const prefix = settings.hermes.proxyPrefix;
 const authority = hermesAuthority();
@@ -285,14 +286,16 @@ function proxyHttp(request: FastifyRequest, reply: FastifyReply) {
   });
 }
 
-function closeCode(code: number): number { return code === 1005 || code === 1006 ? 1011 : code; }
-
-function rawDataBytes(data: WebSocket.RawData): number {
-  if (Array.isArray(data)) return data.reduce((total, chunk) => total + chunk.length, 0);
-  return data.byteLength;
+export function bridgeHermesWebSockets(source: WebSocket, target: WebSocket, observer?: WebSocketBridgeObserver): void {
+  bridgeWebSockets(source, target, {
+    label: "Hermes-Dashboard", pendingLimit: bufferedMessageLimit,
+    bufferedLimit: settings.hermesWebSocketBufferedBytes,
+    allowSingleOversizedFrame: true,
+    ...(observer ? { observer } : {}),
+  });
 }
 
-function proxyWebSocket(source: WebSocket, request: FastifyRequest) {
+function proxyWebSocket(source: WebSocket, request: FastifyRequest, observer?: WebSocketBridgeObserver) {
   if (!isSameOriginRequest(request)) {
     source.close(1008, "FORBIDDEN");
     return;
@@ -304,27 +307,14 @@ function proxyWebSocket(source: WebSocket, request: FastifyRequest) {
   const protocolHeader = request.headers["sec-websocket-protocol"];
   const protocols = typeof protocolHeader === "string" ? protocolHeader.split(",").map((item) => item.trim()).filter(Boolean) : [];
   const target = new WebSocket(`${websocketUpstream}${upstreamPath(request.raw.url ?? request.url)}`, protocols, { headers });
-  const pending: Array<{ data: WebSocket.RawData; binary: boolean }> = [];
-  let pendingBytes = 0;
-  source.on("message", (data, binary) => {
-    if (target.readyState === WebSocket.OPEN) { target.send(data, { binary }); return; }
-    if (target.readyState !== WebSocket.CONNECTING) return;
-    pendingBytes += rawDataBytes(data);
-    if (pendingBytes > bufferedMessageLimit) { source.close(1009, "Hermes-WebSocket-Puffer überschritten"); target.terminate(); return; }
-    pending.push({ data, binary });
-  });
-  target.on("open", () => { for (const message of pending.splice(0)) target.send(message.data, { binary: message.binary }); pendingBytes = 0; });
-  target.on("message", (data, binary) => { if (source.readyState === WebSocket.OPEN) source.send(data, { binary }); });
-  source.on("close", (code, reason) => target.readyState === WebSocket.OPEN ? target.close(closeCode(code), reason) : target.terminate());
-  target.on("close", (code, reason) => { if (source.readyState === WebSocket.OPEN) source.close(closeCode(code), reason); });
-  source.on("error", () => target.terminate());
-  target.on("error", () => { if (source.readyState === WebSocket.OPEN) source.close(1011, "Hermes-Dashboard ist nicht erreichbar"); });
+  bridgeHermesWebSockets(source, target, observer);
 }
 
-export async function registerHermesDashboardProxy(app: FastifyInstance) {
+export async function registerHermesDashboardProxy(app: FastifyInstance, observer?: WebSocketBridgeObserver) {
   if (!app.hasReplyDecorator("from")) await app.register(replyFrom);
   app.route({ method: "GET", url: prefix, config: { rateLimit: false }, helmet: false, handler: proxyHttp });
-  app.route({ method: "GET", url: `${prefix}/*`, config: { rateLimit: false }, helmet: false, handler: proxyHttp, wsHandler: proxyWebSocket });
+  app.route({ method: "GET", url: `${prefix}/*`, config: { rateLimit: false }, helmet: false, handler: proxyHttp,
+    wsHandler: (source, request) => proxyWebSocket(source, request, observer) });
   for (const method of ["POST", "PUT", "PATCH", "DELETE", "OPTIONS"] as const) {
     app.route({ method, url: `${prefix}/*`, config: { rateLimit: false }, helmet: false, handler: proxyHttp });
   }

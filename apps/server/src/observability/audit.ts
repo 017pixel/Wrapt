@@ -1,7 +1,9 @@
 import { createHash, randomUUID } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { DatabaseSync } from "node:sqlite";
+import { DatabaseSync, type StatementSync } from "node:sqlite";
+import { verifyAuditDatabase } from "./audit-verification.mjs";
+import { AuditVerifier, type AuditVerification } from "./audit-verifier.js";
 
 export interface OperationalAuditEvent {
   requestId: string;
@@ -31,12 +33,18 @@ interface AuditRow {
 export class OperationalAuditDatabase {
   private readonly database: DatabaseSync;
   private readonly outboxPath: string;
+  private readonly pruneEntries: StatementSync;
   private verifiedAt = 0;
   private verifiedValue: { valid: boolean; entries: number; latestAt: string | null } | null = null;
+  private readonly verifier: AuditVerifier;
+  private verificationGeneration = 0;
+  private asyncVerified: { value: AuditVerification; at: number; generation: number } | null = null;
+  private asyncPending: Promise<AuditVerification> | null = null;
 
   constructor(path: string, private readonly verifyCacheMilliseconds = 5_000) {
     mkdirSync(dirname(path), { recursive: true });
     this.database = new DatabaseSync(path);
+    this.verifier = new AuditVerifier(path);
     this.outboxPath = `${path}.audit-outbox.jsonl`;
     // NORMAL statt FULL: Mit WAL ist NORMAL absturzsicher (fsync am Checkpoint statt pro Commit, P-010).
     this.database.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000");
@@ -54,6 +62,9 @@ export class OperationalAuditDatabase {
     ) STRICT;
     CREATE INDEX IF NOT EXISTS operational_audit_at ON operational_audit(at);
     CREATE INDEX IF NOT EXISTS operational_audit_request ON operational_audit(request_id);`);
+    this.pruneEntries = this.database.prepare(`DELETE FROM operational_audit WHERE sequence < COALESCE((
+      SELECT sequence FROM operational_audit ORDER BY sequence DESC LIMIT 1 OFFSET 9999
+    ), 0)`);
     this.flushOutbox();
   }
 
@@ -93,12 +104,12 @@ export class OperationalAuditDatabase {
       );
       // Lokale Einzelbenutzer-Installation: 10.000 kritische Mutationen sind
       // ausreichend Historie, ohne die gemeinsame SQLite unbegrenzt wachsen zu lassen.
-      this.database.exec(`DELETE FROM operational_audit WHERE sequence NOT IN (
-        SELECT sequence FROM operational_audit ORDER BY sequence DESC LIMIT 10000
-      )`);
+      this.pruneEntries.run();
       this.database.exec("COMMIT");
       this.verifiedValue = null;
       this.verifiedAt = 0;
+      this.verificationGeneration += 1;
+      this.asyncVerified = null;
     } catch (error) {
       if (this.database.isTransaction) this.database.exec("ROLLBACK");
       throw error;
@@ -166,37 +177,28 @@ export class OperationalAuditDatabase {
 
   verify(): { valid: boolean; entries: number; latestAt: string | null } {
     if (this.verifiedValue && Date.now() - this.verifiedAt < this.verifyCacheMilliseconds) return this.verifiedValue;
-    const rows = this.database.prepare(`SELECT id,at,request_id requestId,actor,action,target,status_code statusCode,
-      previous_hash previousHash,entry_hash entryHash FROM operational_audit ORDER BY sequence`).all() as Array<{
-      id: string; at: string; requestId: string; actor: string; action: string; target: string;
-      statusCode: number; previousHash: string | null; entryHash: string;
-    }>;
-    let valid = true;
-    let previousRetainedHash: string | null = null;
-    rows.forEach((row, index) => {
-      const canonical = JSON.stringify({
-        id: row.id,
-        at: row.at,
-        requestId: row.requestId,
-        actor: row.actor,
-        action: row.action,
-        target: row.target,
-        statusCode: row.statusCode,
-        previousHash: row.previousHash,
-      });
-      if (createHash("sha256").update(canonical).digest("hex") !== row.entryHash) valid = false;
-      // Der erste aufbewahrte Datensatz darf auf einen bereits durch Retention
-      // entfernten Vorgänger zeigen; ab dem zweiten muss die Kette lückenlos sein.
-      if (index > 0 && row.previousHash !== previousRetainedHash) valid = false;
-      previousRetainedHash = row.entryHash;
-    });
-    const result = { valid, entries: rows.length, latestAt: rows.at(-1)?.at ?? null };
+    const { valid, entries, latestAt } = verifyAuditDatabase(this.database);
+    const result = { valid, entries, latestAt };
     this.verifiedValue = result;
     this.verifiedAt = Date.now();
     return result;
   }
 
-  close() { this.database.close(); }
+  async verifyAsync(): Promise<AuditVerification> {
+    const cached = this.asyncVerified;
+    if (cached && cached.generation === this.verificationGeneration && Date.now() - cached.at < this.verifyCacheMilliseconds) return cached.value;
+    if (this.asyncPending) return this.asyncPending;
+    const generation = this.verificationGeneration;
+    const pending = this.verifier.verify().then((result) => {
+      // Alle wartenden Verbraucher teilen auch die Cachegeneration des gestarteten Reads.
+      if (generation === this.verificationGeneration) this.asyncVerified = { value: result, at: Date.now(), generation };
+      return result;
+    }).finally(() => { if (this.asyncPending === pending) this.asyncPending = null; });
+    this.asyncPending = pending;
+    return pending;
+  }
+
+  close(): Promise<void> { this.verificationGeneration += 1; this.database.close(); return this.verifier.close(); }
 }
 
 const MUTATING_METHODS = new Set(["DELETE", "PATCH", "POST", "PUT"]);

@@ -29,6 +29,8 @@ export function bridgeWebSockets(
     bufferedLimit?: number;
     label: string;
     observer?: WebSocketBridgeObserver;
+    /** Ein normales großes Frame darf allein senden; spätere Frames bleiben begrenzt. */
+    allowSingleOversizedFrame?: boolean;
   },
 ): void {
   const pendingLimit = options.pendingLimit ?? DEFAULT_PENDING_MESSAGE_LIMIT;
@@ -55,7 +57,8 @@ export function bridgeWebSockets(
   ): boolean => {
     const bytes = rawDataBytes(data);
     if (receiver.readyState !== WebSocket.OPEN) return false;
-    if (receiver.bufferedAmount + bytes > bufferedLimit) {
+    const singleFrame = options.allowSingleOversizedFrame && receiver.bufferedAmount === 0;
+    if (receiver.bufferedAmount + bytes > bufferedLimit && !singleFrame) {
       overload(`${options.label}-WebSocket-Puffer überschritten`);
       return false;
     }

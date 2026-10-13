@@ -4,7 +4,6 @@ import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import {
   noteSchema,
-  NOTE_EXCERPT_MAX_LENGTH,
   type CreateNoteRequest,
   type Note,
   type NoteSearchQuery,
@@ -16,6 +15,9 @@ import { AppError } from "../utils/errors.js";
 import { migrateOrbitSources, type OrbitNotesMigrationResult } from "./orbitSourceMigration.js";
 import { noteSearchRangeStart } from "./searchRange.js";
 import { NoteFoldersDatabase } from "./folders.js";
+import { createNoteExcerpt, escapeLikePattern } from "./excerpt.js";
+import { migrateNoteExcerpts, rebuildNoteExcerpts } from "./excerptMigration.js";
+export { createNoteExcerpt, escapeLikePattern } from "./excerpt.js";
 import { moveNoteInOrder } from "./ordering.js";
 
 /**
@@ -39,7 +41,7 @@ interface NoteRow {
   updated_at: string;
 }
 
-type SummaryRow = Omit<NoteRow, "revision">;
+type SummaryRow = Omit<NoteRow, "revision" | "content"> & { content?: string; excerpt?: string };
 
 function toNote(row: NoteRow): Note {
   return noteSchema.parse({
@@ -69,47 +71,10 @@ function toSummary(row: SummaryRow, match?: string): NoteSummary {
     sortOrder: row.sort_order,
     favorite: row.favorite === 1,
     archived: row.archived === 1,
-    excerpt: createNoteExcerpt(row.content, match),
+    excerpt: match === undefined && row.excerpt !== undefined ? row.excerpt : createNoteExcerpt(row.content ?? "", match),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
-}
-
-/** Reiner Text einer Notiz: Markdown-Zeichen fallen weg, Code zählt nicht. */
-function notePlainText(content: string): string {
-  return content
-    .replace(/```[\s\S]*?(?:```|$)/g, " ")
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, " ")
-    .replace(/\[([^\]]*)\]\([^)]*\)/g, "$1")
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/^\s*>\s?/gm, "")
-    .replace(/^\s*(?:[-*+]|\d+\.)\s+/gm, "")
-    .replace(/^\s*\[[ xX]\]\s*/gm, "")
-    .replace(/[*_~`]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-/**
- * Kurze, gut lesbare Vorschau. Mit `match` liegt das Fenster um den ersten
- * Treffer, damit Suchergebnisse den Fundort zeigen.
- */
-export function createNoteExcerpt(content: string, match?: string): string {
-  const plain = notePlainText(content);
-  const needle = match?.trim().toLowerCase() ?? "";
-  if (needle === "") return plain.slice(0, NOTE_EXCERPT_MAX_LENGTH);
-  const index = plain.toLowerCase().indexOf(needle);
-  if (index === -1) return plain.slice(0, NOTE_EXCERPT_MAX_LENGTH);
-  const start = Math.max(0, index - 60);
-  const end = Math.min(plain.length, index + needle.length + 100);
-  const prefix = start > 0 ? "…" : "";
-  const suffix = end < plain.length ? "…" : "";
-  return `${prefix}${plain.slice(start, end).trim()}${suffix}`.slice(0, NOTE_EXCERPT_MAX_LENGTH);
-}
-
-/** LIKE-Suchmuster: Prozent- und Unterstrichzeichen der Eingabe bleiben Text. */
-export function escapeLikePattern(query: string): string {
-  return `%${query.replace(/[\\%_]/g, (match) => `\\${match}`)}%`;
 }
 
 export class NotesDatabase {
@@ -162,11 +127,14 @@ export class NotesDatabase {
       );
     `);
     this.folders = new NoteFoldersDatabase(this.db);
+    migrateNoteExcerpts(this.db);
   }
 
   close(): void {
     this.db.close();
   }
+
+  rebuildExcerpts(): void { rebuildNoteExcerpts(this.db); }
 
   migrateOrbitSources(): OrbitNotesMigrationResult {
     return migrateOrbitSources(this.db);
@@ -174,7 +142,7 @@ export class NotesDatabase {
 
   list(): NoteSummary[] {
     const rows = this.db
-      .prepare(`SELECT id, title, content, icon, cover_asset_id, parent_id, folder_id, sort_order, favorite, archived, created_at, updated_at
+      .prepare(`SELECT id, title, excerpt, icon, cover_asset_id, parent_id, folder_id, sort_order, favorite, archived, created_at, updated_at
         FROM notes ORDER BY sort_order ASC, updated_at DESC`)
       .all() as unknown as SummaryRow[];
     return rows.map((row) => toSummary(row));
@@ -326,8 +294,8 @@ export class NotesDatabase {
       return { status: "conflict", note: current };
     }
     this.db
-      .prepare("UPDATE notes SET content=?, revision=revision+1, updated_at=? WHERE id=?")
-      .run(content, new Date().toISOString(), noteId);
+      .prepare("UPDATE notes SET content=?, excerpt=?, revision=revision+1, updated_at=? WHERE id=?")
+      .run(content, createNoteExcerpt(content), new Date().toISOString(), noteId);
     return { status: "saved", note: this.get(noteId)! };
   }
 

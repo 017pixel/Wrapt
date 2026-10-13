@@ -1,13 +1,13 @@
-import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { promisify } from "node:util";
 import { redactText } from "../hermes/redaction.js";
 import type { NotificationDatabase } from "./database.js";
-import { REMOTE_READER_SCRIPT } from "./t3-remote-reader.js";
-
-const execFileAsync = promisify(execFile);
+import { readRemoteT3Snapshot } from "./t3-remote-client.js";
+import { RemoteT3PollScheduler, remoteT3SourceKey } from "./t3-remote-scheduler.js";
+import { remoteT3PollDefaults } from "../config/performance-settings.js";
+import { threadSelection } from "./t3-status-query.js";
+import { readRemoteT3Cursor, remoteT3CursorPath } from "./t3-remote-cursors.js";
 
 export interface ThreadRow {
   threadId: string; title: string; projectId: string; projectTitle: string | null; updatedAt: string;
@@ -36,7 +36,7 @@ export interface PendingFinal {
   snapshot: ThreadRow;
 }
 
-interface RemoteSnapshot {
+export interface RemoteSnapshot {
   environmentId: string;
   currentSequence: number;
   touched: string[];
@@ -80,21 +80,12 @@ function durationSeconds(row: ThreadRow): number {
   return Math.max(0, (Date.parse(row.completedAt ?? row.settledAt ?? row.updatedAt) - Date.parse(row.startedAt)) / 1_000);
 }
 
-const threadSelection = `t.thread_id threadId, t.title, t.project_id projectId, p.title projectTitle, t.updated_at updatedAt,
-  t.pending_approval_count pendingApprovalCount, t.pending_user_input_count pendingUserInputCount,
-  t.has_actionable_proposed_plan hasActionableProposedPlan, t.settled_at settledAt,
-  s.status sessionStatus, s.last_error lastError, v.turn_id turnId, v.state turnState,
-  v.started_at startedAt, v.completed_at completedAt,
-  (SELECT COUNT(*) FROM projection_thread_activities a WHERE a.thread_id=t.thread_id AND a.kind LIKE 'tool.%' AND (a.turn_id=v.turn_id OR v.turn_id IS NULL)) toolCount
-  FROM projection_threads t
-  LEFT JOIN projection_projects p ON p.project_id = t.project_id
-  LEFT JOIN projection_thread_sessions s ON s.thread_id=t.thread_id
-  LEFT JOIN projection_turns v ON v.row_id=(SELECT MAX(v2.row_id) FROM projection_turns v2 WHERE v2.thread_id=t.thread_id)
-  WHERE t.deleted_at IS NULL`;
 
 
 export class T3StatusSync {
   private timer: NodeJS.Timeout | null = null;
+  private readonly remoteScheduler: RemoteT3PollScheduler;
+  private stopped = false;
   private initialized = false;
   private lastSequence = 0;
   private readonly remoteStates: Map<string, { lastSequence: number; initialized: boolean }> = new Map();
@@ -110,24 +101,31 @@ export class T3StatusSync {
     pollSeconds: number; completionMinimumSeconds: number; miniTaskSeconds: number; cursorPath: string;
     finalSettleSeconds?: number;
     remoteSources?: RemoteT3Source[];
+    remoteScheduling?: typeof remoteT3PollDefaults;
+    remoteRead?: typeof readRemoteT3Snapshot;
   }) {
+    const scheduling = options.remoteScheduling ?? remoteT3PollDefaults;
+    this.remoteScheduler = new RemoteT3PollScheduler(options.pollSeconds * 1_000, scheduling.concurrency, scheduling.maximumBackoffMilliseconds);
     try {
       const cursor = JSON.parse(readFileSync(options.cursorPath, "utf8")) as { lastSequence?: unknown; pendingFinals?: unknown };
       if (typeof cursor.lastSequence === "number" && Number.isSafeInteger(cursor.lastSequence)) { this.lastSequence = cursor.lastSequence; this.initialized = true; }
       this.restorePendingFinals(cursor.pendingFinals);
     } catch { /* Beim ersten Start existiert noch kein Cursor. */ }
     for (const source of options.remoteSources ?? []) {
+      const key = remoteT3SourceKey(source);
       const state = { lastSequence: 0, initialized: false };
       try {
-        const cursor = JSON.parse(readFileSync(this.remoteCursorPath(source), "utf8")) as { lastSequence?: unknown; pendingFinals?: unknown };
-        if (typeof cursor.lastSequence === "number" && Number.isSafeInteger(cursor.lastSequence)) { state.lastSequence = cursor.lastSequence; state.initialized = true; }
-        this.restorePendingFinals(cursor.pendingFinals);
+        const cursor = readRemoteT3Cursor(options.cursorPath, options.remoteSources ?? [], source);
+        if (cursor) {
+          if (typeof cursor.lastSequence === "number" && Number.isSafeInteger(cursor.lastSequence)) { state.lastSequence = cursor.lastSequence; state.initialized = true; }
+          this.restorePendingFinals(cursor.pendingFinals, key);
+        }
       } catch { /* Noch kein Remote-Cursor vorhanden. */ }
-      this.remoteStates.set(source.host, state);
+      this.remoteStates.set(key, state);
     }
   }
 
-  private restorePendingFinals(value: unknown): void {
+  private restorePendingFinals(value: unknown, sourceKey?: string): void {
     if (!Array.isArray(value)) return;
     for (const entry of value) {
       if (!entry || typeof entry !== "object") continue;
@@ -137,12 +135,20 @@ export class T3StatusSync {
       if (!snapshot || typeof snapshot !== "object" || typeof snapshot.threadId !== "string" || typeof snapshot.turnId !== "string"
         || typeof snapshot.title !== "string" || typeof snapshot.projectId !== "string" || typeof snapshot.updatedAt !== "string"
         || typeof snapshot.turnState !== "string" || typeof snapshot.toolCount !== "number") continue;
-      this.pendingFinals.set(`${pending.sourceKey}:${pending.threadId}`, pending as PendingFinal);
+      const restored = { ...pending, ...(sourceKey ? { sourceKey } : {}) } as PendingFinal;
+      this.pendingFinals.set(`${restored.sourceKey}:${restored.threadId}`, restored);
     }
   }
 
   start(): void { if (this.timer) return; this.timer = setInterval(() => void this.poll(), this.options.pollSeconds * 1_000); this.timer.unref(); void this.poll(); }
-  stop(): void { if (this.timer) clearInterval(this.timer); this.timer = null; this.saveCursor(); for (const source of this.options.remoteSources ?? []) this.saveRemoteCursor(source); }
+  async stop(): Promise<void> {
+    this.stopped = true;
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+    await this.remoteScheduler.stop();
+    this.saveCursor();
+    for (const source of this.options.remoteSources ?? []) this.saveRemoteCursor(source);
+  }
 
   /** Diagnose für stille Sync-Fehler: Zähler plus letzte Meldung mit Alter. */
   syncErrorStatus(): { syncErrorCount: number; lastSyncError: { scope: string; message: string; at: string } | null } {
@@ -157,13 +163,15 @@ export class T3StatusSync {
   }
 
   private remoteCursorPath(source: RemoteT3Source): string {
-    return `${this.options.cursorPath}.remote-${source.host}`;
+    return remoteT3CursorPath(this.options.cursorPath, this.options.remoteSources ?? [], source);
   }
 
   async poll(): Promise<void> {
+    if (this.stopped) return;
     this.pollLocal();
+    this.settleFinals("local");
     await this.pollRemote();
-    this.settleFinals();
+    if (!this.stopped) this.settleFinals("local");
   }
 
   private pollLocal(): void {
@@ -200,48 +208,47 @@ export class T3StatusSync {
   }
 
   private async pollRemote(): Promise<void> {
-    for (const source of this.options.remoteSources ?? []) {
+    await this.remoteScheduler.run(this.options.remoteSources ?? [], async (source, signal) => {
+      const key = remoteT3SourceKey(source);
       try {
-        const state = this.remoteStates.get(source.host);
-        if (!state) continue;
-        // Das Skript Base64-encodiert über die Remote-Shell ausführen: Die
-        // Remote-Shell bekommt nur einen einzigen einfachen Befehl, Argumente
-        // und Skript enthalten keine Sonderzeichen mehr, die sie umdeuten könnte.
-        const encoded = Buffer.from(REMOTE_READER_SCRIPT, "utf8").toString("base64");
-        const command = `echo ${encoded} | base64 -d | python3 - '${source.databasePath.replaceAll("'", "'\\''")}' '${source.environmentIdPath.replaceAll("'", "'\\''")}' ${state.lastSequence} ${state.initialized ? 1 : 0}`;
-        const { stdout } = await execFileAsync("ssh", ["-o", "BatchMode=yes", "-o", "ConnectTimeout=10", source.host, command], { timeout: 20_000, maxBuffer: 8 * 1024 * 1024 });
-        const snapshot = JSON.parse(stdout) as RemoteSnapshot;
+        const state = this.remoteStates.get(key);
+        if (!state) return;
+        const snapshot = await (this.options.remoteRead ?? readRemoteT3Snapshot)(source, state, signal);
+        signal.throwIfAborted();
         const environmentId = snapshot.environmentId;
         const currentSequence = snapshot.currentSequence;
         // Gleicher Baseline-Schutz wie lokal: Nach einem Sprung zurück meldet
         // dieser Durchlauf keine alten Abschlüsse erneut.
         let allowCompletion = state.initialized;
-        if (currentSequence < state.lastSequence) { state.lastSequence = 0; allowCompletion = false; }
-        const byThread = mergeRemoteSnapshot(this.remoteSnapshots.get(source.host), snapshot.rows);
-        const activities = new Map(this.remoteActivities.get(source.host) ?? []);
+        if (currentSequence < state.lastSequence) allowCompletion = false;
+        const byThread = mergeRemoteSnapshot(this.remoteSnapshots.get(key), snapshot.rows);
+        const activities = new Map(this.remoteActivities.get(key) ?? []);
         for (const row of snapshot.rows) {
           activities.set(row.threadId, snapshot.activities[row.threadId] ?? []);
-          this.process(row, environmentId, allowCompletion, source.host);
+          this.process(row, environmentId, allowCompletion, key);
         }
         // Die Aktivitäten wachsen mit demselben Limit wie die Zeilen selbst.
         for (const threadId of [...activities.keys()]) if (!byThread.has(threadId)) activities.delete(threadId);
-        this.remoteSnapshots.set(source.host, byThread);
-        this.remoteActivities.set(source.host, activities);
+        this.remoteSnapshots.set(key, byThread);
+        this.remoteActivities.set(key, activities);
         state.initialized = true;
         state.lastSequence = currentSequence;
         this.saveRemoteCursor(source);
       } catch (error) {
         // Remote nicht erreichbar oder Schema-Migration: Der nächste Poll versucht es erneut.
-        this.noteSyncError(`remote:${source.host}`, error);
+        if (!signal.aborted) this.noteSyncError(`remote:${source.host}`, error);
+        throw error;
+      } finally {
+        if (!this.stopped) this.settleFinals(key);
       }
-    }
+    });
   }
 
   /** Meldet gepufferte finale Turns, sobald ihr Zustand stabil geblieben ist. */
-  private settleFinals(): void {
+  private settleFinals(sourceKey?: string): void {
     const now = Date.now();
     const settleMilliseconds = (this.options.finalSettleSeconds ?? 10) * 1_000;
-    const localKeys = [...this.pendingFinals.entries()].filter(([, pending]) => pending.sourceKey === "local").map(([key]) => key);
+    const localKeys = [...this.pendingFinals.entries()].filter(([, pending]) => pending.sourceKey === "local" && (!sourceKey || sourceKey === "local")).map(([key]) => key);
     if (localKeys.length > 0 && !existsSync(this.options.databasePath)) return;
     if (localKeys.length > 0) {
       let db: DatabaseSync | null = null;
@@ -270,7 +277,7 @@ export class T3StatusSync {
     }
     try {
       for (const [key, pending] of [...this.pendingFinals]) {
-        if (pending.sourceKey === "local") continue;
+        if (pending.sourceKey === "local" || (sourceKey && pending.sourceKey !== sourceKey)) continue;
         if (now - pending.firstSeenAt < settleMilliseconds) continue;
         const row = this.remoteSnapshots.get(pending.sourceKey)?.get(pending.threadId);
         if (row) {
@@ -301,7 +308,8 @@ export class T3StatusSync {
   private saveCursor(): void { this.writeCursor(this.options.cursorPath, this.lastSequence, "local"); }
 
   private saveRemoteCursor(source: RemoteT3Source): void {
-    this.writeCursor(this.remoteCursorPath(source), this.remoteStates.get(source.host)?.lastSequence ?? 0, source.host);
+    const key = remoteT3SourceKey(source);
+    this.writeCursor(this.remoteCursorPath(source), this.remoteStates.get(key)?.lastSequence ?? 0, key);
   }
 
   private writeCursor(path: string, lastSequence: number, sourceKey: string): void {
@@ -309,7 +317,7 @@ export class T3StatusSync {
       mkdirSync(dirname(path), { recursive: true });
       const pendingFinals = [...this.pendingFinals.values()].filter((pending) => pending.sourceKey === sourceKey);
       const temporary = `${path}.${process.pid}.tmp`;
-      writeFileSync(temporary, `${JSON.stringify({ lastSequence, pendingFinals })}\n`, { encoding: "utf8", mode: 0o600 });
+      writeFileSync(temporary, `${JSON.stringify({ lastSequence, pendingFinals, ...(sourceKey !== "local" ? { sourceIdentity: sourceKey } : {}) })}\n`, { encoding: "utf8", mode: 0o600 });
       renameSync(temporary, path);
     } catch { /* Best Effort. */ }
   }

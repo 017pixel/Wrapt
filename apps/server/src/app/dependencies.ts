@@ -1,3 +1,4 @@
+import { createNotificationSyncs } from "./notification-syncs.js";
 import { join } from "node:path";
 import type { PreviewServiceEdge } from "@wrapt/contracts";
 import type { FastifyInstance } from "fastify";
@@ -19,11 +20,8 @@ import { HermesAcpManager } from "../hermes/acp/Manager.js";
 import { HermesSessionService } from "../hermes/session-service.js";
 import { HermesStatusService } from "../hermes/status-service.js";
 import { HermesResultSync } from "../hermes/result-sync.js";
-import { AgentSessionSync } from "../notifications/agent-session-sync.js";
 import { NotificationDatabase } from "../notifications/database.js";
 import { NotificationPushService } from "../notifications/push.js";
-import { T3StatusSync } from "../notifications/t3-status-sync.js";
-import { TerminalStatusSync } from "../notifications/terminal-status-sync.js";
 import { OperationalAuditDatabase } from "../observability/audit.js";
 import { OperationalMetrics } from "../observability/metrics.js";
 import { OrbitAssetRepository } from "../orbit/assets.js";
@@ -210,43 +208,13 @@ export async function createAppDependencies(app: FastifyInstance) {
     logger: app.log,
     timeoutMilliseconds: settings.pushTimeoutMilliseconds,
   });
-  const t3StatusSync = new T3StatusSync({
-    databasePath: join(settings.systemHomeDirectory, ".t3/userdata/state.sqlite"),
-    environmentIdPath: join(settings.systemHomeDirectory, ".t3/userdata/environment-id"),
-    notifications: notificationDatabase,
-    pollSeconds: settings.notifications.pollSeconds,
-    completionMinimumSeconds: settings.notifications.t3CompletionMinimumSeconds,
-    miniTaskSeconds: settings.notifications.t3MiniTaskSeconds,
-    finalSettleSeconds: settings.notifications.finalSettleSeconds,
-    cursorPath: join(settings.dataDirectory, "notifications/t3-status-cursor.json"),
-    remoteSources: settings.notifications.t3RemoteSyncs,
-  });
-  const terminalStatusSync = new TerminalStatusSync({
-    databasePath: settings.databasePath,
-    notifications: notificationDatabase,
-    pollSeconds: settings.notifications.pollSeconds,
-    terminalMinimumSeconds: settings.notifications.terminalMinimumSeconds,
-    agentMinimumSeconds: settings.notifications.agentMinimumSeconds,
-    inputIdleMilliseconds: settings.notifications.terminalInputIdleMilliseconds,
-  });
-  const agentSessionSync = new AgentSessionSync({
-    // Die konfigurierten gemeinsamen Homes gelten auch für die Verlaufsquellen;
-    // sonst würden abweichende Pfade (Config oder Profil) ins Leere lesen.
-    opencodeDatabasePath: join(settings.sharedHomes.opencode.sharedHome, "opencode.db"),
-    t3DatabasePath: join(settings.systemHomeDirectory, ".t3/userdata/state.sqlite"),
-    codexSessionsPath: join(settings.sharedHomes.codex.sharedHome, "sessions"),
-    cursorPath: join(settings.dataDirectory, "notifications/agent-session-cursor.json"),
-    notifications: notificationDatabase,
-    pollSeconds: settings.notifications.pollSeconds,
-    completionMinimumSeconds: settings.notifications.agentMinimumSeconds,
-    runIdleSeconds: settings.notifications.agentRunIdleSeconds,
-  });
+  const { t3StatusSync, terminalStatusSync, agentSessionSync } = createNotificationSyncs(notificationDatabase);
   const hermesClient = new HermesDashboardClient();
   const hermesManager = new HermesAcpManager({
     maxSessions: settings.hermes.acpMaxSessions,
     requestTimeoutSeconds: settings.hermes.requestTimeoutSeconds,
   });
-  const hermesSessions = new HermesSessionService(hermesClient, hermesManager, async () => (await projects.list()).projects);
+  const hermesSessions = new HermesSessionService(hermesClient, hermesManager, () => projects.listReferences());
   const hermesStatus = new HermesStatusService(hermesClient, hermesManager);
   const hermesResultSync = new HermesResultSync(hermesSessions, hermesManager, notificationDatabase);
   const orbitDatabase = new OrbitDatabase(settings.databasePath, settings.orbitBackupDirectory);
@@ -331,7 +299,7 @@ export async function createAppDependencies(app: FastifyInstance) {
     probeTimeoutMilliseconds: settings.localPortProbeTimeoutMilliseconds,
   });
   const previewRepair = new PreviewRepairService({ database: previewSlotDatabase, slots: previewSlots, scanCandidates });
-  const runtime = createRuntimeDependencies({
+  const runtime = await createRuntimeDependencies({
     terminalDatabase,
     terminalStatusSync,
     usageDatabase,

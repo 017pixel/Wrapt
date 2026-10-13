@@ -47,6 +47,7 @@ async function discoverProjects(
   rootDirectory: string,
   configuredProjects: ProjectConfig[],
   registry?: ProjectRegistryDatabase,
+  registeredProjects: RegisteredProject[] = [],
 ): Promise<ProjectConfig[]> {
   let entries: Dirent[];
   try {
@@ -56,7 +57,8 @@ async function discoverProjects(
   }
 
   const configuredByPath = new Map(configuredProjects.map((project) => [normalizePlatformPathAlias(project.path), project]));
-  const usedIds = new Set([...configuredProjects.map((project) => project.id), ...(registry?.list().map((project) => project.id) ?? [])]);
+  const registeredByPath = new Map(registeredProjects.map((project) => [normalizePlatformPathAlias(project.path), project]));
+  const usedIds = new Set([...configuredProjects.map((project) => project.id), ...registeredProjects.map((project) => project.id)]);
   return entries
     .filter((entry) => entry.isDirectory() && !entry.name.startsWith("."))
     .sort((left, right) => left.name.localeCompare(right.name, "de", { sensitivity: "base" }))
@@ -73,10 +75,10 @@ async function discoverProjects(
           sortOrder: 1_000 + index,
         }];
       }
-      const known = registry?.findByPath(path);
+      const known = registeredByPath.get(normalizePlatformPathAlias(path));
       const id = known?.id ?? uniqueProjectId(entry.name, usedIds);
       if (known) usedIds.add(known.id);
-      const persisted = registry?.register(path, entry.name, new Date().toISOString(), id).project;
+      const persisted = known ?? registry?.register(path, entry.name, new Date().toISOString(), id).project;
       return [{
         id: persisted?.id ?? id,
         name: persisted?.name ?? entry.name,
@@ -148,14 +150,15 @@ export function createProjectService(
   }
 
   async function configuredAndDiscoveredProjects(): Promise<ProjectConfig[]> {
+    const registeredProjects = registry?.list() ?? [];
     const discovered = discovery.enabled
-      ? await discoverProjects(discovery.rootDirectory, projectConfig.projects, registry)
+      ? await discoverProjects(discovery.rootDirectory, projectConfig.projects, registry, registeredProjects)
       : [];
     const discoveredPaths = new Set(discovered.map((project) => normalizePlatformPathAlias(project.path)));
     const configuredOutsideDiscovery = projectConfig.projects.filter((project) => !discoveredPaths.has(normalizePlatformPathAlias(project.path)) && !isWithinDiscoveryRoot(project.path));
     const base = discovery.enabled ? [...discovered, ...configuredOutsideDiscovery] : [...projectConfig.projects];
     const knownPaths = new Set(base.map((project) => normalizePlatformPathAlias(project.path)));
-    const registered = (registry?.list() ?? []).flatMap((project): ProjectConfig[] => {
+    const registered = registeredProjects.flatMap((project): ProjectConfig[] => {
       if (knownPaths.has(normalizePlatformPathAlias(project.path))) return [];
       return [registeredProjectConfig(project)];
     });
@@ -181,8 +184,10 @@ export function createProjectService(
   }
 
   type ProjectReference = Pick<Project, "id" | "name" | "path">;
+  const discoveryCache = createAsyncCache(settings.projectListCacheMilliseconds, configuredAndDiscoveredProjects);
+  let listedMetadata: ProjectConfig[] | undefined;
   const listCache = createAsyncCache<ProjectsResponse>(settings.projectListCacheMilliseconds, async () => {
-    const availableProjects = await configuredAndDiscoveredProjects();
+    const availableProjects = await discoveryCache.get();
     const projects = await mapWithConcurrency(
       availableProjects
         .filter((project) => project.enabled)
@@ -192,23 +197,28 @@ export function createProjectService(
     );
     return projectsResponseSchema.parse({ projects, projectsRoot: discovery.rootDirectory, recentLimit: settings.orbitRecentProjectLimit });
   });
-  const referenceCache = createAsyncCache<readonly ProjectReference[]>(settings.projectListCacheMilliseconds, async () => {
-    const availableProjects = await configuredAndDiscoveredProjects();
+  async function references(): Promise<readonly ProjectReference[]> {
+    const availableProjects = await discoveryCache.get();
     return availableProjects
       .filter((project) => project.enabled)
       .sort((left, right) => left.sortOrder - right.sortOrder || left.name.localeCompare(right.name))
       .map((project) => ({ id: project.id, name: project.name, path: project.path }));
-  });
+  }
 
   return {
     async list(): Promise<ProjectsResponse> {
+      const metadata = await discoveryCache.get();
+      if (metadata !== listedMetadata) {
+        listCache.clear();
+        listedMetadata = metadata;
+      }
       return listCache.get();
     },
     async listReferences(): Promise<readonly ProjectReference[]> {
-      return referenceCache.get();
+      return references();
     },
     async get(projectId: string): Promise<ProjectResponse> {
-      const availableProjects = await configuredAndDiscoveredProjects();
+      const availableProjects = await discoveryCache.get();
       const configuredProject = availableProjects.find((project) => project.id === projectId && project.enabled);
       if (configuredProject === undefined) {
         throw new AppError(404, "PROJECT_NOT_FOUND", "Das lokale Projekt wurde nicht gefunden.");
@@ -216,15 +226,14 @@ export function createProjectService(
       return projectResponseSchema.parse({ project: await mapProject(configuredProject) });
     },
     async touch(projectId: string) {
-      const project = (await referenceCache.get()).find((candidate) => candidate.id === projectId);
+      const project = (await references()).find((candidate) => candidate.id === projectId);
       if (!project) throw new AppError(404, "PROJECT_NOT_FOUND", "Das lokale Projekt wurde nicht gefunden.");
       const lastUsedAt = activity?.touch(projectId) ?? new Date().toISOString();
       listCache.clear();
-      referenceCache.clear();
       return { projectId, lastUsedAt };
     },
     async register(path: string): Promise<RegisterProjectResponse> {
-      const availableProjects = await configuredAndDiscoveredProjects();
+      const availableProjects = await discoveryCache.get();
       const existing = availableProjects.find((candidate) => normalize(candidate.path) === normalize(path));
       if (existing) {
         return registerProjectResponseSchema.parse({ project: await mapProject(existing), created: false });
@@ -232,7 +241,7 @@ export function createProjectService(
       if (!registry) throw new AppError(503, "PROJECT_REGISTRY_UNAVAILABLE", "Die Orbit-Projektregistry ist momentan nicht verfügbar.");
       const registered = registry.register(path, basename(path));
       listCache.clear();
-      referenceCache.clear();
+      discoveryCache.clear();
       return registerProjectResponseSchema.parse({
         project: await mapProject(registeredProjectConfig(registered.project)),
         created: registered.created,

@@ -66,12 +66,12 @@ function appendAssistantCompletions(path: string, sessionId: string, count: numb
   db.close();
 }
 
-function poll(sync: AgentSessionSync, emit = true): void {
-  (sync as unknown as { poll(emit: boolean): void }).poll(emit);
+async function poll(sync: AgentSessionSync, emit = true): Promise<void> {
+  await (sync as unknown as { poll(emit: boolean): Promise<void> }).poll(emit);
 }
 
 describe("Agent-Session-Synchronisation", () => {
-  it("ignoriert T3-interne OpenCode-Abschlüsse, meldet normale OpenCode-Läufe aber nach Abschluss", () => {
+  it("ignoriert T3-interne OpenCode-Abschlüsse, meldet normale OpenCode-Läufe aber nach Abschluss", async () => {
     const { opencodePath, notifications, sync } = fixture();
     const db = new DatabaseSync(opencodePath);
     db.prepare("INSERT INTO session VALUES(?,?,?,?,?,?)").run("t3-prefix-session", "/workspace", " t3 code generateThreadTitle ", 0, null, 0);
@@ -79,19 +79,19 @@ describe("Agent-Session-Synchronisation", () => {
     db.prepare("INSERT INTO session VALUES(?,?,?,?,?,?)").run("normal-session", "/home/bbecker/projects/anderes", "Feature umsetzen", 0, null, 0);
     db.close();
 
-    sync.start();
+    await sync.start();
     appendAssistantCompletion(opencodePath, "t3-prefix-session", "t3-prefix-message");
     appendAssistantCompletion(opencodePath, "t3-task-session", "t3-task-message");
     appendAssistantCompletion(opencodePath, "normal-session", "normal-message");
-    poll(sync);
+    await poll(sync);
 
     expect(notifications.list().notifications).toHaveLength(1);
     expect(notifications.list().notifications[0]).toMatchObject({ source: "opencode", kind: "agent.completed", remoteId: "opencode:run:normal-session:45000" });
-    sync.stop();
+    await sync.stop();
     notifications.close();
   });
 
-  it("erkennt T3-interne Sessions am aktiven T3-Projektverzeichnis, auch ohne Titelmarker", () => {
+  it("erkennt T3-interne Sessions am aktiven T3-Projektverzeichnis, auch ohne Titelmarker", async () => {
     const { opencodePath, notifications, sync } = fixture();
     // T3-Titel weichen ab oder die Session wurde nachträglich umbenannt; der
     // laufende T3-Thread im selben Verzeichnis bleibt das entscheidende Signal.
@@ -101,130 +101,130 @@ describe("Agent-Session-Synchronisation", () => {
     appendAssistantCompletion(opencodePath, "t3-directory-session", "m1");
     appendAssistantCompletion(opencodePath, "t3-subagent", "m2");
     appendAssistantCompletion(opencodePath, "manuell", "m3");
-    poll(sync);
+    await poll(sync);
     const entries = notificationsList(notifications);
     expect(entries).toHaveLength(1);
     expect(entries[0]?.remoteId).toContain("manuell");
-    sync.stop();
+    await sync.stop();
     notifications.close();
   });
 
-  it("bündelt viele Assistant-Nachrichten eines Laufs zu genau einer Meldung", () => {
+  it("bündelt viele Assistant-Nachrichten eines Laufs zu genau einer Meldung", async () => {
     const { opencodePath, notifications, sync } = fixture();
     addSession(opencodePath, "lauf", { directory: "/home/bbecker/projects/anderes" });
     for (let index = 0; index < 5; index += 1) appendAssistantCompletion(opencodePath, "lauf", `msg-${index}`, 10_000 + index * 1_000, { created: index * 1_000 });
-    poll(sync);
+    await poll(sync);
     const entries = notificationsList(notifications);
     expect(entries).toHaveLength(1);
     expect(entries[0]).toMatchObject({ kind: "agent.completed", remoteId: "opencode:run:lauf:14000" });
     expect(entries[0]?.meta.responses).toBe(5);
-    sync.stop();
+    await sync.stop();
     notifications.close();
   });
 
-  it("meldet Subagenten-Nachrichten im Hauptlauf statt als eigene Meldungen", () => {
+  it("meldet Subagenten-Nachrichten im Hauptlauf statt als eigene Meldungen", async () => {
     const { opencodePath, notifications, sync } = fixture();
     addSession(opencodePath, "haupt", { directory: "/home/bbecker/projects/anderes" });
     addSession(opencodePath, "sub", { directory: "/home/bbecker/projects/anderes", parentId: "haupt" });
     appendAssistantCompletion(opencodePath, "haupt", "h1");
     appendAssistantCompletion(opencodePath, "sub", "s1");
     appendAssistantCompletion(opencodePath, "sub", "s2");
-    poll(sync);
+    await poll(sync);
     const entries = notificationsList(notifications);
     expect(entries).toHaveLength(1);
     expect(entries[0]?.meta.sessionId).toBe("haupt");
     expect(entries[0]?.meta.responses).toBe(3);
-    sync.stop();
+    await sync.stop();
     notifications.close();
   });
 
-  it("startet nach einer Pause einen neuen Lauf mit neuer Meldung", () => {
+  it("startet nach einer Pause einen neuen Lauf mit neuer Meldung", async () => {
     const { opencodePath, notifications, sync } = fixture();
     addSession(opencodePath, "lauf", { directory: "/home/bbecker/projects/anderes" });
     appendAssistantCompletion(opencodePath, "lauf", "a1", 10_000, { created: 0 });
-    poll(sync);
+    await poll(sync);
     expect(notificationsList(notifications)).toHaveLength(1);
     appendAssistantCompletion(opencodePath, "lauf", "a2", 80_000, { created: 70_000 });
-    poll(sync);
+    await poll(sync);
     const entries = notificationsList(notifications);
     expect(entries).toHaveLength(2);
     expect(entries[0]?.remoteId).not.toBe(entries[1]?.remoteId);
-    sync.stop();
+    await sync.stop();
     notifications.close();
   });
 
-  it("meldet einen fehlgeschlagenen Lauf als genau eine Fehlermeldung", () => {
+  it("meldet einen fehlgeschlagenen Lauf als genau eine Fehlermeldung", async () => {
     const { opencodePath, notifications, sync } = fixture();
     addSession(opencodePath, "lauf", { directory: "/home/bbecker/projects/anderes" });
     appendAssistantCompletion(opencodePath, "lauf", "ok", 5_000, { created: 0 });
     appendAssistantCompletion(opencodePath, "lauf", "kaputt", 9_000, { created: 6_000, error: "Rate limit exceeded" });
-    poll(sync);
+    await poll(sync);
     const entries = notificationsList(notifications);
     expect(entries).toHaveLength(1);
     expect(entries[0]).toMatchObject({ kind: "agent.failed", severity: "error", body: "Rate limit exceeded" });
     expect(entries[0]?.meta.responses).toBe(2);
-    sync.stop();
+    await sync.stop();
     notifications.close();
   });
 
-  it("verliert keine Abschlüsse jenseits des 500er-Leselimits", () => {
+  it("verliert keine Abschlüsse jenseits des 500er-Leselimits", async () => {
     const { opencodePath, cursorPath, notifications, sync } = fixture({ runIdleSeconds: 90 });
     const now = Date.now();
     addSession(opencodePath, "lauf", { directory: "/home/bbecker/projects/anderes", timeCreated: now, timeUpdated: now });
     appendAssistantCompletions(opencodePath, "lauf", 600);
     // Der erste Poll liest 500 Ereignisse, der zweite den Rest. Der Cursor
     // springt nie über ungelesene Zeilen hinweg.
-    poll(sync);
+    await poll(sync);
     expect(JSON.parse(readFileSync(cursorPath, "utf8"))).toMatchObject({ opencodeRowId: 500 });
-    poll(sync);
+    await poll(sync);
     expect(JSON.parse(readFileSync(cursorPath, "utf8"))).toMatchObject({ opencodeRowId: 600 });
     expect(notificationsList(notifications)).toEqual([]);
     const db = new DatabaseSync(opencodePath);
     db.prepare("UPDATE session SET time_updated=? WHERE id='lauf'").run(now - 120_000);
     db.close();
-    poll(sync);
+    await poll(sync);
     const entries = notificationsList(notifications);
     expect(entries).toHaveLength(1);
     expect(entries[0]?.meta.responses).toBe(600);
-    sync.stop();
+    await sync.stop();
     notifications.close();
   });
 
-  it("bündelt auch bei aktiv weiterlaufender Session erst nach der Ruhepause", () => {
+  it("bündelt auch bei aktiv weiterlaufender Session erst nach der Ruhepause", async () => {
     const { opencodePath, notifications, sync } = fixture({ runIdleSeconds: 90 });
     const now = Date.now();
     addSession(opencodePath, "lauf", { directory: "/home/bbecker/projects/anderes", timeCreated: now, timeUpdated: now });
     appendAssistantCompletion(opencodePath, "lauf", "m1", 5_000, { created: 0 });
-    poll(sync);
+    await poll(sync);
     expect(notificationsList(notifications)).toEqual([]);
     const db = new DatabaseSync(opencodePath);
     db.prepare("UPDATE session SET time_updated=? WHERE id='lauf'").run(now - 90_000);
     db.close();
-    poll(sync);
+    await poll(sync);
     expect(notificationsList(notifications)).toHaveLength(1);
-    sync.stop();
+    await sync.stop();
     notifications.close();
   });
 
-  it("hält den Lauf offen, solange ein Subagent noch arbeitet", () => {
+  it("hält den Lauf offen, solange ein Subagent noch arbeitet", async () => {
     const { opencodePath, notifications, sync } = fixture({ runIdleSeconds: 90 });
     const now = Date.now();
     addSession(opencodePath, "haupt", { directory: "/home/bbecker/projects/anderes", timeCreated: now - 300_000, timeUpdated: now - 300_000 });
     addSession(opencodePath, "sub", { directory: "/home/bbecker/projects/anderes", parentId: "haupt", timeCreated: now - 300_000, timeUpdated: now });
     appendAssistantCompletion(opencodePath, "haupt", "h1", 1_000, { created: 0 });
     appendAssistantCompletion(opencodePath, "sub", "s1", 2_000, { created: 1_000 });
-    poll(sync);
+    await poll(sync);
     expect(notificationsList(notifications)).toEqual([]);
     const db = new DatabaseSync(opencodePath);
     db.prepare("UPDATE session SET time_updated=? WHERE id='sub'").run(now - 120_000);
     db.close();
-    poll(sync);
+    await poll(sync);
     expect(notificationsList(notifications)).toHaveLength(1);
-    sync.stop();
+    await sync.stop();
     notifications.close();
   });
 
-  it("erkennt T3-Sessions auch, wenn der Turn gerade beendet wurde", () => {
+  it("erkennt T3-Sessions auch, wenn der Turn gerade beendet wurde", async () => {
     const { opencodePath, t3Path, notifications, sync } = fixture();
     const t3 = new DatabaseSync(t3Path);
     t3.prepare("UPDATE projection_turns SET state='completed', completed_at=? WHERE row_id=1").run(new Date().toISOString());
@@ -232,13 +232,13 @@ describe("Agent-Session-Synchronisation", () => {
     t3.close();
     addSession(opencodePath, "t3-kurz", { title: "Umbenannter Thread", directory: "/workspace", timeCreated: Date.now() });
     appendAssistantCompletion(opencodePath, "t3-kurz", "kurz-1");
-    poll(sync);
+    await poll(sync);
     expect(notificationsList(notifications)).toEqual([]);
-    sync.stop();
+    await sync.stop();
     notifications.close();
   });
 
-  it("ordnet nur Sessions im Zeitfenster des aktiven T3-Turns zu", () => {
+  it("ordnet nur Sessions im Zeitfenster des aktiven T3-Turns zu", async () => {
     const now = Date.now();
     expect(matchesT3Directory({ directory: "/workspace", timeCreated: now, timeUpdated: now }, { directory: "/workspace", activeSince: now })).toBe(true);
     // Ein seit Stunden offener T3-Thread darf neue manuelle Läufe nicht schlucken.
@@ -250,15 +250,15 @@ describe("Agent-Session-Synchronisation", () => {
     expect(matchesT3Directory({ directory: "/workspace", timeCreated: now - 7_200_000, timeUpdated: now - 7_200_000 }, { directory: "/workspace", activeSince: now - 3_600_000 })).toBe(false);
   });
 
-  it("setzt beim ersten Lauf nur den Cursor und erzeugt keine Meldungen für den Bestand", () => {
+  it("setzt beim ersten Lauf nur den Cursor und erzeugt keine Meldungen für den Bestand", async () => {
     const { opencodePath, cursorPath, notifications, sync } = fixture();
     addSession(opencodePath, "normal-session", { directory: "/home/bbecker/projects/anderes" });
     appendAssistantCompletion(opencodePath, "normal-session", "old-message");
 
-    sync.start();
+    await sync.start();
     expect(notifications.list().notifications).toEqual([]);
     expect(JSON.parse(readFileSync(cursorPath, "utf8"))).toMatchObject({ opencodeRowId: 1 });
-    sync.stop();
+    await sync.stop();
     notifications.close();
   });
 });

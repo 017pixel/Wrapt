@@ -1,17 +1,62 @@
 import { mkdtemp, mkdir, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProjectRegistryDatabase } from "../projects/registry-database.js";
 import { createProjectService } from "./projectService.js";
 
 const directories: string[] = [];
 
 afterEach(async () => {
+  vi.restoreAllMocks();
+  vi.useRealTimers();
   await Promise.all(directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
 });
 
 describe("project service registry", () => {
+  it.each([10, 100, 1_000])("teilt Discovery für %i Ordner zwischen zehn Details, Liste und Referenzen", async (count) => {
+    const root = await mkdtemp(join(tmpdir(), "project-discovery-shared-"));
+    directories.push(root);
+    await Promise.all(Array.from({ length: count }, (_, index) => mkdir(join(root, `project-${index}`))));
+    const registry = new ProjectRegistryDatabase(join(root, "registry.sqlite"));
+    try {
+      const register = vi.spyOn(registry, "register");
+      const list = vi.spyOn(registry, "list");
+      const activity = { get: vi.fn(async () => ({ lastWorkbenchUseAt: null, lastFilesystemChangeAt: null, lastGitCommitAt: null, effectiveAt: null })), touch: vi.fn(() => "2026-10-12T00:00:00Z") };
+      const service = createProjectService({ projects: [] }, [], { enabled: true, rootDirectory: root }, activity as never, registry);
+      await service.listReferences();
+      expect(activity.get).not.toHaveBeenCalled();
+      expect(register).toHaveBeenCalledTimes(count);
+      register.mockClear();
+      list.mockClear();
+      await Promise.all([...Array.from({ length: 10 }, (_, index) => service.get(`project-${index}`)), service.list(), service.listReferences()]);
+      expect(list).not.toHaveBeenCalled();
+      expect(register).not.toHaveBeenCalled();
+      await service.touch("project-0");
+      await service.listReferences();
+      expect(list).not.toHaveBeenCalled();
+      vi.useFakeTimers();
+      vi.advanceTimersByTime(60_000);
+      await service.listReferences();
+      expect(list).toHaveBeenCalledOnce();
+      expect(register).not.toHaveBeenCalled();
+    } finally { registry.close(); }
+  });
+
+  it("erkennt externe Ordner nach TTL und hält Verfügbarkeit im Detail frisch", async () => {
+    const root = await mkdtemp(join(tmpdir(), "project-discovery-ttl-"));
+    directories.push(root);
+    await mkdir(join(root, "first"));
+    const service = createProjectService({ projects: [] }, [], { enabled: true, rootDirectory: root });
+    expect((await service.listReferences()).map((project) => project.id)).toEqual(["first"]);
+    await mkdir(join(root, "second"));
+    expect((await service.listReferences())).toHaveLength(1);
+    await rm(join(root, "first"), { recursive: true });
+    expect((await service.get("first")).project.availability).toBe("missing");
+    vi.useFakeTimers();
+    vi.advanceTimersByTime(60_000);
+    expect((await service.list()).projects.map((project) => project.id)).toEqual(["second"]);
+  });
   it("lädt direkte Unterordner dynamisch aus dem konfigurierten Projekt-Root", async () => {
     const root = await mkdtemp(join(tmpdir(), "workbench-project-discovery-"));
     directories.push(root);

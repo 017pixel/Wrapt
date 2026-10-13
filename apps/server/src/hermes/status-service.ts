@@ -8,6 +8,7 @@ import { HermesClientError } from "./client.js";
 import type { HermesDashboardClient } from "./client.js";
 import type { HermesAcpManager } from "./acp/Manager.js";
 import { serviceState } from "./service-control.js";
+import { createAsyncCache, type AsyncCache } from "../utils/cache.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -48,7 +49,42 @@ function telegramConnected(value: unknown): boolean | null {
 }
 
 export class HermesStatusService {
-  constructor(private readonly client: HermesDashboardClient, private readonly manager: HermesAcpManager) {}
+  private readonly commitCache: AsyncCache<string | null>;
+  private readonly statusCache: AsyncCache<Awaited<ReturnType<HermesStatusService["loadFacts"]>>>;
+  private updateVersion: string | undefined;
+
+  constructor(private readonly client: HermesDashboardClient, private readonly manager: HermesAcpManager,
+    private readonly sources = { serviceState, checkoutCommit, readUpdateState: readHermesUpdateState,
+      installed: () => existsSync(settings.hermes.cliPath) && existsSync(settings.hermes.pythonPath) }) {
+    // Die Instanz gehört genau einer Dashboard-/Dienstkonfiguration.
+    this.commitCache = createAsyncCache(settings.hermesCommitCacheMilliseconds, sources.checkoutCommit);
+    this.statusCache = createAsyncCache(settings.hermesStatusCacheMilliseconds, () => this.loadFacts());
+  }
+
+  invalidate(commit = false): void {
+    this.statusCache.clear();
+    if (commit) this.commitCache.clear();
+  }
+
+  private async loadFacts() {
+    const installed = this.sources.installed();
+    const [dashboardState, gatewayState, rawStatus, rawModel] = await Promise.all([
+      this.sources.serviceState("dashboard"), this.sources.serviceState("gateway"),
+      this.client.get("/api/status").then((raw) => object(raw)).catch((error: unknown) => {
+        if (!(error instanceof HermesClientError)) throw error;
+        return null;
+      }),
+      this.client.get("/api/model/info").then((raw) => object(raw)).catch(() => null),
+    ]);
+    return {
+      installed, dashboardState, gatewayState, reachable: rawStatus !== null,
+      version: typeof rawStatus?.version === "string" ? rawStatus.version : null,
+      provider: typeof rawModel?.provider === "string" ? rawModel.provider : null,
+      model: typeof rawModel?.model === "string" ? rawModel.model : null,
+      gatewayTelegram: telegramConnected(rawStatus?.gateway_platforms),
+      gatewayError: typeof rawStatus?.gateway_exit_reason === "string" ? rawStatus.gateway_exit_reason.slice(0, 500) : null,
+    };
+  }
 
   async get(): Promise<HermesStatus> {
     const checkedAt = new Date().toISOString();
@@ -61,36 +97,11 @@ export class HermesStatusService {
       checkedAt,
     });
 
-    const installed = existsSync(settings.hermes.cliPath) && existsSync(settings.hermes.pythonPath);
-    // Die drei Abfragen sind unabhängig voneinander. Seriell gereiht addierten
-    // sich zwei `systemctl`-Aufrufe, der Git-Call und die beiden HTTP-Aufrufe
-    // (~140 ms für `/api/status`) zu rund 250 ms pro Statusabruf.
-    const [dashboardState, gatewayState, commit] = await Promise.all([
-      serviceState("dashboard"),
-      serviceState("gateway"),
-      checkoutCommit(),
-    ]);
-    let reachable = false;
-    let version: string | null = null;
-    let provider: string | null = null;
-    let model: string | null = null;
-    let gatewayTelegram: boolean | null = null;
-    let gatewayError: string | null = null;
-    try {
-      const raw = object(await this.client.get("/api/status"));
-      reachable = true;
-      version = typeof raw.version === "string" ? raw.version : null;
-      gatewayTelegram = telegramConnected(raw.gateway_platforms);
-      gatewayError = typeof raw.gateway_exit_reason === "string" ? raw.gateway_exit_reason.slice(0, 500) : null;
-      try {
-        const info = object(await this.client.get("/api/model/info"));
-        provider = typeof info.provider === "string" ? info.provider : null;
-        model = typeof info.model === "string" ? info.model : null;
-      } catch { /* Status bleibt auch ohne Modelldetails nutzbar. */ }
-    } catch (error) {
-      if (!(error instanceof HermesClientError)) throw error;
-    }
-    const update = readHermesUpdateState();
+    const update = this.sources.readUpdateState();
+    const updateVersion = `${update.phase}:${update.previousCommit}:${update.newCommit}:${update.lastFinishedAt}`;
+    if (this.updateVersion !== updateVersion) { this.invalidate(true); this.updateVersion = updateVersion; }
+    const [facts, commit] = await Promise.all([this.statusCache.get(), this.commitCache.get()]);
+    const { installed, reachable, version, provider, model, dashboardState, gatewayState, gatewayTelegram, gatewayError } = facts;
     return hermesStatusSchema.parse({
       enabled: true,
       installed,

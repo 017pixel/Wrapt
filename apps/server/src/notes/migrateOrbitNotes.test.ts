@@ -123,14 +123,14 @@ describe("Migration der Orbit-Notizen", () => {
     expect(second.migratedNodes).toBe(0);
     expect(second.migratedTodos).toBe(0);
     expect(notes.list()).toHaveLength(2);
-    orbit.close();
+    await orbit.close();
     notes.close();
   });
 
   it("überspringt ein leeres, nicht initialisiertes Dokument", async () => {
     const { orbit, notes } = await setup();
     expect(migrateOrbitNotesToNotes(orbit, notes).migratedNodes).toBe(0);
-    orbit.close();
+    await orbit.close();
     notes.close();
   });
 
@@ -158,7 +158,7 @@ describe("Migration der Orbit-Notizen", () => {
     expect(orbit.get().revision).toBe(before.revision + 1);
     expect(orbit.get().document.boards[0]!.nodes.some((node) => node.id === "todo-1")).toBe(false);
     raw.close();
-    orbit.close();
+    await orbit.close();
     notes.close();
   });
 });

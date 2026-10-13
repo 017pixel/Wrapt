@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import {
@@ -10,6 +10,7 @@ import {
 } from "@wrapt/contracts";
 import { settings } from "../config/settings.js";
 import { AppError } from "../utils/errors.js";
+import { OrbitBackupDrain, type OrbitBackupDrainOptions } from "./backup-drain.js";
 
 const DEFAULT_BOARD_ID = "orbit-default";
 
@@ -69,22 +70,12 @@ function workspaceCounts(document: OrbitWorkspace) {
   }), { boards: 0, nodes: 0, edges: 0, contentCharacters: 0 });
 }
 
-function backupEnvelope(document: OrbitWorkspace, revision: number, updatedAt: string): OrbitBackupEnvelope {
-  const serialized = JSON.stringify(document);
-  return {
-    formatVersion: 1,
-    revision,
-    updatedAt,
-    sha256: createHash("sha256").update(serialized).digest("hex"),
-    document,
-  };
-}
-
 export class OrbitDatabase {
   private readonly db: DatabaseSync;
   private readonly backupDirectory: string;
+  private readonly backups: OrbitBackupDrain;
 
-  constructor(path: string, backupDirectory = `${path}.orbit-backups`) {
+  constructor(path: string, backupDirectory = `${path}.orbit-backups`, backupOptions: OrbitBackupDrainOptions = {}) {
     mkdirSync(dirname(path), { recursive: true });
     mkdirSync(backupDirectory, { recursive: true });
     this.backupDirectory = backupDirectory;
@@ -139,31 +130,17 @@ export class OrbitDatabase {
       }
       this.queueBackup(current.revision, current.updatedAt);
     }
-    this.runPostCommitMaintenance(current?.revision ?? null);
+    this.backups = new OrbitBackupDrain(this.db, backupDirectory, backupOptions);
+    this.backups.schedule();
   }
 
-  close() { this.db.close(); }
+  async close() { await this.backups.close(); this.db.close(); }
+
+  flushBackups(): Promise<void> { return this.backups.flush(); }
 
   private row(): OrbitRow | undefined {
     return this.db.prepare(`SELECT document_json documentJson, revision, updated_at updatedAt, initialized
       FROM orbit_documents WHERE id = 'default'`).get() as OrbitRow | undefined;
-  }
-
-  private backupPath(revision: number) {
-    return join(this.backupDirectory, `orbit-r${String(revision).padStart(12, "0")}.json`);
-  }
-
-  private writeBackup(document: OrbitWorkspace, revision: number, updatedAt: string) {
-    const envelope = backupEnvelope(document, revision, updatedAt);
-    const serialized = JSON.stringify(envelope);
-    const revisionPath = this.backupPath(revision);
-    if (!existsSync(revisionPath)) writeFileSync(revisionPath, serialized, { encoding: "utf8", flag: "wx", mode: 0o600, flush: true });
-    const currentPath = join(this.backupDirectory, "current.json");
-    const temporaryPath = join(this.backupDirectory, `.current-${process.pid}-${revision}.tmp`);
-    writeFileSync(temporaryPath, serialized, { encoding: "utf8", mode: 0o600, flush: true });
-    renameSync(temporaryPath, currentPath);
-    const directoryHandle = openSync(this.backupDirectory, "r");
-    try { fsyncSync(directoryHandle); } finally { closeSync(directoryHandle); }
   }
 
   private parseBackup(path: string): OrbitBackupEnvelope | null {
@@ -216,67 +193,6 @@ export class OrbitDatabase {
       VALUES (?, 0, NULL, ?)
       ON CONFLICT(revision) DO UPDATE SET updated_at=excluded.updated_at`)
       .run(revision, updatedAt);
-  }
-
-  private processPendingBackups() {
-    const pending = this.db.prepare(`SELECT o.revision, o.updated_at updatedAt, r.document_json documentJson
-      FROM orbit_backup_outbox o
-      JOIN orbit_document_revisions r ON r.revision=o.revision
-      ORDER BY o.revision`).all() as Array<{ revision: number; updatedAt: string; documentJson: string }>;
-    for (const item of pending) {
-      try {
-        this.writeBackup(parseOrbitDocument(JSON.parse(item.documentJson) as unknown), item.revision, item.updatedAt);
-        this.db.prepare("DELETE FROM orbit_backup_outbox WHERE revision=?").run(item.revision);
-      } catch (error) {
-        this.db.prepare(`UPDATE orbit_backup_outbox
-          SET attempts=attempts+1, last_error=? WHERE revision=?`)
-          .run(error instanceof Error ? error.message.slice(0, 500) : "Backupfehler", item.revision);
-      }
-    }
-  }
-
-  private runPostCommitMaintenance(currentRevision: number | null) {
-    try {
-      this.processPendingBackups();
-      if (currentRevision !== null) this.pruneHistory(currentRevision);
-      this.db.prepare(`INSERT INTO orbit_maintenance_state(id,last_error,failed_at) VALUES (1,NULL,NULL)
-        ON CONFLICT(id) DO UPDATE SET last_error=NULL,failed_at=NULL`).run();
-    } catch (error) {
-      // Der fachliche Save ist zu diesem Zeitpunkt bereits dauerhaft committet.
-      // Wartungsfehler dürfen deshalb niemals als fehlgeschlagener Save zum
-      // Client zurücklaufen und dort einen unsicheren Retry auslösen.
-      try {
-        this.db.prepare(`INSERT INTO orbit_maintenance_state(id,last_error,failed_at) VALUES (1,?,?)
-          ON CONFLICT(id) DO UPDATE SET last_error=excluded.last_error,failed_at=excluded.failed_at`)
-          .run(error instanceof Error ? error.message.slice(0, 500) : "Orbit-Wartungsfehler", new Date().toISOString());
-      } catch {
-        // Eine unbenutzbare DB-Verbindung wird vom nächsten Request/Readiness-Check sichtbar.
-      }
-    }
-  }
-
-  private pruneHistory(currentRevision: number) {
-    const minimumRevision = Math.max(1, currentRevision - settings.orbitRevisionRetentionCount + 1);
-    this.db.exec("BEGIN IMMEDIATE");
-    try {
-      this.db.prepare(`DELETE FROM orbit_document_revisions
-        WHERE revision < ? AND revision NOT IN (SELECT revision FROM orbit_backup_outbox)`).run(minimumRevision);
-      this.db.prepare(`DELETE FROM orbit_conflict_backups WHERE id NOT IN (
-        SELECT id FROM orbit_conflict_backups ORDER BY id DESC LIMIT ?
-      )`).run(settings.orbitConflictRetentionCount);
-      this.db.exec("COMMIT");
-    } catch (error) {
-      this.db.exec("ROLLBACK");
-      throw error;
-    }
-    for (const name of readdirSync(this.backupDirectory)) {
-      const match = /^orbit-r(\d{12})\.json$/.exec(name);
-      if (match && Number(match[1]) < minimumRevision) {
-        try { unlinkSync(join(this.backupDirectory, name)); } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-        }
-      }
-    }
   }
 
   private saveRecoveryDraft(documentJson: string, expectedRevision: number | null, currentRevision: number) {
@@ -422,7 +338,7 @@ export class OrbitDatabase {
       if (!committed && this.db.isTransaction) this.db.exec("ROLLBACK");
       throw error;
     }
-    this.runPostCommitMaintenance(revision);
+    this.backups.schedule();
     return orbitDocumentResponseSchema.parse({
       document: parsed,
       revision,

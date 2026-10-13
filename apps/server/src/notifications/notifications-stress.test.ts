@@ -46,7 +46,7 @@ function t3Database(path: string): DatabaseSync {
 describe("Notification-Stresstest", () => {
   // Das Zeitbudget deckt belastete CI-Maschinen ab: Der Test misst keine
   // Geschwindigkeit, sondern die Bündelungslogik bei 2000 Ereignissen.
-  it("bündelt 2000 OpenCode-Abschlüsse aus 50 Läufen auf 50 Meldungen – ohne T3- oder Subagenten-Duplikate", { timeout: 60_000 }, () => {
+  it("bündelt 2000 OpenCode-Abschlüsse aus 50 Läufen auf 50 Meldungen – ohne T3- oder Subagenten-Duplikate", { timeout: 60_000 }, async () => {
     const path = directory();
     const opencodePath = join(path, "opencode.sqlite");
     const db = openCodeDatabase(opencodePath);
@@ -87,13 +87,13 @@ describe("Notification-Stresstest", () => {
 
     const notifications = new NotificationDatabase(join(path, "notifications.sqlite"));
     const sync = new AgentSessionSync({ opencodeDatabasePath: opencodePath, t3DatabasePath: t3Path, codexSessionsPath: join(path, "codex"), cursorPath: join(path, "cursor.json"), notifications, pollSeconds: 5, completionMinimumSeconds: 30, runIdleSeconds: 90 });
-    const poll = () => (sync as unknown as { poll(emit: boolean): void }).poll(true);
+    const poll = () => (sync as unknown as { poll(emit: boolean): Promise<void> }).poll(true);
     // 2000 Ereignisse, maximal 500 pro Poll: Die Läufe werden gesammelt.
-    for (let round = 0; round < 4; round += 1) poll();
+    for (let round = 0; round < 4; round += 1) await poll();
     const live = new DatabaseSync(opencodePath);
     live.prepare("UPDATE session SET time_updated=?").run(now - 120_000);
     live.close();
-    poll();
+    await poll();
     // 40 normale Läufe + der Hauptlauf mit 5 Subagenten = 41 Meldungen.
     const entries = notifications.list({ limit: 100 }).notifications;
     expect(entries).toHaveLength(41);
@@ -101,9 +101,10 @@ describe("Notification-Stresstest", () => {
     const responses = entries.reduce((sum, item) => sum + Number(item.meta.responses ?? 0), 0);
     expect(responses).toBe(40 * 40 + 5 * 40);
     // Wiederholte Polls liefern keine neuen Meldungen.
-    poll(); poll();
+    await poll();
+    await poll();
     expect(notifications.list({ limit: 100 }).notifications).toHaveLength(41);
-    sync.stop();
+    await sync.stop();
     notifications.close();
   });
 

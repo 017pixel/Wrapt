@@ -32,7 +32,7 @@ describe("OrbitDatabase", () => {
     const saved = db.save(document, 0);
     expect(saved.revision).toBe(1);
     expect(saved.initialized).toBe(true);
-    db.close();
+    await db.close();
 
     const backup = JSON.parse(await readFile(`${path}.orbit-backups/current.json`, "utf8")) as {
       revision: number;
@@ -47,7 +47,7 @@ describe("OrbitDatabase", () => {
 
     const reopened = new OrbitDatabase(path);
     expect(reopened.get()).toMatchObject({ revision: 1, initialized: true, document: { boards: [{ name: "Server-Orbit" }] } });
-    reopened.close();
+    await reopened.close();
   });
 
   it("rejects stale writes instead of silently overwriting another device", async () => {
@@ -61,7 +61,7 @@ describe("OrbitDatabase", () => {
       expect(error).toMatchObject({ statusCode: 409, code: "ORBIT_REVISION_CONFLICT" });
     }
     expect(conflict).toBeInstanceOf(AppError);
-    db.close();
+    await db.close();
     const inspected = new DatabaseSync(path, { readOnly: true });
     expect(inspected.prepare("SELECT count(*) count FROM orbit_conflict_backups").get()).toEqual({ count: 1 });
     inspected.close();
@@ -112,7 +112,7 @@ describe("OrbitDatabase", () => {
     expect(() => db.save(createDefaultOrbitWorkspace(), 1)).toThrowError(AppError);
     expect(db.get().revision).toBe(1);
     expect(db.get().document.boards[0]!.nodes).toHaveLength(4);
-    db.close();
+    await db.close();
     const inspected = new DatabaseSync(path, { readOnly: true });
     expect(inspected.prepare("SELECT count(*) count FROM orbit_conflict_backups").get()).toEqual({ count: 1 });
     inspected.close();
@@ -123,12 +123,12 @@ describe("OrbitDatabase", () => {
     const document = createDefaultOrbitWorkspace();
     document.boards[0]!.name = "Wiederhergestellt";
     db.save(document, 0);
-    db.close();
+    await db.close();
     await unlink(path);
 
     const recovered = new OrbitDatabase(path);
     expect(recovered.get()).toMatchObject({ revision: 1, initialized: true, document: { boards: [{ name: "Wiederhergestellt" }] } });
-    recovered.close();
+    await recovered.close();
   });
 
   it("confirms the committed revision even when the external backup is temporarily unwritable", async () => {
@@ -141,7 +141,7 @@ describe("OrbitDatabase", () => {
     const saved = db.save(createDefaultOrbitWorkspace(), 0);
     expect(saved.revision).toBe(1);
     expect(db.get().revision).toBe(1);
-    db.close();
+    await db.close();
     await chmod(backupDirectory, 0o700);
 
     const inspected = new DatabaseSync(path, { readOnly: true });
@@ -154,13 +154,13 @@ describe("OrbitDatabase", () => {
     const document = createDefaultOrbitWorkspace();
     document.boards[0]!.name = "Revision bleibt gültig";
     db.save(document, 0);
-    db.close();
+    await db.close();
     await writeFile(`${path}.orbit-backups/current.json`, "{beschädigt", "utf8");
     await unlink(path);
 
     const recovered = new OrbitDatabase(path);
     expect(recovered.get()).toMatchObject({ revision: 1, document: { boards: [{ name: "Revision bleibt gültig" }] } });
-    recovered.close();
+    await recovered.close();
   });
 
   it("begrenzt Revisionen auf das konfigurierte Fenster (P-011)", async () => {
@@ -171,7 +171,7 @@ describe("OrbitDatabase", () => {
       document.boards[0]!.name = `Stand ${revision}`;
       db.save(document, revision - 1);
     }
-    db.close();
+    await db.close();
     const inspected = new DatabaseSync(path, { readOnly: true });
     expect(inspected.prepare("SELECT COUNT(*) count FROM orbit_document_revisions").get()).toEqual({
       count: settings.orbitRevisionRetentionCount,
@@ -194,14 +194,14 @@ describe("OrbitDatabase", () => {
       document: { boards: [{ name: "Aktueller Serverstand" }] },
     });
     expect(settled.conflicted).toBe(true);
-    db.close();
+    await db.close();
 
     const reopened = new OrbitDatabase(path);
     expect(reopened.get()).toMatchObject({
       revision: current.revision,
       document: { boards: [{ name: "Aktueller Serverstand" }] },
     });
-    reopened.close();
+    await reopened.close();
   });
 
   it("speichert 10-mal hintereinander ohne Busy (P-010)", async () => {
@@ -223,6 +223,6 @@ describe("OrbitDatabase", () => {
     }));
     expect(busy).toBe(0);
     expect(db.get().revision).toBe(10);
-    db.close();
+    await db.close();
   });
 });

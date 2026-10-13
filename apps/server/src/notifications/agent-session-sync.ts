@@ -1,11 +1,13 @@
-import { existsSync, globSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { basename, dirname, join } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { basename, dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { CodexSessionReader, type CodexSessionReadOptions } from "./codex-session-reader.js";
 import type { NotificationDatabase } from "./database.js";
 
 interface CursorState {
   opencodeRowId: number;
   codexOffsets: Record<string, number>;
+  codexIdentities?: Record<string, string>;
   /** Dauerhaft als T3-intern erkannte OpenCode-Sessions (max. 200). */
   t3Sessions: string[];
   /** Laufende, noch nicht gemeldete Läufe je Haupt-Session. */
@@ -71,21 +73,35 @@ export class AgentSessionSync {
   private timer: NodeJS.Timeout | null = null;
   private state: CursorState = { opencodeRowId: 0, codexOffsets: {}, t3Sessions: [], runs: {} };
   private initialized = false;
+  private pending: Promise<void> | null = null;
+  private abort = new AbortController();
+  private readonly codexReader: CodexSessionReader;
   /** Sichtbare Sync-Fehler statt stiller Best-Effort-Abbrüche (D-014). */
   private syncErrorCount = 0;
   private lastSyncError: { scope: string; message: string; at: string } | null = null;
 
   constructor(private readonly options: {
     opencodeDatabasePath: string; t3DatabasePath: string; codexSessionsPath: string; cursorPath: string;
+    codexRead?: CodexSessionReadOptions;
     notifications: NotificationDatabase; pollSeconds: number; completionMinimumSeconds: number; runIdleSeconds: number;
-  }) { this.load(); }
+  }) { this.codexReader = new CodexSessionReader(options.codexSessionsPath, options.codexRead); this.load(); }
 
-  start(): void {
+  async start(): Promise<void> {
     if (this.timer) return;
-    this.poll(this.initialized); this.initialized = true;
-    this.timer = setInterval(() => this.poll(true), this.options.pollSeconds * 1_000); this.timer.unref();
+    if (this.abort.signal.aborted) this.abort = new AbortController();
+    const baseline = this.poll(this.initialized);
+    this.initialized = true;
+    this.timer = setInterval(() => void this.poll(true), this.options.pollSeconds * 1_000);
+    this.timer.unref();
+    await baseline;
   }
-  stop(): void { if (this.timer) clearInterval(this.timer); this.timer = null; this.save(); }
+  async stop(): Promise<void> {
+    if (this.timer) clearInterval(this.timer);
+    this.timer = null;
+    this.abort.abort();
+    await this.pending;
+    this.save();
+  }
   /** Diagnose für stille Sync-Fehler: Zähler plus letzte Meldung mit Alter. */
   syncErrorStatus(): { syncErrorCount: number; lastSyncError: { scope: string; message: string; at: string } | null } {
     return { syncErrorCount: this.syncErrorCount, lastSyncError: this.lastSyncError };
@@ -103,6 +119,7 @@ export class AgentSessionSync {
       this.state = {
         opencodeRowId: typeof value.opencodeRowId === "number" ? value.opencodeRowId : 0,
         codexOffsets: value.codexOffsets ?? {},
+        codexIdentities: value.codexIdentities ?? {},
         t3Sessions: Array.isArray(value.t3Sessions) ? value.t3Sessions.filter((id): id is string => typeof id === "string").slice(-MAX_TRACKED_T3_SESSIONS) : [],
         runs: object(value.runs) ? value.runs as Record<string, RunBuffer> : {},
       };
@@ -116,8 +133,18 @@ export class AgentSessionSync {
       writeFileSync(this.options.cursorPath, JSON.stringify(this.state), { mode: 0o600 });
     } catch { /* Best Effort. */ }
   }
-  private poll(emit: boolean): void {
-    this.pollOpenCode(emit); this.pollCodex(emit); this.finalizeRuns(emit); this.save();
+  private poll(emit: boolean): Promise<void> {
+    if (this.pending) return this.pending;
+    if (this.abort.signal.aborted) return Promise.resolve();
+    const loading = (async () => {
+      this.pollOpenCode(emit);
+      await this.pollCodex(emit);
+      if (!this.abort.signal.aborted) { this.finalizeRuns(emit); this.save(); }
+    })().catch((error: unknown) => {
+      if (!this.abort.signal.aborted) this.noteSyncError("poll", error);
+    }).finally(() => { if (this.pending === loading) this.pending = null; });
+    this.pending = loading;
+    return loading;
   }
 
   private pollOpenCode(emit: boolean): void {
@@ -283,33 +310,19 @@ export class AgentSessionSync {
     finally { db?.close(); }
   }
 
-  private pollCodex(emit: boolean): void {
-    // Ohne Codex-Verläufe gibt es nichts zu lesen — still (Codex optional).
-    if (!existsSync(this.options.codexSessionsPath)) return;
+  private async pollCodex(emit: boolean): Promise<void> {
+    this.state.codexIdentities ??= {};
     try {
-      const files = globSync("**/*.jsonl", { cwd: this.options.codexSessionsPath }).map((path) => join(this.options.codexSessionsPath, path))
-        .map((path) => ({ path, stat: statSync(path) })).sort((a, b) => b.stat.mtimeMs - a.stat.mtimeMs).slice(0, 200);
-      const retained: Record<string, number> = {};
-      for (const file of files) {
-        const previous = this.state.codexOffsets[file.path];
-        if (!emit || previous === undefined || previous >= file.stat.size) { retained[file.path] = file.stat.size; continue; }
-        const content = readFileSync(file.path);
-        const raw = content.subarray(previous).toString("utf8");
-        const lastNewline = raw.lastIndexOf("\n");
-        // Nur vollständig geschriebene Zeilen verbrauchen den Offset. Ein
-        // halber JSONL-Datensatz wird beim nächsten Poll erneut gelesen.
-        const complete = (lastNewline === -1 ? "" : raw.slice(0, lastNewline)).split("\n").filter(Boolean).map(json).filter((line): line is Record<string, unknown> => line !== null);
-        retained[file.path] = lastNewline === -1 ? previous : previous + Buffer.byteLength(raw.slice(0, lastNewline + 1), "utf8");
-        const meta = json(content.subarray(0, content.indexOf(10)).toString("utf8")); const metaPayload = nested(meta, "payload");
-        if (text(nested(metaPayload, "originator"))?.startsWith("t3code")) continue;
-        const sessionId = text(nested(metaPayload, "id")) ?? file.path.split("/").at(-1)!.replace(/\.jsonl$/, "");
+      await this.codexReader.poll(this.state.codexOffsets, this.state.codexIdentities, emit, (batch) => {
+        const metaPayload = nested(batch.meta, "payload");
+        const sessionId = CodexSessionReader.sessionId(batch);
         const cwd = text(nested(metaPayload, "cwd")) ?? "unbekannt";
-        const usedTool = complete.some((line) => line.type === "response_item" && ["function_call", "custom_tool_call"].includes(String(nested(nested(line, "payload"), "type"))));
-        for (const line of complete) {
+        const usedTool = batch.lines.some((line) => line.type === "response_item" && ["function_call", "custom_tool_call"].includes(String(nested(nested(line, "payload"), "type"))));
+        for (const line of batch.lines) {
           if (line.type !== "event_msg") continue;
           const payload = nested(line, "payload"); const type = nested(payload, "type");
           if (type !== "task_complete" && type !== "turn_aborted") continue;
-          const turnId = text(nested(payload, "turn_id")) ?? text(line.timestamp) ?? String(file.stat.mtimeMs);
+          const turnId = text(nested(payload, "turn_id")) ?? text(line.timestamp) ?? String(batch.mtimeMs);
           const durationSeconds = Math.max(0, Math.round((number(nested(payload, "duration_ms")) ?? 0) / 1_000)); const failed = type === "turn_aborted";
           if (!failed && !usedTool && durationSeconds < this.options.completionMinimumSeconds) continue;
           const reason = text(nested(payload, "reason"));
@@ -319,8 +332,9 @@ export class AgentSessionSync {
             link: `/wrapt/codex?session=${encodeURIComponent(sessionId)}`, remoteId: `codex:${sessionId}:${turnId}`,
             meta: { sessionId, cwd, durationSeconds, usedTool }, report: failed ? { message: reason ?? "Codex-Lauf abgebrochen", stack: null, context: { Quelle: "Codex", Sitzung: sessionId, Arbeitsverzeichnis: cwd }, logs: [], environment: {} } : null });
         }
-      }
-      this.state.codexOffsets = retained;
-    } catch (error) { this.noteSyncError("codex", error); }
+      }, this.abort.signal);
+    } catch (error) {
+      if (!this.abort.signal.aborted && (error as NodeJS.ErrnoException).code !== "ENOENT") this.noteSyncError("codex", error);
+    }
   }
 }

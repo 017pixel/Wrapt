@@ -1,5 +1,7 @@
 import { expect, it, vi } from "vitest";
 import { harness } from "./testing/devServerHarness.js";
+import type { PreviewDevServerStatus } from "@wrapt/contracts";
+import type { PreviewDevServerManager } from "./DevServerManager.js";
 
 it("ein Tab-Close während des Watchdog-Neustarts verwirft den alten Veröffentlichungswunsch", async () => {
   const { create, database, supervisor } = await harness();
@@ -11,12 +13,13 @@ it("ein Tab-Close während des Watchdog-Neustarts verwirft den alten Veröffentl
   const name = [...supervisor.sessions.keys()][0]!;
   supervisor.sessions.get(name)!.panes[0]!.dead = true;
   supervisor.sessions.get(name)!.panes[0]!.exitCode = 1;
-  const originalStart = manager.start.bind(manager);
+  const internal = manager as unknown as { startUnlocked: PreviewDevServerManager["start"] };
+  const originalStart = internal.startUnlocked.bind(manager);
   let entered!: () => void;
   let release!: () => void;
   const started = new Promise<void>((done) => { entered = done; });
   const gate = new Promise<void>((done) => { release = done; });
-  vi.spyOn(manager, "start").mockImplementation(async (...args) => { entered(); await gate; return originalStart(...args); });
+  vi.spyOn(internal, "startUnlocked").mockImplementation(async (...args): Promise<PreviewDevServerStatus> => { entered(); await gate; return originalStart(...args); });
   const tick = manager.tick();
   await started;
   await manager.releasePublication("user@example.test", "projekt");

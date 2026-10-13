@@ -5,6 +5,7 @@ import { afterEach } from "vitest";
 import type { LocalPort, Project } from "@wrapt/contracts";
 import { PreviewDevServerManager, type PreviewRuntimePublication } from "../DevServerManager.js";
 import { PreviewDevServerDatabase } from "../devServerDatabase.js";
+import type { PreviewDevServerManagerOptions } from "../runtimeManagerOptions.js";
 
 const cleanup: Array<() => Promise<unknown> | unknown> = [];
 afterEach(async () => { for (const close of cleanup.splice(0).reverse()) await close(); });
@@ -63,6 +64,14 @@ export async function harness() {
       return { status: 0, stdout: [...supervisor.sessions.keys()].join("\n"), stderr: "" };
     }
     if (args[0] === "list-panes") {
+      if (args.includes("-a")) {
+        const rows = [...supervisor.sessions].flatMap(([name, session]) => session.panes.map((pane) => [
+          name, session.options["@wrapt_user_id"] ?? "", session.options["@wrapt_project_id"] ?? "",
+          session.options["@wrapt_preview_publication_requested"] ?? "", session.options["@wrapt_runtime_ports"] ?? "",
+          pane.name, pane.dead ? 1 : 0, pane.dead ? pane.exitCode ?? "" : "", 4242, 1700000000,
+        ].join("\t")));
+        return { status: 0, stdout: rows.join("\n"), stderr: "" };
+      }
       const session = supervisor.sessions.get(target());
       if (!session) return { status: 1, stdout: "", stderr: "missing" };
       // tmux listet ohne `-s` nur das aktuelle Fenster (im Fake das erste).
@@ -100,7 +109,7 @@ export async function harness() {
     }
     return { status: 0, stdout: "", stderr: "" };
   };
-  const create = (publishRuntime?: () => Promise<PreviewRuntimePublication>) => new PreviewDevServerManager({
+  const create = (publishRuntime?: () => Promise<PreviewRuntimePublication>, overrides: Partial<PreviewDevServerManagerOptions> = {}) => new PreviewDevServerManager({
     database,
     tmuxExecutable: "/usr/bin/tmux",
     allowedProjectPorts: [1234, 1223, 8000, 8080, 8888, 4444, 1233, 6000, 6060, 4040],
@@ -110,7 +119,8 @@ export async function harness() {
     localPorts: async () => ports,
     ...(publishRuntime ? { publishRuntime } : {}),
     runner,
+    ...overrides,
   });
-  return { create, database, supervisor, project, addProject };
+  return { create, database, supervisor, project, addProject, runner };
 }
 
