@@ -1,32 +1,46 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import replyFrom from "@fastify/reply-from";
 import WebSocket from "ws";
+import { settings } from "../config/settings.js";
 import { isWebSocketOriginAllowed } from "../security/same-origin.js";
 import { bridgeWebSockets, type WebSocketBridgeObserver } from "../utils/websocketBridge.js";
+import { sendVSCodeWorkbenchResponse } from "./vscodeWorkbenchResponse.js";
 
 const editorPrefix = "/editor";
-const editorUpstream = "http://127.0.0.1:8080";
-const editorWebSocketUpstream = "ws://127.0.0.1:8080";
+function usesLegacyProxy(rawUrl: string): boolean {
+  return /^\/editor\/(?:absproxy|proxy)\//.test(new URL(rawUrl, "http://wrapt.local").pathname);
+}
+
+function upstreamOrigin(rawUrl: string, protocol = "http"): string {
+  const port = settings.editorBackend === "vscode" && usesLegacyProxy(rawUrl)
+    ? settings.codeServerLegacyPort : settings.codeServerPort;
+  return `${protocol}://127.0.0.1:${port}`;
+}
 
 function upstreamPath(rawUrl: string): string {
   const url = new URL(rawUrl, "http://wrapt.local");
+  if (settings.editorBackend === "vscode" && !usesLegacyProxy(rawUrl)) return `${url.pathname}${url.search}`;
   const pathname = url.pathname.startsWith(editorPrefix)
     ? url.pathname.slice(editorPrefix.length) || "/"
     : url.pathname;
   return `${pathname}${url.search}`;
 }
 
-function forwardedHeaders(request: FastifyRequest, headers: Record<string, string | string[] | undefined>) {
+function forwardedHeaders(request: FastifyRequest, headers: Record<string, string | string[] | undefined>): Record<string, string | string[] | undefined> {
   return {
     ...headers,
     host: request.headers.host ?? "127.0.0.1:8080",
     "x-forwarded-host": request.headers.host ?? "127.0.0.1:8080",
     "x-forwarded-prefix": editorPrefix,
-    "x-forwarded-proto": "https",
+    "x-forwarded-proto": request.protocol,
   };
 }
 
 function proxyHttp(request: FastifyRequest, reply: FastifyReply) {
+  const rawUrl = request.raw.url ?? request.url;
+  const editorUpstream = upstreamOrigin(rawUrl);
+  const nativeWorkbench = settings.editorBackend === "vscode" && !usesLegacyProxy(rawUrl);
+  const startDocument = nativeWorkbench && /^\/editor\/(?:$|(?:stable|insider)-[a-f0-9]{40}\/?$)/.test(new URL(rawUrl, editorUpstream).pathname);
   // The trusted loopback upstream owns its CSP. Keeping the Workbench CSP here
   // would block Vite's React preamble and code-server's nonce/eval policy.
   reply.removeHeader("content-security-policy");
@@ -37,7 +51,16 @@ function proxyHttp(request: FastifyRequest, reply: FastifyReply) {
     );
   }
   return reply.from(`${editorUpstream}${upstreamPath(request.raw.url ?? request.url)}`, {
-    rewriteRequestHeaders: (_originalRequest, headers) => forwardedHeaders(request, headers),
+    rewriteRequestHeaders: (_originalRequest, headers) => {
+      const forwarded = forwardedHeaders(request, headers);
+      if (startDocument) {
+        forwarded["accept-encoding"] = "identity";
+      }
+      return forwarded;
+    },
+    ...(startDocument ? {
+      onResponse: (_request, response, rawResponse) => sendVSCodeWorkbenchResponse(response, rawResponse as unknown as Parameters<typeof sendVSCodeWorkbenchResponse>[1]),
+    } : {}),
   });
 }
 
@@ -55,7 +78,7 @@ function proxyWebSocket(source: WebSocket, request: FastifyRequest, observer?: W
   if (request.headers.origin) optionalHeaders.origin = request.headers.origin;
   if (request.headers["user-agent"]) optionalHeaders["user-agent"] = request.headers["user-agent"];
   const target = new WebSocket(
-    `${editorWebSocketUpstream}${upstreamPath(request.raw.url ?? request.url)}`,
+    `${upstreamOrigin(request.raw.url ?? request.url, "ws")}${upstreamPath(request.raw.url ?? request.url)}`,
     protocols,
     {
       headers: forwardedHeaders(request, optionalHeaders),
@@ -85,7 +108,9 @@ export async function registerEditorProxy(app: FastifyInstance, observer?: WebSo
         // and makes Firefox warn about duplicate framing policies.
         config: { rateLimit: false },
         helmet: false,
-        handler: proxyHttp,
+        handler: (request, reply) => request.url.split("?")[0] === editorPrefix
+          ? reply.redirect(`${editorPrefix}/${new URL(request.url, "http://wrapt.local").search}`, 308)
+          : proxyHttp(request, reply),
         wsHandler: (source, request) => proxyWebSocket(source, request, observer),
       });
       scope.route({

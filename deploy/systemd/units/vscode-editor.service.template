@@ -1,0 +1,30 @@
+# Optionaler privater Editor, erst nach Zustimmung zur Microsoft-Server-Lizenz starten.
+[Unit]
+Description=VS Code Web (privater Wrapt-Editor)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=__REPO_ROOT__
+Environment=HOME=__HOME__
+Environment=PATH=__NODE_BIN_DIR__:__HOME__/.local/bin:/usr/local/bin:/usr/bin:/bin
+EnvironmentFile=-__REPO_ROOT__/.env
+ExecStart=__NODE_BIN_DIR__/node __REPO_ROOT__/scripts/vscode-editor.mjs --start --accept-server-license-terms
+Restart=on-failure
+RestartSec=3s
+TimeoutStopSec=20s
+KillSignal=SIGTERM
+UMask=0077
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK
+
+[Install]
+WantedBy=default.target
