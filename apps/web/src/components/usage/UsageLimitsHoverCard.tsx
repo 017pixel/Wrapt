@@ -96,11 +96,11 @@ export function UsageLimitsHoverCard({
 
           {provider.note ? <p className="ulc-note">{provider.note}</p> : null}
 
-          {provider.accounts.map((account) => (
+          {provider.accounts.map((account, index) => (
             <div className="ulc-account" key={account.id}>
               {provider.accounts.length > 1 ? (
                 <p className="ulc-identity">
-                  <span title={account.identity}>{account.identity}</span>
+                  <span title={account.identity}>{index + 1}. {account.identity}</span>
                   {account.plan ? <span className="ulc-account-plan">{account.plan}</span> : null}
                 </p>
               ) : null}

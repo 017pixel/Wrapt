@@ -115,7 +115,7 @@ test("nutzt die Theme-Tokens statt eigener Farben", async ({ page }) => {
     document.body.appendChild(probe);
     const overlay = getComputedStyle(probe).backgroundColor;
     probe.remove();
-    const arrow = element.querySelector(".ulc-arrow");
+    const arrow = element.querySelector(".shc-arrow");
     return {
       background: computed.backgroundColor,
       overlay,
@@ -123,7 +123,7 @@ test("nutzt die Theme-Tokens statt eigener Farben", async ({ page }) => {
       borderWidth: computed.borderTopWidth,
       borderRadius: computed.borderTopLeftRadius,
       arrowBorder: getComputedStyle(arrow).borderRightColor,
-      headDivider: getComputedStyle(element.querySelector(".ulc-head")).borderBottomColor,
+      headDivider: getComputedStyle(element.querySelector(".shc-head")).borderBottomColor,
       barTrack: getComputedStyle(element.querySelector(".ulc-bar")).backgroundColor,
     };
   });
@@ -215,7 +215,7 @@ test("lässt den Pfeil sichtbar aus der Karte ragen", async ({ page }) => {
   // nicht nur seine Farbe geprüft, sondern ob er echte Geometrie außerhalb
   // der Kartenbox besitzt.
   const geometry = await card.evaluate((element) => {
-    const arrow = element.querySelector(".ulc-arrow")!;
+    const arrow = element.querySelector(".shc-arrow")!;
     const cardRect = element.getBoundingClientRect();
     const arrowRect = arrow.getBoundingClientRect();
     return {
