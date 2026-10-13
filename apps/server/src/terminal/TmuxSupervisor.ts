@@ -1,4 +1,6 @@
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
+import { setTimeout as delay } from "node:timers/promises";
+import { execa } from "execa";
 import { chmodSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { supportsSystemd } from "../system/platform.js";
@@ -53,10 +55,13 @@ function ensurePrivateSocketDirectory(socketPath: string): void {
 export class TmuxSupervisor {
   readonly kind = "tmux" as const;
   private spawnFailed = false;
+  private availability: Promise<void> | null = null;
+  private readonly abort = new AbortController();
+  private readonly pending = new Set<Promise<unknown>>();
+  private readonly mutations = new Map<string, Promise<unknown>>();
 
-  constructor(readonly executable: string, readonly socketPath: string | null = null) {
-    const result = spawnSync(executable, ["-V"], { encoding: "utf8", timeout: 3_000 });
-    if (result.status !== 0) throw new Error("tmux ist nicht verfügbar.");
+  constructor(readonly executable: string, readonly socketPath: string | null = null,
+    private readonly runner?: (args: string[], timeout: number, signal: AbortSignal) => Promise<TmuxCommandResult> | TmuxCommandResult) {
     if (socketPath) {
       try {
         if (supportsSystemd()) mkdirSync(dirname(socketPath), { recursive: true, mode: 0o700 });
@@ -71,18 +76,19 @@ export class TmuxSupervisor {
   }
 
   /** Linux nutzt die User-Unit, macOS startet denselben tmux-Server detached. */
-  ensureSupervisorUnit(): boolean {
+  async ensureSupervisorUnit(): Promise<boolean> {
+    await this.ready();
     if (!this.socketPath) return false;
-    if (this.isRunning()) return true;
+    if (await this.isRunning()) return true;
     if (!supportsSystemd()) return this.startDetachedSupervisor();
     try {
-      const start = spawnSync("systemctl", ["--user", "start", TERMINAL_SUPERVISOR_UNIT], { encoding: "utf8", timeout: 15_000 });
-      if (start.status !== 0) return false;
+      const start = await execa("systemctl", ["--user", "start", TERMINAL_SUPERVISOR_UNIT], { reject: false, timeout: 15_000, cancelSignal: this.abort.signal });
+      if (start.exitCode !== 0) return false;
     } catch { return false; }
     return this.waitForSupervisor();
   }
 
-  private startDetachedSupervisor(): boolean {
+  private async startDetachedSupervisor(): Promise<boolean> {
     this.spawnFailed = false;
     try {
       ensurePrivateSocketDirectory(this.socketPath!);
@@ -96,82 +102,83 @@ export class TmuxSupervisor {
       child.once("error", () => { this.spawnFailed = true; });
       child.unref();
     } catch { return false; }
-    return this.waitForSupervisor() && !this.spawnFailed;
+    return await this.waitForSupervisor() && !this.spawnFailed;
   }
 
-  private waitForSupervisor(): boolean {
+  private async waitForSupervisor(): Promise<boolean> {
     // Kurz warten, bis der Server den Socket annimmt.
     for (let attempt = 0; attempt < 20; attempt += 1) {
-      if (this.isRunning()) return true;
-      spawnSync("sleep", ["0.25"], { stdio: "ignore" });
+      if (await this.isRunning()) return true;
+      await delay(250, undefined, { signal: this.abort.signal });
     }
     return this.isRunning();
   }
 
   /** Prüft, ob am Socket bereits ein tmux-Server antwortet. */
-  isRunning(): boolean {
-    return spawnSync(this.executable, this.socketArgs(["list-sessions"]), { stdio: "ignore", timeout: 3_000 }).status === 0;
-  }
+  async isRunning(): Promise<boolean> { return (await this.command(["list-sessions"], 3_000)).status === 0; }
 
   sessionName(runtimeId: string) { return `wrapt-${runtimeId.replaceAll("-", "")}`; }
 
-  has(name: string) {
-    return spawnSync(this.executable, this.socketArgs(["has-session", "-t", name]), { stdio: "ignore", timeout: 3_000 }).status === 0;
-  }
+  async has(name: string) { return (await this.command(["has-session", "-t", name], 3_000)).status === 0; }
 
-  ensure(input: { runtimeId: string; supervisorName?: string | null; kind: TerminalKind; projectId: string | null; cwd: string; command: SupervisedCommand }) {
+  async ensure(input: { runtimeId: string; supervisorName?: string | null; kind: TerminalKind; projectId: string | null; cwd: string; command: SupervisedCommand }) {
     // Gespeicherte und importierte Sitzungen behalten ihren Namen, auch
     // im älteren workbench-Namespace. Sonst entstünde eine zweite Shell.
     const name = input.supervisorName ?? this.sessionName(input.runtimeId);
-    if (!this.has(name)) {
+    return this.mutate(name, async () => {
+    await this.ready();
+    if (!await this.has(name)) {
       const environment = Object.entries(input.command.environment).map(([key, value]) => `${key}=${value}`);
       const command = ["/usr/bin/env", ...environment, input.command.file, ...input.command.args].map(shellQuote).join(" ");
-      const created = spawnSync(this.executable, this.socketArgs(["new-session", "-d", "-s", name, "-c", input.cwd, command]), { encoding: "utf8", timeout: 5_000 });
+      const created = await this.command(["new-session", "-d", "-s", name, "-c", input.cwd, command], 5_000);
       if (created.status !== 0) throw new Error(created.stderr.trim() || "tmux-Session konnte nicht gestartet werden.");
     }
     // Optionen gelten für neue und bestehende Sessions: So übernimmt eine
     // laufende Session nach einem Server-Neustart automatisch die aktuelle
     // Konfiguration (unsichtbare Statusleiste, normaler Puffer, Maus).
-    this.applySessionOptions(name, input);
+    await this.applySessionOptions(name, input);
     return name;
+    });
   }
 
-  private applySessionOptions(name: string, input: { runtimeId: string; kind: TerminalKind; projectId: string | null }) {
+  private async applySessionOptions(name: string, input: { runtimeId: string; kind: TerminalKind; projectId: string | null }) {
     // tmux bleibt im normalen Puffer statt in den Alternate Screen zu wechseln.
     // Sonst hätte xterm keinen Scrollback und das Mausrad würde zu Pfeiltasten
     // an die Shell — Scrollen wäre nur über tmux-Mausmodi möglich.
     // tmux bleibt als Supervisor aktiv, darf für den Nutzer aber unsichtbar
     // sein: keine Statusleiste und keine störenden Meldungsfarben.
-    // Maus-Scrollen: Apps mit Maus-Reporting (z. B. OpenCode) bekommen Wheel-
-    // Events nur mit aktivierter Maus durchgereicht. Ohne dieses Flag schluckt
-    // tmux die SGR-Sequenzen und die App kann nicht per Mausrad scrollen.
+    // Maus bleibt aus: Mit `mouse on` verwandelt tmux jede ankommende
+    // Wheel-Sequenz in den Copy-Mode (gelbe Positionsanzeige, Auswahl) und
+    // schluckt damit das normale Scrollback. Für Apps mit Maus-Reporting
+    // (z. B. OpenCode) ist das Flag nicht nötig: Fordert die Anwendung den
+    // Mausmodus an, reicht tmux die Sequenzen auch mit `mouse off` durch.
     // Ein tmux-Aufruf übernimmt sämtliche Optionen und Metadaten. Neun
     // synchrone Unterprozesse pro Attach blockierten zuvor den Server.
     const options = [
       ["history-limit", "100000"], ["remain-on-exit", "on"],
       ["alternate-screen", "off"], ["status", "off"],
-      ["message-style", "fg=default,bg=default"], ["mouse", "on"],
+      ["message-style", "fg=default,bg=default"], ["mouse", "off"],
       ["@wrapt_runtime_id", input.runtimeId], ["@wrapt_kind", input.kind],
       ["@wrapt_project_id", input.projectId ?? ""],
     ];
-    this.run(options.flatMap(([key, value], index) => [...(index ? [";"] : []), "set-option", "-t", name, key!, value!]));
+    await this.run(options.flatMap(([key, value], index) => [...(index ? [";"] : []), "set-option", "-t", name, key!, value!]));
   }
 
   attachCommand(name: string) { return { file: this.executable, args: this.socketArgs(["attach-session", "-t", name]) }; }
 
-  respawn(name: string, cwd: string, command: SupervisedCommand) {
+  async respawn(name: string, cwd: string, command: SupervisedCommand) {
     const environment = Object.entries(command.environment).map(([key, value]) => `${key}=${value}`);
     const cmd = ["/usr/bin/env", ...environment, command.file, ...command.args].map(shellQuote).join(" ");
-    this.run(["respawn-pane", "-k", "-t", name, "-c", cwd, cmd]);
+    await this.mutate(name, () => this.run(["respawn-pane", "-k", "-t", name, "-c", cwd, cmd]));
   }
 
-  sendLastCommandHint(name: string) {
-    this.run(["send-keys", "-t", name, "Up"]);
+  async sendLastCommandHint(name: string) {
+    await this.run(["send-keys", "-t", name, "Up"]);
   }
 
   /** True, wenn die Pane gerade den Alternate Screen (Fullscreen-TUI) nutzt. */
-  isAlternate(name: string): boolean {
-    const result = spawnSync(this.executable, this.socketArgs(["display-message", "-p", "-t", name, "#{alternate_on}"]), { encoding: "utf8", timeout: 3_000 });
+  async isAlternate(name: string): Promise<boolean> {
+    const result = await this.command(["display-message", "-p", "-t", name, "#{alternate_on}"], 3_000);
     return result.status === 0 && result.stdout.trim() === "1";
   }
 
@@ -183,24 +190,24 @@ export class TmuxSupervisor {
    * normale Puffer behält `-J` und den Scrollback, damit lange Zeilen beim
    * Wiedergeben korrekt im aktuellen Raster umfließen.
    */
-  capture(name: string) {
-    const args = this.isAlternate(name)
+  async capture(name: string) {
+    const args = await this.isAlternate(name)
       ? ["capture-pane", "-p", "-e", "-t", name]
       : ["capture-pane", "-p", "-e", "-J", "-S", "-10000", "-t", name];
-    const result = spawnSync(this.executable, this.socketArgs(args), { encoding: "utf8", timeout: 4_000 });
+    const result = await this.command(args);
     return result.status === 0 ? result.stdout : "";
   }
 
-  currentPath(name: string) {
-    const result = spawnSync(this.executable, this.socketArgs(["display-message", "-p", "-t", name, "#{pane_current_path}"]), { encoding: "utf8", timeout: 3_000 });
+  async currentPath(name: string) {
+    const result = await this.command(["display-message", "-p", "-t", name, "#{pane_current_path}"], 3_000);
     return result.status === 0 ? result.stdout.trim() : null;
   }
 
-  terminate(name: string) {
-    if (this.has(name)) this.run(["kill-session", "-t", name]);
+  async terminate(name: string) {
+    await this.mutate(name, async () => { if (await this.has(name)) await this.run(["kill-session", "-t", name]); });
   }
 
-  list(): SupervisorSession[] {
+  async list(): Promise<SupervisorSession[]> {
     // Neue Sessions verwenden den Wrapt-Namespace. Die beiden alten Metadaten
     // werden beim Einlesen bewusst noch akzeptiert, damit ein laufender
     // Legacy-tmux-Server beim Dienst-Cutover nicht seine Runtime-IDs verliert.
@@ -210,7 +217,7 @@ export class TmuxSupervisor {
       "#{@wrapt_kind}", "#{@workbench_kind}",
       "#{@wrapt_project_id}", "#{@workbench_project_id}",
     ].join("\t");
-    const result = spawnSync(this.executable, this.socketArgs(["list-panes", "-a", "-F", format]), { encoding: "utf8", timeout: 4_000 });
+    const result = await this.command(["list-panes", "-a", "-F", format]);
     if (result.status !== 0) return [];
     const seen = new Set<string>();
     return result.stdout.split("\n").flatMap((line) => {
@@ -226,8 +233,39 @@ export class TmuxSupervisor {
     });
   }
 
-  private run(args: string[]) {
-    const result = spawnSync(this.executable, this.socketArgs(args), { encoding: "utf8", timeout: 4_000 });
+  ready(): Promise<void> {
+    this.availability ??= this.command(["-V"], 3_000).then((result) => {
+      if (result.status !== 0) throw new Error("tmux ist nicht verfügbar.");
+    });
+    return this.availability;
+  }
+
+  private command(args: string[], timeout = 4_000): Promise<TmuxCommandResult> {
+    const operation = this.runner ? Promise.resolve(this.runner(this.socketArgs(args), timeout, this.abort.signal))
+      : execa(this.executable, this.socketArgs(args), { reject: false, timeout, cancelSignal: this.abort.signal })
+        .then((result) => ({ status: result.exitCode ?? 1, stdout: result.stdout, stderr: result.stderr }));
+    this.pending.add(operation);
+    void operation.finally(() => this.pending.delete(operation)).catch(() => {});
+    return operation;
+  }
+
+  private mutate<T>(name: string, action: () => Promise<T>): Promise<T> {
+    const previous = this.mutations.get(name) ?? Promise.resolve();
+    const operation = previous.catch(() => {}).then(action);
+    this.mutations.set(name, operation);
+    void operation.finally(() => { if (this.mutations.get(name) === operation) this.mutations.delete(name); }).catch(() => {});
+    return operation;
+  }
+
+  private async run(args: string[]) {
+    const result = await this.command(args);
     if (result.status !== 0) throw new Error(result.stderr.trim() || `tmux ${args[0] ?? "command"} fehlgeschlagen.`);
   }
+
+  async close(): Promise<void> {
+    this.abort.abort();
+    await Promise.allSettled([...this.pending, ...this.mutations.values()]);
+  }
 }
+
+export interface TmuxCommandResult { status: number | null; stdout: string; stderr: string }

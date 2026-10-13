@@ -28,13 +28,13 @@ async function stopTmuxServer(socket: string) {
 test.skipIf(!tmuxAvailable).each(["wrapt", "workbench"])("hängt nach einem Backend-Neustart dieselbe %s-tmux-Shell wieder an", async (namespace) => {
   const root = mkdtempSync(join(tmpdir(), "wrapt-terminal-resume-"));
   const socket = join(root, "tmux.sock");
-  cleanup.push(() => removeTempTree(root, () => stopTmuxServer(socket)));
+  cleanup.push(async () => removeTempTree(root, () => stopTmuxServer(socket)));
   const database = new TerminalDatabase(join(root, "terminal.sqlite"));
-  cleanup.push(() => database.close());
+  cleanup.push(async () => database.close());
   const supervisor = new TmuxSupervisor("tmux", socket);
   const options = { allowedRoots: [root], defaultCwd: root, homeDirectory: root, maxSessions: 2, database, supervisor };
   const first = new TerminalManager(options);
-  cleanup.push(() => first.shutdown());
+  cleanup.push(async () => first.shutdown());
   const session = await first.createSession("owner", { cols: 80, rows: 24 });
   const canonicalName = session.supervisorName!;
   if (namespace === "workbench") {
@@ -47,27 +47,27 @@ test.skipIf(!tmuxAvailable).each(["wrapt", "workbench"])("hängt nach einem Back
   // dort erst den Zsh-Hinweis ausgibt. Eingaben, die vor dem Startbanner
   // ankommen, verwirft bash wieder, deshalb wird die Marke so lange erneut
   // gesendet, bis sie im Pane-Bild steht.
-  await vi.waitFor(() => {
+  await vi.waitFor(async () => {
     first.writeToSession("owner", session.id, "printf '__BEFORE_RECONNECT__\\n'\r");
-    expect(supervisor.capture(session.supervisorName!)).toContain("__BEFORE_RECONNECT__");
+    expect(await supervisor.capture(session.supervisorName!)).toContain("__BEFORE_RECONNECT__");
   }, { timeout: 30_000, interval: 500 });
   // Der Ausgangswert wird erst nach der Marke genommen. Direkt nach dem
   // Anlegen meldet tmux auf macOS noch den Starter des Panes, der beim
   // Shell-Start einmal wechselt. Gemessen werden soll der Wiederverbindungs-
   // fall, nicht der Start der Shell.
   const beforePid = panePid();
-  const before = supervisor.list().find((candidate) => candidate.name === session.supervisorName)?.createdAt;
-  first.shutdown();
+  const before = (await supervisor.list()).find((candidate) => candidate.name === session.supervisorName)?.createdAt;
+  (await first.shutdown());
   const second = new TerminalManager(options);
-  cleanup.push(() => second.shutdown());
+  cleanup.push(async () => second.shutdown());
   const received: ServerTerminalMessage[] = [];
-  const detach = second.attachSession("owner", session.id, (message) => received.push(message), "resumed", { cols: 90, rows: 25 }, { epoch: 0, lastSequence: 0 });
+  const detach = (await second.attachSession("owner", session.id, (message) => received.push(message), "resumed", { cols: 90, rows: 25 }, { epoch: 0, lastSequence: 0 }));
   expect(second.getSessionMetadata("owner", session.id)).toMatchObject({ status: "running", cols: 90, rows: 25 });
   second.writeToSession("owner", session.id, "printf '__RESUMED_GATEWAY__\\n'\r");
   await vi.waitFor(() => expect(received.filter((message) => message.type === "terminal.snapshot").map((message) => message.serialized).join("") + received.filter((message) => message.type === "terminal.deltas").flatMap((message) => message.deltas).map((delta) => delta.data).join("")).toContain("__BEFORE_RECONNECT__"), { timeout: 30_000 });
   await vi.waitFor(() => expect(received.filter((message) => message.type === "terminal.output").map((message) => message.data).join("")).toContain("__RESUMED_GATEWAY__"), { timeout: 30_000 });
-  expect(supervisor.list().find((candidate) => candidate.name === session.supervisorName)?.createdAt).toBe(before);
+  expect((await supervisor.list()).find((candidate) => candidate.name === session.supervisorName)?.createdAt).toBe(before);
   expect(panePid()).toBe(beforePid);
-  expect(supervisor.list().filter((candidate) => candidate.runtimeId === session.runtimeId)).toHaveLength(1);
+  expect((await supervisor.list()).filter((candidate) => candidate.runtimeId === session.runtimeId)).toHaveLength(1);
   detach();
 });

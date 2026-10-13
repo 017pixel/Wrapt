@@ -28,11 +28,12 @@ export interface ProcessRuntime {
   kindLabel(kind: TerminalKind): string;
   launchCommand(kind: TerminalKind, mode: "agent" | "login"): { file: string; args: string[] };
   environment(session: TerminalSession): Record<string, string>;
-  spawn(session: TerminalSession): void;
+  spawn(session: TerminalSession): Promise<void>;
   attachPty(session: TerminalSession, command: { file: string; args: string[] }, environment: Record<string, string>): void;
-  handlePtyExit(session: TerminalSession, event: { exitCode: number; signal?: number }): void;
-  stopProcess(session: TerminalSession, terminateRuntime: boolean): void;
+  handlePtyExit(session: TerminalSession, event: { exitCode: number; signal?: number }): Promise<void>;
+  stopProcess(session: TerminalSession, terminateRuntime: boolean): Promise<void>;
   scheduleCwdRefresh(session: TerminalSession): void;
+  shutdown(): Promise<void>;
 }
 
 /** Bündelt den PTY-Prozesslebenszyklus (spawn, attach, exit, stop) mit den
@@ -40,6 +41,14 @@ export interface ProcessRuntime {
  *  den gemeinsamen Dependency-Kontext zusammen, damit der Manager schlank
  *  bleibt und keine zirkulären Imports entstehen. */
 export function createProcessRuntime(deps: ProcessRuntimeDependencies): ProcessRuntime {
+  const isClosed = (session: TerminalSession) => session.status === "closed";
+  let shuttingDown = false;
+  const pending = new Set<Promise<void>>();
+  const track = (operation: Promise<void>) => {
+    pending.add(operation);
+    void operation.finally(() => pending.delete(operation)).catch(() => {});
+    return operation;
+  };
   const { adapter, supervisor, cliPaths, onOutput, persist, emit, cwdRefreshTimers, validateCwd } = deps;
   const platform = deps.platform ?? process.platform;
   const shell = resolveTerminalShell(deps.shell, platform);
@@ -115,15 +124,24 @@ export function createProcessRuntime(deps: ProcessRuntimeDependencies): ProcessR
       onOutput?.(session, data);
     });
     session.exitListener = pty.onExit((event) => {
-      if (session.pty !== pty || session.status === "closed" || session.status === "interrupted") return;
+      if (session.pty !== pty || isClosed(session) || session.status === "interrupted") return;
       session.pty = null;
-      handlePtyExit(session, event);
+      void track(handlePtyExit(session, event)).catch(() => {});
     });
   }
 
-  function handlePtyExit(session: TerminalSession, event: { exitCode: number; signal?: number }): void {
+  async function handlePtyExit(session: TerminalSession, event: { exitCode: number; signal?: number }): Promise<void> {
+    if (shuttingDown || isClosed(session)) return;
+    const epoch = session.epoch;
     const supervisorName = session.supervisorName;
-    if (supervisor && supervisorName && supervisor.has(supervisorName)) {
+    if (supervisor && supervisorName) {
+      session.status = "starting";
+      session.sequence += 1;
+      emit(session, { type: "terminal.restarting", sessionId: session.id,
+        reason: "Der Terminalprozess wird wieder verbunden.", sequence: session.sequence });
+    }
+    if (supervisor && supervisorName && await Promise.resolve(supervisor.has(supervisorName)).catch(() => false)) {
+      if (shuttingDown || isClosed(session) || session.epoch !== epoch) return;
       try {
         // Auch der automatische Respawn startet einen Prozess: CWD unmittelbar
         // davor erneut kanonisch prüfen, sonst kann ein ausgetauschter Symlink
@@ -131,26 +149,21 @@ export function createProcessRuntime(deps: ProcessRuntimeDependencies): ProcessR
         session.cwd = validateCwd(session);
         const launch = launchCommand(session.kind, session.mode);
         const nextEnvironment = environment(session);
-        supervisor.respawn(supervisorName, session.cwd, { ...launch, environment: nextEnvironment });
-        session.history = limitHistory(supervisor.capture(supervisorName));
-        session.sequence += 1;
-        emit(session, {
-          type: "terminal.restarting",
-          sessionId: session.id,
-          reason: "Der Terminalprozess wurde beendet und automatisch neu gestartet.",
-          sequence: session.sequence,
-        });
+        await supervisor.respawn(supervisorName, session.cwd, { ...launch, environment: nextEnvironment });
+        session.history = limitHistory(await supervisor.capture(supervisorName));
+        if (shuttingDown || isClosed(session) || session.epoch !== epoch) return;
         attachPty(session, supervisor.attachCommand(supervisorName), nextEnvironment);
         const timer = setTimeout(() => {
-          try { supervisor.sendLastCommandHint(supervisorName); } catch { /* shell may not be ready */ }
+          void Promise.resolve(supervisor.sendLastCommandHint(supervisorName)).catch(() => {});
         }, 800);
         timer.unref();
-        broadcastSnapshot(session, supervisor);
+        await broadcastSnapshot(session, supervisor);
         return;
       } catch {
         // Der gemeinsame Exitpfad setzt einen ehrlichen, nicht beschreibbaren Zustand.
       }
     }
+    if (shuttingDown || isClosed(session) || session.epoch !== epoch) return;
     session.status = "exited";
     session.exitCode = event.exitCode;
     session.exitSignal = event.signal ?? null;
@@ -166,15 +179,18 @@ export function createProcessRuntime(deps: ProcessRuntimeDependencies): ProcessR
     });
   }
 
-  function spawn(session: TerminalSession): void {
+  async function spawn(session: TerminalSession): Promise<void> {
     try {
+      if (shuttingDown || isClosed(session)) throw new Error("Terminalstart wurde beendet.");
       const launch = launchCommand(session.kind, session.mode);
       const nextEnvironment = environment(session);
-      const command = supervisor ? (() => {
-        session.supervisorName = supervisor.ensure({ runtimeId: session.runtimeId, supervisorName: session.supervisorName, kind: session.kind, projectId: session.projectId, cwd: session.cwd, command: { ...launch, environment: nextEnvironment } });
-        session.history = limitHistory(supervisor.capture(session.supervisorName));
+      const command = supervisor ? await (async () => {
+        session.supervisorName = await supervisor.ensure({ runtimeId: session.runtimeId, supervisorName: session.supervisorName, kind: session.kind, projectId: session.projectId, cwd: session.cwd, command: { ...launch, environment: nextEnvironment } });
+        if (isClosed(session)) { await supervisor.terminate(session.supervisorName); throw new Error("Terminalstart wurde geschlossen."); }
+        session.history = limitHistory(await supervisor.capture(session.supervisorName));
         return supervisor.attachCommand(session.supervisorName);
       })() : launch;
+      if (shuttingDown || isClosed(session)) throw new Error("Terminalstart wurde beendet.");
       attachPty(session, command, nextEnvironment);
     } catch (error) {
       // Fehlendes CLI-Binary (ENOENT) ist ein klarer Installationszustand.
@@ -185,7 +201,7 @@ export function createProcessRuntime(deps: ProcessRuntimeDependencies): ProcessR
     }
   }
 
-  function stopProcess(session: TerminalSession, terminateRuntime: boolean): void {
+  async function stopProcess(session: TerminalSession, terminateRuntime: boolean): Promise<void> {
     const pid = session.pid;
     session.dataListener?.dispose();
     session.exitListener?.dispose();
@@ -199,19 +215,21 @@ export function createProcessRuntime(deps: ProcessRuntimeDependencies): ProcessR
     }
     session.pty = null;
     if (terminateRuntime && supervisor && session.supervisorName) {
-      supervisor.terminate(session.supervisorName);
+      await supervisor.terminate(session.supervisorName);
       session.supervisorName = null;
     }
   }
 
   function scheduleCwdRefresh(session: TerminalSession): void {
-    if (!supervisor || !session.supervisorName || session.kind !== "shell") return;
+    if (shuttingDown || !supervisor || !session.supervisorName || session.kind !== "shell") return;
     const pending = cwdRefreshTimers.get(session.id);
     if (pending) clearTimeout(pending);
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       cwdRefreshTimers.delete(session.id);
       if (!session.supervisorName) return;
-      const cwd = supervisor?.currentPath(session.supervisorName);
+      const name = session.supervisorName;
+      const cwd = await Promise.resolve(supervisor?.currentPath(name)).catch(() => null);
+      if (shuttingDown || session.supervisorName !== name || session.status !== "running") return;
       if (!cwd || cwd === session.cwd || !isAbsolute(cwd)) return;
       session.cwd = cwd;
       session.updatedAt = Date.now();
@@ -223,5 +241,8 @@ export function createProcessRuntime(deps: ProcessRuntimeDependencies): ProcessR
     cwdRefreshTimers.set(session.id, timer);
   }
 
-  return { kindLabel, launchCommand, environment, spawn, attachPty, handlePtyExit, stopProcess, scheduleCwdRefresh };
+  return { kindLabel, launchCommand, environment,
+    spawn: (session) => track(spawn(session)), attachPty, handlePtyExit, stopProcess, scheduleCwdRefresh,
+    shutdown: async () => { shuttingDown = true; await Promise.allSettled(pending); },
+  };
 }

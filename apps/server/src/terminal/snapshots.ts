@@ -12,10 +12,10 @@ export function snapshotHistory(history: string): string {
 }
 
 /** True, wenn die Pane gerade den Alternate Screen (Fullscreen-TUI) nutzt. */
-export function isAlternateScreen(session: TerminalSession, supervisor: TmuxSupervisor | undefined): boolean {
+export async function isAlternateScreen(session: TerminalSession, supervisor: TmuxSupervisor | undefined): Promise<boolean> {
   if (session.headless) return session.headless.alternate;
-  if (!supervisor || !session.supervisorName || !supervisor.has(session.supervisorName)) return false;
-  try { return supervisor.isAlternate?.(session.supervisorName) ?? false; }
+  if (!supervisor || !session.supervisorName || !await supervisor.has(session.supervisorName)) return false;
+  try { return await supervisor.isAlternate?.(session.supervisorName) ?? false; }
   catch { return false; }
 }
 
@@ -24,9 +24,9 @@ export function isAlternateScreen(session: TerminalSession, supervisor: TmuxSupe
  * dieser Zustand wesentlich robuster als ein beliebiger Ausschnitt aus dem
  * rohen ANSI-Bytestrom, besonders bei OpenCode, Codex und Claude Code.
  */
-export function snapshotForClient(session: TerminalSession, supervisor: TmuxSupervisor | undefined): string {
-  if (supervisor && session.supervisorName && supervisor.has(session.supervisorName)) {
-    try { return snapshotHistory(supervisor.capture(session.supervisorName)); }
+export async function snapshotForClient(session: TerminalSession, supervisor: TmuxSupervisor | undefined): Promise<string> {
+  if (supervisor && session.supervisorName && await supervisor.has(session.supervisorName)) {
+    try { return snapshotHistory(await supervisor.capture(session.supervisorName)); }
     catch { /* Fallback auf den lokalen ANSI-Verlauf. */ }
   }
   return snapshotHistory(session.history);
@@ -36,7 +36,7 @@ export function snapshotForClient(session: TerminalSession, supervisor: TmuxSupe
  *  serialisierte Zustand stammt aus dem autoritativen Headless-Terminal und
  *  wird nur dann aus tmux/History zurückgebaut, wenn kein Headless-Zustand
  *  vorliegt (etwa direkt nach einem Backend-Neustart). */
-export function snapshotMessage(session: TerminalSession, clientId: string, supervisor: TmuxSupervisor | undefined): Extract<ServerTerminalMessage, { type: "terminal.snapshot" }> {
+export async function snapshotMessage(session: TerminalSession, clientId: string, supervisor: TmuxSupervisor | undefined): Promise<Extract<ServerTerminalMessage, { type: "terminal.snapshot" }>> {
   const serialized = session.headless?.snapshot() ?? null;
   // Die Snapshot-Sequenz ist der zuletzt lückenlos geparste Stand des
   // Headless-Terminals in Session-Sequenz-Basis, damit Inhalt und Sequenz
@@ -57,14 +57,14 @@ export function snapshotMessage(session: TerminalSession, clientId: string, supe
     cols: serialized?.cols ?? session.cols,
     rows: serialized?.rows ?? session.rows,
     ownsGeometry: session.primaryClientId === clientId,
-    alternate: serialized?.alternate ?? isAlternateScreen(session, supervisor),
+    alternate: serialized?.alternate ?? await isAlternateScreen(session, supervisor),
     mouseTracking: serialized?.mouseTracking ?? false,
-    serialized: serialized?.serialized ?? snapshotForClient(session, supervisor),
+    serialized: serialized?.serialized ?? await snapshotForClient(session, supervisor),
   };
 }
 
-export function broadcastSnapshot(session: TerminalSession, supervisor: TmuxSupervisor | undefined): void {
-  for (const [clientId, client] of session.clients) sendSync(session, clientId, client, supervisor, null);
+export async function broadcastSnapshot(session: TerminalSession, supervisor: TmuxSupervisor | undefined): Promise<void> {
+  for (const [clientId, client] of session.clients) await sendSync(session, clientId, client, supervisor, null);
 }
 
 /**
@@ -73,13 +73,14 @@ export function broadcastSnapshot(session: TerminalSession, supervisor: TmuxSupe
  * sind alle Deltas danach noch im Journal, werden nur die Deltas nachgeliefert
  * (Fast Reconnect). Sonst gibt es einen vollen Snapshot an Sequenz N.
  */
-export function sendSync(
+export async function sendSync(
   session: TerminalSession,
   clientId: string,
   client: (message: ServerTerminalMessage) => void,
   supervisor: TmuxSupervisor | undefined,
   sync: { epoch: number; lastSequence: number } | null | undefined,
-): void {
+): Promise<void> {
+  const epoch = session.epoch;
   if (session.status === "running" && sync && sync.epoch === session.epoch) {
     const deltas = session.journal.deltasAfter(sync.lastSequence);
     // Leere Deltas bestätigen einen aktuellen Stand nur, wenn der Client
@@ -101,14 +102,17 @@ export function sendSync(
       return;
     }
   }
-  const snapshot = snapshotMessage(session, clientId, supervisor);
+  const snapshot = await snapshotMessage(session, clientId, supervisor);
+  // Der asynchrone tmux-Fallback kann nach Detach, Reattach oder Restart
+  // eintreffen. Nur der weiterhin angeschlossene Client erhält diesen Stand.
+  if (session.epoch !== epoch || session.clients.get(clientId) !== client) return;
   // xterm parst asynchron. Bereits vor dem Attach empfangene Bytes können
   // noch hinter dem Snapshot liegen und würden ohne Nachlieferung fehlen.
   const pending = snapshot.sequence === session.sequence ? [] : session.journal.deltasAfter(snapshot.sequence);
   if (pending === null && session.headless) {
     const headless = session.headless;
     headless.afterParsed(headless.queuedSequence, () => {
-      if (session.headless === headless && session.clients.get(clientId) === client) sendSync(session, clientId, client, supervisor, null);
+      if (session.headless === headless && session.clients.get(clientId) === client) void sendSync(session, clientId, client, supervisor, null);
     });
     return;
   }

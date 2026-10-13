@@ -5,9 +5,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { TerminalManager } from "./Manager.js";
 import type { PtyProcess } from "./NodePtyAdapter.js";
 import type { ServerTerminalMessage, TerminalDelta } from "./protocol.js";
+import { sendSync } from "./snapshots.js";
+import type { TmuxSupervisor } from "./TmuxSupervisor.js";
 
 class FakePty implements PtyProcess {
-  pid = 4242;
+  pid = 0;
   writes: string[] = [];
   private data: ((data: string) => void) | undefined;
   private exit: ((event: { exitCode: number }) => void) | undefined;
@@ -21,7 +23,7 @@ class FakePty implements PtyProcess {
 }
 
 let manager: TerminalManager | undefined;
-afterEach(() => { manager?.shutdown(); manager = undefined; });
+afterEach(async () => { (await manager?.shutdown()); manager = undefined; });
 
 async function setup() {
   const root = await mkdtemp(join(tmpdir(), "workbench-terminal-sync-"));
@@ -33,12 +35,33 @@ async function setup() {
 }
 
 describe("Terminal V2 Sync-Protokoll", () => {
+  it.each(["detach", "reattach", "epoch"])("verwirft verspätete Snapshots nach %s", async (change) => {
+    const { session } = await setup();
+    session.headless?.dispose();
+    session.headless = null;
+    session.supervisorName = "isolierte-fixture";
+    let finishCapture!: (value: string) => void;
+    const capture = vi.fn(() => new Promise<string>((resolve) => { finishCapture = resolve; }));
+    const supervisor = { has: async () => true, isAlternate: async () => false, capture } as unknown as TmuxSupervisor;
+    const received: ServerTerminalMessage[] = [];
+    const client = (message: ServerTerminalMessage) => received.push(message);
+    session.clients.set("slow", client);
+    const pending = sendSync(session, "slow", client, supervisor, null);
+    await vi.waitFor(() => expect(capture).toHaveBeenCalledOnce());
+    if (change === "detach") session.clients.delete("slow");
+    if (change === "reattach") session.clients.set("slow", vi.fn());
+    if (change === "epoch") session.epoch += 1;
+    finishCapture("alter Snapshot");
+    await pending;
+    expect(received).toEqual([]);
+  });
+
   it("liefert nach Journalüberlauf und anschließendem Exit einen vollständigen Endzustand", async () => {
     const { pty, session, manager: terminal } = await setup();
     for (let index = 0; index < 500; index += 1) pty.output(`exit-burst-${index}\r\n`);
     pty.end();
     const received: ServerTerminalMessage[] = [];
-    terminal.attachSession("owner", session.id, (message) => received.push(message), "ended");
+    (await terminal.attachSession("owner", session.id, (message) => received.push(message), "ended"));
     await vi.waitFor(() => {
       const snapshot = received.find((message) => message.type === "terminal.snapshot");
       expect(snapshot).toMatchObject({ sequence: 501, status: "exited" });
@@ -49,7 +72,7 @@ describe("Terminal V2 Sync-Protokoll", () => {
     const { pty, session, manager: terminal } = await setup();
     for (let index = 0; index < 500; index += 1) pty.output(`burst-${index}\r\n`);
     const received: ServerTerminalMessage[] = [];
-    terminal.attachSession("owner", session.id, (message) => received.push(message), "burst");
+    (await terminal.attachSession("owner", session.id, (message) => received.push(message), "burst"));
     await vi.waitFor(() => {
       const snapshot = received.find((message) => message.type === "terminal.snapshot");
       expect(snapshot).toMatchObject({ sequence: 500 });
@@ -61,7 +84,7 @@ describe("Terminal V2 Sync-Protokoll", () => {
     const { pty, session, manager: terminal } = await setup();
     pty.output("sofortiger-prompt\r\n");
     const received: ServerTerminalMessage[] = [];
-    terminal.attachSession("owner", session.id, (message) => received.push(message), "first");
+    (await terminal.attachSession("owner", session.id, (message) => received.push(message), "first"));
     const snapshot = received.find((message) => message.type === "terminal.snapshot");
     expect(snapshot).toBeDefined();
     const output = received.filter((message) => message.type === "terminal.deltas").flatMap((message) => message.deltas);
@@ -71,7 +94,7 @@ describe("Terminal V2 Sync-Protokoll", () => {
   it("liefert einem Client mit konsistentem Zustand Deltas statt eines vollen Snapshots", async () => {
     const { pty, session, manager: terminal } = await setup();
     const first: ServerTerminalMessage[] = [];
-    const detach = terminal.attachSession("owner", session.id, (message) => first.push(message), "first");
+    const detach = (await terminal.attachSession("owner", session.id, (message) => first.push(message), "first"));
     pty.output("erste-ausgabe\r\n");
     await new Promise((resolve) => setTimeout(resolve, 20));
     const sequence = (first.find((message) => message.type === "terminal.output") as { sequence: number }).sequence;
@@ -79,7 +102,7 @@ describe("Terminal V2 Sync-Protokoll", () => {
 
     // Der wiederkommende Client kennt Epoch und Sequenz und bekommt nur Deltas.
     const resumed: ServerTerminalMessage[] = [];
-    terminal.attachSession("owner", session.id, (message) => resumed.push(message), "second", undefined, { epoch: 0, lastSequence: sequence });
+    (await terminal.attachSession("owner", session.id, (message) => resumed.push(message), "second", undefined, { epoch: 0, lastSequence: sequence }));
 
     expect(resumed.some((message) => message.type === "terminal.snapshot")).toBe(false);
     const deltas = resumed.find((message) => message.type === "terminal.deltas") as { epoch: number; startSequence: number; deltas: TerminalDelta[] } | undefined;
@@ -94,13 +117,13 @@ describe("Terminal V2 Sync-Protokoll", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     const fresh: ServerTerminalMessage[] = [];
-    terminal.attachSession("owner", session.id, (message) => fresh.push(message), "fresh", undefined, { epoch: 0, lastSequence: 99 });
+    (await terminal.attachSession("owner", session.id, (message) => fresh.push(message), "fresh", undefined, { epoch: 0, lastSequence: 99 }));
     const snapshot = fresh.find((message) => message.type === "terminal.snapshot") as { epoch: number; sequence: number; serialized: string } | undefined;
     expect(snapshot?.epoch).toBe(0);
     expect(snapshot?.serialized).toContain("zustand");
 
     const wrongEpoch: ServerTerminalMessage[] = [];
-    terminal.attachSession("owner", session.id, (message) => wrongEpoch.push(message), "stale", undefined, { epoch: 7, lastSequence: 0 });
+    (await terminal.attachSession("owner", session.id, (message) => wrongEpoch.push(message), "stale", undefined, { epoch: 7, lastSequence: 0 }));
     expect(wrongEpoch.find((message) => message.type === "terminal.snapshot")).toBeDefined();
     expect(wrongEpoch.find((message) => message.type === "terminal.deltas")).toBeUndefined();
   });
@@ -108,7 +131,7 @@ describe("Terminal V2 Sync-Protokoll", () => {
   it("erhöht den Epoch bei einem echten Neustart und leert das Journal", async () => {
     const { pty, session, manager: terminal } = await setup();
     const first: ServerTerminalMessage[] = [];
-    terminal.attachSession("owner", session.id, (message) => first.push(message), "first");
+    (await terminal.attachSession("owner", session.id, (message) => first.push(message), "first"));
     pty.output("vor-neustart\r\n");
     await new Promise((resolve) => setTimeout(resolve, 20));
 
@@ -117,7 +140,7 @@ describe("Terminal V2 Sync-Protokoll", () => {
     expect(metadata.epoch).toBe(1);
 
     const resumed: ServerTerminalMessage[] = [];
-    terminal.attachSession("owner", session.id, (message) => resumed.push(message), "second", undefined, { epoch: 0, lastSequence: 1 });
+    (await terminal.attachSession("owner", session.id, (message) => resumed.push(message), "second", undefined, { epoch: 0, lastSequence: 1 }));
     // Alter Epoch → voller Snapshot im neuen Epoch.
     expect(resumed.find((message) => message.type === "terminal.snapshot") as { epoch?: number } | undefined).toMatchObject({ epoch: 1 });
   });
@@ -125,7 +148,7 @@ describe("Terminal V2 Sync-Protokoll", () => {
   it("ignoriert alte Output-Nachrichten, die ein Client bereits besitzt", async () => {
     const { pty, session, manager: terminal } = await setup();
     const messages: ServerTerminalMessage[] = [];
-    const detach = terminal.attachSession("owner", session.id, (message) => messages.push(message), "first");
+    const detach = (await terminal.attachSession("owner", session.id, (message) => messages.push(message), "first"));
     pty.output("nur-einmal\r\n");
     await new Promise((resolve) => setTimeout(resolve, 20));
     detach();
@@ -133,15 +156,15 @@ describe("Terminal V2 Sync-Protokoll", () => {
     // Der Client verbindet sich erneut und meldet den kompletten Stand — er
     // darf keine alten Outputs erneut zugespielt bekommen.
     const resumed: ServerTerminalMessage[] = [];
-    terminal.attachSession("owner", session.id, (message) => resumed.push(message), "second", undefined, { epoch: 0, lastSequence: 100 });
+    (await terminal.attachSession("owner", session.id, (message) => resumed.push(message), "second", undefined, { epoch: 0, lastSequence: 100 }));
     expect(resumed.find((message) => message.type === "terminal.output")).toBeUndefined();
   });
 
   it("verarbeitet mehrere Subscriptions auf einem Socket ohne Verlust des laufenden Outputs", async () => {
     const { pty, session, manager: terminal } = await setup();
     const messages: ServerTerminalMessage[] = [];
-    const detachA = terminal.attachSession("owner", session.id, (message) => messages.push(message), "sub-a");
-    const detachB = terminal.attachSession("owner", session.id, (message) => messages.push(message), "sub-b");
+    const detachA = (await terminal.attachSession("owner", session.id, (message) => messages.push(message), "sub-a"));
+    const detachB = (await terminal.attachSession("owner", session.id, (message) => messages.push(message), "sub-b"));
     pty.output("a\r\n");
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(messages.filter((message) => message.type === "terminal.output")).toHaveLength(2);
@@ -189,7 +212,7 @@ describe("Terminal V2 Resync nach Clear, Restart und Wiederherstellung", () => {
   it("hängt nach einem Clear während der Abwesenheit nicht (Snapshot statt leerer Deltas)", async () => {
     const { pty, session, manager: terminal } = await setup();
     const first: ServerTerminalMessage[] = [];
-    const detach = terminal.attachSession("owner", session.id, (message) => first.push(message), "first");
+    const detach = (await terminal.attachSession("owner", session.id, (message) => first.push(message), "first"));
     pty.output("vor-clear\r\n");
     await new Promise((resolve) => setTimeout(resolve, 20));
     const lastSequence = (first.find((message) => message.type === "terminal.output") as { sequence: number }).sequence;
@@ -201,7 +224,7 @@ describe("Terminal V2 Resync nach Clear, Restart und Wiederherstellung", () => {
 
     const tracker = createClientTracker();
     const resumed: ServerTerminalMessage[] = [];
-    terminal.attachSession("owner", session.id, (message) => { resumed.push(message); tracker.apply(message); }, "second", undefined, { epoch: 0, lastSequence });
+    (await terminal.attachSession("owner", session.id, (message) => { resumed.push(message); tracker.apply(message); }, "second", undefined, { epoch: 0, lastSequence }));
     expect(resumed.some((message) => message.type === "terminal.snapshot")).toBe(true);
     const snapshot = resumed.find((message) => message.type === "terminal.snapshot") as { sequence: number };
     expect(snapshot.sequence).toBe(metadata.sequence);
@@ -218,7 +241,7 @@ describe("Terminal V2 Resync nach Clear, Restart und Wiederherstellung", () => {
   it("startet die Snapshot-Sequenz nach einem Restart bei 0 (kein Verwerfen neuer Outputs)", async () => {
     const { pty, session, manager: terminal } = await setup();
     const first: ServerTerminalMessage[] = [];
-    const detach = terminal.attachSession("owner", session.id, (message) => first.push(message), "first");
+    const detach = (await terminal.attachSession("owner", session.id, (message) => first.push(message), "first"));
     pty.output("eins\r\n");
     pty.output("zwei\r\n");
     pty.output("drei\r\n");
@@ -231,7 +254,7 @@ describe("Terminal V2 Resync nach Clear, Restart und Wiederherstellung", () => {
 
     const tracker = createClientTracker();
     const resumed: ServerTerminalMessage[] = [];
-    terminal.attachSession("owner", session.id, (message) => { resumed.push(message); tracker.apply(message); }, "second", undefined, { epoch: 0, lastSequence });
+    (await terminal.attachSession("owner", session.id, (message) => { resumed.push(message); tracker.apply(message); }, "second", undefined, { epoch: 0, lastSequence }));
     const snapshot = resumed.find((message) => message.type === "terminal.snapshot") as { epoch: number; sequence: number };
     expect(snapshot.epoch).toBe(1);
     expect(snapshot.sequence).toBe(0);
@@ -249,7 +272,7 @@ describe("Terminal V2 Resync nach Clear, Restart und Wiederherstellung", () => {
     const { session, manager: terminal } = await setup();
     const tracker = createClientTracker();
     const resumed: ServerTerminalMessage[] = [];
-    terminal.attachSession("owner", session.id, (message) => { resumed.push(message); tracker.apply(message); }, "late", undefined, { epoch: 0, lastSequence: 50 });
+    (await terminal.attachSession("owner", session.id, (message) => { resumed.push(message); tracker.apply(message); }, "late", undefined, { epoch: 0, lastSequence: 50 }));
     expect(resumed.some((message) => message.type === "terminal.snapshot")).toBe(true);
   });
 });

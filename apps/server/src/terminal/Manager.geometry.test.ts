@@ -7,7 +7,7 @@ import type { PtyProcess } from "./NodePtyAdapter.js";
 import type { TmuxSupervisor } from "./TmuxSupervisor.js";
 
 class FakePty implements PtyProcess {
-  pid = 4242;
+  pid = 0;
   writes: string[] = [];
   resizes: Array<[number, number]> = [];
   private data: ((data: string) => void) | undefined;
@@ -40,8 +40,8 @@ class FakeSupervisor {
 }
 
 let manager: TerminalManager | undefined;
-afterEach(() => {
-  manager?.shutdown();
+afterEach(async () => {
+  (await manager?.shutdown());
   manager = undefined;
 });
 
@@ -67,8 +67,8 @@ describe("terminal rendering geometry", () => {
       clientId: "desktop",
     });
 
-    terminal.attachSession("owner", session.id, () => {}, "desktop");
-    terminal.attachSession("owner", session.id, () => {}, "mobile");
+    (await terminal.attachSession("owner", session.id, () => {}, "desktop"));
+    (await terminal.attachSession("owner", session.id, () => {}, "mobile"));
     terminal.resizeSession("owner", session.id, 120, 40, "desktop");
     terminal.resizeSession("owner", session.id, 52, 24, "mobile");
 
@@ -86,7 +86,7 @@ describe("terminal rendering geometry", () => {
     const { manager: terminal, pty } = await createManager();
     const runtimeId = "00000000-0000-4000-8000-000000000002";
     const session = await terminal.createSession("owner", { runtimeId, cols: 120, rows: 40, clientId: "desktop" });
-    const detach = terminal.attachSession("owner", session.id, () => {}, "desktop");
+    const detach = (await terminal.attachSession("owner", session.id, () => {}, "desktop"));
     detach();
 
     await terminal.createSession("owner", { runtimeId, cols: 50, rows: 22, clientId: "mobile" });
@@ -115,7 +115,7 @@ describe("terminal rendering geometry", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
 
     const messages: Array<{ type: string; serialized?: string }> = [];
-    manager.attachSession("owner", session.id, (message) => messages.push(message as { type: string; serialized?: string }));
+    (await manager.attachSession("owner", session.id, (message) => messages.push(message as { type: string; serialized?: string })));
 
     const snapshot = messages.find((message) => message.type === "terminal.snapshot");
     expect(snapshot?.serialized).toContain("headless-state-wins");
@@ -127,7 +127,7 @@ describe("terminal rendering geometry", () => {
     const session = await terminal.createSession("owner", { cols: 120, rows: 40, clientId: "desktop" });
     const messages: Array<Record<string, unknown>> = [];
 
-    terminal.attachSession("owner", session.id, (message) => messages.push(message as Record<string, unknown>), "desktop", { cols: 80, rows: 24 });
+    (await terminal.attachSession("owner", session.id, (message) => messages.push(message as Record<string, unknown>), "desktop", { cols: 80, rows: 24 }));
 
     expect(pty.resizes.at(-1)).toEqual([80, 24]);
     expect(messages.find((message) => message.type === "terminal.snapshot")).toMatchObject({ cols: 80, rows: 24, ownsGeometry: true });
@@ -136,10 +136,10 @@ describe("terminal rendering geometry", () => {
   it("keeps the primary's geometry in a secondary's snapshot instead of reflowing", async () => {
     const { manager: terminal, pty } = await createManager();
     const session = await terminal.createSession("owner", { cols: 120, rows: 40, clientId: "desktop" });
-    terminal.attachSession("owner", session.id, () => {}, "desktop", { cols: 120, rows: 40 });
+    (await terminal.attachSession("owner", session.id, () => {}, "desktop", { cols: 120, rows: 40 }));
     const mobile: Array<Record<string, unknown>> = [];
 
-    terminal.attachSession("owner", session.id, (message) => mobile.push(message as Record<string, unknown>), "mobile", { cols: 52, rows: 24 });
+    (await terminal.attachSession("owner", session.id, (message) => mobile.push(message as Record<string, unknown>), "mobile", { cols: 52, rows: 24 }));
 
     expect(pty.resizes).not.toContainEqual([52, 24]);
     expect(mobile.find((message) => message.type === "terminal.snapshot")).toMatchObject({ cols: 120, rows: 40, ownsGeometry: false });
@@ -148,8 +148,8 @@ describe("terminal rendering geometry", () => {
   it("reports a secondary resize without transferring primary ownership", async () => {
     const { manager: terminal, pty } = await createManager();
     const session = await terminal.createSession("owner", { cols: 120, rows: 40, clientId: "desktop" });
-    terminal.attachSession("owner", session.id, () => {}, "desktop", { cols: 120, rows: 40 });
-    terminal.attachSession("owner", session.id, () => {}, "mobile", { cols: 52, rows: 24 });
+    (await terminal.attachSession("owner", session.id, () => {}, "desktop", { cols: 120, rows: 40 }));
+    (await terminal.attachSession("owner", session.id, () => {}, "mobile", { cols: 52, rows: 24 }));
 
     terminal.resizeSession("owner", session.id, 60, 30, "mobile");
 
@@ -172,7 +172,7 @@ describe("terminal rendering geometry", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     const messages: Array<Record<string, unknown>> = [];
 
-    manager.attachSession("owner", session.id, (message) => messages.push(message as Record<string, unknown>));
+    (await manager.attachSession("owner", session.id, (message) => messages.push(message as Record<string, unknown>)));
 
     expect(messages.find((message) => message.type === "terminal.snapshot")).toMatchObject({ alternate: true });
     expect(messages.find((message) => message.type === "terminal.snapshot")).toMatchObject({ serialized: expect.stringContaining("fullscreen-tui") });

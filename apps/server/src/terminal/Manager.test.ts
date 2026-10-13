@@ -8,7 +8,7 @@ import { TerminalDatabase } from "./database.js";
 import type { TmuxSupervisor } from "./TmuxSupervisor.js";
 
 class FakePty implements PtyProcess {
-  pid = 4242; writes: string[] = []; resizes: Array<[number, number]> = []; killed: string[] = []; private data: ((data: string) => void) | undefined; private exit: ((event: { exitCode: number; signal?: number }) => void) | undefined;
+  pid = 0; writes: string[] = []; resizes: Array<[number, number]> = []; killed: string[] = []; private data: ((data: string) => void) | undefined; private exit: ((event: { exitCode: number; signal?: number }) => void) | undefined;
   write(data: string) { this.writes.push(data); } resize(cols: number, rows: number) { this.resizes.push([cols, rows]); } kill(signal?: string) { this.killed.push(signal ?? "SIGTERM"); }
   onData(callback: (data: string) => void) { this.data = callback; return { dispose: () => { this.data = undefined; } }; } onExit(callback: (event: { exitCode: number; signal?: number }) => void) { this.exit = callback; return { dispose: () => { this.exit = undefined; } }; }
   output(data: string) { this.data?.(data); } end(exitCode = 0, signal?: number) { this.exit?.({ exitCode, ...(signal === undefined ? {} : { signal }) }); }
@@ -31,15 +31,15 @@ class FakeSupervisor {
 }
 
 let manager: TerminalManager | undefined;
-afterEach(() => manager?.shutdown());
+afterEach(async () => manager?.shutdown());
 
 async function setup() { const root = await mkdtemp(join(tmpdir(), "workbench-terminal-")); await mkdir(join(root, "nested")); const pty = new FakePty(); manager = new TerminalManager({ allowedRoots: [root], defaultCwd: root, maxSessions: 1, adapter: { spawn: () => pty }, reconnectGraceMs: 1 }); return { root, pty, manager }; }
 
 describe("TerminalManager", () => {
-  it("creates an owned session and forwards input, resize, output and exit in sequence", async () => { const { pty, manager: terminal } = await setup(); const session = await terminal.createSession("user", { cols: 80, rows: 24 }); const messages: unknown[] = []; terminal.attachSession("user", session.id, (message) => messages.push(message)); terminal.writeToSession("user", session.id, "echo hello\r"); terminal.resizeSession("user", session.id, 120, 40); pty.output("hello\r\n"); pty.end(0);
+  it("creates an owned session and forwards input, resize, output and exit in sequence", async () => { const { pty, manager: terminal } = await setup(); const session = await terminal.createSession("user", { cols: 80, rows: 24 }); const messages: unknown[] = []; (await terminal.attachSession("user", session.id, (message) => messages.push(message))); terminal.writeToSession("user", session.id, "echo hello\r"); terminal.resizeSession("user", session.id, 120, 40); pty.output("hello\r\n"); pty.end(0);
     expect(pty.writes).toEqual(["echo hello\r"]); expect(pty.resizes).toEqual([[120, 40]]); expect(messages).toContainEqual(expect.objectContaining({ type: "terminal.output", sequence: 1 })); expect(messages).toContainEqual(expect.objectContaining({ type: "terminal.exited", sequence: 2, exitCode: 0 })); });
-  it("rejects foreign sessions, invalid dimensions and invalid working directories", async () => { const { root, manager: terminal } = await setup(); const session = await terminal.createSession("owner", { cols: 80, rows: 24 }); expect(() => terminal.attachSession("other", session.id, vi.fn())).toThrow(TerminalFailure); expect(() => terminal.resizeSession("owner", session.id, 1, 24)).toThrow(TerminalFailure); await expect(terminal.createSession("other", { cols: 80, rows: 24, cwd: "/tmp" })).rejects.toMatchObject({ code: "INVALID_CWD" }); await expect(terminal.createSession("other", { cols: 80, rows: 24, cwd: join(root, "missing") })).rejects.toMatchObject({ code: "CWD_NOT_FOUND" }); });
-  it("limits sessions, retains history and keeps disconnected sessions alive", async () => { const { pty, manager: terminal } = await setup(); const session = await terminal.createSession("owner", { cols: 80, rows: 24 }); await expect(terminal.createSession("owner", { cols: 80, rows: 24 })).rejects.toMatchObject({ code: "TOO_MANY_SESSIONS" }); const detach = terminal.attachSession("owner", session.id, vi.fn()); pty.output("x".repeat(3_200_000)); expect(terminal.getSessionMetadata("owner", session.id).sequence).toBe(1); detach(); await new Promise((resolve) => setTimeout(resolve, 10)); expect(pty.killed).not.toContain("SIGTERM"); expect(terminal.getSessionMetadata("owner", session.id)).toMatchObject({ status: "running" }); });
+  it("rejects foreign sessions, invalid dimensions and invalid working directories", async () => { const { root, manager: terminal } = await setup(); const session = await terminal.createSession("owner", { cols: 80, rows: 24 }); await expect(terminal.attachSession("other", session.id, vi.fn())).rejects.toThrow(TerminalFailure); expect(() => terminal.resizeSession("owner", session.id, 1, 24)).toThrow(TerminalFailure); await expect(terminal.createSession("other", { cols: 80, rows: 24, cwd: "/tmp" })).rejects.toMatchObject({ code: "INVALID_CWD" }); await expect(terminal.createSession("other", { cols: 80, rows: 24, cwd: join(root, "missing") })).rejects.toMatchObject({ code: "CWD_NOT_FOUND" }); });
+  it("limits sessions, retains history and keeps disconnected sessions alive", async () => { const { pty, manager: terminal } = await setup(); const session = await terminal.createSession("owner", { cols: 80, rows: 24 }); await expect(terminal.createSession("owner", { cols: 80, rows: 24 })).rejects.toMatchObject({ code: "TOO_MANY_SESSIONS" }); const detach = (await terminal.attachSession("owner", session.id, vi.fn())); pty.output("x".repeat(3_200_000)); expect(terminal.getSessionMetadata("owner", session.id).sequence).toBe(1); detach(); await new Promise((resolve) => setTimeout(resolve, 10)); expect(pty.killed).not.toContain("SIGTERM"); expect(terminal.getSessionMetadata("owner", session.id)).toMatchObject({ status: "running" }); });
 
   it("räumt beendete Sessions nach Ablauf der TTL auf, statt den Slot zu blockieren", async () => {
     const root = await mkdtemp(join(tmpdir(), "workbench-terminal-ttl-"));
@@ -53,7 +53,7 @@ describe("TerminalManager", () => {
     const replacement = await terminal.createSession("owner", { cols: 80, rows: 24 });
     expect(replacement.id).not.toBe(session.id);
     expect(() => terminal.getSessionMetadata("owner", session.id)).toThrow(TerminalFailure);
-    terminal.shutdown();
+    (await terminal.shutdown());
   });
 
   it("reuses a runtime identity and broadcasts output to multiple devices", async () => {
@@ -64,8 +64,8 @@ describe("TerminalManager", () => {
     expect(terminal.getSessionMetadata("owner", first.id)).toMatchObject({ cols: 80, rows: 24 });
     const deviceOne: unknown[] = [];
     const deviceTwo: unknown[] = [];
-    const detachOne = terminal.attachSession("owner", first.id, (message) => deviceOne.push(message), "device-one");
-    const detachTwo = terminal.attachSession("owner", first.id, (message) => deviceTwo.push(message), "device-two");
+    const detachOne = (await terminal.attachSession("owner", first.id, (message) => deviceOne.push(message), "device-one"));
+    const detachTwo = (await terminal.attachSession("owner", first.id, (message) => deviceTwo.push(message), "device-two"));
     terminal.resizeSession("owner", first.id, 120, 40, "device-one");
     terminal.resizeSession("owner", first.id, 180, 50, "device-two");
     expect(pty.resizes).toEqual([[120, 40]]);
@@ -90,7 +90,7 @@ describe("TerminalManager", () => {
     });
     const session = await manager.createSession("owner", { cols: 80, rows: 24 });
     const messages: unknown[] = [];
-    manager.attachSession("owner", session.id, (message) => messages.push(message));
+    (await manager.attachSession("owner", session.id, (message) => messages.push(message)));
     supervisor.path = nested;
     pty.output("prompt\r\n");
     await new Promise((resolve) => setTimeout(resolve, 120));
@@ -109,7 +109,7 @@ describe("TerminalManager", () => {
     pty.output("zeile-eins\r\nzeile-zwei");
     await new Promise((resolve) => setTimeout(resolve, 20));
     const messages: unknown[] = [];
-    manager.attachSession("owner", session.id, (message) => messages.push(message));
+    (await manager.attachSession("owner", session.id, (message) => messages.push(message)));
     const snapshot = messages.find((message) => (message as { type: string }).type === "terminal.snapshot") as { serialized: string; epoch: number } | undefined;
     expect(snapshot?.serialized).toContain("zeile-eins");
     expect(snapshot?.epoch).toBe(0);
@@ -150,7 +150,7 @@ describe("TerminalManager", () => {
     // der Prozess — die Session bleibt als "exited" zurück, statt zu respawnen.
     supervisor.sessions.delete(supervisorName);
     ptys[0]!.end(0);
-    expect(manager.getSessionMetadata("owner", session.id).status).toBe("exited");
+    await vi.waitFor(() => expect(manager!.getSessionMetadata("owner", session.id).status).toBe("exited"));
 
     const resumed = await manager.createSession("owner", { runtimeId: session.runtimeId, cols: 80, rows: 24 });
     expect(resumed.id).toBe(session.id);
@@ -173,7 +173,7 @@ describe("TerminalManager", () => {
     const first = await firstManager.createSession("owner", { runtimeId, cols: 80, rows: 24 });
     const supervisorName = supervisor.sessionName(runtimeId);
 
-    firstManager.shutdown();
+    await firstManager.shutdown();
     expect(firstPty.killed).toContain("SIGTERM");
     expect(supervisor.has(supervisorName)).toBe(true);
     expect(supervisor.terminated).toEqual([]);
@@ -188,7 +188,7 @@ describe("TerminalManager", () => {
 
     expect(resumed).toMatchObject({ id: first.id, status: "running", supervisorName });
     expect(resumedPty.killed).toEqual([]);
-    manager.shutdown();
+    (await manager.shutdown());
     manager = undefined;
     database.close();
   });
@@ -207,9 +207,11 @@ describe("TerminalManager", () => {
     });
     const session = await manager.createSession("owner", { cols: 80, rows: 24 });
     ptys[0]!.end(1);
-    expect(manager.getSessionMetadata("owner", session.id)).toMatchObject({ status: "running", pid: 4242 });
+    await vi.waitFor(() => expect(spawnIndex).toBe(2));
+    expect(manager.getSessionMetadata("owner", session.id)).toMatchObject({ status: "running", pid: 0 });
     ptys[1]!.end(2);
-    expect(manager.getSessionMetadata("owner", session.id)).toMatchObject({ status: "running", pid: 4242 });
+    await vi.waitFor(() => expect(spawnIndex).toBe(3));
+    expect(manager.getSessionMetadata("owner", session.id)).toMatchObject({ status: "running", pid: 0 });
     manager.writeToSession("owner", session.id, "weiter");
     expect(ptys[2]!.writes).toEqual(["weiter"]);
   });
@@ -276,7 +278,7 @@ describe("TerminalManager", () => {
       adapter: { spawn: () => new FakePty() },
     });
     await first.createSession("owner", { runtimeId, cols: 80, rows: 24 });
-    first.shutdown();
+    (await first.shutdown());
 
     const resumed = new TerminalManager({
       allowedRoots: [root], defaultCwd: root, maxSessions: 1, database,
@@ -284,7 +286,7 @@ describe("TerminalManager", () => {
       adapter: { spawn: () => new FakePty() },
     });
     await expect(resumed.createSession("owner", { cols: 80, rows: 24 })).rejects.toMatchObject({ code: "TOO_MANY_SESSIONS" });
-    resumed.shutdown();
+    (await resumed.shutdown());
     database.close();
   });
 
@@ -301,7 +303,7 @@ describe("TerminalManager", () => {
     ]);
     expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
     expect(results.filter((result) => result.status === "rejected")).toHaveLength(1);
-    manager.shutdown();
+    (await manager.shutdown());
     database.close();
   });
 });

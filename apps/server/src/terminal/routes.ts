@@ -14,6 +14,36 @@ import { isSameOriginRequest } from "../security/same-origin.js";
 import { isWorkbenchUserAllowed, resolveWorkbenchUser, type WorkbenchIdentityOptions } from "../security/workbench-identity.js";
 import { createWebSocketSendQueue } from "../utils/websocketSendQueue.js";
 
+/** Abstand der WebSocket-Pings; ein ausbleibender Pong räumt den Client. */
+const TERMINAL_SOCKET_HEARTBEAT_MS = 30_000;
+
+/** Minimaler Socket-Ausschnitt für den Heartbeat (in Tests ersetzbar). */
+export interface TerminalHeartbeatSocket {
+  ping(): void;
+  terminate(): void;
+  on(event: "pong", listener: () => void): unknown;
+}
+
+/**
+ * Wacht über einen Terminal-Socket. Stirbt er ohne sauberes Close (z. B. ein
+ * abgestürzter Proxy), meldet der TCP-Stack das erst nach Minuten: Der tote
+ * Client bliebe als Geometrie-Eigentümer registriert und hielte die PTY-Größe
+ * für alle lebenden Clients fest. Browser beantworten Ping-Frames nativ; ein
+ * ausbleibender Pong über ein volles Intervall bedeutet tot. Gibt die
+ * Aufräumfunktion für das Intervall zurück.
+ */
+export function attachTerminalSocketHeartbeat(socket: TerminalHeartbeatSocket, intervalMs = TERMINAL_SOCKET_HEARTBEAT_MS): () => void {
+  let alive = true;
+  const heartbeat = setInterval(() => {
+    if (!alive) { socket.terminate(); return; }
+    alive = false;
+    try { socket.ping(); } catch { socket.terminate(); }
+  }, intervalMs);
+  heartbeat.unref?.();
+  socket.on("pong", () => { alive = true; });
+  return () => clearInterval(heartbeat);
+}
+
 function terminalIdentity(request: FastifyRequest, identityOptions: WorkbenchIdentityOptions): string {
   try {
     const identity = resolveWorkbenchUser(request, identityOptions);
@@ -45,7 +75,7 @@ function httpIdentity(request: FastifyRequest, identityOptions: WorkbenchIdentit
 
 const sessionParamsSchema = z.object({ sessionId: z.string().uuid() });
 
-function sessionResponse(session: ReturnType<TerminalManager["listSessions"]>[number]) {
+function sessionResponse(session: Awaited<ReturnType<TerminalManager["listSessions"]>>[number]) {
   return {
     id: session.id,
     runtimeId: session.runtimeId,
@@ -85,7 +115,7 @@ export async function registerTerminalRoutes(app: FastifyInstance, options: {
   };
   app.get("/terminal/sessions", async (request) => {
     const userId = httpIdentity(request, identityOptions);
-    return { sessions: options.manager.listSessions(userId).map(sessionResponse), updatedAt: new Date().toISOString() };
+    return { sessions: (await options.manager.listSessions(userId)).map(sessionResponse), updatedAt: new Date().toISOString() };
   });
   app.get("/terminal/workspace", async (request) => {
     const userId = httpIdentity(request, identityOptions);
@@ -122,7 +152,7 @@ export async function registerTerminalRoutes(app: FastifyInstance, options: {
       if (!entry?.runtimeId || updated.entries.some((candidate) => candidate.runtimeId === entry.runtimeId)) continue;
       try {
         const session = options.manager.resolveRuntime(userId, entry.runtimeId);
-        options.manager.closeSession(userId, session.id);
+        await options.manager.closeSession(userId, session.id);
       } catch (error) {
         if (!(error instanceof TerminalFailure && error.code === "SESSION_NOT_FOUND")) throw error;
       }
@@ -138,7 +168,7 @@ export async function registerTerminalRoutes(app: FastifyInstance, options: {
   app.delete("/terminal/sessions/:sessionId", async (request, reply) => {
     const userId = httpIdentity(request, identityOptions);
     const { sessionId } = sessionParamsSchema.parse(request.params);
-    options.manager.closeSession(userId, sessionId);
+    await options.manager.closeSession(userId, sessionId);
     return reply.status(204).send();
   });
 
@@ -154,6 +184,7 @@ export async function registerTerminalRoutes(app: FastifyInstance, options: {
       socket.close(1008, failure.code);
       return;
     }
+    const stopHeartbeat = attachTerminalSocketHeartbeat(socket);
     const sendQueue = createWebSocketSendQueue<ServerTerminalMessage>({ socket, maxQueueBytes: 8 * 1024 * 1024 });
     const send = (message: ServerTerminalMessage) => { sendQueue.send(message); };
     const clientId = randomUUID();
@@ -167,14 +198,36 @@ export async function registerTerminalRoutes(app: FastifyInstance, options: {
     const sessionOf = (runtimeId: string) => options.manager.resolveRuntime(userId, runtimeId);
     // Flood-Schutz pro Socket (S-009): Nachrichtenflut schließt mit 1013.
     const floodGuard = createTerminalFloodGuard();
+    const messageQueues = new Map<string, Promise<void>>();
+    const reportError = (error: unknown, raw: unknown) => {
+      let runtimeId: string | undefined;
+      let sessionId: string | undefined;
+      try {
+        const value = typeof raw === "string" ? JSON.parse(raw) : Buffer.isBuffer(raw) ? JSON.parse(raw.toString()) : null;
+        if (typeof value?.runtimeId === "string") runtimeId = value.runtimeId;
+        if (typeof value?.sessionId === "string") sessionId = value.sessionId;
+      } catch { /* Ohne gültige Zuordnung bleibt der Fehler socketweit. */ }
+      send({ type: "terminal.error", ...(runtimeId ? { runtimeId } : {}), ...(sessionId ? { sessionId } : {}), ...errorMessage(error) });
+    };
     socket.on("message", (raw: unknown) => {
       if (!floodGuard.tryConsume("messages")) {
         socket.close(1013, "Zu viele Terminalnachrichten");
         return;
       }
+      let message: z.infer<typeof clientTerminalMessageSchema>;
+      let queueKey: string;
       try {
         if (typeof raw !== "string" && !Buffer.isBuffer(raw)) throw new TerminalFailure("INVALID_MESSAGE", "Die Terminalnachricht ist ungültig.");
-        const message = clientTerminalMessageSchema.parse(JSON.parse(raw.toString()));
+        message = clientTerminalMessageSchema.parse(JSON.parse(raw.toString()));
+        if (message.type === "terminal.ping") { send({ type: "terminal.pong" }); return; }
+        queueKey = "runtimeId" in message && message.runtimeId ? message.runtimeId
+          : "sessionId" in message && message.sessionId ? options.manager.resolveSession(userId, message.sessionId).runtimeId : "connection";
+      } catch (error) { reportError(error, raw); return; }
+      // Eine langsame Runtime blockiert weder den Heartbeat noch andere
+      // Terminals auf demselben multiplexten Socket. Je Runtime bleibt FIFO.
+      const pending = (messageQueues.get(queueKey) ?? Promise.resolve()).then(async () => {
+      if (socket.readyState !== 1) return;
+      try {
         switch (message.type) {
           case "terminal.create": {
             const session = (async () => {
@@ -191,33 +244,34 @@ export async function registerTerminalRoutes(app: FastifyInstance, options: {
                 ...(message.cwd !== undefined ? { cwd: message.cwd } : projectCwd !== undefined ? { cwd: projectCwd } : {}),
               });
             })();
-            void session.then((created) => {
-              send({ type: "terminal.created", requestId: message.requestId, sessionId: created.id, runtimeId: created.runtimeId, kind: created.kind, projectId: created.projectId, status: created.status, cwd: created.cwd, pid: created.pid });
-              // Eine während des Starts geschlossene Verbindung darf keine
-              // verwaiste Geometrie-Eigentümerschaft zurücklassen.
-              if (socket.readyState !== 1) options.manager.detachClient(userId, clientId);
-            }).catch((error) => send({ type: "terminal.error", ...(message.runtimeId ? { runtimeId: message.runtimeId } : {}), ...errorMessage(error) }));
+            const created = await session;
+            send({ type: "terminal.created", requestId: message.requestId, sessionId: created.id, runtimeId: created.runtimeId, kind: created.kind, projectId: created.projectId, status: created.status, cwd: created.cwd, pid: created.pid });
+            // Eine während des Starts geschlossene Verbindung darf keine
+            // verwaiste Geometrie-Eigentümerschaft zurücklassen.
+            if (socket.readyState !== 1) options.manager.detachClient(userId, clientId);
             break;
           }
           case "terminal.attach": {
             const viewport = message.cols !== undefined && message.rows !== undefined ? { cols: message.cols, rows: message.rows } : undefined;
             const session = options.manager.resolveSession(userId, message.sessionId);
-            const detach = options.manager.attachSession(userId, session.id, send, clientId, viewport);
-            subscriptions.set(session.runtimeId, detach);
+            const detach = await options.manager.attachSession(userId, session.id, send, clientId, viewport);
+            if (socket.readyState !== 1) detach();
+            else subscriptions.set(session.runtimeId, detach);
             break;
           }
           case "terminal.subscribe": {
             const session = sessionOf(message.runtimeId);
             detachSubscription(session.runtimeId);
             const viewport = message.cols !== undefined && message.rows !== undefined ? { cols: message.cols, rows: message.rows } : undefined;
-            const detach = options.manager.attachSession(userId, session.id, send, clientId, viewport, message.state ?? null);
-            subscriptions.set(session.runtimeId, detach);
+            const detach = await options.manager.attachSession(userId, session.id, send, clientId, viewport, message.state ?? null);
+            if (socket.readyState !== 1) detach();
+            else subscriptions.set(session.runtimeId, detach);
             break;
           }
           case "terminal.unsubscribe": detachSubscription(message.runtimeId); break;
           case "terminal.sync": {
             const session = sessionOf(message.runtimeId);
-            options.manager.syncSession(userId, session.id, clientId, message.state);
+            await options.manager.syncSession(userId, session.id, clientId, message.state);
             break;
           }
           case "terminal.takeControl": {
@@ -237,33 +291,24 @@ export async function registerTerminalRoutes(app: FastifyInstance, options: {
             options.manager.resizeSession(userId, message.sessionId, message.cols, message.rows, clientId);
             break;
           case "terminal.clear": options.manager.clearSessionHistory(userId, message.sessionId); break;
-          case "terminal.restart": void options.manager.restartSession(userId, message.sessionId).catch((error) => send({ type: "terminal.error", sessionId: message.sessionId, ...errorMessage(error) })); break;
+          case "terminal.restart": await options.manager.restartSession(userId, message.sessionId); break;
           case "terminal.close": {
             const session = options.manager.resolveSession(userId, message.sessionId);
             const runtimeId = session.runtimeId;
-            options.manager.closeSession(userId, message.sessionId);
+            await options.manager.closeSession(userId, message.sessionId);
             detachSubscription(runtimeId);
             break;
           }
-          case "terminal.ping": send({ type: "terminal.pong" }); break;
         }
       } catch (error) {
-        // Auf dem multiplexten Socket trägt der Fehler die Runtime-ID des
-        // auslösenden Clients, damit der Transport ihn der richtigen
-        // Subscription zuordnen kann (z. B. SESSION_NOT_FOUND beim Subscribe).
-        let runtimeId: string | undefined;
-        let sessionId: string | undefined;
-        try {
-          const rawMessage = typeof raw === "string" ? JSON.parse(raw) : Buffer.isBuffer(raw) ? JSON.parse(raw.toString()) : null;
-          if (rawMessage && typeof rawMessage === "object" && "runtimeId" in rawMessage && typeof (rawMessage as { runtimeId?: unknown }).runtimeId === "string") {
-            runtimeId = (rawMessage as { runtimeId: string }).runtimeId;
-          }
-          if (typeof rawMessage?.sessionId === "string") sessionId = rawMessage.sessionId;
-        } catch { /* Ohne Runtime-ID bleibt der Fehler socketweit. */ }
-        send({ type: "terminal.error", ...(runtimeId ? { runtimeId } : {}), ...(sessionId ? { sessionId } : {}), ...errorMessage(error) });
+        reportError(error, raw);
       }
+      });
+      messageQueues.set(queueKey, pending);
+      void pending.finally(() => { if (messageQueues.get(queueKey) === pending) messageQueues.delete(queueKey); });
     });
     socket.on("close", () => {
+      stopHeartbeat();
       for (const detach of subscriptions.values()) detach();
       subscriptions.clear();
       sendQueue.dispose();

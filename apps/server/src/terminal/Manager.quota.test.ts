@@ -8,8 +8,8 @@ import { TerminalManager } from "./Manager.js";
 import { STALE_SESSION_TTL_MS } from "./session.js";
 import type { TmuxSupervisor } from "./TmuxSupervisor.js";
 
-const cleanup: Array<() => void> = [];
-afterEach(() => { for (const dispose of cleanup.splice(0).reverse()) dispose(); });
+const cleanup: Array<() => void | Promise<void>> = [];
+afterEach(async () => { for (const dispose of cleanup.splice(0).reverse()) await dispose(); });
 
 class FakeSupervisor {
   readonly sessions = new Set<string>();
@@ -27,9 +27,9 @@ class FakeSupervisor {
 
 function setup() {
   const root = mkdtempSync(join(tmpdir(), "wrapt-terminal-quota-"));
-  cleanup.push(() => rmSync(root, { recursive: true, force: true }));
+  cleanup.push(async () => rmSync(root, { recursive: true, force: true }));
   const database = new TerminalDatabase(join(root, "terminal.sqlite"));
-  cleanup.push(() => database.close());
+  cleanup.push(async () => database.close());
   return { root, database };
 }
 
@@ -49,11 +49,11 @@ function managerWith(root: string, database: TerminalDatabase, supervisor: FakeS
     supervisor: supervisor as unknown as TmuxSupervisor,
     adapter: { spawn: () => ({ pid: 0, write() {}, resize() {}, kill() {}, onData: () => ({ dispose() {} }), onExit: () => ({ dispose() {} }) }) },
   });
-  cleanup.push(() => manager.shutdown());
+  cleanup.push(async () => manager.shutdown());
   return manager;
 }
 
-test("unterbrochene Sitzungen ohne Workspace-Eintrag blockieren keine neuen Terminals", () => {
+test("unterbrochene Sitzungen ohne Workspace-Eintrag blockieren keine neuen Terminals", async () => {
   const { root, database } = setup();
   // Genau der Produktionszustand: viele unterbrochene Zeilen ohne lebenden
   // Supervisor und ohne Workspace-Eintrag hatten die Gesamtquote belegt.
@@ -69,15 +69,15 @@ test("unterbrochene Sitzungen ohne Workspace-Eintrag blockieren keine neuen Term
   return expect(manager.createSession("owner", { cols: 80, rows: 24 })).resolves.toMatchObject({ kind: "shell" });
 });
 
-test("entfernt alte, unsichtbare Sitzungen beim Start aus der Registry", () => {
+test("entfernt alte, unsichtbare Sitzungen beim Start aus der Registry", async () => {
   const { root, database } = setup();
   const stale = stored(root, { supervisorName: "wrapt-dead", updatedAt: Date.now() - STALE_SESSION_TTL_MS - 1_000 });
   database.saveSession(stale);
-  managerWith(root, database, new FakeSupervisor());
+  await managerWith(root, database, new FakeSupervisor()).ready();
   expect(database.findSession("owner", stale.runtimeId)).toBeUndefined();
 });
 
-test("zählt unterbrochene Sitzungen mit Workspace-Eintrag gegen die Quote", () => {
+test("zählt unterbrochene Sitzungen mit Workspace-Eintrag gegen die Quote", async () => {
   const { root, database } = setup();
   const session = stored(root, { supervisorName: "wrapt-dead" });
   database.saveSession(session);
@@ -91,7 +91,7 @@ test("zählt unterbrochene Sitzungen mit Workspace-Eintrag gegen die Quote", () 
   return expect(manager.createSession("owner", { cols: 80, rows: 24 })).rejects.toMatchObject({ code: "TOO_MANY_SESSIONS" });
 });
 
-test("zählt laufende Sitzungen mit lebendem Supervisor gegen die Quote", () => {
+test("zählt laufende Sitzungen mit lebendem Supervisor gegen die Quote", async () => {
   const { root, database } = setup();
   const supervisorName = "wrapt-live";
   const session = stored(root, { supervisorName, status: "running" });
@@ -103,7 +103,7 @@ test("zählt laufende Sitzungen mit lebendem Supervisor gegen die Quote", () => 
   return expect(manager.createSession("owner", { cols: 80, rows: 24 })).rejects.toMatchObject({ code: "TOO_MANY_SESSIONS" });
 });
 
-test("zählt unterbrochene Sitzungen mit lebendem Supervisor gegen die Quote", () => {
+test("zählt unterbrochene Sitzungen mit lebendem Supervisor gegen die Quote", async () => {
   const { root, database } = setup();
   const supervisorName = "wrapt-live-interrupted";
   const session = stored(root, { supervisorName, status: "interrupted" });
@@ -114,7 +114,7 @@ test("zählt unterbrochene Sitzungen mit lebendem Supervisor gegen die Quote", (
   return expect(manager.createSession("owner", { cols: 80, rows: 24 })).rejects.toMatchObject({ code: "TOO_MANY_SESSIONS" });
 });
 
-test("behält alte Workspace-Einträge und lebende Supervisor-Sitzungen beim Aufräumen", () => {
+test("behält alte Workspace-Einträge und lebende Supervisor-Sitzungen beim Aufräumen", async () => {
   const { root, database } = setup();
   const old = Date.now() - STALE_SESSION_TTL_MS - 1_000;
   const referenced = stored(root, { updatedAt: old });
@@ -133,7 +133,7 @@ test("behält alte Workspace-Einträge und lebende Supervisor-Sitzungen beim Auf
   expect(database.findSession("owner", supervised.runtimeId)).toBeDefined();
 });
 
-test("verwirft keine Sitzungen, wenn das Workspace-Dokument defekt ist", () => {
+test("verwirft keine Sitzungen, wenn das Workspace-Dokument defekt ist", async () => {
   const { root, database } = setup();
   const stale = stored(root, { updatedAt: Date.now() - STALE_SESSION_TTL_MS - 1_000 });
   database.saveSession(stale);
@@ -141,6 +141,6 @@ test("verwirft keine Sitzungen, wenn das Workspace-Dokument defekt ist", () => {
   internal.db.prepare("INSERT INTO terminal_workspaces(owner_id, document_json, revision, updated_at) VALUES (?, ?, ?, ?)").run(
     "owner", "{ kaputt", 1, new Date().toISOString(),
   );
-  managerWith(root, database, new FakeSupervisor());
+  await managerWith(root, database, new FakeSupervisor()).ready();
   expect(database.findSession("owner", stale.runtimeId)).toBeDefined();
 });

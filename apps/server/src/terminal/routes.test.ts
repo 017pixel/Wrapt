@@ -18,6 +18,48 @@ afterEach(async () => {
 });
 
 describe("terminal websocket route", () => {
+  it("hält Heartbeat und andere Runtimes während eines langsamen Attach erreichbar", async () => {
+    const app = Fastify();
+    apps.push(app);
+    const slow = "00000000-0000-4000-8000-000000000001";
+    const fast = "00000000-0000-4000-8000-000000000002";
+    const calls: string[] = [];
+    let release!: () => void;
+    const manager = {
+      resolveRuntime: (_user: string, id: string) => ({ id, runtimeId: id }),
+      resolveSession: (_user: string, id: string) => ({ id, runtimeId: id }),
+      attachSession: async (_user: string, id: string) => {
+        calls.push(`attach:${id}`);
+        if (id === slow) await new Promise<void>((resolve) => { release = resolve; });
+        return () => {};
+      },
+      activateClient: vi.fn(),
+      writeToSession: (_user: string, id: string, data: string) => { calls.push(`input:${id}:${data}`); },
+      detachClient: vi.fn(),
+    } as unknown as TerminalManager;
+    await app.register(websocket);
+    await app.register(registerTerminalRoutes, { prefix: "/api/v1", manager, allowedUsers: ["terminal-test@example.com"] });
+    await app.ready();
+    const socket = await app.injectWS("/api/v1/terminal", { headers: { "tailscale-user-login": "terminal-test@example.com", origin: "http://localhost", host: "localhost", "x-forwarded-proto": "http" } });
+    const replies: unknown[] = [];
+    socket.on("message", (data: Buffer) => replies.push(JSON.parse(data.toString())));
+    socket.send(JSON.stringify({ type: "terminal.subscribe", runtimeId: slow }));
+    socket.send(JSON.stringify({ type: "terminal.input", sessionId: slow, data: "wartet" }));
+    socket.send(JSON.stringify({ type: "terminal.subscribe", runtimeId: fast }));
+    socket.send(JSON.stringify({ type: "terminal.input", sessionId: fast, data: "eins" }));
+    socket.send(JSON.stringify({ type: "terminal.input", sessionId: fast, data: "zwei" }));
+    socket.send(JSON.stringify({ type: "terminal.ping" }));
+    try {
+      await vi.waitFor(() => {
+        expect(replies).toContainEqual({ type: "terminal.pong" });
+        expect(calls.filter(call => call.includes(fast))).toEqual([`attach:${fast}`, `input:${fast}:eins`, `input:${fast}:zwei`]);
+      });
+      expect(calls).not.toContain(`input:${slow}:wartet`);
+      release();
+      await vi.waitFor(() => expect(calls).toContain(`input:${slow}:wartet`));
+    } finally { release?.(); socket.terminate(); }
+  });
+
   it("ordnet asynchrone Startfehler der auslösenden Runtime zu", async () => {
     const app = Fastify();
     apps.push(app);
@@ -30,7 +72,7 @@ describe("terminal websocket route", () => {
     const runtimeId = "00000000-0000-4000-8000-000000000019";
     socket.send(JSON.stringify({ type: "terminal.create", requestId: "invalid-cwd", runtimeId, cwd: "/", cols: 80, rows: 24 }));
     await expect(reply).resolves.toMatchObject({ type: "terminal.error", code: "INVALID_CWD", runtimeId });
-    socket.terminate(); manager.shutdown();
+    socket.terminate(); (await manager.shutdown());
   });
 
   it("uses the direct WebSocket API exposed by @fastify/websocket v11", async () => {
@@ -60,7 +102,7 @@ describe("terminal websocket route", () => {
 
     expect(JSON.parse(await pong)).toEqual({ type: "terminal.pong" });
     socket.terminate();
-    manager.shutdown();
+    (await manager.shutdown());
   });
 
   it("uses the configured development identity when the browser WebSocket has no proxy header", async () => {
@@ -90,7 +132,7 @@ describe("terminal websocket route", () => {
 
     expect(JSON.parse(await pong)).toEqual({ type: "terminal.pong" });
     socket.terminate();
-    manager.shutdown();
+    (await manager.shutdown());
   });
 
   it("resolves a project ID on the server before creating a session", async () => {
@@ -120,7 +162,7 @@ describe("terminal websocket route", () => {
     await expect(created).resolves.toMatchObject({ type: "terminal.created", requestId: "project-terminal", kind: "shell", cwd: projectRoot });
     expect(resolveProjectPath).toHaveBeenCalledWith("wrapt");
     socket.terminate();
-    manager.shutdown();
+    (await manager.shutdown());
   });
 
   it("uses an explicitly validated split directory before the project root", async () => {
@@ -151,7 +193,7 @@ describe("terminal websocket route", () => {
 
     await expect(created).resolves.toMatchObject({ type: "terminal.created", requestId: "split-terminal", cwd: canonicalSplitDirectory });
     socket.terminate();
-    manager.shutdown();
+    (await manager.shutdown());
   });
 
   it("exposes authenticated session and workspace synchronization endpoints", async () => {
@@ -186,7 +228,7 @@ describe("terminal websocket route", () => {
     });
     expect(ops.statusCode).toBe(200);
     expect(ops.json()).toMatchObject({ revision: 2, document: { entries: [{ name: "Build", pinned: true }] } });
-    manager.shutdown();
+    (await manager.shutdown());
     database.close();
   });
 
@@ -230,7 +272,7 @@ describe("terminal websocket route", () => {
     });
     expect(ops.statusCode).toBe(200);
     expect(ops.json()).toMatchObject({ revision: 345 });
-    manager.shutdown();
+    (await manager.shutdown());
     database.close();
   });
 });

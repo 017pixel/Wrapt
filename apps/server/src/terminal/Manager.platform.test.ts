@@ -6,14 +6,14 @@ import { TerminalManager } from "./Manager.js";
 import type { PtyAdapter } from "./NodePtyAdapter.js";
 import type { ServerTerminalMessage } from "./protocol.js";
 
-const cleanup: Array<() => void> = [];
-afterEach(() => { for (const dispose of cleanup.splice(0).reverse()) dispose(); });
+const cleanup: Array<() => void | Promise<void>> = [];
+afterEach(async () => { for (const dispose of cleanup.splice(0).reverse()) await dispose(); });
 
 test.each(["linux", "darwin", "win32"] as const)("Eingabe, CWD, Resize, Neustart und Schließen verwenden die %s-Prozesssemantik", async (platform) => {
   const root = mkdtempSync(join(tmpdir(), "wrapt-terminal-platform-"));
   const nested = join(root, "nested");
   mkdirSync(nested);
-  cleanup.push(() => rmSync(root, { recursive: true, force: true }));
+  cleanup.push(async () => rmSync(root, { recursive: true, force: true }));
   const processes: Array<{ kill: ReturnType<typeof vi.fn>; write: ReturnType<typeof vi.fn>; resize: ReturnType<typeof vi.fn>; output: ((data: string) => void) | undefined }> = [];
   const spawn = vi.fn<PtyAdapter["spawn"]>(() => {
     const process = { pid: 0, write: vi.fn(), resize: vi.fn(), kill: vi.fn(), output: undefined as ((data: string) => void) | undefined };
@@ -21,10 +21,10 @@ test.each(["linux", "darwin", "win32"] as const)("Eingabe, CWD, Resize, Neustart
     return { ...process, onData: (callback) => { process.output = callback; return { dispose: () => { process.output = undefined; } }; }, onExit: () => ({ dispose() {} }) };
   });
   const manager = new TerminalManager({ allowedRoots: [root], defaultCwd: root, homeDirectory: root, maxSessions: 1, platform, adapter: { spawn } });
-  cleanup.push(() => manager.shutdown());
+  cleanup.push(async () => manager.shutdown());
   const session = await manager.createSession("owner", { cols: 80, rows: 24 });
   const received: ServerTerminalMessage[] = [];
-  manager.attachSession("owner", session.id, (message) => received.push(message));
+  (await manager.attachSession("owner", session.id, (message) => received.push(message)));
   expect(spawn.mock.calls[0]?.[0]).toMatch(platform === "win32" ? /powershell\.exe$/ : /\/bin\/bash$/);
   expect(spawn.mock.calls[0]?.[2]).toMatchObject({ cols: 80, rows: 24, env: { HOME: root }, ...(platform === "win32" ? { useConpty: true } : {}) });
   manager.writeToSession("owner", session.id, "echo test\r");
@@ -44,7 +44,7 @@ test.each(["linux", "darwin", "win32"] as const)("Eingabe, CWD, Resize, Neustart
   expect(processes[0]?.kill).toHaveBeenCalledWith(platform === "win32" ? undefined : "SIGTERM");
   expect(spawn).toHaveBeenCalledTimes(2);
   expect(session.epoch).toBe(1);
-  manager.closeSession("owner", session.id);
+  (await manager.closeSession("owner", session.id));
   expect(processes[1]?.kill).toHaveBeenCalledWith(platform === "win32" ? undefined : "SIGTERM");
   expect(received).toContainEqual(expect.objectContaining({ type: "terminal.exited" }));
 });

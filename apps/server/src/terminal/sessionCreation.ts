@@ -34,7 +34,7 @@ export interface SessionCreationContext {
   sessions: Map<string, TerminalSession>;
   findByRuntime(userId: string, runtimeId: string): TerminalSession | undefined;
   persist(session: TerminalSession): void;
-  close(session: TerminalSession): void;
+  close(session: TerminalSession): Promise<void>;
 }
 
 /**
@@ -56,7 +56,7 @@ export async function createSessionWithContext(
   const now = Date.now();
   for (const session of [...context.sessions.values()]) {
     if (session.status === "exited" && now - session.updatedAt > EXITED_SESSION_TTL_MS) {
-      context.close(session);
+      await context.close(session);
     }
   }
   const activeSessions = [...context.sessions.values()].filter((session) => session.userId === userId && session.status !== "closed");
@@ -89,7 +89,7 @@ export async function createSessionWithContext(
   if (context.database) {
     // Lebende Supervisor-Prozesse zählen mit, auch wenn ihre Zeile als
     // unterbrochen gilt (z. B. fehlgeschlagenes Anhängen nach dem Aufwachen).
-    const activeSupervisorNames = new Set(context.supervisor?.list().map((entry) => entry.name) ?? []);
+    const activeSupervisorNames = new Set((await context.supervisor?.list())?.map((entry) => entry.name) ?? []);
     reserveSessionSlot(context.database, session, { overall: context.maxSessions, kind: kindLimit }, context.process.kindLabel(kind), activeSupervisorNames);
     // Die Reservierung hat den Datensatz bereits geschrieben.
     session.lastPersistedAt = session.updatedAt;
@@ -97,12 +97,12 @@ export async function createSessionWithContext(
   context.sessions.set(session.id, session);
   if (!context.database) context.persist(session);
   try {
-    context.process.spawn(session);
+    await context.process.spawn(session);
     return session;
   } catch (error) {
     // Schlägt nur das Anhängen fehl (etwa direkt nach dem Aufwachen aus dem
     // Schlaf), während die tmux-Session weiterlebt, bleibt die Session bestehen.
-    if (context.supervisor && session.supervisorName && context.supervisor.has(session.supervisorName)) {
+    if (context.supervisor && session.supervisorName && await context.supervisor.has(session.supervisorName)) {
       session.status = "interrupted";
       session.updatedAt = Date.now();
       context.persist(session);
@@ -114,7 +114,7 @@ export async function createSessionWithContext(
   }
 }
 
-export function reattachSession(context: Pick<SessionCreationContext, "allowedRoots" | "deniedRoots" | "persist" | "process" | "supervisor">, existing: TerminalSession, input: SessionCreationInput): TerminalSession {
+export async function reattachSession(context: Pick<SessionCreationContext, "allowedRoots" | "deniedRoots" | "persist" | "process" | "supervisor">, existing: TerminalSession, input: SessionCreationInput): Promise<TerminalSession> {
   if (existing.kind !== (input.kind ?? "shell") || existing.projectId !== (input.projectId ?? null)) {
     throw new TerminalFailure("SESSION_RUNTIME_CONFLICT", "Diese Werkzeuginstanz ist bereits an eine andere Session gebunden.");
   }
@@ -135,7 +135,7 @@ export function reattachSession(context: Pick<SessionCreationContext, "allowedRo
     }
   }
   if (!existing.pty) {
-    const supervisorAlive = context.supervisor && existing.supervisorName && context.supervisor.has(existing.supervisorName);
+    const supervisorAlive = context.supervisor && existing.supervisorName && await context.supervisor.has(existing.supervisorName);
     // Jede pty-lose, nicht geschlossene Session wird beim nächsten
     // Verbinden wieder in den laufenden Zustand gebracht.
     if (existing.status !== "running" || supervisorAlive) {
@@ -147,7 +147,7 @@ export function reattachSession(context: Pick<SessionCreationContext, "allowedRo
       // seinen alten Stand deshalb nicht mit einem leeren Delta-Sync bestätigen.
       if (!existing.headless) existing.epoch += 1;
       existing.status = "starting";
-      context.process.spawn(existing);
+      await context.process.spawn(existing);
     } else if (existing.status === "running") {
       existing.status = "interrupted";
     }

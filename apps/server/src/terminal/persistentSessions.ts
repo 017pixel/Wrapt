@@ -4,15 +4,15 @@ import type { TerminalSession } from "./session.js";
 
 /** Nur unterbrochene, ausdrücklich persistente Sitzungen erlaubter Nutzer
  *  starten neu. Lebende tmux-Prozesse bleiben bis zum ersten Attach unberührt. */
-export function restorePersistentSessions(deps: {
+export async function restorePersistentSessions(deps: {
   database: TerminalDatabase | undefined;
   owners: readonly string[];
   allowedRoots: string[];
   deniedRoots?: string[];
   sessions: Map<string, TerminalSession>;
-  spawn(session: TerminalSession): void;
+  spawn(session: TerminalSession): Promise<void>;
   persist(session: TerminalSession): void;
-}): void {
+}): Promise<void> {
   for (const owner of deps.owners) {
     for (const stored of deps.database?.persistentSessions(owner) ?? []) {
       const session = fromStored(stored);
@@ -25,7 +25,7 @@ export function restorePersistentSessions(deps: {
         session.exitSignal = null;
         session.updatedAt = Date.now();
         session.lastPersistedAt = undefined;
-        deps.spawn(session);
+        await deps.spawn(session);
       } catch {
         session.status = "interrupted";
         session.updatedAt = Date.now();

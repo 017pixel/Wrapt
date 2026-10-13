@@ -20,6 +20,8 @@ export class TerminalManager {
   private readonly creationLocks = new Map<string, Promise<TerminalSession>>();
   private readonly cwdRefreshTimers = new Map<string, NodeJS.Timeout>();
   private readonly process: ProcessRuntime;
+  private readonly initialization: Promise<void>;
+  private readonly mutations = new Map<string, Promise<unknown>>();
 
   constructor(private readonly options: {
     allowedRoots: string[];
@@ -54,7 +56,8 @@ export class TerminalManager {
       cwdRefreshTimers: this.cwdRefreshTimers,
       validateCwd: (session) => validateCwdSync(session.cwd, this.options.allowedRoots, this.options.deniedRoots ?? []),
     });
-    reconcileTerminalSessionsOnStartup({
+    this.initialization = (async () => {
+    await reconcileTerminalSessionsOnStartup({
       supervisor: this.options.supervisor,
       database: this.options.database,
       externalSessionOwnerId: this.options.externalSessionOwnerId,
@@ -62,7 +65,7 @@ export class TerminalManager {
       allowedRoots: this.options.allowedRoots,
       deniedRoots: this.options.deniedRoots ?? [],
     });
-    restorePersistentSessions({
+    await restorePersistentSessions({
       database: this.options.database,
       owners: this.options.persistentSessionOwners ?? [],
       allowedRoots: this.options.allowedRoots,
@@ -71,11 +74,16 @@ export class TerminalManager {
       spawn: (session) => this.process.spawn(session),
       persist: (session) => this.persist(session),
     });
+    })();
+    void this.initialization.catch(() => {});
   }
+
+  ready(): Promise<void> { return this.initialization; }
 
   private get adapter() { return this.options.adapter ?? nodePtyAdapter; }
 
   async createSession(userId: string, input: SessionCreationInput): Promise<TerminalSession> {
+    await this.ready();
     const lockKey = input.runtimeId ? `${userId}\u0000${input.runtimeId}` : randomUUID();
     const pending = this.creationLocks.get(lockKey);
     if (pending) return pending;
@@ -98,13 +106,15 @@ export class TerminalManager {
     try { return await creation; } finally { this.creationLocks.delete(lockKey); }
   }
 
-  attachSession(userId: string, sessionId: string, client: (message: ServerTerminalMessage) => void, clientId: string = randomUUID(), viewport?: TerminalClientViewport, sync?: { epoch: number; lastSequence: number } | null): () => void {
+  async attachSession(userId: string, sessionId: string, client: (message: ServerTerminalMessage) => void, clientId: string = randomUUID(), viewport?: TerminalClientViewport, sync?: { epoch: number; lastSequence: number } | null): Promise<() => void> {
+    await this.ready();
+    return this.mutate(sessionId, async () => {
     const session = this.owned(userId, sessionId);
     if (viewport) assertValidViewport(viewport.cols, viewport.rows);
     // Nach einem Backend-Neustart lebt tmux weiter, aber das PTY-Gateway
     // fehlt. Auch Subscribe/Attach muss es wieder verbinden können.
-    if (!session.pty && session.supervisorName && this.options.supervisor?.has(session.supervisorName)) {
-      reattachSession({ allowedRoots: this.options.allowedRoots, deniedRoots: this.options.deniedRoots ?? [], process: this.process, supervisor: this.options.supervisor, persist: (value) => this.persist(value) }, session, {
+    if (!session.pty && session.supervisorName && await this.options.supervisor?.has(session.supervisorName)) {
+      await reattachSession({ allowedRoots: this.options.allowedRoots, deniedRoots: this.options.deniedRoots ?? [], process: this.process, supervisor: this.options.supervisor, persist: (value) => this.persist(value) }, session, {
         kind: session.kind, projectId: session.projectId, clientId,
         cols: viewport?.cols ?? session.cols, rows: viewport?.rows ?? session.rows,
       });
@@ -127,21 +137,22 @@ export class TerminalManager {
     }
     // Ein Client mit konsistentem Zustand bekommt Deltas statt eines vollen
     // Snapshots (Fast Reconnect); sonst den vollen serialisierten Zustand.
-    sendSync(session, clientId, client, this.options.supervisor, sync);
+    await sendSync(session, clientId, client, this.options.supervisor, sync);
     let attached = true;
     return () => {
       if (!attached) return;
       attached = false;
       this.detachClientFromSession(session, clientId);
     };
+    });
   }
 
   /** Fordert einen erneuten Sync an (z. B. nach einer erkannten Sequenzlücke). */
-  syncSession(userId: string, sessionId: string, clientId: string, sync: { epoch: number; lastSequence: number }) {
+  async syncSession(userId: string, sessionId: string, clientId: string, sync: { epoch: number; lastSequence: number }) {
     const session = this.owned(userId, sessionId);
     const client = session.clients.get(clientId);
     if (!client) return;
-    sendSync(session, clientId, client, this.options.supervisor, sync);
+    await sendSync(session, clientId, client, this.options.supervisor, sync);
   }
 
   /** Echte Nutzerinteraktion: übernimmt die Geometrie-Eigentümerschaft. */
@@ -233,10 +244,11 @@ export class TerminalManager {
   }
 
   async restartSession(userId: string, sessionId: string) {
+    return this.mutate(sessionId, async () => {
     const session = this.owned(userId, sessionId);
     if (session.status === "closed") throw new TerminalFailure("SESSION_ALREADY_CLOSED", "Die Terminalsitzung wurde bereits beendet.");
     session.cwd = requireValidCwd(session, this.options.allowedRoots, (s) => this.persist(s), this.options.deniedRoots ?? []);
-    if (session.status === "running") this.process.stopProcess(session, true);
+    if (session.status === "running") await this.process.stopProcess(session, true);
     session.history = ""; session.exitCode = null; session.exitSignal = null; session.status = "starting"; session.updatedAt = Date.now();
     // Ein echter Neustart erzeugt die Runtime neu: neuer Epoch, frischer
     // Terminalzustand, leeres Journal.
@@ -244,15 +256,17 @@ export class TerminalManager {
     session.sequence = 0;
     session.headless?.reset(session.sequence);
     session.journal.clear();
-    this.persist(session); this.process.spawn(session);
-    broadcastSnapshot(session, this.options.supervisor);
+    this.persist(session); await this.process.spawn(session);
+    await broadcastSnapshot(session, this.options.supervisor);
     return session;
+    });
   }
 
-  closeSession(userId: string, sessionId: string) { this.close(this.owned(userId, sessionId)); }
+  async closeSession(userId: string, sessionId: string) { await this.close(this.owned(userId, sessionId)); }
 
-  listSessions(userId: string) {
-    importSupervisorSessions(userId, {
+  async listSessions(userId: string) {
+    await this.ready();
+    await importSupervisorSessions(userId, {
       supervisor: this.options.supervisor,
       database: this.options.database,
       externalSessionOwnerId: this.options.externalSessionOwnerId,
@@ -272,13 +286,18 @@ export class TerminalManager {
     return { id: session.id, runtimeId: session.runtimeId, userId: session.userId, kind: session.kind, projectId: session.projectId, pid: session.pid, cwd: session.cwd, cols: session.cols, rows: session.rows, status: session.status, createdAt: session.createdAt, updatedAt: session.updatedAt, exitCode: session.exitCode, exitSignal: session.exitSignal, sequence: session.sequence, epoch: session.epoch, connectedClients: session.clients.size };
   }
 
-  shutdown() {
+  async shutdown() {
+    const draining = this.process.shutdown();
+    await this.ready().catch(() => {});
+    await draining;
+    await Promise.allSettled(this.mutations.values());
+    const liveSupervisorNames = new Set((await this.options.supervisor?.list() ?? []).map((session) => session.name));
     for (const timer of this.cwdRefreshTimers.values()) clearTimeout(timer);
     this.cwdRefreshTimers.clear();
     for (const session of this.sessions.values()) {
       if (session.status === "closed") continue;
-      this.process.stopProcess(session, false);
-      session.status = this.options.supervisor && session.supervisorName && this.options.supervisor.has(session.supervisorName) ? "running" : "interrupted";
+      await this.process.stopProcess(session, false);
+      session.status = session.supervisorName && liveSupervisorNames.has(session.supervisorName) ? "running" : "interrupted";
       session.lastPersistedAt = undefined;
       session.updatedAt = Date.now(); this.persist(session); session.clients.clear(); session.clientViewports.clear(); session.primaryClientId = null;
       session.headless?.dispose();
@@ -339,12 +358,21 @@ export class TerminalManager {
     } catch { /* Der neue Primary passt beim nächsten Resize erneut an. */ }
   }
 
-  private close(session: TerminalSession) {
+  private mutate<T>(id: string, action: () => Promise<T>): Promise<T> {
+    const operation = (this.mutations.get(id) ?? Promise.resolve()).catch(() => {}).then(action);
+    this.mutations.set(id, operation);
+    void operation.finally(() => { if (this.mutations.get(id) === operation) this.mutations.delete(id); }).catch(() => {});
+    return operation;
+  }
+
+  private close(session: TerminalSession): Promise<void> { return this.mutate(session.id, () => this.closeUnlocked(session)); }
+
+  private async closeUnlocked(session: TerminalSession) {
     if (session.status === "closed") return;
     session.status = "closed";
     session.sequence += 1;
     this.emit(session, { type: "terminal.exited", sessionId: session.id, exitCode: session.exitCode, signal: session.exitSignal, sequence: session.sequence });
-    this.process.stopProcess(session, true);
+    await this.process.stopProcess(session, true);
     session.headless?.dispose();
     session.clients.clear();
     session.clientViewports.clear();

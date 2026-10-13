@@ -51,15 +51,15 @@ export function fromStored(stored: StoredTerminalSession): TerminalSession {
 
 /** Stellt beim Start den Konsistenzzustand zwischen Registry und Supervisor her
  *  und übernimmt vorhandene Supervisor-Sessions in die persistierte Quote. */
-export function reconcileTerminalSessionsOnStartup(deps: {
+export async function reconcileTerminalSessionsOnStartup(deps: {
   supervisor: TmuxSupervisor | undefined;
   database: TerminalDatabase | undefined;
   externalSessionOwnerId: string | undefined;
   defaultCwd: string;
   allowedRoots: string[];
   deniedRoots?: string[];
-}): void {
-  const activeSupervisorNames = new Set(deps.supervisor?.list().map((session) => session.name) ?? []);
+}): Promise<void> {
+  const activeSupervisorNames = new Set((await deps.supervisor?.list())?.map((session) => session.name) ?? []);
   if (deps.supervisor) {
     deps.database?.reconcileSupervisorSessions(activeSupervisorNames);
   } else {
@@ -69,7 +69,7 @@ export function reconcileTerminalSessionsOnStartup(deps: {
   // sammeln sich sonst unbegrenzt in der Registry an.
   deps.database?.purgeStaleSessions(activeSupervisorNames, STALE_SESSION_TTL_MS);
   if (deps.externalSessionOwnerId) {
-    importSupervisorSessions(deps.externalSessionOwnerId, {
+    await importSupervisorSessions(deps.externalSessionOwnerId, {
       supervisor: deps.supervisor,
       database: deps.database,
       externalSessionOwnerId: deps.externalSessionOwnerId,
@@ -124,21 +124,21 @@ export function assertValidViewport(cols: number, rows: number): void {
 
 /** Erkennt vorhandene tmux-Sessions eines Einzelbenutzers und legt sie als
  *  verwaltete Sessions in der Registry ab. */
-export function importSupervisorSessions(userId: string, deps: {
+export async function importSupervisorSessions(userId: string, deps: {
   supervisor: TmuxSupervisor | undefined;
   database: TerminalDatabase | undefined;
   externalSessionOwnerId: string | undefined;
   defaultCwd: string;
   allowedRoots: string[];
   deniedRoots?: string[];
-}): void {
+}): Promise<void> {
   const { supervisor, database, externalSessionOwnerId, defaultCwd, allowedRoots } = deps;
   const deniedRoots = deps.deniedRoots ?? [];
   if (!supervisor || !database) return;
   if (externalSessionOwnerId !== userId) return;
   const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   const fallbackCwd = canonicalCwdWithinRootsSync(defaultCwd, allowedRoots, deniedRoots) ?? defaultCwd;
-  for (const discovered of supervisor.list()) {
+  for (const discovered of await supervisor.list()) {
     // Die eigene Supervisor-Session ist technisch ebenfalls ein tmux-Pane,
     // aber keine Nutzer-Session. Ohne diesen Filter würde jeder Backend-Start
     // `wrapt-supervisor` als Terminal in die Registry importieren.

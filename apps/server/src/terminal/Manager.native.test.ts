@@ -38,7 +38,7 @@ test("native PTY-Shell antwortet, verfolgt cd, resizet und startet erneut", asyn
   let lastPid: number | undefined;
   try {
     const session = await manager.createSession("owner", { cols: 80, rows: 24 });
-    manager.attachSession("owner", session.id, (message) => received.push(message));
+    (await manager.attachSession("owner", session.id, (message) => received.push(message)));
     // Eine frisch gestartete Shell nimmt Eingaben erst mit ihrem Prompt an.
     // Unter Windows startet PowerShell über ConPTY sichtbar später als bash,
     // deshalb wird der Befehl so lange erneut gesendet, bis seine Ausgabe
@@ -62,10 +62,10 @@ test("native PTY-Shell antwortet, verfolgt cd, resizet und startet erneut", asyn
       expect(output()).toContain("__NATIVE_RESTARTED__");
     }, { timeout: 30_000, interval: 500 });
     expect(sameDirectory(session.cwd, nested)).toBe(true);
-    manager.closeSession("owner", session.id);
+    (await manager.closeSession("owner", session.id));
     expect(session.status).toBe("closed");
   } finally {
-    manager.shutdown();
+    (await manager.shutdown());
     vi.unstubAllEnvs();
     // Unter Windows blockiert ein noch laufender Prozess das Löschen seines
     // Arbeitsverzeichnisses, weil es dessen aktuelles Verzeichnis ist.

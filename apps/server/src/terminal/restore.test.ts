@@ -18,7 +18,7 @@ async function temporaryDirectory(prefix: string): Promise<string> {
 }
 
 afterEach(async () => {
-  for (const manager of managers.splice(0)) manager.shutdown();
+  for (const manager of managers.splice(0)) (await manager.shutdown());
   await Promise.all(directories.splice(0).map((directory) => rm(directory, { recursive: true, force: true })));
 });
 
@@ -137,7 +137,7 @@ describe("kanonische Terminal-Arbeitsverzeichnisse", () => {
     const workspace = join(root, "workspace");
     await mkdir(workspace);
     const session = await first.createSession("owner", { runtimeId, cwd: workspace, cols: 80, rows: 24 });
-    first.shutdown();
+    (await first.shutdown());
     managers.splice(managers.indexOf(first), 1);
 
     // Zwischen Persistenz und Neustart wird der ehemals gültige Ordner durch
@@ -149,7 +149,7 @@ describe("kanonische Terminal-Arbeitsverzeichnisse", () => {
     managers.push(second);
     await expect(second.createSession("owner", { runtimeId, cols: 80, rows: 24 })).rejects.toMatchObject({ code: "INVALID_CWD" });
     expect(second.getSessionMetadata("owner", session.id).status).toBe("interrupted");
-    second.shutdown();
+    (await second.shutdown());
     managers.splice(managers.indexOf(second), 1);
     database.close();
   });

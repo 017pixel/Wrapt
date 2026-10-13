@@ -39,7 +39,7 @@ describe("Terminal-Flood-Schutz (S-009)", () => {
     ]);
     expect(result.code).toBe(1013);
     socket.terminate();
-    manager.shutdown();
+    (await manager.shutdown());
   }, 15_000);
 
   it("beantwortet einzelne Pings normal", async () => {
@@ -63,6 +63,6 @@ describe("Terminal-Flood-Schutz (S-009)", () => {
     socket.send(JSON.stringify({ type: "terminal.ping" }));
     expect(JSON.parse(await pong)).toEqual({ type: "terminal.pong" });
     socket.terminate();
-    manager.shutdown();
+    (await manager.shutdown());
   });
 });
