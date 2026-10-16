@@ -2,6 +2,48 @@
 
 Alle relevanten Änderungen werden in kurzen Stichpunkten dokumentiert.
 
+## [2.8.0] - 2026-10-15
+
+### Verändert
+- Popup-Bilder für Changelog und Nutzung erscheinen ohne nachträgliches Aufhellen. Die kleinen Motive werden früh vorgeladen und bleiben für erneutes Öffnen bereit.
+- Transparenz-Intensität reicht bis 300 % und startet ohne gespeicherte Auswahl bei 100 %. Vorhandene Einstellungen bleiben erhalten.
+- Die Serverauswahl hat einen Bildakzent im Kopf; einzelne Sterne im Changelog funkeln dezent. Bei reduzierter Bewegung bleiben sie ruhig.
+
+## [2.7.2] - 2026-10-14
+
+### Behoben
+- Die Serverauswahl zeigt verbundene Wrapt-Instanzen wieder mit korrektem Status an. Der Verbindungstest läuft über den eigenen Server und scheitert nicht mehr daran, dass der Browser den Status der anderen Instanz nicht direkt lesen darf.
+- Neue Server lassen sich wieder zuverlässig hinzufügen; die Verbindungsprüfung im Dialog nutzt denselben serverseitigen Test.
+
+## [2.7.1] - 2026-10-14
+
+### Verändert
+- Transparenz-Intensität steuert jetzt deutlich mehr Durchsicht und die Unschärfe aller schwebenden Menüs. Projektwahl, Werkzeugaktionen und Serverauswahl verwenden dasselbe Glasmaterial.
+- Verschachtelte Notes-Menüs zeichnen ihren Hintergrund unabhängig weich. Farbmenüs bleiben auch auf kleinen Displays sichtbar und haben größere Touch-Ziele.
+- Artwork für Banner und leere Ansichten lädt mit kleineren Bildern. Hover und Tastaturfokus laden nur das benötigte Motiv vor; der Dashboard-Hintergrund wird auf anderen Seiten nicht vorsorglich geladen.
+- Dashboard-Artwork erhält eine leichte zusätzliche Weichzeichnung.
+
+## [2.7.0] - 2026-10-14
+
+### Erstellt
+- Transparenz-Intensität unter Design: Der Regler wirkt sofort, bleibt nach dem Neuladen erhalten und synchronisiert sich zwischen geöffneten Tabs.
+
+### Verändert
+- Artwork liegt großflächig und dezent hinter leeren Zuständen und dem Dashboard. Sichtbare Bildrahmen entfallen, die Motive laufen weich in die Fläche aus.
+- Changelog und Limits erhalten zurückhaltende Bildbanner, die in den Kopf der Glasfläche übergehen.
+- Statuskarten schließen mit Escape und geben den Tastaturfokus an ihren Auslöser zurück.
+- Dialoge, Dropdowns, Kontextmenüs und schwebende Hinweise verwenden eine gemeinsame Glas-Ebene. Gedämpfter Text gewinnt mit der Transparenz Kontrast. Reduzierte Transparenz und höherer Kontrast im Betriebssystem behalten Vorrang.
+
+## [2.6.0] - 2026-10-13
+
+### Erstellt
+- Bildköpfe für Changelog und Limits mit weichem Übergang in die Karte, passend zum Stil der Landingpage. Die Bilder laden im Voraus, damit beim ersten Öffnen nichts mehr weiß aufblitzt.
+- Leere Zustände mit eigenem Bild: Projekte, Notizen und Werkzeuge zeigen je ein ruhiges Motiv mit klarer Aktion, die Suche bleibt bewusst ohne Bild.
+
+### Verändert
+- Dashboard-Hintergrund läuft oben und unten weich in die Grundfläche, wie der Hero der Landingpage.
+- Dialoge, Projektwahl und kleine Menüs ruhiger: einheitliche Abstände, sichtbare Fokus-Ringe, größere Touch-Ziele und auf dem Handy ein Bottom Sheet.
+
 ## [2.5.1] - 2026-10-13
 
 ### Verändert
