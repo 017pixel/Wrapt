@@ -1,0 +1,9 @@
+/* Projektwahl: Tastaturfokus und ruhiges Press-Feedback. Die Popover liegen im
+   Portal an <body>; die Klassenregeln greifen trotzdem global. */
+.project-picker-trigger:active { transform: scale(.97); }
+.project-picker-popover-head button:focus-visible { outline: 2px solid var(--focus-ring-color); outline-offset: -2px; }
+.project-picker-popover-head button:active { transform: scale(.97); }
+.project-picker-option:focus-visible { background: var(--color-ink-800); color: var(--color-text); outline: 2px solid var(--focus-ring-color); outline-offset: -2px; }
+.project-picker-option:active { transform: scale(.97); }
+.project-picker-path-form input:focus-visible { outline: 2px solid var(--focus-ring-color); outline-offset: 1px; }
+.project-picker-path-form button:active:not(:disabled) { transform: scale(.97); }

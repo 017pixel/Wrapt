@@ -22,6 +22,14 @@ describe("settingsSearch", () => {
     expect(searchSettings("Verbindung")[0]?.entry.id).toBe("workspaces");
   });
 
+  it("führt Glas und Transparenz zum Regler im Design-Tab", () => {
+    for (const query of ["Transparenz", "Glas", "Deckkraft", "Dropdown"]) {
+      expect(searchSettings(query)[0]?.entry).toMatchObject({
+        id: "design-transparency", tab: "design", anchor: "settings-design-transparency",
+      });
+    }
+  });
+
   it("findet einen Bereich trotz bis zu drei Tippfehlern", () => {
     expect(searchSettings("desgin").some((result) => result.entry.id === "design")).toBe(true);
     expect(searchSettings("neustar").some((result) => result.entry.id === "general-restart")).toBe(true);

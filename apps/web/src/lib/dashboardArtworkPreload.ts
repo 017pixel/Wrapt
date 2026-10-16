@@ -40,10 +40,12 @@ function readStoredArtworkId(): string {
  * dem ersten Paint. Bei 1280 x 720 sind das rund 27 ms, die sonst mitten im
  * ersten sichtbaren Frame liegen.
  *
- * Idempotent: Ein zweifter Aufruf mit demselben Motiv ändert nichts. Beim
+ * Idempotent: Ein zweiter Aufruf mit demselben Motiv lädt nichts erneut. Beim
  * Motivwechsel wird der Preload stattdessen auf den neuen Wert gesetzt.
  */
-export function preloadDashboardArtwork(artworkId?: string): void {
+export function preloadDashboardArtwork(artworkId?: string, priority: "high" | "low" = "high"): void {
+  const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+  if (priority === "low" && connection?.saveData === true) return;
   const requestedId = artworkId ?? readStoredArtworkId();
   if (requestedId === "") return;
   const artwork = getDashboardArtwork(requestedId);
@@ -61,11 +63,12 @@ export function preloadDashboardArtwork(artworkId?: string): void {
   } else if (link.getAttribute("href") === artwork.background) {
     // Bereits vorgeladen. `link.href` wäre hier immer absolut und taugt
     // deshalb nicht zum Vergleich mit dem relativen Import-Pfad.
+    if (priority === "high") link.setAttribute("fetchpriority", "high");
     return;
   }
 
   link.setAttribute("href", artwork.background);
-  link.setAttribute("fetchpriority", "high");
+  link.setAttribute("fetchpriority", priority);
   // Erst nach dem href anhängen. Ein `<link rel="preload">` ohne gültige
   // Adresse im Document erzeugt eine Konsolenwarnung.
   if (link.parentNode === null) document.head.append(link);
@@ -74,6 +77,7 @@ export function preloadDashboardArtwork(artworkId?: string): void {
   // und in sehr alten Browsern; dort zeichnet der Browser ganz normal.
   const probe = new Image();
   probe.decoding = "async";
+  probe.fetchPriority = priority;
   probe.src = artwork.background;
   if (typeof probe.decode === "function") {
     void probe.decode().catch(() => undefined);

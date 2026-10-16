@@ -1,6 +1,8 @@
+import { ChangelogStars } from "./ChangelogStars";
+import { PopupArtwork } from "../PopupArtwork";
 import changelogSource from "../../../../../CHANGELOG.md?raw";
 import { HoverCard } from "./HoverCard";
-import changelogSky from "../../assets/changelog/changelog-night-sky.webp";
+import changelogSky from "../../assets/changelog/changelog-night-sky-surface.webp";
 import {
   changelogEntriesForVersion,
   formatChangelogDate,
@@ -70,8 +72,8 @@ export function ChangelogHoverCard({
       testId="changelog-card"
       header={
         <>
-          <img className="chc-artwork" src={changelogSky} alt="" />
-          <span className="chc-stars" aria-hidden="true"><i /><i /><i /><i /><i /></span>
+          <PopupArtwork className="chc-artwork" src={changelogSky} />
+          <ChangelogStars />
           <div className="chc-heading">
             <h2>Changelog</h2>
             {entries[0] ? <span className="chc-current">v{entries[0].version}</span> : null}

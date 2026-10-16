@@ -1,0 +1,21 @@
+/* Dialogfläche: sichtbarer Fokus, ruhiges Press-Feedback und der Griff der
+   mobilen Bottom-Sheet-Variante. Ausschließlich Tokens aus index.css. */
+.modal-sheet > header .icon-button { min-width: 44px; min-height: 44px; }
+.modal-sheet button:focus-visible,
+.modal-sheet a:focus-visible { outline: 2px solid var(--focus-ring-color); outline-offset: var(--focus-ring-offset); }
+.modal-sheet button:active:not(:disabled),
+.modal-sheet a:active { transform: scale(.97); }
+
+@media (max-width: 560px) {
+  .modal-sheet::before {
+    content: "";
+    display: block;
+    width: 36px;
+    height: 4px;
+    margin: var(--space-3) auto 0;
+    border-radius: var(--radius-sm);
+    background: var(--color-ink-600);
+  }
+  .modal-sheet.orbit-project-browser::before { display: none; }
+  .modal-sheet > header { padding-top: var(--space-3); }
+}

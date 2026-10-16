@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { wraptQueries } from "./queryOptions";
 import { prefetchRoute } from "./routeModules";
 import { pageRouteRegistry } from "../extensions/pageRouteRegistry";
+import { preloadRouteArtwork } from "./routeArtworkPreload";
 
 /**
  * Zu einer Route gehört nicht nur ihr JavaScript-Bündel, sondern auch ihr
@@ -84,6 +85,7 @@ function prefetchRegistryPage(pathname: string): void {
 export function prefetchRouteTarget(client: QueryClient, href: string): void {
   const rawPath = href.startsWith("/") ? href.split(/[?#]/)[0]! : `/${href.split(/[?#]/)[0]}`;
   const pathname = stripBasename(rawPath);
+  preloadRouteArtwork(pathname);
   prefetchRoute(pathname);
   prefetchRegistryPage(pathname);
   for (const [prefix, warm] of dataLoaders) {

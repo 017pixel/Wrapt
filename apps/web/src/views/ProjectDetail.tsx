@@ -11,6 +11,7 @@ import { openPreviewForProject, openProjectDefault, openProjectStandaloneDefault
 import { useRouteActivity } from "../lib/routeActivity";
 import { codeServerState, codeServerUnavailableReason } from "../lib/codeServerAvailability";
 import { useSidebarPreferences } from "../stores/sidebarPreferences";
+import heroFehlerdiagnoseBackground from "../assets/dashboard-artwork/hero-fehlerdiagnose-surface.webp";
 
 export function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -35,7 +36,18 @@ export function ProjectDetail() {
           {(data) => {
             const project = data.projects.find((p) => p.id === projectId);
             if (!project) {
-              return <EmptyState title="Projekt nicht gefunden" description="Dieses lokale Projekt ist nicht verfügbar." />;
+              return (
+                <EmptyState
+                  artwork={heroFehlerdiagnoseBackground}
+                  title="Projekt nicht gefunden"
+                  description="Dieses lokale Projekt ist nicht verfügbar."
+                  action={(
+                    <button type="button" className="quiet-button-primary" onClick={() => navigate("/projects")}>
+                      Zu den Projekten
+                    </button>
+                  )}
+                />
+              );
             }
             const editorReason = codeServerUnavailableReason(project.links.codeServer !== null, codeServerState(services.data?.services));
             return (

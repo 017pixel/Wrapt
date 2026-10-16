@@ -1,4 +1,5 @@
 import { CheckIcon, ChevronDownIcon, CloseIcon, FolderCodeIcon, FolderOpenIcon, SearchIcon } from "./icons";
+import "./ProjectPicker.css";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Project } from "@wrapt/contracts";

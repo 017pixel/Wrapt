@@ -13,6 +13,7 @@ import { apiClient } from "../lib/apiClient";
 import { wraptQueries } from "../lib/queryOptions";
 import { applyAppearanceTheme, themeColorToHex } from "../lib/themeRuntime";
 import { CheckIcon, RestoreIcon } from "./icons";
+import { OverlayTransparencySettings } from "./OverlayTransparencySettings";
 
 type ColorKey = keyof AppearanceColors;
 type ColorGroup = {
@@ -138,6 +139,7 @@ export function AppearanceSettings() {
 
   return (
     <div className="appearance-settings">
+      <OverlayTransparencySettings />
       <section id="settings-design-themes" className="appearance-theme-section" aria-labelledby="appearance-theme-title">
         <header className="appearance-section-heading">
           <div>
@@ -224,7 +226,7 @@ export function AppearanceSettings() {
         <button type="button" className="quiet-button" disabled={saving} onClick={() => selectPreset("t3-code")}><RestoreIcon className="h-3.5 w-3.5" /> T3 Code laden</button>
         {message ? <span className={message.includes("konnte") ? "is-error" : ""} role="status">{message}</span> : null}
       </div>
-      <p className="appearance-save-note">Änderungen werden live angezeigt und erst mit „Theme speichern“ in der Projektkonfiguration gesichert.</p>
+      <p className="appearance-save-note">Theme-Änderungen werden live angezeigt und erst mit „Theme speichern“ in der Projektkonfiguration gesichert.</p>
     </div>
   );
 }

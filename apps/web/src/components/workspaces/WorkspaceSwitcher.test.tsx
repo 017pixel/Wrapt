@@ -9,7 +9,7 @@ import type * as WorkspaceStatusModule from "./workspaceStatus";
 
 vi.mock("./workspaceStatus", async (importOriginal) => ({
   ...await importOriginal<typeof WorkspaceStatusModule>(),
-  probeWorkspaceHealth: vi.fn(async () => ({ status: "live", bootId: "remote" })),
+  probeWorkspace: vi.fn(async () => ({ status: "live", reachable: true, version: null, instanceName: null, appName: null, bootId: "remote" })),
 }));
 
 let queryClient: QueryClient;

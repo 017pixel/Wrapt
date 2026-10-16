@@ -57,6 +57,21 @@ describe("Dashboard-Artwork-Preload", () => {
     });
   });
 
+  it("verwendet beim Hover niedrige Priorität für das gespeicherte Motiv", () => {
+    storedArtwork({ artworkEnabled: true, artworkId: "hero-orbit" });
+    preloadDashboardArtwork(undefined, "low");
+    expect(preloadLink()?.getAttribute("fetchpriority")).toBe("low");
+    expect(preloadLink()?.getAttribute("href")).toBe(backgroundOf("hero-orbit"));
+  });
+
+  it("hebt die Priorität beim anschließenden Öffnen ohne zweiten Preload an", () => {
+    preloadDashboardArtwork("hero-orbit", "low");
+    const link = preloadLink();
+    preloadDashboardArtwork("hero-orbit");
+    expect(preloadLink()).toBe(link);
+    expect(link?.getAttribute("fetchpriority")).toBe("high");
+  });
+
   it("wechselt den Preload beim Motivwechsel statt einen zweiten anzulegen", () => {
     preloadDashboardArtwork("hero-orbit");
     preloadDashboardArtwork("hero-terminal");

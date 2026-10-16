@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useSearchParams } from "react-router";
+import { useSearchParams, useNavigate } from "react-router";
 import { useLayoutStore } from "../stores/layout";
 import { wraptQueries } from "../lib/queryOptions";
 import { ToolPanel } from "../components/ToolPanel";
@@ -9,6 +9,7 @@ import type { Panel, Project } from "@wrapt/contracts";
 import { useRouteActivity } from "../lib/routeActivity";
 import { PreviewHub } from "./PreviewHub";
 import { codeServerState } from "../lib/codeServerAvailability";
+import heroKonfigurierenBackground from "../assets/dashboard-artwork/hero-konfigurieren-surface.webp";
 
 type ProjectPanelType = "t3-code" | "code-server" | "preview" | "opencode";
 
@@ -22,6 +23,7 @@ function supportsTool(project: Project, type: ProjectPanelType) {
 function SingleTool({ type }: { type: ProjectPanelType }) {
   const routeActive = useRouteActivity();
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const selectedProjectId = useLayoutStore((state) => state.selectedProjectId);
   const { data, isLoading } = useQuery({ ...wraptQueries.projects(), enabled: routeActive });
   const services = useQuery({ ...wraptQueries.services(), enabled: routeActive });
@@ -59,7 +61,18 @@ function SingleTool({ type }: { type: ProjectPanelType }) {
 
   if (isLoading) return <div className="flex h-full items-center justify-center text-sm text-muted">Lädt…</div>;
   if (!project && type !== "preview" && type !== "opencode") {
-    return <EmptyState title="Kein passendes Projekt" description="Für dieses Werkzeug ist momentan kein verfügbares Projekt konfiguriert." />;
+    return (
+      <EmptyState
+        artwork={heroKonfigurierenBackground}
+        title="Kein passendes Projekt"
+        description="Für dieses Werkzeug ist momentan kein verfügbares Projekt konfiguriert."
+        action={(
+          <button type="button" className="quiet-button-primary" onClick={() => navigate("/projects")}>
+            Projekte öffnen
+          </button>
+        )}
+      />
+    );
   }
 
   const panel: Panel = {

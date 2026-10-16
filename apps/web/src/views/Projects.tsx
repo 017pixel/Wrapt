@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { CloseIcon, FolderCodeIcon, SearchIcon } from "../components/icons";
+import { CloseIcon, SearchIcon } from "../components/icons";
 import type { Project } from "@wrapt/contracts";
 import { wraptQueries } from "../lib/queryOptions";
 import { QueryBoundary } from "../components/QueryBoundary";
@@ -8,6 +8,7 @@ import { ProjectCard } from "../components/ProjectCard";
 import { EmptyState } from "../components/EmptyState";
 import { useRouteActivity } from "../lib/routeActivity";
 import { codeServerState, type CodeServerState } from "../lib/codeServerAvailability";
+import heroArbeitsbereichBackground from "../assets/dashboard-artwork/hero-arbeitsbereich-surface.webp";
 import "./projects.css";
 
 function ProjectGroup({ title, description, projects, editorState }: { title?: string; description?: string; projects: Project[]; editorState: CodeServerState }) {
@@ -78,11 +79,19 @@ export function Projects() {
         <ProjectsSearch value={query} onChange={setQuery} />
         <QueryBoundary {...projects} loadingLabel="Projekte laden…">
           {() => filteredProjects.length === 0 ? (
-            <EmptyState
-              icon={<FolderCodeIcon className="h-6 w-6" />}
-              title={query.trim() ? "Keine passenden Projekte" : "Keine Projekte"}
-              description={query.trim() ? "Passe den Suchbegriff an oder lösche die Suche." : "Im Projektordner wurden keine Arbeitsbereiche gefunden."}
-            />
+            query.trim() ? (
+              <EmptyState
+                icon={<SearchIcon className="h-6 w-6" />}
+                title="Keine passenden Projekte"
+                description="Passe den Suchbegriff an oder lösche die Suche."
+              />
+            ) : (
+              <EmptyState
+                artwork={heroArbeitsbereichBackground}
+                title="Keine Projekte"
+                description="Im Projektordner wurden keine Arbeitsbereiche gefunden."
+              />
+            )
           ) : (
             <div className="projects-results">
               <ProjectGroup projects={filteredProjects.filter((project) => project.availability === "available")} editorState={editorState} />

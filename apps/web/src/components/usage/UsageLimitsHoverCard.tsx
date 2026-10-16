@@ -1,4 +1,6 @@
+import { PopupArtwork } from "../PopupArtwork";
 import { Link } from "react-router";
+import usageSky from "../../assets/dashboard-artwork/hero-notizen-nutzung-surface.webp";
 import type { LimitsCardProvider } from "./usageLimitsCard";
 import { HoverCard } from "../status/HoverCard";
 
@@ -35,6 +37,7 @@ export function UsageLimitsHoverCard({
       })()
     : null;
 
+
   return (
     <HoverCard
       anchor={anchor}
@@ -43,12 +46,16 @@ export function UsageLimitsHoverCard({
       maxHeight={Number.POSITIVE_INFINITY}
       label="Nutzung und Limits"
       testId="usage-limits-card"
+      className="ulc-card"
       header={
         <>
-          <h2>Nutzung und Limits</h2>
-          {updatedLabel ? (
-            <span className="shc-meta">aktualisiert {updatedLabel}</span>
-          ) : null}
+          <PopupArtwork className="ulc-artwork" src={usageSky} />
+          <div className="ulc-heading">
+            <h2>Nutzung und Limits</h2>
+            {updatedLabel ? (
+              <span className="shc-meta">aktualisiert {updatedLabel}</span>
+            ) : null}
+          </div>
         </>
       }
       footer={

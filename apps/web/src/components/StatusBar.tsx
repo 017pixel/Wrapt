@@ -1,7 +1,8 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router";
 import { defaultContextMenuConfig, type ContextMenuConfigResponse, type ProviderUsage, type UsageMonitoring, type UsageProviderId } from "@wrapt/contracts";
-import type { CSSProperties } from "react";
+import { useEffect, type CSSProperties } from "react";
+import { preloadStatusArtwork } from "../lib/statusArtworkPreload";
 import { wraptQueries } from "../lib/queryOptions";
 import { apiClient } from "../lib/apiClient";
 import { Spinner, StateDot } from "./primitives";
@@ -122,6 +123,12 @@ export function StatusBar() {
   const statusBarStyle = { "--status-limit-font-size": `${menuConfig.statusBar.fontSizePx}px` } as CSSProperties;
   const limitsHover = useStatusHoverCard();
   const versionHover = useStatusHoverCard();
+  // Zwei kleine Kopf-Motive früh dekodieren, damit auch direktes Öffnen aus
+  // dem Cache zeichnet. Datensparmodus und Fehler behandelt der Preloader.
+  useEffect(() => {
+    preloadStatusArtwork("changelog");
+    preloadStatusArtwork("usage");
+  }, []);
   // Einmal pro Render-Takt: die Zeitbasis wird an einem Ort bestimmt, damit
   // alle Provider in der Karte dieselbe „jetzt"-Referenz benutzen.
   const cardProviders = limitsCardProviders(
@@ -138,9 +145,11 @@ export function StatusBar() {
         className={`status-bar-item status-version${versionHover.open ? " is-open" : ""}`}
         aria-label="Changelog öffnen"
         aria-expanded={versionHover.open}
-        onPointerEnter={versionHover.onPointerEnter}
+        onPointerEnter={() => { preloadStatusArtwork("changelog"); versionHover.onPointerEnter(); }}
+        onFocus={() => preloadStatusArtwork("changelog")}
+        onPointerDown={() => preloadStatusArtwork("changelog")}
         onPointerLeave={versionHover.onPointerLeave}
-        onClick={() => versionHover.toggle()}
+        onClick={() => { preloadStatusArtwork("changelog"); versionHover.toggle(); }}
       >
         {health.isLoading ? <Spinner /> : <StateDot state={health.isError ? "error" : "active"} />}
         <span className="status-bar-value font-mono">v{health.data?.version ?? "—"}</span>
@@ -161,9 +170,12 @@ export function StatusBar() {
           aria-expanded={limitsHover.open}
           // Kein `title`-Attribut: Der native Browser-Tooltip würde neben der
           // Card erscheinen und deren Inhalt doppelt, aber schlechter, zeigen.
-          onPointerEnter={limitsHover.onPointerEnter}
+          onPointerEnter={() => { preloadStatusArtwork("usage"); limitsHover.onPointerEnter(); }}
+          onFocus={() => preloadStatusArtwork("usage")}
+          onPointerDown={() => preloadStatusArtwork("usage")}
           onPointerLeave={limitsHover.onPointerLeave}
           onClick={(event) => {
+            preloadStatusArtwork("usage");
             // Ein Klick öffnet oder schließt die Karte immer — er navigiert nie
             // direkt. Das `preventDefault()` muss in BEIDEN Zweigen stehen: Ohne
             // es führt der Router den Klick aus, die Karte wäre auf Touch

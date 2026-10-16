@@ -55,6 +55,15 @@ export const settingsSearchCatalog: readonly SettingsSearchEntry[] = [
     aliases: ["Aussehen", "Farben", "Farbe", "Theme", "Themes", "Darstellung", "Style", "Vorlage", "Presets", "Eigene Designs", "Customizer"],
   },
   {
+    id: "design-transparency",
+    title: "Transparenz-Intensität",
+    description: "Transparenz von Dialogen, Popups und Dropdowns anpassen",
+    category: "Design",
+    tab: "design",
+    anchor: "settings-design-transparency",
+    aliases: ["Transparenz", "Glas", "Glass", "Blur", "Deckkraft", "Dropdown", "Popup"],
+  },
+  {
     id: "design-presets",
     title: "Theme-Vorlagen",
     description: "Vorgefertigte Paletten auswählen und sofort anwenden",

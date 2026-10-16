@@ -3,7 +3,7 @@
 
 Die Originale in ``docs-webseite/assets`` bleiben unangetastet, weil die
 Dokumentationsseite sie als Hero-Grafiken in voller Auflösung braucht. Für die
-Workbench entstehen daraus zwei kleinere Stufen:
+Workbench entstehen daraus kleinere Stufen:
 
 ``<name>-bg.webp``
     1280 x 720 für den Vollbild-Hintergrund. Das Original ist 1672 x 941
@@ -16,6 +16,12 @@ Workbench entstehen daraus zwei kleinere Stufen:
     320 x 180 für das Auswahlraster in den Einstellungen. Ohne diese Stufe
     lädt der Easter-Egg-Tab 2,6 MB Volldateien, um 19 kleine Vorschauen zu
     zeigen. Mit ihr sind es 58 KB.
+
+``<name>-surface.webp``
+    640 Pixel für die vier in leeren Zuständen und Popup-Köpfen verwendeten
+    Motive. Sie sind dort stark ausmaskiert und brauchen keine Vollbilddatei.
+    Der Changelog-Kopf erhält ebenfalls eine 640-Pixel-Variante; sein Original
+    bleibt im Asset-Verzeichnis erhalten.
 
 Aufruf:
 
@@ -77,7 +83,14 @@ SOURCE_NAMES = (
 VARIANTS = (
     {"suffix": "-bg", "width": 1280, "quality": 72, "method": 6},
     {"suffix": "-thumb", "width": 320, "quality": 66, "method": 6},
+    {"suffix": "-surface", "width": 640, "quality": 64, "method": 6},
 )
+
+SURFACE_NAMES = {
+    "hero-arbeitsbereich", "hero-fehlerdiagnose",
+    "hero-konfigurieren", "hero-notizen-nutzung",
+}
+CHANGELOG_DIRECTORY = REPO_ROOT / "apps" / "web" / "src" / "assets" / "changelog"
 
 
 def render(source: Path, variant: dict[str, object]) -> bytes:
@@ -146,6 +159,8 @@ def main() -> int:
     for name in SOURCE_NAMES:
         source = SOURCE_DIRECTORY / f"{name}.webp"
         for variant in VARIANTS:
+            if variant["suffix"] == "-surface" and name not in SURFACE_NAMES:
+                continue
             target = TARGET_DIRECTORY / f"{name}{variant['suffix']}.webp"
             payload = render(source, variant)
             if arguments.check:
@@ -156,13 +171,26 @@ def main() -> int:
             written += 1
             total_bytes += len(payload)
 
+    changelog_target = CHANGELOG_DIRECTORY / "changelog-night-sky-surface.webp"
+    changelog_payload = render(
+        CHANGELOG_DIRECTORY / "changelog-night-sky.webp",
+        {"width": 640, "quality": 68, "method": 6},
+    )
+    if arguments.check:
+        if not changelog_target.is_file() or changelog_target.read_bytes() != changelog_payload:
+            stale.append(str(changelog_target.relative_to(REPO_ROOT)))
+    else:
+        changelog_target.write_bytes(changelog_payload)
+        written += 1
+        total_bytes += len(changelog_payload)
+
     if arguments.check:
         if stale:
             print("Veraltet oder fehlend, bitte neu erzeugen:", file=sys.stderr)
             for path in stale:
                 print(f"  {path}", file=sys.stderr)
             return 1
-        print(f"Alle {len(SOURCE_NAMES) * len(VARIANTS)} Varianten sind aktuell.")
+        print(f"Alle {len(SOURCE_NAMES) * 2 + len(SURFACE_NAMES) + 1} Varianten sind aktuell.")
         return 0
 
     print(

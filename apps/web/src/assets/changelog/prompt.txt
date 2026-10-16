@@ -1,0 +1,5 @@
+Tool: built-in image_gen
+References: ../dashboard-artwork/hero-changelog-bg.webp, ../dashboard-artwork/nachthimmel-baum-bg.webp
+Output: changelog-night-sky.webp (960 x 320, WebP quality 85)
+
+Use case: stylized-concept. Asset type: wide header background for Wrapt's dark changelog popup. Create an original hand-painted nocturnal oil painting, using the attached existing Wrapt Easter egg artwork only as a visual style reference: thick expressive impasto brush strokes, deep near-black charcoal and midnight indigo, tiny restrained antique gold and ivory stars. Scene: quiet starry night over a distant dark sea, one small crescent moon in the upper right, delicate sparse star flecks. Wide panoramic composition approximately 3:1. Left half stays very dark and quiet with sparse subtle paint texture, suitable for white title text; the painterly star field and crescent are concentrated on the right. Horizon very low. Refined, intimate, minimal, beautiful. No typography, no UI, no logos, no watermark, no smooth digital gradients, no neon glow, no bright giant objects. Preserve the existing artwork's tactile painterly feeling, but create a new composition.

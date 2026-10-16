@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
+import serverArtwork from "../../assets/dashboard-artwork/hero-arbeitsbereich-surface.webp";
+import { preloadArtwork } from "../../lib/artworkPreload";
+import { PopupArtwork } from "../PopupArtwork";
 import { ChevronDownIcon, CloseIcon } from "../icons";
 import { useWorkspaceRegistry } from "./workspaceRegistryStore";
 import { WorkspaceRegistryView } from "./WorkspaceRegistryView";
@@ -19,6 +22,10 @@ export function WorkspaceSwitcher({ compact = false, mobile = false }: Workspace
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<CSSProperties>({ top: 12, left: 12 });
   const active = entries.find((entry) => entry.url === selfUrl);
+
+  useEffect(() => {
+    if (entries.length >= 2) preloadArtwork(serverArtwork);
+  }, [entries.length]);
 
   const toggle = () => {
     if (open) {
@@ -70,6 +77,8 @@ export function WorkspaceSwitcher({ compact = false, mobile = false }: Workspace
         ref={triggerRef}
         type="button"
         className={`workspace-switcher-trigger${compact ? " is-compact" : ""}${mobile ? " is-mobile" : ""}`}
+        onPointerEnter={() => preloadArtwork(serverArtwork)}
+        onFocus={() => preloadArtwork(serverArtwork)}
         onClick={toggle}
         aria-label={`Aktueller Server: ${active?.name ?? "Dieses Gerät"}. Server wechseln`}
         aria-expanded={open}
@@ -93,6 +102,7 @@ export function WorkspaceSwitcher({ compact = false, mobile = false }: Workspace
             style={mobile ? undefined : position}
           >
             <header>
+              <PopupArtwork className="workspace-switcher-artwork" src={serverArtwork} />
               <strong>Server wechseln</strong>
               <button type="button" className="workspace-popover-close" onClick={() => setOpen(false)} aria-label="Workspace-Auswahl schließen">
                 <CloseIcon className="h-4 w-4" style={{ color: "var(--color-muted)" }} />

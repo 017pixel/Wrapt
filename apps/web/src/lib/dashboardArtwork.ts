@@ -45,8 +45,8 @@ import heroZugriffSicherheitThumb from "../assets/dashboard-artwork/hero-zugriff
  * Erzeugt werden sie von `scripts/generate-dashboard-artwork-variants.py`:
  *
  * - `background` (1280 x 720, rund 60 KB) für den Vollbild-Hintergrund. Der
- *   wird auf 100vh gedehnt, mit `brightness(.42)` abgedunkelt und mit
- *   `blur(1px)` weichgezeichnet. Die Originalauflösung 1672 x 941 ist da nicht
+ *   wird auf 100vh gedehnt und bei 20 % Deckkraft weich ausmaskiert.
+ *   Die Originalauflösung 1672 x 941 ist da nicht
  *   sichtbar, kostet aber rund 179 KB und doppelte Dekodierzeit.
  * - `thumbnail` (320 x 180, rund 3 KB) für das Auswahlraster. Ohne diese Stufe
  *   lädt der Easter-Egg-Tab 2,7 MB Volldateien, um 19 kleine Vorschauen zu

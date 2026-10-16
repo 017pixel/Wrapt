@@ -81,6 +81,18 @@ export function useStatusHoverCard(): StatusHoverCardState {
 
   useEffect(() => clearTimers, [clearTimers]);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      close();
+      trigger.current?.focus();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [open, close]);
+
   return {
     open,
     anchor,

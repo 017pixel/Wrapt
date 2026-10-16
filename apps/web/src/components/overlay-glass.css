@@ -1,0 +1,220 @@
+/* Schwebende Flächen aus dem historischen index.css. Fachliche Menü-Styles
+   bleiben bei den Komponenten; alle verwenden dieselben Glas-Tokens. */
+:is(
+  .modal-sheet,
+  .project-picker-popover,
+  .project-tools-menu > div,
+  .tool-actions-popover,
+  .panel-device-menu,
+  .terminal-action-popover,
+  .terminal-session-picker-menu,
+  .terminal-confirm,
+  .workbench-mobile-menu,
+  .account-login-sheet,
+  .crash-sheet,
+  .extension-review-panel,
+  .uvs-panel,
+  .orbit-edge-menu,
+  .orbit-command,
+  .orbit-inspector,
+  .orbit-project-picker,
+  .orbit-gallery-move-dropdown,
+  .orbit-gallery-dialog,
+  .orbit-preview-menu,
+  .orbit-preview-device-menu,
+  .file-quicklook-modal,
+  .file-quicklook-sheet,
+  .preview-project-dialog,
+  .terminal-hover-preview,
+  .preview-dependency-consent,
+  .preview-diagnostics,
+  .preview-hub-more > div
+) {
+  --color-muted: var(--glass-readable-muted);
+  --color-faint: var(--glass-readable-faint);
+  background: var(--surface-glass);
+  border-color: var(--glass-edge);
+  -webkit-backdrop-filter: var(--glass-overlay-filter);
+  backdrop-filter: var(--glass-overlay-filter);
+}
+
+.preview-runtime-controls,
+.preview-runtime-controls.is-simulator,
+.device-preview-caption {
+  --color-muted: var(--glass-readable-muted);
+  --color-faint: var(--glass-readable-faint);
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: var(--glass-overlay-filter);
+  backdrop-filter: var(--glass-overlay-filter);
+}
+
+/* Gedämpfter Text gewinnt mit der Durchsicht Kontrast, auch über einer hellen
+   Preview. Die abgeleiteten Werte werden am Root aus den Theme-Tokens gelöst. */
+:is(
+  .shc,
+  .global-context-menu,
+  .account-menu,
+  .uf-hide-panel,
+  .workspace-switcher-popover,
+  .workspace-entry-menu-panel,
+  .workspace-switch-overlay > div,
+  .terminal-sidebar.is-drawer,
+  .app-shell[data-shell-mode="compact"] .notes-sidebar,
+  .app-shell[data-shell-mode="tablet"] .notes-sidebar,
+  .status-mascot-bubble,
+  .notes-item-menu,
+  .note-slash-menu,
+  .note-format-toolbar,
+  .note-format-popover,
+  .note-block-menu,
+  .note-link-dialog,
+  .note-link-picker,
+  .notes-move-dialog,
+  .notes-palette,
+  .notes-filter-popover,
+  .notes-folder-menu,
+  .notes-head-popover,
+  .notes-icon-popover,
+  .plugin-preview-message,
+  .plugin-chooser,
+  .plugin-help-popover,
+  .plugin-surface-dialog-card,
+  .preview-target-menu,
+  .orbit-board-picker-menu,
+  .orbit-info-summary,
+  .orbit-info-dialog,
+  .settings-search-results
+) {
+  --color-muted: var(--glass-readable-muted);
+  --color-faint: var(--glass-readable-faint);
+}
+
+@media (max-width: 1023px) {
+  .uf.is-open {
+    --color-muted: var(--glass-readable-muted);
+    --color-faint: var(--glass-readable-faint);
+    background: var(--surface-glass);
+    -webkit-backdrop-filter: var(--glass-overlay-filter);
+    backdrop-filter: var(--glass-overlay-filter);
+  }
+}
+
+/* Die eingerückte Sitzungsliste gehört zur vorhandenen Menüfläche. */
+.terminal-action-popover .terminal-session-picker-menu {
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+/* Eingaben bleiben Teil derselben Ebene, statt opake Kästen darüberzulegen. */
+.project-picker-search,
+.project-picker-path-form input,
+.workspace-editor-form input {
+  background: var(--glass-inset);
+}
+
+/* Die Glasfläche der schwebenden Steuerleisten liegt hinter dem Inhalt.
+   Untermenüs erreichen so auch außerhalb der Leiste den echten Hintergrund. */
+.orbit-main-island,
+.orbit-preview-context-island,
+.panel-island:not(.is-topbar) {
+  --color-muted: var(--glass-readable-muted);
+  --color-faint: var(--glass-readable-faint);
+  isolation: isolate;
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.orbit-main-island::before,
+.orbit-preview-context-island::before,
+.panel-island:not(.is-topbar)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: var(--glass-overlay-filter);
+  backdrop-filter: var(--glass-overlay-filter);
+  pointer-events: none;
+}
+
+:is(
+  .uvs-section h3,
+  .orbit-inspector > header span,
+  .orbit-inspector label > span,
+  .orbit-inspector h3,
+  .orbit-command-results button span,
+  .orbit-preview-device-menu small
+) { text-transform: none; letter-spacing: normal; }
+
+/* Systempräferenzen und fehlende Blur-Unterstützung haben Vorrang vor dem
+   Regler. Text bleibt auch auf hellen oder detailreichen Hintergründen lesbar. */
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more), (forced-colors: active) {
+  :root {
+    --surface-glass: var(--color-ink-850);
+    --glass-overlay-filter: none;
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --surface-glass: var(--color-ink-850);
+    --glass-overlay-filter: none;
+  }
+}
+
+@supports not (background: color-mix(in srgb, currentColor, transparent)) {
+  :root {
+    --surface-glass: var(--color-ink-850);
+    --glass-overlay-filter: none;
+    --glass-readable-muted: var(--color-muted);
+    --glass-readable-faint: var(--color-faint);
+    --glass-inset: var(--color-ink-800);
+    --glass-edge: var(--color-line);
+  }
+}
+
+/* Native Auswahlfelder behalten ihre Semantik. Unterstützende Browser
+   zeichnen auch ihre Dropdowns mit der gemeinsamen Glasfläche. */
+@supports (appearance: base-select) {
+  select:not([multiple]):not([size]),
+  select:not([multiple]):not([size])::picker(select) {
+    appearance: base-select;
+  }
+
+  select:not([multiple]):not([size])::picker(select) {
+    max-height: min(400px, 60dvh);
+    overflow-y: auto;
+    border: 1px solid var(--glass-edge);
+    border-radius: var(--radius-md);
+    background: var(--surface-glass);
+    padding: var(--space-1);
+    color: var(--color-text);
+    font: inherit;
+    box-shadow: var(--shadow-popover);
+    -webkit-backdrop-filter: var(--glass-overlay-filter);
+    backdrop-filter: var(--glass-overlay-filter);
+  }
+
+  select:not([multiple]):not([size]) {
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  select:not([multiple]):not([size]) option {
+    min-height: 44px;
+    border-radius: var(--radius-sm);
+    padding: var(--space-2) var(--space-3);
+    color: var(--color-text);
+  }
+
+  select:not([multiple]):not([size]) option:is(:hover, :focus-visible, :checked) {
+    background: var(--color-ink-800);
+  }
+
+  select:not([multiple]):not([size]) option:disabled {
+    color: var(--color-faint);
+  }
+}

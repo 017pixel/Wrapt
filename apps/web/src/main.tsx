@@ -8,6 +8,7 @@ import { migrateLegacyBrowserStorage } from "./lib/legacyStorageMigration";
 import { addBreadcrumb, formatQueryErrorBreadcrumb, installGlobalErrorHandlers, subscribeToCrash } from "./lib/crashReport";
 import { apiClient } from "./lib/apiClient";
 import { preloadDashboardArtwork } from "./lib/dashboardArtworkPreload";
+import { initializeOverlayTransparency } from "./lib/overlayTransparency";
 import { synchronizeExistingPushDevice } from "./lib/webPushDevice";
 import "./index.css";
 import "./views/dashboard-layout.css";
@@ -19,6 +20,7 @@ import "./components/status/status-hover-card.css";
 import "./components/status/changelog-card.css";
 import "./components/usage/account-list.css";
 import "./components/mobile/mobile-experience.css";
+import "./components/overlay-glass.css";
 
 // Muss vor dem ersten Render stehen, sonst gehen frühe Fehler verloren.
 installGlobalErrorHandlers();
@@ -33,7 +35,8 @@ try {
 // sichtbaren Inhalt. Hier startet er bei rund 240 ms, das Bild ist rund 200 ms
 // vor dem ersten Paint fertig. Früher geht es nicht ohne Server-Endpunkt, weil
 // die Auswahl im localStorage steht und nur JS sie lesen kann.
-preloadDashboardArtwork();
+if (["/", "/wrapt", "/wrapt/"].includes(window.location.pathname)) preloadDashboardArtwork();
+initializeOverlayTransparency();
 
 const [{ App }, { CrashReportDialog, CrashToastRegion }, { ErrorBoundary }] = await Promise.all([
   import("./App"),
