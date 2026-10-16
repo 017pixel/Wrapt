@@ -184,9 +184,8 @@ test("Notizensuche: Titel-, Bereichs- und Datumsfilter wirken gemeinsam ohne Dat
 test("Workspace-Registry: Hinzufügen und Entfernen ändern die Navigation ohne Verlust der Kernaktionen", async ({ page, api, appErrors }) => {
   test.setTimeout(120_000); // Zwei vollständige Hauptseiten-/Notizen-Durchläufe.
   // Die Gegenstelle ist kontrolliert; kein fremder oder produktiver Serverkontakt.
-  await page.route("https://persona.example.ts.net/api/v1/health", (route) => route.fulfill({
-    json: { status: "ok", version: "2.2.9", appName: "Wrapt", instanceName: "Persona-Server" },
-    headers: { "access-control-allow-origin": "*" },
+  await page.route("**/api/v1/workspaces/probe", (route) => route.fulfill({
+    json: { status: "live", reachable: true, version: "2.2.9", instanceName: "Persona-Server", appName: "Wrapt", bootId: "boot-persona" },
   }));
   await settings(page, "Workspaces");
   await page.getByRole("button", { name: "Server hinzufügen", exact: true }).click();

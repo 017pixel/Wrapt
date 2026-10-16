@@ -25,10 +25,17 @@ async function openNotes(page: Page) {
 
 async function createPage(page: Page): Promise<string> {
   const beforeId = new URL(page.url()).searchParams.get("note");
+  const editor = page.locator(".notes-editor-frame .note-editor").first();
+  const previousEditor = await editor.count() ? await editor.elementHandle() : null;
   await page.locator(".notes-sidebar .notes-sidebar-new").click();
-  // Erst die Navigation zur neuen Seite abwarten (kalte Runner brauchen länger),
-  // dann erst den frischen Standardtitel prüfen.
+  // URL und Standardtitel allein reichen nicht: Aufeinanderfolgende neue
+  // Seiten haben denselben Titel. Erst auf den neu gerenderten Editor warten.
   await expect.poll(() => new URL(page.url()).searchParams.get("note"), { timeout: 15_000 }).not.toBe(beforeId);
+  if (previousEditor) {
+    await expect.poll(() => previousEditor.evaluate((element) => element.isConnected), { timeout: 15_000 }).toBe(false);
+    await previousEditor.dispose();
+  }
+  await expect(editor).toBeVisible();
   const title = page.getByLabel("Notiztitel");
   await expect(title).toHaveValue(defaultTitlePattern, { timeout: 10000 });
   return (await title.inputValue()).trim();
@@ -175,7 +182,7 @@ test.describe("Notizen-Seitenleiste", () => {
     await expect(iconButton.locator("svg")).toHaveCount(1);
   });
 
-  test("verschiebt eine Seite per Ziehen unter eine andere", async ({ page }) => {
+  test("verschiebt eine Seite per Ziehen unter eine andere", async ({ page, request }) => {
     await openNotes(page);
     const stamp = Date.now().toString().slice(-6);
     const targetTitle = `Ziel ${stamp}`;
@@ -184,6 +191,7 @@ test.describe("Notizen-Seitenleiste", () => {
       await createPage(page);
       await page.getByLabel("Notiztitel").fill(title);
       await page.getByLabel("Notiztitel").blur();
+      await awaitTitleSaved(request, title);
       await expect(page.locator(".notes-note-current")).toHaveText(title);
     }
 

@@ -159,7 +159,8 @@ test("erlaubt Bearbeiten im Detailmenü und bleibt bei schmalen Ansichten im Bil
   for (const width of [320, 390, 844]) {
     await page.setViewportSize({ width, height: width === 844 ? 390 : 844 });
     const navigationButton = page.getByRole("button", { name: "Navigation öffnen", exact: true });
-    if (await navigationButton.isVisible()) await navigationButton.click();
+    await expect(navigationButton).toBeVisible();
+    await navigationButton.click();
     await page.getByRole("button", { name: /Aktueller Server:.*Server wechseln/ }).filter({ visible: true }).click();
     picker = page.getByRole("dialog", { name: "Server wechseln", exact: true });
     await picker.getByRole("button", { name: /Weitere Aktionen für Forschungsserver/ }).click();

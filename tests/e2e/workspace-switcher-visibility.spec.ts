@@ -1,9 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-// Der Verbindungs-Test läuft gegen eine gemockte Fremd-URL. Sobald ein
-// Service Worker die Seite kontrolliert, umgeht WebKit das
-// Routen-Mocking für Cross-Origin-Fetch und fragt echtes DNS (NXDOMAIN).
-// Ohne Worker bleibt der Probe-Request auf allen Browsern mockbar.
+// Der Verbindungs-Test läuft gegen den Probe-Endpunkt des eigenen Servers.
+// Ohne Service Worker kontrollieren Mock-Routen jede Anfrage deterministisch;
+// ein installierter Worker könnte Mocks umgehen.
 test.use({ serviceWorkers: "block" });
 
 test("zeigt die Serverauswahl erst nach dem Hinzufügen eines zweiten Hosts", async ({ page }) => {
@@ -17,12 +16,9 @@ test("zeigt die Serverauswahl erst nach dem Hinzufügen eines zweiten Hosts", as
     }
     await route.fulfill({ json: { document: registry, revision, updatedAt: new Date().toISOString() } });
   });
-  await page.route("https://zweit.example.ts.net/api/v1/health", async (route) => {
+  await page.route("**/api/v1/workspaces/probe", async (route) => {
     await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      headers: { "access-control-allow-origin": "*" },
-      body: JSON.stringify({ status: "ok", version: "1.23.0", appName: "Wrapt", instanceName: "Zweitserver" }),
+      json: { status: "live", reachable: true, version: "1.23.0", instanceName: "Zweitserver", appName: "Wrapt", bootId: "boot-zweit" },
     });
   });
   await page.goto("/wrapt/");

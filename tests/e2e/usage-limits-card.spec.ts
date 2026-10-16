@@ -80,7 +80,7 @@ test("zeigt einen Provider ohne Daten als neutrale Zeile statt als Ampel", async
     // nicht an Hex gegen rgb oder rem gegen px scheitert.
     const probe = document.createElement("span");
     probe.style.backgroundColor = "var(--color-faint)";
-    document.body.appendChild(probe);
+    element.appendChild(probe);
     const faint = getComputedStyle(probe).backgroundColor;
     probe.remove();
     return { neutral: read('.ulc-provider[data-tone="neutral"] .ulc-dot'), accent: read('.ulc-provider[data-tone="info"] .ulc-dot'), faint };
@@ -111,7 +111,7 @@ test("nutzt die Theme-Tokens statt eigener Farben", async ({ page }) => {
   const styles = await card.evaluate((element) => {
     const computed = getComputedStyle(element);
     const probe = document.createElement("span");
-    probe.style.backgroundColor = "var(--color-ink-850)";
+    probe.style.backgroundColor = "var(--surface-glass)";
     document.body.appendChild(probe);
     const overlay = getComputedStyle(probe).backgroundColor;
     probe.remove();
@@ -123,24 +123,19 @@ test("nutzt die Theme-Tokens statt eigener Farben", async ({ page }) => {
       borderWidth: computed.borderTopWidth,
       borderRadius: computed.borderTopLeftRadius,
       arrowBorder: getComputedStyle(arrow).borderRightColor,
-      headDivider: getComputedStyle(element.querySelector(".shc-head")).borderBottomColor,
+      headDividerWidth: getComputedStyle(element.querySelector(".shc-head")).borderBottomWidth,
       barTrack: getComputedStyle(element.querySelector(".ulc-bar")).backgroundColor,
     };
   });
-  // Die Card-Fläche ist die Overlay-Ebene des Themes und der Radius dessen
-  // Standard — keine eigene Farbe und keine eigene Rundung.
+  // Fläche und Radius folgen den gemeinsamen Theme-Tokens.
   expect(styles.background).toBe(styles.overlay);
   expect(styles.borderRadius).toBe("4px");
 
-  // Kante, Trennlinien und Balkenspur müssen sich vom Untergrund abheben. Im
-  // ausgelieferten Theme sind `--color-line`, `--color-ink-600` und
-  // `--color-ink-850` alle `#191919` — eine Kante aus einer dieser Stufen wäre
-  // unsichtbar, der Rahmen aber vorhanden. Deshalb wird hier ausdrücklich auf
-  // den Unterschied geprüft und nicht nur auf das Vorhandensein.
+  // Kante und Balkenspur bleiben ablesbar; das Bildbanner läuft ohne Linie aus.
   expect(styles.borderWidth).toBe("1px");
   expect(styles.border).not.toBe(styles.background);
   expect(styles.arrowBorder).not.toBe(styles.background);
-  expect(styles.headDivider).not.toBe(styles.background);
+  expect(styles.headDividerWidth).toBe("0px");
   expect(styles.barTrack).not.toBe(styles.background);
 });
 
