@@ -5,13 +5,11 @@ import { wraptQueries } from "../../lib/queryOptions";
 import { isLoopbackWorkspace, normalizeWorkspaceUrl, type WorkspaceEntry } from "./workspaceModel";
 import { useWorkspaceRegistry } from "./workspaceRegistryStore";
 import { preconnectWorkspace } from "./workspaceNetwork";
-import { probeWorkspaceHealth, type WorkspaceProbeResult, type WorkspaceStatus } from "./workspaceStatus";
+import { probeWorkspace, type WorkspaceProbeResult, type WorkspaceStatus } from "./workspaceStatus";
 import { WorkspaceEditorDialog } from "./WorkspaceEditorDialog";
 import { WorkspaceStatusBadge } from "./WorkspaceStatusBadge";
 import { WorkspaceEntryMenu } from "./WorkspaceEntryMenu";
 import "./workspaces.css";
-
-const expectedVersion = typeof __WRAPT_APP_VERSION__ === "string" ? __WRAPT_APP_VERSION__ : "0.0.0";
 
 interface WorkspaceRegistryViewProps {
   allowAdding?: boolean;
@@ -52,7 +50,7 @@ export function WorkspaceRegistryView({ allowAdding = true, onDialogOpenChange }
     const currentSelfUrl = useWorkspaceRegistry.getState().selfUrl;
     const remoteView = Boolean(currentSelfUrl && !isLoopbackWorkspace(currentSelfUrl));
     const targets = entryUrl ? currentEntries.filter((entry) => entry.url === entryUrl) : currentEntries;
-    // Loopback in Remote Ansicht nicht per Fetch pruefen: das traefe den Betrachter, nicht den Server.
+    // Loopback in Remote Ansicht nicht pruefen: Der Probe liefe auf dem Server, nicht auf dem Geraet des Betrachters.
     const probed = targets.filter((entry) => entry.url === currentSelfUrl || !(remoteView && isLoopbackWorkspace(entry.url)));
     const targetUrls = probed.map((entry) => entry.url);
     if (!targetUrls.length) return;
@@ -61,7 +59,7 @@ export function WorkspaceRegistryView({ allowAdding = true, onDialogOpenChange }
     await Promise.all(probed.map(async (entry) => {
       const result = entry.url === currentSelfUrl
         ? { status: "live" as const, reachable: true, version: health.data?.version ?? null, instanceName: entry.name, appName: health.data?.appName ?? null, bootId: health.data?.bootId ?? null }
-        : await probeWorkspaceHealth(entry.url, expectedVersion);
+        : await probeWorkspace(entry.url);
       setStatuses((current) => ({ ...current, [entry.url]: result.status }));
       setBootIds((current) => ({ ...current, [entry.url]: result.bootId }));
     }));

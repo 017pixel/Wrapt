@@ -1,10 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { ModalFrame } from "../ModalDialog";
 import { isLoopbackWorkspace, normalizeWorkspaceUrl, type WorkspaceEntry } from "./workspaceModel";
-import { probeWorkspaceHealth, workspaceStatusLabels, type WorkspaceProbeResult } from "./workspaceStatus";
+import { probeWorkspace, workspaceStatusLabels, type WorkspaceProbeResult } from "./workspaceStatus";
 import { WorkspaceStatusBadge } from "./WorkspaceStatusBadge";
-
-const expectedVersion = typeof __WRAPT_APP_VERSION__ === "string" ? __WRAPT_APP_VERSION__ : "0.0.0";
 
 interface WorkspaceEditorDialogProps {
   open: boolean;
@@ -45,7 +43,7 @@ export function WorkspaceEditorDialog({ open, entry, self = false, onClose, onSa
     }
     setProbing(true);
     setMessage("");
-    const result = await probeWorkspaceHealth(normalizedUrl, expectedVersion);
+    const result = await probeWorkspace(normalizedUrl);
     setProbe({ url: normalizedUrl, result });
     setProbing(false);
     if (!result.reachable) {

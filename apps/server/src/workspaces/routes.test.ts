@@ -1,9 +1,10 @@
-import Fastify from "fastify";
+import Fastify, { type FastifyReply, type FastifyRequest } from "fastify";
 import { mkdtemp, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { ZodError } from "zod";
 import { afterEach, describe, expect, it } from "vitest";
+import { settings } from "../config/settings.js";
 import { WorkspaceRegistryDatabase } from "./database.js";
 import { registerWorkspaceRegistryRoutes } from "./routes.js";
 import { AppError } from "../utils/errors.js";
@@ -102,5 +103,61 @@ describe("Workspace-Register-Routen", () => {
       payload: { document: { entries: [{ ...entry, url: "javascript:alert(1)" }], changedAt: {}, deletedAt: {} }, expectedRevision: 0 },
     });
     expect(bad.statusCode).toBe(400);
+  });
+});
+
+async function startTarget(handler: (request: FastifyRequest, reply: FastifyReply) => unknown) {
+  const target = Fastify();
+  apps.push(target);
+  target.get("/api/v1/health", handler as never);
+  const origin = await target.listen({ host: "127.0.0.1", port: 0 });
+  return origin;
+}
+
+describe("Workspace-Probe-Route", () => {
+  it("verlangt eine Workbench-Identität und gültige URLs", async () => {
+    const app = await setup();
+    const unauthorized = await app.inject({ method: "POST", url: "/api/v1/workspaces/probe", payload: { url: "https://zweit.example:8443" } });
+    expect(unauthorized.statusCode).toBe(401);
+    const invalid = await app.inject({ method: "POST", url: "/api/v1/workspaces/probe", headers, payload: { url: "javascript:alert(1)" } });
+    expect(invalid.statusCode).toBe(400);
+  });
+
+  it("liest den Health des Zielservers serverseitig und meldet Live", async () => {
+    const target = await startTarget(() => ({
+      status: "ok",
+      version: settings.appVersion,
+      appName: "Wrapt",
+      instanceName: "Zweitserver",
+      timestamp: new Date().toISOString(),
+      bootId: "boot-zweit",
+      webBuildId: null,
+    }));
+    const app = await setup();
+    const response = await app.inject({ method: "POST", url: "/api/v1/workspaces/probe", headers, payload: { url: target } });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ status: "live", reachable: true, version: settings.appVersion, instanceName: "Zweitserver", appName: "Wrapt", bootId: "boot-zweit" });
+  });
+
+  it("meldet andere Release-Linien als inkompatibel", async () => {
+    const target = await startTarget(() => ({
+      status: "ok",
+      version: "0.1.0",
+      appName: "Wrapt",
+      instanceName: "Altserver",
+      timestamp: new Date().toISOString(),
+      bootId: "boot-alt",
+      webBuildId: null,
+    }));
+    const app = await setup();
+    const response = await app.inject({ method: "POST", url: "/api/v1/workspaces/probe", headers, payload: { url: target } });
+    expect(response.json()).toMatchObject({ status: "incompatible", reachable: true, version: "0.1.0" });
+  });
+
+  it("verweigert Klartext-HTTP zu fremden Hosts ohne Netzwerkzugriff", async () => {
+    const app = await setup();
+    const response = await app.inject({ method: "POST", url: "/api/v1/workspaces/probe", headers, payload: { url: "http://10.255.255.1:8080" } });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ status: "offline", reachable: false });
   });
 });

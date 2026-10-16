@@ -51,7 +51,26 @@ export const saveWorkspaceRegistryRequestSchema = z.object({
   expectedRevision: z.number().int().nonnegative().nullable(),
 });
 
+/** Ergebnis des serverseitigen Erreichbarkeits-Tests gegen einen anderen Workspace. */
+export const workspaceProbeStatusSchema = z.enum(["live", "offline", "not-tailnet", "no-access", "incompatible"]);
+
+export const workspaceProbeRequestSchema = z.object({
+  url: workspaceUrlSchema,
+});
+
+export const workspaceProbeResponseSchema = z.object({
+  status: workspaceProbeStatusSchema,
+  reachable: z.boolean(),
+  version: z.string().min(1).nullable(),
+  instanceName: z.string().min(1).nullable(),
+  appName: z.string().min(1).nullable(),
+  bootId: z.string().min(1).nullable(),
+});
+
 export type WorkspaceRegistryEntry = z.infer<typeof workspaceEntrySchema>;
 export type WorkspaceRegistrySnapshot = z.infer<typeof workspaceRegistrySnapshotSchema>;
 export type WorkspaceRegistryResponse = z.infer<typeof workspaceRegistryResponseSchema>;
 export type SaveWorkspaceRegistryRequest = z.infer<typeof saveWorkspaceRegistryRequestSchema>;
+export type WorkspaceProbeStatus = z.infer<typeof workspaceProbeStatusSchema>;
+export type WorkspaceProbeRequest = z.infer<typeof workspaceProbeRequestSchema>;
+export type WorkspaceProbeResponse = z.infer<typeof workspaceProbeResponseSchema>;

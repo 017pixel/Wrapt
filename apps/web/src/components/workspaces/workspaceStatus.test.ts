@@ -1,41 +1,34 @@
-import { describe, expect, it } from "vitest";
-import { deriveWorkspaceStatusFromFetchError, deriveWorkspaceStatusFromHealth, resolveWorkspaceSelfName } from "./workspaceStatus";
+import { describe, expect, it, vi } from "vitest";
+import { apiClient } from "../../lib/apiClient";
+import { probeWorkspace, resolveWorkspaceSelfName, workspaceStatusLabels } from "./workspaceStatus";
 
-const health = {
-  status: "ok",
-  version: "1.19.2",
-  appName: "Wrapt",
-  instanceName: "MacBook",
-  timestamp: "2026-09-24T10:00:00.000Z",
-  bootId: "boot-1",
-  webBuildId: 42,
-};
+vi.mock("../../lib/apiClient", () => ({
+  apiClient: { probeWorkspace: vi.fn() },
+}));
 
 describe("Workspace-Verbindungsstatus", () => {
-  it("unterscheidet DNS-Fehler, Offline und fehlende Berechtigung aus Fetch-Fehlern", () => {
-    expect(deriveWorkspaceStatusFromFetchError(new TypeError("Failed to fetch"))).toBe("offline");
-    expect(deriveWorkspaceStatusFromFetchError(new Error("net::ERR_NAME_NOT_RESOLVED"))).toBe("not-tailnet");
-    expect(deriveWorkspaceStatusFromFetchError({ status: 401 })).toBe("no-access");
-    expect(deriveWorkspaceStatusFromFetchError({ statusCode: 403 })).toBe("no-access");
-  });
-
-  it("markiert gleiche Release-Linien als Live und andere Minor-Versionen als Hinweis", () => {
-    expect(deriveWorkspaceStatusFromHealth(200, health, "1.19.0").status).toBe("live");
-    expect(deriveWorkspaceStatusFromHealth(200, { ...health, version: "1.18.9" }, "1.19.0").status).toBe("incompatible");
-    expect(deriveWorkspaceStatusFromHealth(200, { ...health, version: "2.0.0" }, "1.19.0").status).toBe("incompatible");
-  });
-
-  it("ordnet HTTP-Fehler ein und erkennt ältere Health-Antworten als inkompatibel", () => {
-    expect(deriveWorkspaceStatusFromHealth(401, null, "1.19.0").status).toBe("no-access");
-    expect(deriveWorkspaceStatusFromHealth(403, null, "1.19.0").status).toBe("no-access");
-    expect(deriveWorkspaceStatusFromHealth(503, null, "1.19.0").status).toBe("offline");
-    expect(deriveWorkspaceStatusFromHealth(200, { ...health, instanceName: undefined }, "1.19.0").status).toBe("incompatible");
-    expect(deriveWorkspaceStatusFromHealth(200, { error: "not Wrapt" }, "1.19.0").status).toBe("offline");
-  });
-
   it("verwendet Instance-Name, App-Name und dann eine lesbare lokale Bezeichnung", () => {
     expect(resolveWorkspaceSelfName("  MacBook  ", "Wrapt")).toBe("MacBook");
     expect(resolveWorkspaceSelfName(null, " Wrapt ")).toBe("Wrapt");
     expect(resolveWorkspaceSelfName(undefined, undefined)).toBe("Dieses Gerät");
+  });
+
+  it("beschriftet alle Statustypen", () => {
+    expect(workspaceStatusLabels.live).toBe("Live");
+    expect(workspaceStatusLabels["not-tailnet"]).toMatch(/Tailnet/);
+    expect(workspaceStatusLabels["not-checked"]).toBe("Noch nicht geprüft");
+  });
+
+  it("meldet einen Transportfehler des Probe-Endpunkts als offline", async () => {
+    vi.mocked(apiClient.probeWorkspace).mockRejectedValueOnce(new Error("Netzwerkfehler"));
+    await expect(probeWorkspace("https://zweit.example.ts.net")).resolves.toEqual({
+      status: "offline", reachable: false, version: null, instanceName: null, appName: null, bootId: null,
+    });
+  });
+
+  it("reicht das serverseitige Probe-Ergebnis unverändert durch", async () => {
+    const result = { status: "live" as const, reachable: true, version: "2.7.1", instanceName: "Zweitserver", appName: "Wrapt", bootId: "boot-zweit" };
+    vi.mocked(apiClient.probeWorkspace).mockResolvedValueOnce(result);
+    await expect(probeWorkspace("https://zweit.example.ts.net")).resolves.toEqual(result);
   });
 });
