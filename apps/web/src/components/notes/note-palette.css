@@ -11,6 +11,8 @@
 }
 
 .notes-palette {
+  position: relative;
+  isolation: isolate;
   display: flex;
   width: min(920px, 100%);
   max-height: 74vh;
@@ -18,7 +20,9 @@
   overflow: hidden;
   border: 1px solid var(--color-line);
   border-radius: var(--radius);
-  background: var(--color-ink-850);
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   box-shadow: var(--shadow-overlay);
 }
 
@@ -110,7 +114,9 @@
   gap: 1px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius);
-  background: var(--color-ink-850);
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: var(--glass-overlay-filter);
+  backdrop-filter: var(--glass-overlay-filter);
   box-shadow: var(--shadow-popover);
   padding: var(--space-1);
 }

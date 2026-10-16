@@ -6,6 +6,9 @@
     bottom: 0;
     left: 0;
     width: min(82vw, 340px);
+    background: var(--surface-glass);
+    -webkit-backdrop-filter: var(--glass-overlay-filter);
+    backdrop-filter: var(--glass-overlay-filter);
     transform: translateX(-105%);
     transition: transform var(--duration-base) var(--ease-standard);
   }

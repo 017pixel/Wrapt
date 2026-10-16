@@ -9,7 +9,9 @@
   max-height: 340px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius);
-  background: var(--color-ink-850);
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: var(--glass-overlay-filter);
+  backdrop-filter: var(--glass-overlay-filter);
   box-shadow: var(--shadow-popover);
   padding: var(--space-2);
 }
@@ -48,7 +50,7 @@
   place-items: center;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-sm);
-  background: var(--color-ink-900);
+  background: var(--color-ink-800);
   color: var(--color-faint);
   font-family: var(--font-mono);
   font-size: var(--text-xs);
@@ -62,12 +64,16 @@
 /* --- Formatierungsleiste -------------------------------------------------- */
 
 .note-format-toolbar {
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: center;
   gap: 2px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius);
-  background: var(--color-ink-850);
+  background: transparent;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
   box-shadow: var(--shadow-popover);
   padding: 3px;
 }
@@ -117,7 +123,9 @@
   gap: 3px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius);
-  background: var(--color-ink-850);
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: var(--glass-overlay-filter);
+  backdrop-filter: var(--glass-overlay-filter);
   box-shadow: var(--shadow-popover);
   padding: var(--space-2);
 }
@@ -161,7 +169,9 @@
   width: 240px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius);
-  background: var(--color-ink-850);
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: var(--glass-overlay-filter);
+  backdrop-filter: var(--glass-overlay-filter);
   box-shadow: var(--shadow-popover);
   padding: var(--space-2);
 }
@@ -223,7 +233,9 @@
   gap: var(--space-2);
   border: 1px solid var(--color-line);
   border-radius: var(--radius);
-  background: var(--color-ink-850);
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: var(--glass-overlay-filter);
+  backdrop-filter: var(--glass-overlay-filter);
   box-shadow: var(--shadow-popover);
   overflow: auto;
   padding: var(--space-2);
@@ -262,7 +274,9 @@
   gap: var(--space-2);
   border: 1px solid var(--color-line);
   border-radius: var(--radius);
-  background: var(--color-ink-850);
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: var(--glass-overlay-filter);
+  backdrop-filter: var(--glass-overlay-filter);
   box-shadow: var(--shadow-overlay);
   padding: var(--space-3);
 }
@@ -322,7 +336,9 @@
   overflow: hidden;
   border: 1px solid var(--color-line);
   border-radius: var(--radius);
-  background: var(--color-ink-850);
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: var(--glass-overlay-filter);
+  backdrop-filter: var(--glass-overlay-filter);
   box-shadow: var(--shadow-overlay);
   outline: none;
 }

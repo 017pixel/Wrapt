@@ -34,7 +34,9 @@
   width: 180px;
   border: 1px solid var(--color-line);
   border-radius: var(--radius);
-  background: var(--color-ink-850);
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: var(--glass-overlay-filter);
+  backdrop-filter: var(--glass-overlay-filter);
   padding: var(--space-1);
   box-shadow: var(--shadow-popover);
 }

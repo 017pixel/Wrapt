@@ -14,9 +14,17 @@
   height: 100vh;
   margin-bottom: -100vh;
   pointer-events: none;
+  /* Großflächige Stimmung; die Maske lässt das Motiv in die Basis auslaufen. */
   background-image: var(--dashboard-artwork-image);
   background-repeat: no-repeat;
   background-position: 72% center;
   background-size: cover;
-  filter: brightness(.42) blur(1px);
+  filter: saturate(.65) blur(var(--dashboard-artwork-blur));
+  opacity: .2;
+  mask-image: radial-gradient(
+    ellipse 75% 70% at 68% 36%,
+    var(--color-text) 0%,
+    color-mix(in srgb, var(--color-text) 55%, transparent) 44%,
+    transparent 82%
+  );
 }

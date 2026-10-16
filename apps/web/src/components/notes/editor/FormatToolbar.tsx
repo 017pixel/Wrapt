@@ -42,6 +42,7 @@ export function FormatToolbar({ editor, onRequestLink }: FormatToolbarProps) {
   const [highlightOpen, setHighlightOpen] = useState(false);
   const colorsRef = useRef<HTMLDivElement>(null);
   const highlightRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useDismissible({ open: colorsOpen, onClose: () => setColorsOpen(false), rootRef: colorsRef });
   useDismissible({
@@ -54,8 +55,15 @@ export function FormatToolbar({ editor, onRequestLink }: FormatToolbarProps) {
 
   return (
     <BubbleMenu
+      ref={menuRef}
       editor={editor}
-      options={{ placement: "top", offset: 8 }}
+      options={{
+        strategy: "fixed", placement: "top", offset: 8,
+        shift: { padding: 8 }, flip: { padding: 8 },
+        // BubbleMenu startet mit absolute. Vor der ersten Messung muss der
+        // DOM dieselbe Strategie wie Floating UI haben, auch im Scrollbereich.
+        onShow: () => menuRef.current?.style.setProperty("position", "fixed"),
+      }}
       shouldShow={({ editor: current }) =>
         current.isEditable &&
         !current.state.selection.empty &&

@@ -183,7 +183,9 @@
   grid-template-columns: 1.1fr 1fr;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-sm);
-  background: var(--color-ink-850);
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: var(--glass-overlay-filter);
+  backdrop-filter: var(--glass-overlay-filter);
   padding: 4px;
   box-shadow: var(--shadow-popover);
   max-height: calc(100vh - 120px);

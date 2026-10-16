@@ -9,6 +9,24 @@
   background: var(--surface-base);
 }
 
+/* Glas liegt hinter dem Inhalt. Untermenüs können dadurch den Seiteninhalt
+   weichzeichnen, ohne am Backdrop Root ihrer Elternfläche zu enden. */
+.note-format-toolbar::before,
+.notes-palette::before,
+.notes-sidebar::before {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: var(--glass-overlay-filter);
+  backdrop-filter: var(--glass-overlay-filter);
+  pointer-events: none;
+}
+
+.note-format-toolbar::before,
+.notes-palette::before { content: ""; }
+
 /* --- Hauptbereich --------------------------------------------------------- */
 
 .notes-main {
@@ -44,18 +62,69 @@
 }
 
 .notes-empty {
+  position: relative;
+  isolation: isolate;
   display: grid;
   height: 100%;
   place-items: center;
-  padding: var(--space-8);
+  padding: var(--space-8) var(--space-4);
   color: var(--color-faint);
   text-align: center;
 }
 
-.notes-empty strong { display: block; margin-bottom: 6px; color: var(--color-text); font-size: var(--text-lg); }
-.notes-empty span { font-size: var(--text-sm); }
-.notes-empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); margin-top: var(--space-4); }
+/* Text und Aktionen behalten ihren ruhigen 16px-Rhythmus. */
+.notes-empty-content {
+  display: flex;
+  max-width: 380px;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* Das Motiv gehört zur gesamten Notizenfläche, nicht zu einer Bildkachel. */
+.notes-empty-media {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  mask-image: radial-gradient(
+    ellipse 68% 65% at 50% 38%,
+    var(--color-text) 0%,
+    color-mix(in srgb, var(--color-text) 65%, transparent) 38%,
+    transparent 80%
+  );
+}
+
+.notes-empty-icon {
+  display: flex;
+  width: 56px;
+  height: 56px;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-faint);
+}
+
+.notes-empty-artwork {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 40%;
+  filter: saturate(.65);
+  opacity: 0;
+  transition: opacity var(--duration-slow) var(--ease-standard);
+}
+
+.notes-empty-artwork.is-loaded { opacity: .24; }
+
+.notes-empty strong { display: block; color: var(--color-text); font-size: var(--text-lg); font-weight: 600; }
+.notes-empty span { max-width: 44ch; font-size: var(--text-md); line-height: 1.6; }
+.notes-empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); }
 .notes-empty-actions > button { min-height: 44px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .notes-empty-artwork { transition: none; }
+}
 
 .note-action-error { margin: var(--space-3); color: var(--color-bad); font-size: var(--text-sm); }
 

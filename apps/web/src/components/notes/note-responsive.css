@@ -16,15 +16,21 @@
 
   .notes-sidebar {
     position: absolute;
+    isolation: isolate;
     z-index: 30;
     top: 0;
     bottom: 0;
     left: 0;
     height: 100%;
     max-width: min(320px, 86vw);
+    background: transparent;
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
     box-shadow: var(--shadow-overlay);
     transition: transform var(--duration-base) var(--ease-standard);
   }
+
+  .notes-sidebar::before { content: ""; }
 
   .notes-sidebar:not(.is-open) { transform: translateX(-100%); }
   .notes-sidebar-resizer { display: none; }
@@ -202,11 +208,12 @@
   .notes-move-row,
   .notes-icon-remove { min-height: 44px; }
 
-  /* Formatierungsleiste bleibt einreihig und scrollt notfalls seitlich. */
-  .note-format-toolbar { max-width: calc(100vw - 16px); overflow-x: auto; }
+  /* Umbruch hält die Leiste im Viewport, ohne ihre Farbmenüs abzuschneiden. */
+  .note-format-toolbar { max-width: calc(100vw - 16px); flex-wrap: wrap; justify-content: center; }
   .note-format-toolbar > button,
-  .note-format-popover-wrap > button { min-width: 40px; height: 40px; }
-  .note-color-swatch, .note-highlight-swatch { width: 34px; height: 34px; }
+  .note-format-popover-wrap > button { min-width: 44px; height: 44px; }
+  .note-format-popover-wrap { position: static; }
+  .note-color-swatch, .note-highlight-swatch { width: 44px; height: 44px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -2,6 +2,37 @@
    in components/status/status-hover-card.css. `.status-limits` ist der
    zugehörige Trigger in der Leiste. */
 
+/* --- Integrierter Kopf mit Hintergrundmotiv ------------------------------- */
+
+.ulc-card .shc-head {
+  position: relative;
+  overflow: hidden;
+  min-height: 96px;
+  align-items: flex-end;
+  border: 0;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.ulc-artwork {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 45%;
+  pointer-events: none;
+  filter: saturate(.7);
+  mask-image: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--color-text) 45%, transparent) 0%,
+    var(--color-text) 32%,
+    transparent 100%
+  );
+  opacity: .32;
+}
+
+.ulc-heading { position: relative; display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); width: 100%; }
+
 /* --- Provider ---------------------------------------------------------- */
 
 .ulc-provider { flex: none; padding: var(--space-3) var(--space-4); }

@@ -27,7 +27,9 @@
   overflow-y: auto;
   border: 1px solid var(--color-line);
   border-radius: var(--radius-lg);
-  background: var(--color-ink-850);
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: var(--glass-overlay-filter);
+  backdrop-filter: var(--glass-overlay-filter);
   padding: 5px;
   box-shadow: var(--shadow-raised);
 }

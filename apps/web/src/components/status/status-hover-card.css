@@ -2,11 +2,7 @@
    Alle Farben, Radien und Timings kommen aus dem @theme-Block von index.css. */
 
 .shc {
-  /* Kanten und Spuren aus weißer Transparenz ableiten statt aus den Ink-Stufen.
-     Im ausgelieferten Theme sind `--color-line`, `--color-ink-600` und
-     `--color-ink-850` gleich `#191919` — ein Rahmen aus einer dieser Stufen
-     wäre auf der Karte unsichtbar. `color-mix` auf `--color-text` folgt der
-     Projektvorgabe und bleibt über jedes Theme hinweg ablesbar. */
+  /* Feine Kanten und Spuren bleiben auf der transparenten Ebene ablesbar. */
   --shc-edge: color-mix(in oklab, var(--color-text) 11%, transparent);
   --shc-edge-soft: color-mix(in oklab, var(--color-text) 6%, transparent);
   --shc-track: color-mix(in oklab, var(--color-text) 9%, transparent);
@@ -17,7 +13,9 @@
   flex-direction: column;
   border: 1px solid var(--shc-edge);
   border-radius: var(--radius);
-  background: var(--color-ink-850);
+  background: var(--surface-glass);
+  -webkit-backdrop-filter: var(--glass-overlay-filter);
+  backdrop-filter: var(--glass-overlay-filter);
   color: var(--color-text);
   box-shadow: var(--shadow-popover);
   transform-origin: 100% 100%;
@@ -54,7 +52,7 @@
   border-right: 1px solid var(--shc-edge);
   border-bottom: 1px solid var(--shc-edge);
   border-radius: 0 0 3px 0;
-  background: var(--color-ink-850);
+  background: var(--surface-glass);
   pointer-events: none;
 }
 
