@@ -18,6 +18,8 @@ export * from "./manifest-json-schema.js";
 export * from "./manifest.js";
 export * from "./notification-contributions.js";
 export * from "./permissions.js";
+export * from "./plugin-code.js";
+export * from "./plugin-runtime.js";
 export * from "./preview-contributions.js";
 export * from "./realtime-contributions.js";
 export * from "./scheduled-job-contributions.js";

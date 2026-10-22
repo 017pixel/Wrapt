@@ -12,6 +12,7 @@ export async function startBackgroundServices(app: FastifyInstance, deps: AppDep
   if (isolatedTest && !settings.testIsolation) {
     throw new Error("NODE_ENV=test benötigt WRAPT_E2E=true für einen isolierten Serverstart.");
   }
+  await deps.pluginCode.authoring.start();
   if (!isolatedTest) {
     systemService.startMetricsHistory();
     // Boot-Hook der Account-Recovery (D-009): offene Aktivierungs-Journale
@@ -40,6 +41,7 @@ export async function startBackgroundServices(app: FastifyInstance, deps: AppDep
 
 export function registerShutdown(app: FastifyInstance, deps: AppDependencies, state: LifecycleState) {
   app.addHook("onClose", async () => {
+    await deps.pluginCode.close();
     systemService.stopMetricsHistory();
     await deps.previewDevServers.close();
     deps.liveUsage.stop();
@@ -68,6 +70,7 @@ export function registerShutdown(app: FastifyInstance, deps: AppDependencies, st
     deps.fileManager.close();
     deps.skillEditor.close();
     deps.projectRegistryDatabase.close();
+    deps.uiSettingsDatabase.close();
     deps.projectActivityDatabase.close();
     await deps.operationalAudit.close();
     deps.usageDatabase.close();

@@ -9,9 +9,14 @@ import { registerExtensionRoutes } from "../extensions/routes.js";
 import { extensionDatabaseBackupStatus } from "../extensions/backup.js";
 import { createWebBuildMetricsReader } from "../observability/web-build-metrics.js";
 import { registerHermesRoutes } from "../hermes/routes.js";
+import { hermesAuthority } from "../hermes/token.js";
+import { readHermesUpdateState } from "../hermes/status-service.js";
+import { registerHermesV2Routes } from "../hermes/v2/routes.js";
 import { registerNotificationRoutes } from "../notifications/routes.js";
 import { registerPluginRoutes } from "../plugins/routes.js";
+import { registerCodePluginRoutes } from "../plugins/code-routes.js";
 import { registerPreviewRoutes } from "../previews/routes.js";
+import { registerUiSettingsRoutes } from "../settings/routes.js";
 import { registerDevServerConfirmationRoutes } from "../previews/devServerConfirmations.js";
 import { registerEditorOpenRoutes } from "../services/editorOpen.js";
 import { createCommandService } from "../services/commandService.js";
@@ -29,6 +34,7 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
     await scope.register(multipart, { limits: { files: 1, fileSize: settings.orbitAssetMaxFileBytes } });
     await registerApiRoutes(scope, {
       projects: deps.projects,
+      pluginHub: deps.pluginCode.hub,
       statuses: createServiceStatusService(deps.servicesConfig.services),
       commands: createCommandService(deps.commandsConfig),
       usage: deps.liveUsage,
@@ -71,6 +77,7 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
     const [build, audit] = await Promise.all([webBuildMetrics.get(), deps.operationalAudit.verifyAsync()]);
     return operationalMetricsSchema.parse({
     ...deps.operationalMetrics.snapshot(),
+    notificationSyncs: { terminal: deps.terminalStatusSync.syncErrorStatus() },
     push: deps.notificationPush.metrics(),
     build,
     audit: { ...audit, outboxPending: deps.operationalAudit.outboxPending() },
@@ -112,6 +119,12 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
     database: deps.previewDevServerDatabase,
     identity: deps.identityOptions,
   });
+  const resolveHermesProjectCwd = async (projectId: string | null) => {
+    if (projectId === null) return settings.terminalDefaultCwd;
+    const { project } = await deps.projects.get(projectId);
+    if (project.availability !== "available") throw new AppError(400, "PROJECT_NOT_FOUND", "Das gewählte Projekt ist momentan nicht verfügbar.");
+    return project.path;
+  };
   await app.register(registerHermesRoutes, {
     prefix: "/api/v1",
     identity: deps.identityOptions,
@@ -119,17 +132,26 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
     manager: deps.hermesManager,
     sessions: deps.hermesSessions,
     status: deps.hermesStatus,
-    resolveProjectCwd: async (projectId) => {
-      if (projectId === null) return settings.terminalDefaultCwd;
-      const { project } = await deps.projects.get(projectId);
-      if (project.availability !== "available") throw new AppError(400, "PROJECT_NOT_FOUND", "Das gewählte Projekt ist momentan nicht verfügbar.");
-      return project.path;
-    },
+    resolveProjectCwd: resolveHermesProjectCwd,
+  });
+  await app.register(registerHermesV2Routes, {
+    prefix: "/api/v1",
+    authority: hermesAuthority(),
+    enabled: () => settings.hermes.enabled,
+    identity: deps.identityOptions,
+    dashboard: deps.hermesClient,
+    allowedRoots: settings.terminalAllowedRoots,
+    deniedRoots: [settings.configDirectory, settings.dataDirectory],
+    resolveProjectCwd: resolveHermesProjectCwd,
+    policy: { rpcTimeoutMs: settings.hermes.requestTimeoutSeconds * 1_000 },
+    organizationOptions: { databasePath: settings.databasePath, homeDirectory: settings.hermes.homeDirectory },
+    resources: { writer: deps.hermesClient, readUpdateStatus: readHermesUpdateState },
   });
   await app.register(registerNotificationRoutes, { prefix: "/api/v1", database: deps.notificationDatabase, push: deps.notificationPush, configDirectory: settings.configDirectory, identity: deps.identityOptions });
   await app.register(registerEditorOpenRoutes, { prefix: "/api/v1", secrets: deps.editorOpenSecrets });
   await app.register(registerExtensionRoutes, { prefix: "/api/v1", manager: deps.extensionManager, catalog: deps.extensionCatalog, identity: deps.identityOptions, runtime: deps.extensionRuntime });
   await app.register(registerPluginRoutes, { prefix: "/api/v1", authoring: deps.pluginAuthoring, creatorSkillPath: settings.pluginCreatorSkillPath, identity: deps.identityOptions });
+  await app.register(registerCodePluginRoutes, { prefix: "/api/v1", platform: deps.pluginCode, identity: deps.identityOptions });
   await app.register(registerTerminalRoutes, {
     prefix: "/api/v1",
     manager: deps.terminals,
@@ -151,6 +173,11 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
   await app.register(registerWorkspaceRegistryRoutes, {
     prefix: "/api/v1",
     database: new WorkspaceRegistryDatabase(settings.databasePath),
+    identity: deps.identityOptions,
+  });
+  await app.register(registerUiSettingsRoutes, {
+    prefix: "/api/v1",
+    database: deps.uiSettingsDatabase,
     identity: deps.identityOptions,
   });
 }

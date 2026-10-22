@@ -15,8 +15,10 @@ import type { WorkbenchIdentityOptions } from "../security/workbench-identity.js
 import type { AccountService } from "../usage/account-service.js";
 import type { UsageTimelineService } from "../usage/timeline-service.js";
 import type { UsageAnalyticsService } from "../usage/usage-service.js";
+import type { PluginRuntimeHub } from "../plugins/code-runtime-hub.js";
 
 export interface RouteServices {
+  pluginHub?: PluginRuntimeHub;
   projects: ReturnType<typeof createProjectService>;
   statuses: ReturnType<typeof createServiceStatusService>;
   commands: ReturnType<typeof createCommandService>;

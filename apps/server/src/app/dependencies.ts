@@ -39,6 +39,7 @@ import { PreviewStorageService } from "../previews/storage.js";
 import { ProjectActivityDatabase } from "../projects/activity-database.js";
 import { ProjectActivityService } from "../projects/activity-service.js";
 import { ProjectRegistryDatabase } from "../projects/registry-database.js";
+import { UiSettingsDatabase } from "../settings/database.js";
 import { EditorOpenSecrets } from "../services/editorOpen.js";
 import { createLocalPortService } from "../services/localPortService.js";
 import { createProjectFileService } from "../services/projectFileService.js";
@@ -55,6 +56,10 @@ import { UsageTimelineService } from "../usage/timeline-service.js";
 import { UsageAnalyticsService } from "../usage/usage-service.js";
 import { AppError } from "../utils/errors.js";
 import { createPluginAuthoring } from "../plugins/dependencies.js";
+import { createPluginCodePlatform } from "../plugins/code-platform.js";
+import { registerNotesPluginApi } from "../plugins/host-notes.js";
+import { registerWorkspacePluginApi } from "../plugins/host-workspace.js";
+import { registerIntegrationPluginApi } from "../plugins/host-integrations.js";
 import { createRuntimeDependencies } from "./runtime-dependencies.js";
 import { readConfiguredT3Channel } from "../config/wrapt-config.js";
 import { resolveT3ServiceUrls } from "../services/t3HostedApp.js";
@@ -113,6 +118,7 @@ export async function createAppDependencies(app: FastifyInstance) {
   const operationalMetrics = new OperationalMetrics();
   const projectActivityDatabase = new ProjectActivityDatabase(settings.databasePath);
   const projectRegistryDatabase = new ProjectRegistryDatabase(settings.databasePath);
+  const uiSettingsDatabase = new UiSettingsDatabase(settings.databasePath);
   const previewSlotDatabase = new PreviewSlotDatabase(settings.databasePath);
   const previewDevServerDatabase = new PreviewDevServerDatabase(settings.databasePath);
   const previewSecrets = new PreviewSecrets(settings.dataDirectory);
@@ -196,7 +202,7 @@ export async function createAppDependencies(app: FastifyInstance) {
   const localPluginCatalog = new LocalExtensionCatalog(defaultCatalogProviderId(), app.log);
   extensionManager.attachCatalog(extensionCatalog);
   extensionManager.attachLocalPluginCatalog(localPluginCatalog);
-  extensionManager.reconcileRuntime();
+  const pluginCode = createPluginCodePlatform({ manager: extensionManager, database: extensionDatabase, releases: extensionReleaseStore, pointers: extensionRuntime, catalog: localPluginCatalog });
   const pluginAuthoring = createPluginAuthoring(extensionCatalog, localPluginCatalog, extensionManager);
   extensionManager.syncCatalogUpdates();
   const notificationPush = new NotificationPushService({
@@ -305,6 +311,10 @@ export async function createAppDependencies(app: FastifyInstance) {
     usageDatabase,
   });
   const editorOpenSecrets = new EditorOpenSecrets(settings.dataDirectory);
+  registerNotesPluginApi(pluginCode.api, notesDatabase);
+  registerWorkspacePluginApi(pluginCode.api, { projects, projectBrowser, projectFiles, fileManager, orbit: orbitDatabase });
+  registerIntegrationPluginApi(pluginCode.api, { projects, notifications: notificationDatabase, terminals: runtime.terminals, previews: previewSlots });
+  extensionManager.reconcileRuntime();
   return {
     projectsConfig,
     servicesConfig,
@@ -317,6 +327,7 @@ export async function createAppDependencies(app: FastifyInstance) {
     operationalMetrics,
     projectActivityDatabase,
     projectRegistryDatabase,
+    uiSettingsDatabase,
     previewSlotDatabase,
     previewDevServerDatabase,
     previewSecrets,
@@ -336,6 +347,7 @@ export async function createAppDependencies(app: FastifyInstance) {
     extensionCatalog,
     extensionRuntime,
     pluginAuthoring,
+    pluginCode,
     notificationPush,
     t3StatusSync,
     terminalStatusSync,

@@ -4,6 +4,7 @@ import { ensureWraptLocalConfig, migrateLegacyConfigValue, migrateLegacyPersiste
 import { join } from "node:path";
 import { appearanceThemeSchema, codexResetHistorySettingsSchema, contextMenuConfigSchema, dashboardConfigSchema, defaultAppearanceTheme, mascotConfigSchema, notificationPreferencesSchema, t3ChannelSchema, usageMonitoringSchema, type AppearanceTheme, type CodexResetHistorySettings, type ContextMenuConfig, type MascotConfig, type NotificationPreferences, type T3Channel, type UsageMonitoring } from "@wrapt/contracts";
 import { z } from "zod";
+import { pluginSettingsSchema } from "./plugin-settings.js";
 import { absoluteFilesystemPathSchema } from "@wrapt/contracts";
 import { persistLocalConfig } from "./config-persistence.js";
 import { resolveInstanceName } from "./instance-name.js";
@@ -119,11 +120,7 @@ export const wraptConfigSchema = z.object({
   mascot: mascotConfigSchema,
   // Plugin-spezifische, lokale Dateiquellen. Persönliche Pfade bleiben in
   // wrapt.local.json; ohne Wert wird der Wrapt-Plugins-Skill verwendet.
-  plugins: z.object({
-    wraptPluginsSkillPath: absolutePath.optional(),
-    // Alte lokale Configs bleiben lesbar; der neue Schlüssel hat Vorrang.
-    creatorSkillPath: absolutePath.optional(),
-  }).prefault({}),
+  plugins: pluginSettingsSchema,
   hermes: z.object({
     enabled: z.boolean().default(true),
     host: z.string().min(1).default("127.0.0.1"),

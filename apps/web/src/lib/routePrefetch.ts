@@ -42,7 +42,7 @@ const dataLoaders: Array<[prefix: string, warm: WarmRoute]> = [
   ["/files", (client) => client.prefetchQuery(wraptQueries.projects())],
   ["/gallery", (client) => client.prefetchQuery(wraptQueries.projects())],
   ["/terminal", (client) => client.prefetchQuery(wraptQueries.terminalSessions())],
-  ["/terminal", (client) => client.prefetchQuery(wraptQueries.projects())],
+  ["/terminal", (client) => client.prefetchQuery(wraptQueries.terminalWorkspace())],
   ["/codex", (client) => client.prefetchQuery(wraptQueries.projects())],
   ["/claude", (client) => client.prefetchQuery(wraptQueries.projects())],
   ["/opencode", (client) => client.prefetchQuery(wraptQueries.projects())],
@@ -87,6 +87,9 @@ export function prefetchRouteTarget(client: QueryClient, href: string): void {
   const pathname = stripBasename(rawPath);
   preloadRouteArtwork(pathname);
   prefetchRoute(pathname);
+  if (pathname === "/terminal" || pathname === "/codex" || pathname === "/claude") {
+    quiet(import("../components/terminal/transport/TerminalTransport").then(({ terminalTransport }) => terminalTransport.preconnect()));
+  }
   prefetchRegistryPage(pathname);
   for (const [prefix, warm] of dataLoaders) {
     if (pathname === prefix || pathname.startsWith(`${prefix}/`) || (prefix === "/projects" && pathname === "/projects")) {

@@ -1,15 +1,20 @@
-import { useCallback, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { BrowserRouter, Navigate, Routes, useLocation } from "react-router";
 import { PwaInstallProvider } from "./lib/usePwaInstall";
 import { pageRouteRegistry } from "./extensions/pageRouteRegistry";
-import { routeHostElements } from "./extensions/routeHost";
+import { routeHostElements, RouteFallback } from "./extensions/routeHost";
 import { pagePreferenceAliases } from "./extensions/pagePreferenceAliases";
 import { notesPagePreferenceAliases } from "./extensions/notesBuiltins";
-import { useAppPreferences } from "./stores/appPreferences";
+import { subscribeAppPreferencesStorage, useAppPreferences } from "./stores/appPreferences";
 import { isPageVisibleIn, useSidebarPreferences } from "./stores/sidebarPreferences";
 import { EditorOpenBridge } from "./components/EditorOpenBridge";
 import { ThemeRuntimeSync } from "./components/ThemeRuntimeSync";
 import { PluginRuntimeSync } from "./extensions/pluginRuntimeSync";
+import { CodePluginSync } from "./extensions/CodePluginSync";
+import { CodePluginNotifications } from "./extensions/CodePluginNotifications";
+import { useCodeUiRevision } from "./extensions/code-surface";
+import { resolveCodePageRoutes } from "./extensions/code-routes";
+import { SettingsSync } from "./components/SettingsSync";
 import { ContextMenuProvider } from "./components/context-menu/ContextMenuProvider";
 import { DashboardMetricsRuntime } from "./views/DashboardMetricsRuntime";
 import { RoutePrefetchHost } from "./components/RoutePrefetchHost";
@@ -22,13 +27,17 @@ import { hasWorkspaceSwitchFragment, WorkspaceSwitchLanding } from "./components
  * Extension-Route erscheint ohne Änderung an dieser Datei.
  */
 export function App() {
+  useEffect(subscribeAppPreferencesStorage, []);
   const [pluginRoutesReady, setPluginRoutesReady] = useState(false);
+  const [codeRoutesReady, setCodeRoutesReady] = useState(false);
+  const markCodeRoutesReady = useCallback(() => setCodeRoutesReady(true), []);
+  const uiRevision = useCodeUiRevision();
   const markPluginRoutesReady = useCallback(() => setPluginRoutesReady(true), []);
   const snapshot = useSyncExternalStore(
     pageRouteRegistry.subscribe,
     pageRouteRegistry.getSnapshot,
   );
-  const routes = useMemo(() => routeHostElements(snapshot), [snapshot]);
+  const routes = useMemo(() => routeHostElements(resolveCodePageRoutes(snapshot, uiRevision)), [snapshot, uiRevision]);
   const basename = import.meta.env.BASE_URL.replace(/\/$/, "") || "/";
   return (
     <PwaInstallProvider>
@@ -37,12 +46,15 @@ export function App() {
         <ContextMenuProvider>
           <EditorOpenBridge />
           <ThemeRuntimeSync />
+          <SettingsSync />
           <PluginRuntimeSync onReady={markPluginRoutesReady} />
+          <CodePluginSync onReady={markCodeRoutesReady} />
+          <CodePluginNotifications />
           <DashboardMetricsRuntime />
           <RoutePrefetchHost />
-          <WorkspaceSwitchLanding pluginRoutesReady={pluginRoutesReady}>
+          <WorkspaceSwitchLanding pluginRoutesReady={pluginRoutesReady && codeRoutesReady}>
             <HomeRedirect />
-            <Routes>{routes}</Routes>
+            {pluginRoutesReady && codeRoutesReady ? <Routes>{routes}</Routes> : <RouteFallback />}
           </WorkspaceSwitchLanding>
         </ContextMenuProvider>
       </BrowserRouter>

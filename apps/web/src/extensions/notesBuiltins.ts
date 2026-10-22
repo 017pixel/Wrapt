@@ -8,6 +8,7 @@ import {
 } from "@wrapt/extension-contracts";
 import { NoteIcon } from "../components/icons";
 import { loadNotes, loadRouteWithRecovery } from "../lib/routeModules";
+import type * as NotesModule from "../views/Notes";
 import {
   navigationRegistry,
   type NavigationRegistration,
@@ -28,7 +29,7 @@ import {
 
 const NOTES_OWNER_ID = extensionIdSchema.parse("wrapt.notes");
 
-function notesPageRuntime(exportName: string): PageRuntimeBinding {
+function notesPageRuntime(exportName: keyof typeof NotesModule): PageRuntimeBinding {
   return Object.freeze({
     chunkId: "notes",
     exportName,
@@ -80,7 +81,7 @@ const notesBatch: PageRouteOwnerBatch = Object.freeze({
     Object.freeze({
       contribution: pageContributionSchema.parse({
         id: "wrapt.notes.page.main",
-        title: "Notes",
+        title: "Notizen",
         description: "Notion-artige Notizen mit Markdown",
       }),
       runtime: notesPageRuntime("Notes"),
@@ -104,7 +105,7 @@ const notesNavigation: readonly NavigationRegistration[] = Object.freeze([
     contribution: navigationContributionSchema.parse({
       id: "wrapt.notes.navigation.main",
       routeId: "wrapt.notes.route.main",
-      label: "Notes",
+      label: "Notizen",
       description: "Notion-artige Notizen mit Markdown",
       icon: "extension",
       group: "workspace",

@@ -10,6 +10,8 @@ import { apiClient } from "./lib/apiClient";
 import { preloadDashboardArtwork } from "./lib/dashboardArtworkPreload";
 import { initializeOverlayTransparency } from "./lib/overlayTransparency";
 import { synchronizeExistingPushDevice } from "./lib/webPushDevice";
+import { retryQuery, queryRetryDelay } from "./lib/queryPolicy";
+import { WorkbenchAccess } from "./components/WorkbenchAccess";
 import "./index.css";
 import "./views/dashboard-layout.css";
 import "./visual-system.css";
@@ -50,7 +52,7 @@ if (root === null) throw new Error("Der Frontend-Mount-Punkt #root fehlt.");
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, refetchOnWindowFocus: false },
+    queries: { retry: retryQuery, retryDelay: queryRetryDelay, refetchOnWindowFocus: false },
   },
 });
 
@@ -83,7 +85,7 @@ createRoot(root).render(
       <CrashReportDialog />
       <CrashToastRegion />
       <ErrorBoundary label="Wrapt">
-        <App />
+        <WorkbenchAccess><App /></WorkbenchAccess>
       </ErrorBoundary>
     </QueryClientProvider>
   </StrictMode>,

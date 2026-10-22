@@ -8,6 +8,7 @@ import { bootstrapLegacySettingsCards } from "./legacySettingsCards";
 import { bootstrapLegacyStatusBar } from "./legacyStatusBar";
 import { bootstrapLegacyTopbar } from "./legacyTopbar";
 import { bootstrapNotesBuiltins } from "./notesBuiltins";
+import { bootstrapHermesV2Builtins } from "./hermesV2Builtins";
 import { bootstrapHostContextMenus } from "./hostContextMenus";
 
 /**
@@ -24,6 +25,7 @@ export function bootstrapBuiltinContributions(): void {
   bootstrapLegacyPageRoutes();
   bootstrapLegacyNavigation();
   bootstrapNotesBuiltins();
+  bootstrapHermesV2Builtins();
   bootstrapLegacyCommands();
   bootstrapLegacyStatusBar();
   bootstrapLegacyTopbar();
