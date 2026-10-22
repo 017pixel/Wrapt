@@ -154,9 +154,9 @@ export const noteSearchRangeSchema = z.enum(["any", "today", "week", "month"]);
 export const noteSearchQuerySchema = z.object({
   q: z.string().trim().min(1).max(200),
   titleOnly: z
-    .enum(["1", "0", "true", "false"])
+    .union([z.enum(["1", "0", "true", "false"]), z.boolean()])
     .optional()
-    .transform((value) => value === "1" || value === "true"),
+    .transform((value) => value === "1" || value === "true" || value === true),
   scopeId: noteIdSchema.optional(),
   createdWithin: noteSearchRangeSchema.default("any"),
   updatedWithin: noteSearchRangeSchema.default("any"),

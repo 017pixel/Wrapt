@@ -16,6 +16,9 @@ Alle relevanten Änderungen werden in kurzen Stichpunkten dokumentiert.
 - Der Start zeigt einen Ladehinweis, bevor die Anwendung bereit ist. Eine isolierte Performance-Probe prüft feste Budgets für API-Antworten und Event-Loop-Verzögerungen.
 - Qualitätsprüfungen prüfen ihre eigenen Fehlerfälle mit Gegenproben. Terminal- und Plugin-E2E-Tests nutzen dieselbe isolierte Testadresse.
 
+### Behoben
+- Die Notizensuche antwortet nach der Weiterleitung durch den Plugin-Host wieder zuverlässig; der Titel-Filter wird nur einmal ausgewertet.
+
 ## [2.18.0] - 2026-10-22
 
 ### Erstellt

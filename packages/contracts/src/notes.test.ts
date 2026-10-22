@@ -67,6 +67,10 @@ describe("notes-vertraege", () => {
     expect(scoped.scopeId).toBe("3f0b6f5e-1f9d-4f0b-9a3c-2b8b8f0d5a11");
     expect(scoped.updatedWithin).toBe("week");
     expect(noteSearchQuerySchema.parse({ q: "plan", titleOnly: "0" }).titleOnly).toBe(false);
+    // Der Plugin-Host parst bereits validierte Routeneingaben erneut; die
+    // Umwandlung muss deshalb auch das eigene Ergebnis annehmen.
+    expect(noteSearchQuerySchema.parse({ q: "plan", titleOnly: true }).titleOnly).toBe(true);
+    expect(noteSearchQuerySchema.parse(parsed)).toEqual(parsed);
   });
 
   it("verlangt beim Erstellen höchstens Titel und Elternnotiz", () => {
