@@ -20,6 +20,7 @@ import { useTerminalHoverPreview } from "./useTerminalHoverPreview";
 import { TerminalPinnedEntries } from "./TerminalPinnedEntries";
 import { openGlobalContextMenu, type GlobalContextMenuAction } from "../../context-menu/contextMenuEvents";
 import { hostContextMenuId } from "../../../extensions/hostContextMenus";
+import { useTerminalNotices } from "../terminalNotifications";
 
 export interface TerminalSidebarProps {
   areaId: string;
@@ -33,6 +34,7 @@ export interface TerminalSidebarProps {
   onNewTerminal(): void;
   onNewTerminalInFolder(folderId: string | null): void;
   onOpenEntry(runtimeId: string): void;
+  onPreloadEntry?(entryId: string | null): void;
   onOpenInSplit(runtimeId: string): void;
   onResync(runtimeId: string): void;
   onRestart(runtimeId: string): void;
@@ -53,7 +55,7 @@ export interface TerminalSidebarProps {
   onDragStateChange?(drag: DndDragState | null, target: DndDropTarget | null): void;
 }
 
-export function TerminalSidebar({ areaId, kind, meta, sessions, cwds, isMobile, open, onClose, onNewTerminal, onNewTerminalInFolder, onOpenEntry, onOpenInSplit, onResync, onRestart, onToggleSidebar, activeRuntimeId, hasSplit, hasActivePane, onCreateSplit, onClearSplit, onClear, onClosePane, sessionPicker, sidebarWidth = 256, onResizeStart = () => undefined, onResizeKeyboard = () => undefined, onReload = () => undefined, onFullscreen = () => undefined, onDragStateChange }: TerminalSidebarProps) {
+export function TerminalSidebar({ areaId, kind, meta, sessions, cwds, isMobile, open, onClose, onNewTerminal, onNewTerminalInFolder, onOpenEntry, onPreloadEntry, onOpenInSplit, onResync, onRestart, onToggleSidebar, activeRuntimeId, hasSplit, hasActivePane, onCreateSplit, onClearSplit, onClear, onClosePane, sessionPicker, sidebarWidth = 256, onResizeStart = () => undefined, onResizeKeyboard = () => undefined, onReload = () => undefined, onFullscreen = () => undefined, onDragStateChange }: TerminalSidebarProps) {
   const document = useTerminalWorkspaceStore((state) => state.document);
   const queueOps = useTerminalWorkspaceStore((state) => state.queueOps);
   const [editing, setEditing] = useState<{ kind: "entry" | "folder"; id: string } | null>(null);
@@ -61,8 +63,8 @@ export function TerminalSidebar({ areaId, kind, meta, sessions, cwds, isMobile, 
   const [confirmDelete, setConfirmDelete] = useState<{ kind: "entry" | "folder" | "bulk"; id: string; name: string } | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [bulkClosing, setBulkClosing] = useState(false);
-  const [bulkCloseError, setBulkCloseError] = useState<string | null>(null);
-  const hoverPreview = useTerminalHoverPreview(!isMobile);
+  const setBulkCloseError = (message: string | null) => { if (message) useTerminalNotices.getState().show({ id: "terminal:bulk-close", tone: "error", message }); else useTerminalNotices.getState().dismiss("terminal:bulk-close"); };
+  const hoverPreview = useTerminalHoverPreview(!isMobile, onPreloadEntry);
 
   const drop = useMemo(() => (drag: { kind: "entry" | "folder"; id: string }, target: DndDropTarget | null) => {
     const state = useTerminalWorkspaceStore.getState();
@@ -303,7 +305,6 @@ export function TerminalSidebar({ areaId, kind, meta, sessions, cwds, isMobile, 
           openTerminalMenu(event, "Terminals", buildRootMenu());
         }}
       >
-        {bulkCloseError ? <p className="px-3 py-2 text-sm text-bad" role="alert">{bulkCloseError}</p> : null}
         <div className="terminal-sidebar-header">
           <button type="button" className="terminal-sidebar-title-button" onClick={onToggleSidebar} aria-label="Terminal-Sidebar ausblenden" title="Terminal-Sidebar ausblenden">
             <TerminalIcon className="h-4 w-4" />

@@ -2,6 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import { basename } from "node:path";
 import type { TerminalKind } from "@wrapt/contracts";
 import type { NotificationDatabase } from "./database.js";
+import { redactText } from "../utils/redaction.js";
 
 interface TerminalRow {
   id: string; runtimeId: string; kind: TerminalKind; projectId: string | null; cwd: string;
@@ -29,9 +30,17 @@ export class TerminalStatusSync {
   private timer: NodeJS.Timeout | null = null;
   private readonly seen = new Map<string, string>();
   private readonly pending = new Map<string, PendingInput>();
+  private syncErrorCount = 0;
+  private lastSyncError: { scope: string; message: string; at: string } | null = null;
+  private lastSuccessAt: string | null = null;
+  private lastWarningAt = 0;
   constructor(private readonly options: { databasePath: string; notifications: NotificationDatabase; pollSeconds: number; terminalMinimumSeconds: number; agentMinimumSeconds: number; inputIdleMilliseconds?: number }) {}
   start(): void { if (this.timer) return; this.snapshot(false); this.timer = setInterval(() => this.snapshot(true), this.options.pollSeconds * 1_000); this.timer.unref(); }
   stop(): void { if (this.timer) clearInterval(this.timer); this.timer = null; for (const { timer } of this.pending.values()) clearTimeout(timer); this.pending.clear(); }
+
+  syncErrorStatus() {
+    return { syncErrorCount: this.syncErrorCount, lastSyncError: this.lastSyncError, lastSuccessAt: this.lastSuccessAt };
+  }
 
   /**
    * Agenten-Ausgabe auf Warte-Muster prüfen. Ein Treffer allein löst noch
@@ -74,9 +83,13 @@ export class TerminalStatusSync {
     let db: DatabaseSync | null = null;
     try {
       db = new DatabaseSync(this.options.databasePath, { readOnly: true });
-      db.exec("PRAGMA busy_timeout=1500");
+      // Best-Effort-Polling darf den HTTP-Event-Loop bei Datenbanksperren nicht anhalten.
+      db.exec("PRAGMA busy_timeout=0");
       const rows = db.prepare(`SELECT id, runtime_id runtimeId, kind, project_id projectId, cwd, status,
         created_at createdAt, updated_at updatedAt, exit_code exitCode, exit_signal exitSignal FROM terminal_sessions`).all() as unknown as TerminalRow[];
+      // Gelöschte Sitzungen dürfen den Fingerprint-Cache nicht dauerhaft vergrößern.
+      const present = new Set(rows.map((row) => row.id));
+      for (const id of this.seen.keys()) if (!present.has(id)) this.seen.delete(id);
       for (const row of rows) {
         const fingerprint = `${row.status}:${row.exitCode ?? ""}:${row.updatedAt}`;
         const previous = this.seen.get(row.id); this.seen.set(row.id, fingerprint);
@@ -102,6 +115,15 @@ export class TerminalStatusSync {
           remoteId: `terminal:${row.id}:exit:${row.updatedAt}`, meta: { sessionId: row.id, runtimeId: row.runtimeId, projectId: row.projectId, cwd: row.cwd, durationSeconds, exitCode: row.exitCode, signal: row.exitSignal },
           report: failed ? { message: `${title}: ${body}`, stack: null, context: { Quelle: label(row.kind), Sitzung: row.id, Arbeitsverzeichnis: row.cwd }, logs: [], environment: {} } : null });
       }
-    } catch { /* Beim Serverstart kann die Tabelle noch nicht vorhanden sein. */ } finally { db?.close(); }
+      this.lastSuccessAt = new Date().toISOString();
+    } catch (error) {
+      const message = redactText(error instanceof Error ? error.message : "Unbekannter Terminal-Sync-Fehler", 500);
+      this.syncErrorCount += 1;
+      this.lastSyncError = { scope: "terminal", message, at: new Date().toISOString() };
+      if (this.lastWarningAt === 0 || Date.now() - this.lastWarningAt >= 60_000) {
+        this.lastWarningAt = Date.now();
+        console.warn(`Wrapt: Terminal-Status-Sync fehlgeschlagen (${this.syncErrorCount}x): ${message}`);
+      }
+    } finally { db?.close(); }
   }
 }

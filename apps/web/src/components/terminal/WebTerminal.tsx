@@ -1,9 +1,9 @@
 import { forwardRef, useImperativeHandle } from "react";
-import { CloseIcon, RefreshIcon } from "../icons";
 import { ConfirmDialog } from "../ModalDialog";
 import type { WebTerminalHandle, WebTerminalProps } from "./terminal-types";
 import { useTerminalRenderer } from "./engine/useTerminalRenderer";
 import "./terminal-core.css";
+import { useTerminalNotifications } from "./useTerminalNotifications";
 
 /**
  * Browser-Terminal für eine stabile Runtime-ID (V2). Nutzt den gemeinsamen
@@ -14,6 +14,8 @@ import "./terminal-core.css";
 export const WebTerminal = forwardRef<WebTerminalHandle, WebTerminalProps>(function WebTerminal(
   {
     instanceId,
+    sessionId,
+    preload = false,
     kind = "shell",
     projectId = null,
     initialCwd = null,
@@ -27,7 +29,7 @@ export const WebTerminal = forwardRef<WebTerminalHandle, WebTerminalProps>(funct
   ref,
 ) {
   const renderer = useTerminalRenderer({
-    instanceId, kind, projectId, initialCwd, mode, accountId, active, focused,
+    instanceId, sessionId, preload, kind, projectId, initialCwd, mode, accountId, active, focused,
     renderScale, onMetaChange,
   });
 
@@ -41,28 +43,11 @@ export const WebTerminal = forwardRef<WebTerminalHandle, WebTerminalProps>(funct
     pasteFromClipboard: () => renderer.pasteFromClipboard(),
   }), [renderer]);
 
-  const { error, restartBanner, lastCommand, terminalIsDead, pendingPaste, resolvePendingPaste } = renderer;
+  useTerminalNotifications(instanceId, active, renderer);
+  const { pendingPaste, resolvePendingPaste } = renderer;
 
   return (
     <section className="terminal-session" data-status={renderer.status} onKeyDown={(event) => event.stopPropagation()}>
-      {renderer.status === "connecting" || renderer.status === "disconnected" ? <div className="terminal-connection-banner" role="status">
-        <span>{renderer.status === "connecting" ? "Terminal wird verbunden…" : "Verbindung unterbrochen"}</span>
-        {renderer.status === "disconnected" ? <button type="button" onClick={renderer.resync}>Verbinden</button> : null}
-      </div> : null}
-      {restartBanner ? <div className="terminal-restart-banner" role="status"><span>{restartBanner.message}</span><button type="button" onClick={() => renderer.setRestartBanner(null)} aria-label="Banner schliessen"><CloseIcon className="h-3.5 w-3.5" /></button></div> : null}
-      {error && !terminalIsDead ? <div className="terminal-error" role="alert"><span>{error}</span><button type="button" onClick={() => renderer.setError(null)} aria-label="Fehlermeldung schließen" title="Schließen"><CloseIcon className="h-3.5 w-3.5" /></button></div> : null}
-      {terminalIsDead ? (
-        <div className="terminal-dead" role="alert">
-          <div>
-            <strong>Das Terminal läuft nicht.</strong>
-            {error ? <span>{error}</span> : null}
-            {lastCommand ? <span>Nach dem Neustart steht „{lastCommand}“ wieder in der Eingabe — Enter führt ihn aus.</span> : null}
-          </div>
-          <button type="button" onClick={renderer.restart} className="terminal-dead-restart">
-            <RefreshIcon className="h-4 w-4" /> Neu starten
-          </button>
-        </div>
-      ) : null}
       <div className="terminal-viewport" ref={renderer.mountRef} onPointerDown={() => renderer.focus()} />
       <ConfirmDialog
         open={pendingPaste !== null}

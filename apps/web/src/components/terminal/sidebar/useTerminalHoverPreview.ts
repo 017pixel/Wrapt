@@ -11,7 +11,7 @@ interface PendingPreview extends TerminalHoverPreviewState {
   timer: number;
 }
 
-export function useTerminalHoverPreview(enabled: boolean) {
+export function useTerminalHoverPreview(enabled: boolean, onPreload?: (entryId: string | null) => void) {
   const [preview, setPreview] = useState<TerminalHoverPreviewState | null>(null);
   const pending = useRef<PendingPreview | null>(null);
 
@@ -21,6 +21,7 @@ export function useTerminalHoverPreview(enabled: boolean) {
   }, []);
 
   const start = useCallback((entryId: string, anchor: HTMLElement) => {
+    onPreload?.(entryId);
     const canHover = typeof window.matchMedia !== "function" || window.matchMedia("(hover: hover) and (pointer: fine)").matches;
     if (!enabled || !canHover) return;
     clearPending();
@@ -30,12 +31,13 @@ export function useTerminalHoverPreview(enabled: boolean) {
       pending.current = null;
     }, TERMINAL_HOVER_PREVIEW_DELAY_MS);
     pending.current = { entryId, anchor, timer };
-  }, [clearPending, enabled]);
+  }, [clearPending, enabled, onPreload]);
 
   const end = useCallback((entryId: string) => {
+    onPreload?.(null);
     if (pending.current?.entryId === entryId) clearPending();
     setPreview((current) => current?.entryId === entryId ? null : current);
-  }, [clearPending]);
+  }, [clearPending, onPreload]);
 
   useEffect(() => () => clearPending(), [clearPending]);
 

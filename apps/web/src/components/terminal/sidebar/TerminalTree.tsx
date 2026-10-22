@@ -105,6 +105,8 @@ export function TerminalTree({ document, folderId, depth, areaId, meta, cwds, se
           onContextMenu={(event) => callbacks.onContextMenu(event, "entry", entry.id)}
           onMouseEnter={(event) => callbacks.onHoverStart(entry.id, event.currentTarget)}
           onMouseLeave={() => callbacks.onHoverEnd(entry.id)}
+          onFocus={(event) => { if (event.target === event.currentTarget) callbacks.onHoverStart(entry.id, event.currentTarget); }}
+          onBlur={() => callbacks.onHoverEnd(entry.id)}
           onClick={() => { if (entry.runtimeId) callbacks.onOpenEntry(entry.runtimeId); }}
           onKeyDown={(event) => {
             if (event.target !== event.currentTarget || !entry.runtimeId || !["Enter", " "].includes(event.key)) return;

@@ -18,8 +18,10 @@ export interface RendererCore {
  *  über die übergebenen Refs — der Hook bleibt dadurch schlank und die
  *  Snapshot/Deltas-Logik ist isoliert testbar. */
 export function createRendererCore(refs: RendererRefs, deps: RendererCoreDeps): RendererCore {
-  const { terminalRef, fitRef, sessionRef, epochRef, sequenceRef, ownsGeometryRef, hasLiveStateRef, snapshotReplayRef, mouseTrackingRef, disposedRef, closedRef, createRetriesRef, subscriptionRef, cwdRef } = refs;
+  const { terminalRef, fitRef, sessionRef, epochRef, sequenceRef, ownsGeometryRef, hasLiveStateRef, snapshotReplayRef, mouseTrackingRef, mouseEncodingRef, disposedRef, closedRef, createRetriesRef, subscriptionRef, cwdRef } = refs;
   let snapshotGeneration = 0;
+  let createTimer: number | null = null;
+  let syncing = false;
 
   /** Liest den tatsächlichen Maus-Modus direkt aus der xterm-Emulation. */
   const syncMouseModes = () => {
@@ -37,9 +39,11 @@ export function createRendererCore(refs: RendererRefs, deps: RendererCoreDeps): 
   };
 
   const resync = () => {
-    if (!subscriptionRef.current) attach();
+    if (!subscriptionRef.current) { attach(); return; }
     if (!sessionRef.current) { createSession(); return; }
-    deps.sendMessage({ type: "terminal.sync", runtimeId: deps.instanceId, state: { epoch: epochRef.current, lastSequence: sequenceRef.current } });
+    if (syncing) return;
+    syncing = true;
+    if (!deps.sendMessage({ type: "terminal.sync", runtimeId: deps.instanceId, state: { epoch: epochRef.current, lastSequence: sequenceRef.current } })) syncing = false;
   };
 
   /** Erstellt beziehungsweise reaktiviert die Runtime (idempotent je Runtime-ID). */
@@ -84,6 +88,8 @@ export function createRendererCore(refs: RendererRefs, deps: RendererCoreDeps): 
       }
       case "terminal.snapshot": {
         if (!terminal) return;
+        const buffer = terminal.buffer.active;
+        const scrollOffset = hasLiveStateRef.current && epochRef.current === message.epoch && buffer?.type === "normal" ? buffer.baseY - buffer.viewportY : 0;
         sessionRef.current = message.sessionId;
         epochRef.current = message.epoch;
         sequenceRef.current = message.sequence;
@@ -91,9 +97,11 @@ export function createRendererCore(refs: RendererRefs, deps: RendererCoreDeps): 
         cwdRef.current = message.cwd;
         deps.setCwd(message.cwd);
         createRetriesRef.current = 0;
+        syncing = false;
         deps.setError(null);
         deps.resetOutput();
         snapshotReplayRef.current = true;
+        mouseEncodingRef.current = false;
         const generation = ++snapshotGeneration;
         // Das Snapshot-Raster zuerst unverändert wiedergeben. Ein Fit vor
         // write würde den alten Bildschirm in die neue Breite umbrechen.
@@ -106,6 +114,7 @@ export function createRendererCore(refs: RendererRefs, deps: RendererCoreDeps): 
           snapshotReplayRef.current = false;
           syncMouseModes();
           applyGeometry(message.cols, message.rows, message.ownsGeometry);
+          if (scrollOffset > 0 && terminal.buffer.active.type === "normal") terminal.scrollToLine(Math.max(0, terminal.buffer.active.baseY - scrollOffset));
           deps.flushReplayBuffer();
           const status = message.status === "running" ? "connected" : "exited";
           deps.setStatus(status);
@@ -131,6 +140,7 @@ export function createRendererCore(refs: RendererRefs, deps: RendererCoreDeps): 
         }
         if (output) deps.queueOutput(output);
         hasLiveStateRef.current = true;
+        syncing = false;
         deps.setError(null);
         if (!snapshotReplayRef.current) {
           deps.setStatus("connected");
@@ -151,6 +161,7 @@ export function createRendererCore(refs: RendererRefs, deps: RendererCoreDeps): 
       case "terminal.cleared": {
         sequenceRef.current = Math.max(sequenceRef.current, message.sequence);
         deps.resetOutput();
+        mouseEncodingRef.current = false;
         terminal?.write("\x1bc", syncMouseModes);
         break;
       }
@@ -166,12 +177,13 @@ export function createRendererCore(refs: RendererRefs, deps: RendererCoreDeps): 
         break;
       }
       case "terminal.error": {
+        if (message.code === "INPUT_NOT_SENT") { deps.setError(message.message); break; }
         // Die Runtime wurde serverseitig entfernt (z. B. anderes Gerät hat sie
         // beendet): höchstens dreimal neu erzeugen, danach sauberer Fehlerzustand.
         if (message.code === "SESSION_NOT_FOUND" && !closedRef.current && createRetriesRef.current < 3) {
           sessionRef.current = null;
           createRetriesRef.current += 1;
-          window.setTimeout(createSession, 350);
+          if (createTimer === null) createTimer = window.setTimeout(() => { createTimer = null; if (!disposedRef.current && subscriptionRef.current) createSession(); }, 350);
           break;
         }
         deps.setError(message.message);
@@ -185,11 +197,12 @@ export function createRendererCore(refs: RendererRefs, deps: RendererCoreDeps): 
 
   const attach = () => {
     if (disposedRef.current || subscriptionRef.current) return;
-    const subscription = terminalTransport.subscribe(deps.instanceId);
+    const subscription = terminalTransport.subscribe(deps.instanceId, sessionRef.current ? { sessionId: sessionRef.current } : {});
     subscriptionRef.current = subscription;
     subscription.onMessage(handleMessage);
     subscription.onStatus((connected) => {
       if (!connected) {
+        syncing = false;
         deps.setStatus("disconnected");
         deps.reportMeta({ status: "disconnected" });
         return;
@@ -205,6 +218,9 @@ export function createRendererCore(refs: RendererRefs, deps: RendererCoreDeps): 
   };
 
   const detach = () => {
+    if (createTimer !== null) window.clearTimeout(createTimer);
+    createTimer = null;
+    syncing = false;
     subscriptionRef.current?.dispose();
     subscriptionRef.current = null;
   };

@@ -49,6 +49,7 @@ test("räumt beim letzten Detach sämtliche Transport-Timer auf", async () => {
   FakeWebSocket.instances[0]!.open();
   expect(vi.getTimerCount()).toBe(1);
   subscription.dispose();
+  await Promise.resolve();
   expect(vi.getTimerCount()).toBe(0);
 });
 
@@ -62,6 +63,7 @@ test("verbindet einen Socket ohne Pong selbstständig erneut", async () => {
   vi.advanceTimersByTime(terminalHeartbeatIntervalMs + terminalHeartbeatTimeoutMs + terminalReconnectDelayMs);
   expect(FakeWebSocket.instances).toHaveLength(2);
   subscription.dispose();
+  await Promise.resolve();
   expect(vi.getTimerCount()).toBe(0);
 });
 
@@ -144,6 +146,7 @@ test("stellt Live-Output nach Socket-Neuaufbau mit Fast Reconnect zu (kein Creat
   FakeWebSocket.instances[0]!.emit({ type: "terminal.output", sessionId: "session-3", data: "a", sequence: 1 });
   expect(firstMessages).toContain("terminal.output");
   first.dispose();
+  await Promise.resolve();
 
   // Zurückkehren auf die Route: neuer Socket, Resubscribe mit Stand, der
   // Server antwortet nur mit Deltas (kein erneutes Created).
@@ -158,4 +161,85 @@ test("stellt Live-Output nach Socket-Neuaufbau mit Fast Reconnect zu (kein Creat
   FakeWebSocket.instances[1]!.emit({ type: "terminal.output", sessionId: "session-3", data: "b", sequence: 2 });
   expect(secondMessages).toContain("terminal.output");
   second.dispose();
+});
+
+test("ersetzt einen nach Standby scheinbar offenen Socket sofort und nur einmal", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("WebSocket", FakeWebSocket);
+  const { terminalTransport } = await import("./TerminalTransport");
+  const subscription = terminalTransport.subscribe("runtime-wake");
+  FakeWebSocket.instances[0]!.open();
+  vi.setSystemTime(Date.now() + 60_000);
+  window.dispatchEvent(new Event("focus"));
+  window.dispatchEvent(new Event("pageshow"));
+  window.dispatchEvent(new Event("online"));
+  expect(FakeWebSocket.instances).toHaveLength(2);
+  FakeWebSocket.instances[1]!.open();
+  subscription.dispose(); await Promise.resolve();
+  expect(vi.getTimerCount()).toBe(0);
+  window.dispatchEvent(new Event("focus"));
+  expect(FakeWebSocket.instances).toHaveLength(2);
+});
+
+test("prüft bei kurzer Rückkehr die Verbindung und erholt einen hängenden Socket", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("WebSocket", FakeWebSocket);
+  const { terminalTransport } = await import("./TerminalTransport");
+  const subscription = terminalTransport.subscribe("runtime-probe");
+  const socket = FakeWebSocket.instances[0]!;
+  socket.open();
+  window.dispatchEvent(new Event("focus"));
+  expect(socket.sent.map((message) => JSON.parse(message).type)).toContain("terminal.ping");
+  vi.advanceTimersByTime(2_000);
+  expect(FakeWebSocket.instances).toHaveLength(2);
+  subscription.dispose(); await Promise.resolve();
+});
+
+test("behält eine gesunde Verbindung bei Rückkehr und bei neuen Abos im selben Commit", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("WebSocket", FakeWebSocket);
+  const { terminalTransport } = await import("./TerminalTransport");
+  const first = terminalTransport.subscribe("runtime-healthy");
+  const socket = FakeWebSocket.instances[0]!;
+  socket.open();
+  window.dispatchEvent(new Event("focus"));
+  socket.emit({ type: "terminal.pong" });
+  first.dispose();
+  const second = terminalTransport.subscribe("runtime-other");
+  await Promise.resolve();
+  vi.advanceTimersByTime(2_500);
+  expect(FakeWebSocket.instances).toHaveLength(1);
+  second.dispose(); await Promise.resolve();
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+test("öffnet beim Vorladen keine Shell und räumt ungenutzte Hover-Verbindungen auf", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("WebSocket", FakeWebSocket);
+  const { terminalTransport } = await import("./TerminalTransport");
+  terminalTransport.preconnect(); terminalTransport.preconnect();
+  expect(FakeWebSocket.instances).toHaveLength(1);
+  const socket = FakeWebSocket.instances[0]!;
+  socket.open();
+  expect(socket.sent).toEqual([]);
+  vi.advanceTimersByTime(5_000);
+  expect(socket.readyState).toBe(3);
+  expect(vi.getTimerCount()).toBe(0);
+  window.dispatchEvent(new Event("online"));
+  expect(FakeWebSocket.instances).toHaveLength(1);
+});
+
+test("begrenzt identische Größenmeldungen und behandelt send-Fehler ohne Ausnahme", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("WebSocket", FakeWebSocket);
+  const { terminalTransport } = await import("./TerminalTransport");
+  const subscription = terminalTransport.subscribe("runtime-size");
+  const socket = FakeWebSocket.instances[0]!;
+  socket.open();
+  for (let index = 0; index < 50; index++) subscription.send({ type: "terminal.resize", sessionId: "session", cols: 80, rows: 24 });
+  expect(socket.sent).toHaveLength(1);
+  socket.send = () => { throw new Error("Verbindung verloren"); };
+  expect(subscription.send({ type: "terminal.input", sessionId: "session", data: "x" })).toBe(false);
+  expect(FakeWebSocket.instances).toHaveLength(2);
+  subscription.dispose(); await Promise.resolve();
 });

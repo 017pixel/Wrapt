@@ -126,16 +126,18 @@ export function attachTerminalInput(terminal: Terminal, mount: HTMLElement, cont
   const dataHandler = terminal.onData((data) => {
     if (isDeviceAnswer(data)) return;
     if (!focusedRef.current) return;
+    const mouseInput = data.startsWith("\x1b[<") || data.startsWith("\x1b[M");
     const sessionId = sessionRef.current;
     if (snapshotReplayRef.current) {
+      if (mouseInput) return;
       replayBufferRef.current.push(data);
       return;
     }
     if (!shouldForwardTerminalData(snapshotReplayRef.current, sessionId)) return;
-    rememberTyping(data);
+    if (!mouseInput) rememberTyping(data);
     for (const chunk of splitTerminalInput(data)) {
       if (!send({ type: "terminal.input", sessionId, data: chunk })) {
-        setError("Die Terminaleingabe konnte nicht vollständig gesendet werden.");
+        if (!mouseInput) setError("Die Terminaleingabe konnte nicht vollständig gesendet werden.");
         break;
       }
     }

@@ -1,11 +1,8 @@
+import { workbenchUrl } from "./helpers/environment";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { resetTerminalTestWorkspace } from "./helpers/terminal";
 
-// `WRAPT_E2E_URL` zeigt auf den Origin des Testservers; die Wrapt
-// selbst wird unter dem `/wrapt`-Basispfad ausgeliefert.
-const workbench = process.env.WRAPT_E2E_URL
-  ? `${process.env.WRAPT_E2E_URL.replace(/\/$/, "")}/wrapt`
-  : undefined;
+const workbench = workbenchUrl;
 const e2eUser = process.env.WRAPT_E2E_USER ?? "user@example.com";
 // Playwright läuft vom Repo-Root (pnpm test:e2e); der Testserver sieht
 // dasselbe Dateisystem und kann das Fixture über den absoluten Pfad starten.
@@ -13,7 +10,6 @@ const fixture = `${process.cwd()}/tests/fixtures/tui-fixture.mjs`;
 
 test.use({ extraHTTPHeaders: { "tailscale-user-login": e2eUser } });
 test.beforeEach(async ({ page }) => {
-  test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   await resetTerminalTestWorkspace(page, e2eUser);
 });
 
@@ -63,7 +59,6 @@ async function rows(page: Page) {
 }
 
 test("renders a fullscreen TUI identically after reload (no right-shift)", async ({ page }) => {
-  test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   await page.goto(`${workbench}/terminal`);
   await openFirstTerminal(page);
   await runFixture(page, "alternate");
@@ -87,7 +82,6 @@ test("renders a fullscreen TUI identically after reload (no right-shift)", async
 });
 
 test("recreates the browser and resumes the same runtime with intact rendering", async ({ browser }) => {
-  test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   test.setTimeout(60_000);
   const context = await browser.newContext({ viewport: { width: 1_280, height: 800 }, extraHTTPHeaders: { "tailscale-user-login": e2eUser } });
   const page = await context.newPage();
@@ -110,7 +104,6 @@ test("recreates the browser and resumes the same runtime with intact rendering",
 });
 
 test("keeps a hidden terminal intact when switching back (no black area)", async ({ page }) => {
-  test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   await page.goto(`${workbench}/terminal`);
   await openFirstTerminal(page);
   await runFixture(page, "alternate");
@@ -126,7 +119,6 @@ test("keeps a hidden terminal intact when switching back (no black area)", async
 });
 
 test("shows both terminals in a split without layout corruption", async ({ page }) => {
-  test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   await page.goto(`${workbench}/terminal`);
   await openFirstTerminal(page);
   await runFixture(page, "alternate");
@@ -255,7 +247,6 @@ test("shows typed input immediately after leaving and returning to the terminal 
 });
 
 test("uses a touch drawer, focused pane and safe bottom controls on phone portrait", async ({ page }) => {
-  test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto(`${workbench}/terminal`);
   await openFirstTerminal(page);

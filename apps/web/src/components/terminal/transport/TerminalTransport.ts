@@ -1,5 +1,6 @@
 import type { ClientMessage, ServerMessage } from "../terminal-types";
 import { terminalConnectTimeoutMs, terminalReconnectDelayMs, terminalMaxReconnectDelayMs, terminalHeartbeatIntervalMs, terminalHeartbeatTimeoutMs } from "../terminal-constants";
+import { TerminalInputQueue } from "./TerminalInputQueue";
 
 export interface TerminalSubscription {
   runtimeId: string;
@@ -37,8 +38,27 @@ class TerminalTransport {
   private retries = 0;
   private heartbeat: number | null = null;
   private deadline: number | null = null;
+  private lastReceived = 0;
+  private warmTimer: number | null = null;
+  private observing = false;
+  private readonly sizes = new Map<string, string>();
+  private readonly inputs = new TerminalInputQueue((message) => this.sendNow(message), (sessionIds) => {
+    for (const sessionId of sessionIds) this.route({ type: "terminal.error", sessionId, code: "INPUT_NOT_SENT", message: "Die letzte Terminaleingabe wurde unterbrochen. Prüfe den Befehl vor dem erneuten Senden." });
+  });
+
+  /** Hover öffnet bereits den Transport, startet aber keine Shell. */
+  preconnect(): void {
+    if (this.subscriptions.size > 0 || this.warmTimer !== null) return;
+    this.warmTimer = window.setTimeout(() => {
+      this.warmTimer = null;
+      if (this.subscriptions.size === 0) this.closeSocket();
+    }, 5_000);
+    this.ensureSocket();
+  }
 
   subscribe(runtimeId: string, initial: { sessionId?: string } = {}): TerminalSubscription {
+    if (this.warmTimer !== null) window.clearTimeout(this.warmTimer);
+    this.warmTimer = null;
     const state = this.subscriptions.get(runtimeId) ?? {
       runtimeId,
       sessionId: initial.sessionId ?? null,
@@ -77,19 +97,38 @@ class TerminalTransport {
           this.send({ type: "terminal.unsubscribe", runtimeId });
           this.subscriptions.delete(runtimeId);
         }
-        if (this.subscriptions.size === 0) this.closeSocket();
+        // Ein Pane-Wechsel entfernt und ergänzt Abos im selben Commit.
+        // Den offenen Socket dafür behalten, ungenutzte danach schließen.
+        if (this.subscriptions.size === 0) queueMicrotask(() => {
+          if (this.subscriptions.size === 0 && this.warmTimer === null) this.closeSocket();
+        });
       },
     };
   }
 
   private send(message: ClientMessage): boolean {
+    if (this.socket?.readyState !== WebSocket.OPEN) { this.onWake(); return false; }
+    if (message.type === "terminal.input") return this.inputs.enqueue(message);
+    this.inputs.flush();
+    if (message.type === "terminal.resize") {
+      const size = `${message.cols}:${message.rows}`;
+      if (this.sizes.get(message.sessionId) === size) return true;
+      if (!this.sendNow(message)) return false;
+      this.sizes.set(message.sessionId, size);
+      return true;
+    }
+    return this.sendNow(message);
+  }
+
+  private sendNow(message: ClientMessage): boolean {
     const socket = this.socket;
     if (!socket || socket.readyState !== WebSocket.OPEN) return false;
-    socket.send(JSON.stringify(message));
-    return true;
+    try { socket.send(JSON.stringify(message)); return true; }
+    catch { this.recover(); return false; }
   }
 
   private ensureSocket(): void {
+    this.observeWake();
     if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) return;
     if (this.reconnectTimer !== null) window.clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
@@ -101,20 +140,22 @@ class TerminalTransport {
     url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
     const socket = new WebSocket(url.toString());
     this.socket = socket;
-    this.deadline = window.setTimeout(() => socket.close(), terminalConnectTimeoutMs);
+    this.deadline = window.setTimeout(() => this.recover(), terminalConnectTimeoutMs);
     socket.onopen = () => {
       if (this.socket !== socket) return;
       this.clearDeadline();
       this.retries = 0;
+      this.lastReceived = Date.now();
       this.emitStatus(true);
       this.heartbeat = window.setInterval(() => {
         if (this.socket !== socket || socket.readyState !== WebSocket.OPEN) return;
-        this.deadline = window.setTimeout(() => socket.close(), terminalHeartbeatTimeoutMs);
-        this.send({ type: "terminal.ping" });
+        this.probe(terminalHeartbeatTimeoutMs);
       }, terminalHeartbeatIntervalMs);
     };
     socket.onmessage = (event) => {
       if (this.socket !== socket) return;
+      this.lastReceived = Date.now();
+      this.clearDeadline();
       let message: ServerMessage;
       try { message = JSON.parse(String(event.data)) as ServerMessage; } catch { return; }
       if (message.type === "terminal.pong") { this.clearDeadline(); return; }
@@ -123,11 +164,13 @@ class TerminalTransport {
     socket.onclose = () => {
       if (this.socket !== socket) return;
       this.socket = null;
+      this.inputs.reset();
+      this.sizes.clear();
       this.clearDeadline();
       if (this.heartbeat !== null) window.clearInterval(this.heartbeat);
       this.heartbeat = null;
       this.emitStatus(false);
-      if (this.subscriptions.size === 0) return;
+      if (this.subscriptions.size === 0 && this.warmTimer === null) return;
       this.reconnectTimer = window.setTimeout(() => {
         this.reconnectTimer = null;
         this.openSocket();
@@ -142,10 +185,49 @@ class TerminalTransport {
     if (this.heartbeat !== null) window.clearInterval(this.heartbeat);
     this.heartbeat = null;
     this.clearDeadline();
+    this.inputs.reset();
+    this.sizes.clear();
     const socket = this.socket;
     this.socket = null;
     socket?.close();
     this.sessionToRuntime.clear();
+    this.stopObservingWake();
+  }
+
+  private probe(timeout: number): void {
+    if (this.deadline !== null) return;
+    this.deadline = window.setTimeout(() => this.recover(), timeout);
+    this.sendNow({ type: "terminal.ping" });
+  }
+
+  /** Standby kann einen Socket als OPEN zurücklassen, obwohl TCP schon tot ist. */
+  private readonly onWake = (): void => {
+    if (document.visibilityState === "hidden") return;
+    if (this.socket?.readyState === WebSocket.CONNECTING) return;
+    if (this.socket?.readyState !== WebSocket.OPEN || Date.now() - this.lastReceived >= terminalHeartbeatIntervalMs) {
+      this.recover();
+    } else this.probe(2_000);
+  };
+
+  private recover(): void {
+    this.closeSocket();
+    this.retries = 0;
+    this.emitStatus(false);
+    if (this.subscriptions.size > 0 || this.warmTimer !== null) this.ensureSocket();
+  }
+
+  private observeWake(): void {
+    if (this.observing) return;
+    this.observing = true;
+    for (const event of ["focus", "online", "pageshow"]) window.addEventListener(event, this.onWake);
+    document.addEventListener("visibilitychange", this.onWake);
+  }
+
+  private stopObservingWake(): void {
+    if (!this.observing) return;
+    this.observing = false;
+    for (const event of ["focus", "online", "pageshow"]) window.removeEventListener(event, this.onWake);
+    document.removeEventListener("visibilitychange", this.onWake);
   }
 
   private clearDeadline(): void {

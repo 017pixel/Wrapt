@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { Layout, LayoutChangedMeta } from "react-resizable-panels";
 import type { TerminalKind, TerminalPaneLayout, TerminalSession } from "@wrapt/contracts";
-import { MonitorOffIcon, PlusIcon, TerminalIcon } from "../icons";
+import { ChevronRightIcon, MonitorOffIcon, PlusIcon, TerminalIcon } from "../icons";
 import { apiClient } from "../../lib/apiClient";
 import { wraptQueries } from "../../lib/queryOptions";
 import { useTerminalResponsiveLayout } from "./useTerminalResponsiveLayout";
@@ -21,6 +21,8 @@ import { TerminalWorkspaceNotice } from "./TerminalWorkspaceNotice";
 import { useTerminalRuntimeActions } from "./useTerminalRuntimeActions";
 import { WebTerminal, type WebTerminalHandle } from "./WebTerminal";
 import { useAutoCreateTerminalPane } from "./useAutoCreateTerminalPane";
+import { useTerminalWarmPanes } from "./useTerminalWarmPanes";
+import { useTerminalNotices } from "./terminalNotifications";
 import type { TerminalMeta } from "./terminal-types";
 import {
   createTerminalOps,
@@ -45,8 +47,6 @@ interface TerminalAreaProps {
   requestedSessionId?: string | null;
   requestedRuntimeId?: string | null;
 }
-
-const WARM_TERMINAL_LIMIT = 4;
 
 export function TerminalArea({
   areaId = "standalone",
@@ -77,7 +77,7 @@ export function TerminalArea({
   const [keyboardRow, setKeyboardRow] = useState<"keys" | "actions">("keys");
   const [stickyCtrl, setStickyCtrl] = useState(false);
   const [stickyAlt, setStickyAlt] = useState(false);
-  const [warmRuntimeIds, setWarmRuntimeIds] = useState<string[]>([]);
+  const { warmRuntimeIds, preloadRuntimeId, rememberWarmRuntimes, preloadEntry } = useTerminalWarmPanes(document, areaId);
   const [suspendedSplitLayout, setSuspendedSplitLayout] = useState<TerminalPaneLayout | null>(null);
   const [terminalDrag, setTerminalDrag] = useState<DndDragState | null>(null);
 
@@ -105,21 +105,6 @@ export function TerminalArea({
   const activeMeta = focusedRuntimeId ? meta[focusedRuntimeId] : undefined;
   const hasActivePane = panes.length > 0;
   const hasSplit = paneLayout?.type === "split";
-
-  const rememberWarmRuntimes = useCallback((runtimeIds: readonly string[]) => {
-    setWarmRuntimeIds((current) => {
-      const next = [...new Set(runtimeIds), ...current].slice(0, WARM_TERMINAL_LIMIT);
-      return next.length === current.length && next.every((runtimeId, index) => runtimeId === current[index]) ? current : next;
-    });
-  }, []);
-
-  useEffect(() => {
-    const known = new Set(document?.entries.map((entry) => entry.runtimeId).filter((runtimeId): runtimeId is string => runtimeId !== null) ?? []);
-    setWarmRuntimeIds((current) => {
-      const next = current.filter((runtimeId) => known.has(runtimeId));
-      return next.length === current.length ? current : next;
-    });
-  }, [document]);
 
   const openEntry = useCallback((runtimeId: string) => {
     const state = useTerminalWorkspaceStore.getState();
@@ -168,10 +153,11 @@ export function TerminalArea({
       name: `${kindLabels[kind]} ${count}`,
       ...(folderId !== null ? { parentFolderId: folderId } : {}),
     });
+    rememberWarmRuntimes([runtimeId, ...layoutRuntimeIds(state.document.areaLayouts[areaId]?.paneLayout ?? null)]);
     queueOps(ops);
     if (isMobile) setSidebarVisible(false);
     return runtimeId;
-  }, [areaId, initialProjectId, isMobile, kind, queueOps, setSidebarVisible]);
+  }, [areaId, initialProjectId, isMobile, kind, queueOps, rememberWarmRuntimes, setSidebarVisible]);
 
   useAutoCreateTerminalPane(minimal && requestedSessionId === null && requestedRuntimeId === null, Boolean(document), hasActivePane, initialProjectId, create);
   const createSplit = useCallback(() => {
@@ -251,7 +237,7 @@ export function TerminalArea({
 
   const activeHandle = () => (focusedRuntimeId ? handles.current.get(focusedRuntimeId) ?? null : null);
   const runtimeActions = useTerminalRuntimeActions({ handles, openEntry, refresh: () => { void sessions.refetch(); }, reportError: (runtimeId, error) => {
-    setMeta((current) => ({ ...current, [runtimeId]: { status: "error", cwd: runtimeCwds[runtimeId] ?? "", cols: 0, rows: 0, error } }));
+    useTerminalNotices.getState().show({ id: `terminal:${runtimeId}:action`, tone: "error", message: error });
   } });
   const pressKey = (key: string) => {
     activeHandle()?.sendKey(key, { ctrl: stickyCtrl, alt: stickyAlt });
@@ -292,10 +278,12 @@ export function TerminalArea({
         {awaitingCreation ? <div className="terminal-area-loading" role="status">Terminal wird vorbereitet…</div> : <WebTerminal
           ref={(handle) => { if (handle) handles.current.set(pane.runtimeId, handle); else handles.current.delete(pane.runtimeId); }}
           instanceId={pane.runtimeId}
+          sessionId={sessions.data?.sessions.find((session) => session.runtimeId === pane.runtimeId)?.id}
           kind={entry?.kind ?? kind}
           projectId={entry?.projectId ?? null}
           initialCwd={entry?.initialCwd ?? null}
           active={routeActive && visible}
+          preload={routeActive && preloadRuntimeId === pane.runtimeId && Boolean(sessions.data?.sessions.some((session) => session.runtimeId === pane.runtimeId && session.status === "running"))}
           focused={focusedRuntimeId === pane.runtimeId}
           renderScale={renderScale}
           onMetaChange={(next) => {
@@ -333,7 +321,8 @@ export function TerminalArea({
             onClose={() => setSidebarVisible(false)}
             onNewTerminal={() => create(null, initialProjectId)}
             onNewTerminalInFolder={(folderId) => create(folderId, initialProjectId)}
-            onOpenEntry={(runtimeId) => { openEntry(runtimeId); if (isMobile) setSidebarVisible(false); }}
+            onOpenEntry={(runtimeId) => { openEntry(runtimeId); if (isMobile) setSidebarVisible(false); else window.requestAnimationFrame(() => handles.current.get(runtimeId)?.focus()); }}
+            onPreloadEntry={preloadEntry}
             onOpenInSplit={(runtimeId) => { openInSplit(runtimeId); if (isMobile) setSidebarVisible(false); }}
             onResync={runtimeActions.resync}
             onRestart={runtimeActions.restart}
@@ -355,6 +344,7 @@ export function TerminalArea({
           {!minimal && !sidebarVisible ? (
             <button type="button" className="terminal-sidebar-reopen" onClick={() => setSidebarVisible(true)} aria-label="Terminal-Sidebar einblenden" title="Terminal-Sidebar einblenden">
               <TerminalIcon className="h-4 w-4" aria-hidden />
+              <ChevronRightIcon className="h-3.5 w-3.5" aria-hidden />
             </button>
           ) : null}
           <TerminalCanvas

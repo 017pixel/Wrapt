@@ -1,14 +1,13 @@
+import { workbenchUrl } from "./helpers/environment";
 import { expect, test, type Page } from "@playwright/test";
 import { resetTerminalTestWorkspace } from "./helpers/terminal";
 
-const origin = process.env.WRAPT_E2E_URL?.replace(/\/$/, "");
-const workbench = origin ? `${origin}/wrapt` : undefined;
+const workbench = workbenchUrl;
 const e2eUser = process.env.WRAPT_E2E_USER ?? "user@example.com";
 
 test.use({ extraHTTPHeaders: { "tailscale-user-login": e2eUser } });
 test.describe.configure({ retries: 0 });
 test.beforeEach(async ({ page }) => {
-  test.skip(!workbench, "Set WRAPT_E2E_URL auf einen isolierten Wrapt-Testserver.");
   await resetTerminalTestWorkspace(page, e2eUser);
 });
 
@@ -25,7 +24,6 @@ function entryRow(page: Page, name: string) {
 }
 
 test("zeigt nach einer Sekunde eine lesbare Preview und schließt nur normale Terminals", async ({ page }) => {
-  test.skip(!workbench, "Set WRAPT_E2E_URL auf einen isolierten Wrapt-Testserver.");
   // 1080p bedeutet beim Desktop-Monitor 1920 × 1080 CSS-Pixel.
   await page.setViewportSize({ width: 1_920, height: 1_080 });
   const consoleErrors: string[] = [];

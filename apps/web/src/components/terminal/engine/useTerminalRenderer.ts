@@ -7,13 +7,15 @@ import { writeClipboardText } from "../../../lib/clipboard";
 import { applyTerminalRenderScale, attachTerminalAppearance, createTerminalScaleResizeScheduler } from "../terminal-appearance";
 import { attachTerminalInput } from "../terminal-input";
 import { useTerminalOutput } from "../useTerminalOutput";
-import { isCompactTerminal, mouseWheelSequence, terminalFontSizeForRenderScale, terminalKeySequence } from "../terminal-utils";
+import { isCompactTerminal, mouseWheelSequence, terminalFontSizeForRenderScale } from "../terminal-utils";
 import { themeFromDashboard } from "../terminal-theme";
 import type { ClientMessage, TerminalMeta, TerminalStatus } from "../terminal-types";
 import type { TerminalSubscription } from "../transport/TerminalTransport";
 import { createRendererCore } from "./rendererCore";
 import type { TerminalRenderer, TerminalRendererOptions } from "./rendererTypes";
+import { useTerminalSessionActions } from "./useTerminalSessionActions";
 import { useOrbitTerminalActivity } from "../../orbit/useOrbitTerminalActivity";
+import { publishTerminalView, removeTerminalView } from "./terminalViewRegistry";
 
 /**
  * Renderer-Engine V2: Eine xterm-Instanz pro sichtbarem Pane, verbunden über
@@ -29,9 +31,10 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
   const terminalRef = useRef<Terminal | null>(null);
   const fitRef = useRef<FitAddon | null>(null);
   const activeRef = useRef(options.active);
+  const outputActiveRef = useRef(options.active);
   const focusedRef = useRef(focused);
   const kindRef = useRef(kind);
-  const sessionRef = useRef<string | null>(null);
+  const sessionRef = useRef<string | null>(options.sessionId ?? null);
   const epochRef = useRef(0);
   const sequenceRef = useRef(0);
   const ownsGeometryRef = useRef(false);
@@ -48,6 +51,8 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
   const scaleResizeSchedulerRef = useRef<ReturnType<typeof createTerminalScaleResizeScheduler> | null>(null);
   const renderScaleRef = useRef(renderScale);
   const cwdRef = useRef("–");
+  const metaCallbackRef = useRef(onMetaChange);
+  metaCallbackRef.current = onMetaChange;
   renderScaleRef.current = renderScale;
 
   // Beim Antippen wird der Ref im PointerDown-Handler sofort gesetzt. Ein
@@ -62,6 +67,8 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
   const active = useOrbitTerminalActivity(mountRef, options.active,
     status !== "connecting" && (hasLiveStateRef.current || status === "error" || status === "exited"));
   activeRef.current = active;
+  const subscribed = active || options.preload === true;
+  outputActiveRef.current = subscribed;
   const [cwd, setCwdState] = useState("–");
   const [error, setErrorState] = useState<string | null>(null);
   const [restartBanner, setRestartBannerState] = useState<{ message: string } | null>(null);
@@ -79,14 +86,14 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
   }, []);
 
   const output = useTerminalOutput({
-    terminalRef, activeRef, sessionRef, replayBufferRef,
+    terminalRef, activeRef: outputActiveRef, sessionRef, replayBufferRef,
     send: (message) => sendMessage(message as ClientMessage),
     setError: setErrorState,
   });
   const { lastCommand, flushOutput, queueOutput, resetOutput, flushReplayBuffer, rememberTyping } = output;
 
   const reportMeta = useCallback((patch: Partial<TerminalMeta>) => {
-    onMetaChange?.({
+    metaCallbackRef.current?.({
       status: statusRef.current,
       cwd: cwdRef.current,
       error: errorRef.current,
@@ -94,7 +101,7 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
       rows: terminalRef.current?.rows ?? 0,
       ...patch,
     });
-  }, [onMetaChange]);
+  }, []);
 
   const reportSize = useCallback((cols: number, rows: number) => {
     const sessionId = sessionRef.current;
@@ -141,25 +148,12 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
     subscriptionRef, cwdRef,
   };
 
-  const core = createRendererCore(refs, {
+  const [core] = useState(() => createRendererCore(refs, {
     instanceId, kind, projectId, initialCwd, mode, accountId, sendMessage,
     setStatus, setCwd: setCwdState, setError: setErrorState, setRestartBanner: setRestartBannerState,
     reportMeta, queueOutput, resetOutput, flushReplayBuffer, fitAndReport,
-  });
+  }));
   const { attach, detach, resync } = core;
-
-  // Sichtbarkeit steuert die Subscription: Sichtbar → synchronisieren,
-  // unsichtbar → detach (kein Parsen im Hintergrund).
-  useEffect(() => {
-    if (active) {
-      flushOutput(true);
-      attach();
-      revealTerminal();
-    }
-    else detach();
-    return () => detach();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active]);
 
   // xterm-Lifecycle: erst erzeugen, wenn der Container wirklich sichtbar ist.
   useEffect(() => {
@@ -199,8 +193,13 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
       if (next) { cwdRef.current = next; setCwdState(next); reportMeta({}); }
       return next !== null;
     }));
+    const mouseHandlers = (["h", "l"] as const).map((final) => terminal.parser.registerCsiHandler({ prefix: "?", final }, (params) => {
+      if (params.includes(1006)) mouseEncodingRef.current = final === "h";
+      return false;
+    }));
     const parsedHandler = terminal.onWriteParsed(() => {
       mouseTrackingRef.current = terminal.modes.mouseTrackingMode !== "none";
+      publishTerminalView(instanceId, terminal, statusRef.current);
     });
 
     const pasteIntoTerminal = (text: string) => {
@@ -226,12 +225,12 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
       const steps = Math.min(Math.abs(lines), 12);
       if (terminal.modes.mouseTrackingMode !== "none") {
         const sequence = mouseWheelSequence(lines < 0 ? "up" : "down", mouseEncodingRef.current);
-        for (let step = 0; step < steps; step += 1) sendMessage({ type: "terminal.input", sessionId, data: sequence });
+        sendMessage({ type: "terminal.input", sessionId, data: sequence.repeat(steps) });
         return;
       }
       if (kindRef.current === "shell") {
         const sequence = lines < 0 ? "\x1b[A" : "\x1b[B";
-        for (let step = 0; step < steps; step += 1) sendMessage({ type: "terminal.input", sessionId, data: sequence });
+        sendMessage({ type: "terminal.input", sessionId, data: sequence.repeat(steps) });
       }
     };
     const disposeInput = attachTerminalInput(terminal, mount, {
@@ -253,14 +252,13 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
 
     const onVisibility = () => { if (document.visibilityState === "visible") revealTerminal(); };
     document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pageshow", revealTerminal);
     window.addEventListener("resize", fitAndReport);
-
-    if (activeRef.current) attach();
-    else detach();
 
     return () => {
       disposedRef.current = true;
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pageshow", revealTerminal);
       window.removeEventListener("resize", fitAndReport);
       if (revealFrameRef.current !== null) window.cancelAnimationFrame(revealFrameRef.current);
       scaleResizeScheduler.cancel();
@@ -268,7 +266,9 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
       disposeInput();
       disposeAppearance();
       for (const handler of cwdHandlers) handler.dispose();
+      for (const handler of mouseHandlers) handler.dispose();
       parsedHandler.dispose();
+      removeTerminalView(instanceId, terminal);
       detach();
       terminal.dispose();
       terminalRef.current = null;
@@ -276,6 +276,24 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Sichtbarkeit steuert die Subscription: Sichtbar → synchronisieren,
+  // unsichtbar → detach (kein Parsen im Hintergrund).
+  useEffect(() => {
+    if (subscribed) {
+      flushOutput(true);
+      attach();
+      revealTerminal();
+    }
+    else detach();
+    return () => detach();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subscribed]);
+
+  useEffect(() => { if (active) revealTerminal(); }, [active, revealTerminal]);
+  useEffect(() => {
+    if (active && focused && !isCompactTerminal(mountRef.current)) terminalRef.current?.focus();
+  }, [active, focused]);
 
   useEffect(() => {
     // Entfernte Panes messen während einer Canvasbewegung keine neuen
@@ -288,80 +306,11 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
     else fitAndReport();
   }, [active, fitAndReport, renderScale]);
 
-  const pasteIntoTerminal = useCallback((text: string) => {
-    const terminal = terminalRef.current;
-    const sessionId = sessionRef.current;
-    if (!terminal || !sessionId) {
-      setErrorState("Das Terminal ist noch nicht verbunden. Bitte gleich erneut einfügen.");
-      return;
-    }
-    terminal.paste(text);
-    setErrorState(null);
-    window.setTimeout(() => terminal.focus(), 0);
-  }, []);
-
-  const sendKey = useCallback((key: string, modifiers: { ctrl?: boolean; alt?: boolean } = {}) => {
-    const sessionId = sessionRef.current;
-    if (!sessionId) return;
-    sendMessage({ type: "terminal.input", sessionId, data: terminalKeySequence(key, modifiers) });
-  }, [sendMessage]);
-
-  const pasteFromClipboard = useCallback(() => {
-    navigator.clipboard.readText()
-      .then((text) => {
-        if (text.length > 10_000) { setPendingPaste(text); return; }
-        pasteIntoTerminal(text);
-      })
-      .catch(() => {
-        setErrorState("Einfügen wurde vom Browser nicht erlaubt. Nutze die Browser-Berechtigung für die Zwischenablage.");
-        terminalRef.current?.focus();
-      });
-  }, [pasteIntoTerminal]);
-
-  const restart = useCallback(() => {
-    const sessionId = sessionRef.current;
-    if (!sessionId) { setErrorState(null); setStatus("connecting"); core.createSession(); return; }
-    sendMessage({ type: "terminal.restart", sessionId });
-    // Erst der bestätigte Server-Snapshot ersetzt den bisherigen Zustand.
-    // Bei einem Fehler bleibt der noch sichtbare Verlauf erhalten.
-    setStatus("connecting");
-    reportMeta({ status: "connecting" });
-  }, [core, reportMeta, sendMessage, setStatus]);
-
-  const action = useCallback((type: "terminal.clear" | "terminal.restart" | "terminal.close") => {
-    const sessionId = sessionRef.current;
-    if (!sessionId) return;
-    sendMessage({ type, sessionId });
-    if (type === "terminal.close") {
-      closedRef.current = true;
-      sessionRef.current = null;
-      hasLiveStateRef.current = false;
-      setStatus("exited");
-    }
-  }, [sendMessage, setStatus]);
-
-  const resolvePendingPaste = useCallback((confirm: boolean) => {
-    setPendingPaste((current) => {
-      if (current && confirm) pasteIntoTerminal(current);
-      return null;
-    });
-    terminalRef.current?.focus();
-  }, [pasteIntoTerminal]);
-
-  const focus = useCallback(() => {
-    // PointerDown kommt vor TouchStart. Den Ref sofort setzen, damit ein
-    // erster Wisch im frisch angeklickten Pane nicht vom Fokus-Gate verworfen wird.
-    focusedRef.current = true;
-    terminalRef.current?.focus();
-    // Fokus ist echte Nutzerinteraktion: Geometrie-Controlling übernehmen.
-    if (sessionRef.current && !ownsGeometryRef.current) {
-      const size = fitRef.current?.proposeDimensions();
-      sendMessage({ type: "terminal.takeControl", runtimeId: instanceId, ...(size ?? {}) });
-    }
-  }, [instanceId, sendMessage]);
+  const actions = useTerminalSessionActions({ refs, focusedRef, instanceId, core, sendMessage, setErrorState, setStatus, setPendingPaste, reportMeta });
 
   useEffect(() => {
     reportMeta({});
+    if (terminalRef.current) publishTerminalView(instanceId, terminalRef.current, status);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, cwd, error]);
 
@@ -369,7 +318,7 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
 
   return {
     status, cwd, error, restartBanner, lastCommand, terminalIsDead, pendingPaste,
-    sendKey, pasteFromClipboard, restart, resync, action, focus, resolvePendingPaste,
+    ...actions, resync,
     setError: setErrorState,
     setRestartBanner: setRestartBannerState,
     mountRef,

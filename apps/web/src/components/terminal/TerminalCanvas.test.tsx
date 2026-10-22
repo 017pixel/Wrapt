@@ -70,3 +70,30 @@ test("bewahrt beide mobilen Split-Renderer beim Fokuswechsel", () => {
   expect(mounted).toHaveBeenCalledTimes(2);
   expect(unmounted).not.toHaveBeenCalled();
 });
+
+test("behält Renderer, Scrollbereich und Auswahl beim Parken und Zurückwechseln", () => {
+  vi.stubGlobal("ResizeObserver", class { observe() {} unobserve() {} disconnect() {} });
+  const mounted = vi.fn();
+  const unmounted = vi.fn();
+  function Pane({ id }: { id: string }) {
+    useEffect(() => { mounted(id); return () => unmounted(id); }, [id]);
+    return <textarea data-testid={`screen:${id}`} defaultValue="laufender Bildschirm" />;
+  }
+  const first = { type: "pane" as const, id: "one", runtimeId: "runtime-one" };
+  const second = { type: "pane" as const, id: "two", runtimeId: "runtime-two" };
+  const props = { areaId: "cache", bento: false, isMobile: false, showSingleMobilePane: false,
+    emptyState: null, dropZone: null, onLayoutChanged: vi.fn(), focusedRuntimeId: first.runtimeId,
+    renderPane: (pane: TerminalCanvasPane) => <Pane id={pane.id} /> };
+  const view = render(<TerminalCanvas {...props} paneLayout={first} panes={[first]} parkedPanes={[second]} />);
+  const original = view.getByTestId("screen:one") as HTMLTextAreaElement;
+  original.setSelectionRange(2, 7);
+  original.scrollTop = 23;
+  view.rerender(<TerminalCanvas {...props} paneLayout={second} panes={[second]} parkedPanes={[first]} />);
+  expect(original.isConnected).toBe(true);
+  view.rerender(<TerminalCanvas {...props} paneLayout={first} panes={[first]} parkedPanes={[second]} />);
+  expect(view.getByTestId("screen:one")).toBe(original);
+  expect(original.selectionStart).toBe(2);
+  expect(original.scrollTop).toBe(23);
+  expect(mounted).toHaveBeenCalledTimes(2);
+  expect(unmounted).not.toHaveBeenCalled();
+});

@@ -1,14 +1,13 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { resetTerminalTestWorkspace } from "./helpers/terminal";
-import { apiIdentityHeaders, workbenchUrl } from "./helpers/environment";
+import { apiIdentityHeaders, e2eOrigin, workbenchUrl } from "./helpers/environment";
 
 const login = process.env.WRAPT_E2E_USER ?? "user@example.com";
 const headers = apiIdentityHeaders(login);
-const origin = process.env.WRAPT_E2E_URL!;
+const origin = e2eOrigin;
 test.use({ extraHTTPHeaders: headers });
 test.describe.configure({ retries: 0 });
 test.beforeEach(async ({ page }) => {
-  test.skip(!origin, "Diese Tests benötigen eine ausdrücklich isolierte Testinstanz.");
   await resetTerminalTestWorkspace(page, login);
   await page.setViewportSize({ width: 1_600, height: 900 });
 });

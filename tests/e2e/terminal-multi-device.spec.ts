@@ -1,17 +1,13 @@
+import { workbenchUrl } from "./helpers/environment";
 import { expect, test } from "@playwright/test";
 import { resetTerminalTestWorkspace } from "./helpers/terminal";
 
-// `WRAPT_E2E_URL` zeigt auf den Origin des Testservers; die Wrapt
-// selbst wird unter dem `/wrapt`-Basispfad ausgeliefert.
-const workbench = process.env.WRAPT_E2E_URL
-  ? `${process.env.WRAPT_E2E_URL.replace(/\/$/, "")}/wrapt`
-  : undefined;
+const workbench = workbenchUrl;
 
 const e2eUser = process.env.WRAPT_E2E_USER ?? "user@example.com";
 test.use({ extraHTTPHeaders: { "tailscale-user-login": e2eUser } });
 
 test("keeps a Wrapt terminal running while another device resumes it", async ({ browser }) => {
-  test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   const authHeaders = { "tailscale-user-login": e2eUser };
   const firstContext = await browser.newContext({
     viewport: { width: 1_280, height: 800 },

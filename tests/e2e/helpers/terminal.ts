@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { apiIdentityHeaders } from "./environment";
+import { apiIdentityHeaders, e2eOrigin } from "./environment";
 
 const emptyTerminalWorkspace = {
   version: 2 as const,
@@ -11,7 +11,7 @@ const emptyTerminalWorkspace = {
 /** Setzt nur den isolierten Terminal-Testbenutzer zurück, nie die Workbench. */
 export async function resetTerminalTestWorkspace(page: Page, login: string): Promise<void> {
   const headers = apiIdentityHeaders(login);
-  const origin = process.env.WRAPT_E2E_URL ?? "http://127.0.0.1:3010";
+  const origin = e2eOrigin;
   const workspaceUrl = new URL("/api/v1/terminal/workspace", origin).toString();
   const sessionsUrl = new URL("/api/v1/terminal/sessions", origin).toString();
   const sessionsResponse = await page.request.get(sessionsUrl, { headers });

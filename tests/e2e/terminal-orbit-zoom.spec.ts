@@ -1,23 +1,21 @@
 import { expect, test, type Page } from "@playwright/test";
-import { apiIdentityHeaders } from "./helpers/environment";
+import { apiIdentityHeaders, e2eOrigin } from "./helpers/environment";
 import { enableOrbitInTestBrowser, resetOrbitTestWorkspace } from "./helpers/orbit";
 import { resetTerminalTestWorkspace } from "./helpers/terminal";
 
-const origin = process.env.WRAPT_E2E_URL ?? "http://127.0.0.1:3010";
+const origin = e2eOrigin;
 const login = "terminal-orbit-handoff@example.com";
 const headers = apiIdentityHeaders(login);
 
 test.use({ extraHTTPHeaders: headers, viewport: { width: 1440, height: 960 } });
 
 test.beforeEach(async ({ page }) => {
-  test.skip(!process.env.WRAPT_E2E_URL, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   await enableOrbitInTestBrowser(page);
   await resetTerminalTestWorkspace(page, login);
   await resetOrbitTestWorkspace(page, login);
 });
 
 test.afterEach(async ({ page }) => {
-  if (!process.env.WRAPT_E2E_URL) return;
   await resetOrbitTestWorkspace(page, login);
   await resetTerminalTestWorkspace(page, login);
 });

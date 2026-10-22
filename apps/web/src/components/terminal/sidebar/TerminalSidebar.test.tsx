@@ -5,6 +5,8 @@ import type { TerminalSession, TerminalWorkspaceV2 } from "@wrapt/contracts";
 import { apiClient } from "../../../lib/apiClient";
 import { useTerminalWorkspaceStore } from "../../../stores/terminalWorkspace";
 import { TerminalSidebar } from "./TerminalSidebar";
+import { TerminalToastRegion } from "../TerminalToastRegion";
+import { useTerminalNotices } from "../terminalNotifications";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router";
 import { defaultContextMenuConfig } from "@wrapt/contracts";
@@ -20,6 +22,7 @@ afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   useTerminalWorkspaceStore.setState({ document: null, pendingOps: [], dirty: false });
+  useTerminalNotices.setState({ notices: [] });
 });
 
 function workspace(): TerminalWorkspaceV2 {
@@ -66,7 +69,7 @@ function renderSidebar(value = workspace(), sessions: TerminalSession[] = []) {
       hasActivePane={false}
       sessionPicker={<span>Sessions</span>}
       {...callbacks}
-    /></ContextMenuProvider></MemoryRouter></QueryClientProvider>,
+    /><TerminalToastRegion /></ContextMenuProvider></MemoryRouter></QueryClientProvider>,
   );
   return callbacks;
 }

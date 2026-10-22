@@ -16,17 +16,28 @@
   .terminal-sidebar.is-drawer:not(.is-open) { visibility: hidden; pointer-events: none; }
   .terminal-area-main > .terminal-sidebar-reopen {
     position: static;
+    display: flex;
+    align-self: flex-start;
+    justify-content: center;
+    gap: var(--space-1);
+    width: 64px;
     min-height: 44px;
     flex: none;
-    margin-left: var(--space-2);
+    margin: 0;
     border: 0;
     border-radius: var(--radius-sm);
     box-shadow: none;
   }
+  .terminal-pane-slot, .terminal-pane-host { position: relative; width: 100%; height: 100%; min-width: 0; min-height: 0; }
+  .terminal-canvas .terminal-pane-slot.is-parked { position: absolute; inset: 0; visibility: hidden; pointer-events: none; z-index: -1; }
+  .terminal-canvas.is-bento.has-3 > .terminal-pane-slot:first-child { grid-row: 1 / 3; }
+  .terminal-loading-skeleton { display: grid; align-content: start; gap: var(--space-3); padding: var(--space-4); width: min(320px, 100%); }
+  .terminal-loading-skeleton span { height: 16px; background: var(--color-ink-800); border-radius: var(--radius-sm); }
+  .terminal-loading-skeleton span:last-child { width: 60%; }
   .terminal-tree-actions {
     display: grid;
-    width: 32px;
-    min-height: 32px;
+    width: 44px;
+    min-height: 44px;
     flex: none;
     place-items: center;
     border: 0;
@@ -38,10 +49,11 @@
   /* Auf Maus-Geräten erscheint die Aktion erst beim Überfahren der Zeile oder
      bei Fokus — die Liste bleibt ruhig. Touch-Geräte zeigen sie dauerhaft. */
   @media (hover: hover) and (pointer: fine) {
-    .terminal-tree-actions { opacity: 0; pointer-events: none; }
+    .terminal-tree-actions { opacity: 0; }
     .terminal-tree-row:hover .terminal-tree-actions,
     .terminal-tree-row:focus-within .terminal-tree-actions { opacity: 1; pointer-events: auto; }
   }
+  .terminal-tree-row { min-height: 44px; }
   .terminal-tree-actions:hover,
   .terminal-tree-actions:focus-visible { background: var(--color-ink-800); color: var(--color-text); }
   .terminal-tree-actions:focus-visible,

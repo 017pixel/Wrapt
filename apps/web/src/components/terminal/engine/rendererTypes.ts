@@ -7,12 +7,14 @@ import type { TerminalSubscription } from "../transport/TerminalTransport";
 
 export interface TerminalRendererOptions {
   instanceId: string;
+  sessionId?: string | undefined;
   kind: TerminalKind;
   projectId: string | null;
   initialCwd: string | null;
   mode: "agent" | "login";
   accountId: string | undefined;
   active: boolean;
+  preload?: boolean;
   focused: boolean;
   renderScale: number;
   onMetaChange: ((meta: TerminalMeta) => void) | undefined;

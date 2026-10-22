@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+import { useRef, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { TerminalPaneSlot } from "./TerminalPaneSlot";
 import { Group, Panel, Separator, type Layout, type LayoutChangedMeta } from "react-resizable-panels";
 import type { TerminalPaneLayout } from "@wrapt/contracts";
 
@@ -27,60 +29,54 @@ interface TerminalCanvasProps {
   onLayoutChanged(layout: Layout, details: LayoutChangedMeta): void;
 }
 
-/** Rendert die sichtbare Terminalfläche unabhängig von Sidebar und Session-Logik. */
+/** Stabile Portale halten die Renderer beim Wechsel zwischen Einzel-, Split-,
+ * Mobil- und geparkter Ansicht am Leben. Nur ihre Plätze wechseln. */
 export function TerminalCanvas({ areaId, bento, isMobile, showSingleMobilePane, focusedRuntimeId, paneLayout, panes, parkedPanes, emptyState, dropZone, renderPane, onLayoutChanged }: TerminalCanvasProps) {
-  if (panes.length === 0) {
-    return <div className="terminal-canvas"><div className="terminal-empty-state">{emptyState}</div>{dropZone}</div>;
-  }
-
-  if (bento) {
-    return <div className={`terminal-canvas is-bento has-${Math.min(panes.length, 4)}`}>
-      {panes.slice(0, 4).map((pane, index) => renderPane(pane, !isMobile || pane.runtimeId === focusedRuntimeId, index === 0 ? "left" : index === 1 ? "right" : undefined, index))}
-      {parkedPanes.map((pane) => renderPane(pane, false))}
-      {dropZone}
-    </div>;
-  }
-
-  if (paneLayout?.type === "split") {
-    if (showSingleMobilePane) {
-      const focusedPane = panes.find((pane) => pane.runtimeId === focusedRuntimeId) ?? panes[0]!;
-      return <div className="terminal-canvas is-mobile-single-pane">
-        {panes.map((pane) => renderPane(pane, pane.runtimeId === focusedPane.runtimeId))}
-        {parkedPanes.map((pane) => renderPane(pane, false))}
-      </div>;
+  const hosts = useRef(new Map<string, HTMLElement>());
+  const allPanes = [...panes, ...parkedPanes];
+  const known = new Set(allPanes.map((pane) => pane.id));
+  for (const id of hosts.current.keys()) if (!known.has(id)) hosts.current.delete(id);
+  for (const pane of allPanes) {
+    if (!hosts.current.has(pane.id)) {
+      const host = document.createElement("div");
+      host.className = "terminal-pane-host";
+      hosts.current.set(pane.id, host);
     }
-    return (
-      <div className="terminal-canvas">
+  }
+  const single = showSingleMobilePane || (bento && isMobile);
+  const mobilePane = panes.find((pane) => pane.runtimeId === focusedRuntimeId) ?? panes[0];
+  const visible = (pane: TerminalCanvasPane) => panes.includes(pane) && (!single || pane.id === mobilePane?.id);
+  const slot = (pane: TerminalCanvasPane) => <TerminalPaneSlot key={pane.id} host={hosts.current.get(pane.id)!} parked={!visible(pane)} />;
+  const portals = allPanes.map((pane) => {
+    const index = panes.indexOf(pane);
+    return createPortal(renderPane(pane, visible(pane), index === 0 ? "left" : index === panes.length - 1 ? "right" : undefined, index >= 0 ? index : undefined), hosts.current.get(pane.id)!, pane.id);
+  });
+  const split = paneLayout?.type === "split" ? paneLayout : null;
+
+  return <>
+    <div className={`terminal-canvas${bento ? ` is-bento has-${Math.min(panes.length, 4)}` : ""}${single ? " is-mobile-single-pane" : ""}`}>
+      {panes.length === 0 ? <div className="terminal-empty-state">{emptyState}</div> : bento || single ? panes.map(slot) : (
         <Group
           id={`terminal-split-${areaId}`}
           className="terminal-split-group"
           orientation="horizontal"
-          defaultLayout={Object.fromEntries(panes.map((pane, index) => [pane.id, paneLayout.sizes[index] ?? (100 / panes.length)])) as Layout}
+          defaultLayout={Object.fromEntries(panes.map((pane, index) => [pane.id, split?.sizes[index] ?? (100 / panes.length)])) as Layout}
           onLayoutChanged={onLayoutChanged}
           resizeTargetMinimumSize={{ coarse: 44, fine: 20 }}
         >
           {panes.flatMap((pane, index) => [
-            <Panel key={pane.id} id={pane.id} minSize="20%" defaultSize={`${paneLayout.sizes[index] ?? (100 / panes.length)}%`}>
-              {renderPane(pane, true, index === 0 ? "left" : index === panes.length - 1 ? "right" : undefined, index)}
+            <Panel key={pane.id} id={pane.id} minSize="20%" defaultSize={`${split?.sizes[index] ?? (100 / panes.length)}%`}>
+              {slot(pane)}
             </Panel>,
             index < panes.length - 1
               ? <Separator key={`separator-${pane.id}`} className="terminal-split-handle" aria-label="Terminal-Aufteilung anpassen" />
               : null,
           ])}
         </Group>
-        {parkedPanes.map((pane) => renderPane(pane, false))}
-        {dropZone}
-      </div>
-    );
-  }
-
-  const pane = panes[0]!;
-  return <div className="terminal-canvas">
-    <Group id={`terminal-split-${areaId}`} className="terminal-split-group" orientation="horizontal" defaultLayout={{ [pane.id]: 100 }} onLayoutChanged={onLayoutChanged} resizeTargetMinimumSize={{ coarse: 44, fine: 20 }}>
-      <Panel key={pane.id} id={pane.id} minSize="20%" defaultSize="100%">
-        {renderPane(pane, true, undefined, 0)}
-      </Panel>
-    </Group>
-    {parkedPanes.map((parkedPane) => renderPane(parkedPane, false))}{dropZone}
-  </div>;
+      )}
+      {parkedPanes.map(slot)}
+      {dropZone}
+    </div>
+    {portals}
+  </>;
 }

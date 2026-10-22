@@ -3,6 +3,8 @@ import type { TerminalWorkspaceOperation, TerminalWorkspaceV2 } from "@wrapt/con
 import { TERMINAL_WORKSPACE_OPERATION_LIMIT } from "@wrapt/contracts";
 import { ApiClientError, apiClient } from "../../lib/apiClient";
 import { useTerminalWorkspaceStore } from "../../stores/terminalWorkspace";
+import { TerminalToastRegion } from "./TerminalToastRegion";
+import { terminalTransport } from "./transport/TerminalTransport";
 
 const SAVE_DELAY_MS = 400;
 const POLL_INTERVAL_MS = 3_000;
@@ -51,8 +53,10 @@ export function TerminalWorkspaceSync() {
   const channelRef = useRef<BroadcastChannel | null>(null);
 
   useEffect(() => {
+    if (/\/(terminal|codex|claude)(\/|$)/.test(window.location.pathname)) terminalTransport.preconnect();
     let active = true;
     let retry: number | null = null;
+    let failures = 0;
     const load = async () => {
       try {
         const response = await loadWorkspaceV2();
@@ -66,7 +70,9 @@ export function TerminalWorkspaceSync() {
       } catch (error: unknown) {
         if (!active) return;
         useTerminalWorkspaceStore.getState().markSyncError(error instanceof Error ? error.message : "Terminal-Layout konnte nicht geladen werden.");
-        retry = window.setTimeout(() => { retry = null; void load(); }, POLL_INTERVAL_MS);
+        if (error instanceof ApiClientError && [401, 403].includes(error.status)) return;
+        failures += 1;
+        retry = window.setTimeout(() => { retry = null; void load(); }, Math.min(POLL_INTERVAL_MS * 2 ** failures, 60_000));
       }
     };
     void load();
@@ -173,5 +179,5 @@ export function TerminalWorkspaceSync() {
   }, []);
 
   useEffect(() => () => { if (retryRef.current !== null) window.clearTimeout(retryRef.current); }, []);
-  return null;
+  return <TerminalToastRegion />;
 }

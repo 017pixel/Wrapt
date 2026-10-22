@@ -18,6 +18,8 @@ function setupCore() {
     cols: 80,
     rows: 24,
     modes: { mouseTrackingMode: "none" },
+    buffer: { active: { type: "normal", baseY: 200, viewportY: 160 } },
+    scrollToLine: vi.fn(),
     reset: vi.fn(),
     resize: vi.fn(),
     write: vi.fn((_data: string, callback?: () => void) => callback?.()),
@@ -136,4 +138,23 @@ test("hält nachgelieferte und live empfangene Ausgabe im selben geordneten Puff
   expect(deps.resetOutput).toHaveBeenCalledOnce();
   expect(terminal.reset).not.toHaveBeenCalled();
   expect(vi.mocked(terminal.write).mock.calls.map(([data]) => data)).toEqual(["alte Ausgabe", "\x1bc"]);
+});
+
+test("bewahrt die Scrollposition beim vollständigen Sync derselben Generation", () => {
+  const { core, refs, terminal } = setupCore();
+  refs.hasLiveStateRef.current = true;
+  core.handleMessage({ type: "terminal.snapshot", sessionId: "session-1", runtimeId: "runtime-1", kind: "shell", status: "running", projectId: null,
+    cwd: "/tmp", epoch: 0, sequence: 5, cols: 80, rows: 24, ownsGeometry: true, alternate: false, mouseTracking: false, serialized: "Verlauf" });
+  expect(terminal.scrollToLine).toHaveBeenCalledWith(160);
+});
+
+test("bündelt wiederholte Sequenzlücken bis zum bestätigten Sync", () => {
+  const { core, refs, deps } = setupCore();
+  refs.sessionRef.current = "session-1";
+  refs.subscriptionRef.current = {} as NonNullable<RendererRefs["subscriptionRef"]["current"]>;
+  for (let sequence = 5; sequence <= 20; sequence++) core.handleMessage({ type: "terminal.output", sessionId: "session-1", sequence, data: "Lücke" });
+  expect(deps.sendMessage).toHaveBeenCalledTimes(1);
+  core.handleMessage({ type: "terminal.deltas", sessionId: "session-1", runtimeId: "runtime-1", epoch: 0, startSequence: 1, deltas: [] });
+  core.handleMessage({ type: "terminal.output", sessionId: "session-1", sequence: 21, data: "neue Lücke" });
+  expect(deps.sendMessage).toHaveBeenCalledTimes(2);
 });

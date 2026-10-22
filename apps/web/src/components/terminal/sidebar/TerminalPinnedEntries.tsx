@@ -34,6 +34,8 @@ export function TerminalPinnedEntries({ entries, meta, sessions, createRowHandle
                 onContextMenu={(event) => onContextMenu(event, entry.id)}
                 onMouseEnter={(event) => onHoverStart(entry.id, event.currentTarget)}
                 onMouseLeave={() => onHoverEnd(entry.id)}
+                onFocus={(event) => onHoverStart(entry.id, event.currentTarget)}
+                onBlur={() => onHoverEnd(entry.id)}
                 onClick={() => entry.runtimeId && onOpenEntry(entry.runtimeId)}
               >
                 <span className={`terminal-tree-status is-${runtimeStatus}`} aria-hidden />

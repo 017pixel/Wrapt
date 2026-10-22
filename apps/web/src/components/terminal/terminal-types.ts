@@ -48,11 +48,14 @@ export interface WebTerminalHandle {
 
 export interface WebTerminalProps {
   instanceId: string;
+  sessionId?: string | undefined;
   kind?: TerminalKind;
   projectId?: string | null;
   /** Startverzeichnis für eine neue Sitzung, etwa bei einem Split im aktuellen Unterordner. */
   initialCwd?: string | null;
   active?: boolean;
+  /** Synchronisiert eine vorhandene Sitzung bei Hover ohne Geometrieübernahme. */
+  preload?: boolean;
   /** Erlaubt Eingabe und Scrollen nur im aktuell fokussierten Pane. */
   focused?: boolean;
   /** Hält die PTY-Verbindung für eine geparkte, aber gecachte Route offen. */

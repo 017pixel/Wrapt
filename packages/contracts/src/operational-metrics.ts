@@ -3,6 +3,13 @@ import { z } from "zod";
 const isoDateSchema = z.iso.datetime({ offset: true });
 
 export const operationalMetricsSchema = z.object({
+  notificationSyncs: z.object({
+    terminal: z.object({
+      syncErrorCount: z.number().int().nonnegative(),
+      lastSyncError: z.object({ scope: z.string(), message: z.string(), at: z.iso.datetime() }).nullable(),
+      lastSuccessAt: z.iso.datetime().nullable(),
+    }),
+  }).optional(),
   capturedAt: isoDateSchema,
   uptimeSeconds: z.number().nonnegative(),
   http: z.object({

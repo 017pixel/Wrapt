@@ -1,14 +1,13 @@
 import { expect, test, type Locator, type Page, type WebSocketRoute } from "@playwright/test";
 import { resetTerminalTestWorkspace } from "./helpers/terminal";
-import { apiIdentityHeaders, workbenchUrl } from "./helpers/environment";
+import { apiIdentityHeaders, e2eOrigin, workbenchUrl } from "./helpers/environment";
 
 const login = process.env.WRAPT_E2E_USER ?? "user@example.com";
 const headers = apiIdentityHeaders(login);
-const origin = process.env.WRAPT_E2E_URL!;
+const origin = e2eOrigin;
 test.use({ extraHTTPHeaders: headers });
 test.describe.configure({ retries: 0 });
 test.beforeEach(async ({ page }) => {
-  test.skip(!origin, "Diese Tests benötigen eine ausdrücklich isolierte Testinstanz.");
   await resetTerminalTestWorkspace(page, login);
 });
 
@@ -102,10 +101,10 @@ test("meldet einen Layout-Ladefehler und erholt sich automatisch", async ({ page
     } else await route.continue();
   });
   await page.goto(`${workbenchUrl}/terminal`);
-  await expect(page.locator(".terminal-area [role=alert]")).toBeVisible();
+  await expect(page.locator(".terminal-toasts [role=alert]")).toBeVisible();
   failing = false;
   await expect(page.locator(".terminal-empty-state button")).toBeVisible({ timeout: 7_000 });
-  await expect(page.locator(".terminal-area [role=alert]")).toHaveCount(0);
+  await expect(page.locator(".terminal-toasts [role=alert]")).toHaveCount(0);
   await page.locator(".terminal-empty-state button").click();
   await expect(page.locator(".terminal-tree-status.is-connected")).toBeVisible({ timeout: 5_000 });
 });

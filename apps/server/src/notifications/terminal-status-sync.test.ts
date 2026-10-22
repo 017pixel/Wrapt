@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { NotificationDatabase } from "./database.js";
 import { TerminalStatusSync } from "./terminal-status-sync.js";
 
@@ -41,6 +41,38 @@ function setTerminalState(databasePath: string, values: { status: string; exitCo
 }
 
 describe("Terminal-Status-Synchronisation", () => {
+  it("wartet bei einer exklusiven Datenbanksperre nicht im HTTP-Event-Loop", () => {
+    const directory = mkdtempSync(join(tmpdir(), "wrapt-terminal-lock-"));
+    directories.push(directory);
+    const databasePath = join(directory, "terminal.sqlite");
+    const locked = new DatabaseSync(databasePath);
+    const notifications = new NotificationDatabase(join(directory, "notifications.sqlite"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    const sync = new TerminalStatusSync({ databasePath, notifications, pollSeconds: 5, terminalMinimumSeconds: 5, agentMinimumSeconds: 5 });
+    try {
+      locked.exec("CREATE TABLE terminal_sessions(id TEXT); BEGIN EXCLUSIVE");
+      const started = performance.now();
+      sync.start();
+      expect(performance.now() - started).toBeLessThan(1_000);
+      expect(sync.syncErrorStatus().lastSyncError?.message).toMatch(/locked/i);
+    } finally { sync.stop(); locked.exec("ROLLBACK"); locked.close(); notifications.close(); warn.mockRestore(); }
+  });
+
+  it("meldet Lesefehler begrenzt und erkennt die spätere Erholung", () => {
+    const { databasePath, notifications, sync, snapshot } = terminalFixture();
+    const db = new DatabaseSync(databasePath);
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      db.exec("ALTER TABLE terminal_sessions RENAME TO terminal_sessions_backup");
+      snapshot(false);
+      snapshot(true);
+      expect(sync.syncErrorStatus()).toMatchObject({ syncErrorCount: 2, lastSyncError: { scope: "terminal" }, lastSuccessAt: null });
+      expect(warn).toHaveBeenCalledTimes(1);
+      db.exec("ALTER TABLE terminal_sessions_backup RENAME TO terminal_sessions");
+      snapshot(true);
+      expect(sync.syncErrorStatus().lastSuccessAt).not.toBeNull();
+    } finally { warn.mockRestore(); db.close(); sync.stop(); notifications.close(); }
+  });
   it("meldet Input erst nach einer Schreibpause, nicht sofort", async () => {
     const directory = mkdtempSync(join(tmpdir(), "wrapt-terminal-sync-")); directories.push(directory);
     const notifications = new NotificationDatabase(join(directory, "wrapt.sqlite"));
