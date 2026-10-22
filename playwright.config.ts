@@ -1,11 +1,12 @@
 import { mkdtempSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { e2eOrigin } from "./tests/e2e/helpers/environment";
 import { defineConfig, devices } from "@playwright/test";
 
 const e2ePort = Number(process.env.WRAPT_E2E_PORT ?? 19310);
 process.env.WRAPT_E2E_PORT = String(e2ePort);
-const e2eBaseURL = process.env.WRAPT_E2E_URL ?? `http://127.0.0.1:${e2ePort}`;
+const e2eBaseURL = e2eOrigin;
 // Das Web-Dist-Verzeichnis wird einmal pro Lauf angelegt und danach über die
 // Umgebung weitergegeben: Worker laden diese Datei erneut aus und müssen das
 // bereits gebaute Verzeichnis übernehmen, statt ein leeres anzulegen. Sonst

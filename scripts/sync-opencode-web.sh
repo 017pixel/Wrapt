@@ -99,7 +99,7 @@ start_web() {
   local fallback_log="$repo_root/data/restart-logs/opencode-web.log"
   mkdir -p "$(dirname "$fallback_log")"
   warn "$service_unit ist nicht aktiviert — starte OpenCode Web direkt (Log: $fallback_log)."
-  BROWSER=true setsid nohup "$cli_path" web --hostname "$web_host" --port "$web_port" \
+  BROWSER=true setsid nohup "$cli_path" serve --hostname "$web_host" --port "$web_port" \
     >>"$fallback_log" 2>&1 </dev/null &
   disown || true
 }

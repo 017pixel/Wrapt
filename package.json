@@ -1,6 +1,6 @@
 {
   "name": "wrapt",
-  "version": "2.8.0",
+  "version": "2.19.0",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@10.29.2",
@@ -8,20 +8,21 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev": "pnpm --filter @wrapt/extension-contracts build && pnpm --filter @wrapt/contracts build && pnpm --parallel --filter @wrapt/server --filter @wrapt/web dev",
+    "dev": "pnpm --filter @wrapt/extension-contracts build && pnpm --filter @wrapt/plugin-sdk build && pnpm --filter @wrapt/contracts build && pnpm --parallel --filter @wrapt/server --filter @wrapt/web dev",
     "build:icons": "node scripts/build-app-icons.mjs",
     "build:artwork": "python3 scripts/generate-dashboard-artwork-variants.py",
     "build:artwork:check": "python3 scripts/generate-dashboard-artwork-variants.py --check",
-    "build": "pnpm build:icons && pnpm --filter @wrapt/extension-contracts build && pnpm --filter @wrapt/contracts build && pnpm --filter @wrapt/server build && pnpm --filter @wrapt/web build",
-    "typecheck": "pnpm --filter @wrapt/extension-contracts typecheck && pnpm --filter @wrapt/contracts typecheck && pnpm --parallel --filter @wrapt/server --filter @wrapt/web typecheck && pnpm typecheck:e2e",
+    "build": "pnpm build:icons && pnpm --filter @wrapt/extension-contracts build && pnpm --filter @wrapt/plugin-sdk build && pnpm --filter @wrapt/contracts build && pnpm --filter @wrapt/server build && pnpm --filter @wrapt/web build",
+    "typecheck": "pnpm --filter @wrapt/extension-contracts typecheck && pnpm --filter @wrapt/plugin-sdk typecheck && pnpm --filter @wrapt/contracts typecheck && pnpm --parallel --filter @wrapt/server --filter @wrapt/web typecheck && pnpm typecheck:e2e",
     "lint": "eslint .",
-    "test": "pnpm --filter @wrapt/extension-contracts build && pnpm --filter @wrapt/contracts build && pnpm -r test && pnpm test:launcher && pnpm test:docs",
+    "test": "pnpm --filter @wrapt/extension-contracts build && pnpm --filter @wrapt/plugin-sdk build && pnpm --filter @wrapt/contracts build && pnpm -r --workspace-concurrency=1 test --maxWorkers=4 && pnpm test:launcher && pnpm test:docs",
     "test:launcher": "node --test tools/launcher/ui/app.test.mjs",
     "test:coverage": "pnpm -r test:coverage",
     "test:artifact-retention": "node scripts/test-web-artifact-retention.mjs",
     "test:extension-deployment": "node scripts/test-extension-deployment.mjs",
     "test:wrapt-plugins-skill": "node scripts/validate-wrapt-plugins-skill.mjs",
     "test:quality-gates": "node scripts/test-quality-gates.mjs",
+    "performance:smoke": "node scripts/measure-runtime-performance.mjs",
     "test:e2e": "playwright test",
     "test:terminal:platform": "pnpm --filter @wrapt/contracts build && pnpm --filter @wrapt/contracts test src/filesystem-path.test.ts && pnpm --filter @wrapt/server test src/terminal/shell.test.ts src/terminal/Manager.platform.test.ts src/terminal/Manager.native.test.ts src/terminal/Manager.resume.test.ts src/terminal/persistentSessions.test.ts src/config/terminal-platform.test.ts && pnpm --filter @wrapt/web test src/stores/terminalWorkspace.test.ts",
     "security:audit": "pnpm audit --prod --audit-level=high",
@@ -32,7 +33,8 @@
     "extension:create": "node scripts/extensions/create.mjs",
     "extension:validate": "node scripts/extensions/validate.mjs",
     "test:docs": "node --test docs-webseite/src/markdown.test.mjs docs-webseite/scripts/changelog-source.test.mjs",
-    "typecheck:e2e": "tsc -p e2e/tsconfig.json --noEmit"
+    "typecheck:e2e": "tsc -p e2e/tsconfig.json --noEmit",
+    "plugin": "node scripts/plugin.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

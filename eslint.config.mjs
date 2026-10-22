@@ -11,6 +11,9 @@ export default tseslint.config(
       "**/tools/launcher/src-tauri/target/**",
       "playwright-report/**",
       "test-results/**",
+      // Temporäre Reviewharnesses und erzeugte Browserbundles sind keine
+      // Produktquellen. Gezielte Harnesschecks verwenden --no-ignore.
+      "temp/hermes-v2/**",
     ],
   },
   eslint.configs.recommended,

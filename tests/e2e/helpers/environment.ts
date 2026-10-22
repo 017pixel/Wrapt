@@ -11,8 +11,12 @@
  * Testidentitäten der isolierten Instanz.
  */
 
-const e2eOrigin = process.env.WRAPT_E2E_URL
+export const e2eOrigin = process.env.WRAPT_E2E_URL
   ?? `http://127.0.0.1:${process.env.WRAPT_E2E_PORT ?? 19310}`;
+
+if (process.env.WRAPT_E2E_URL && process.env.WRAPT_E2E_ISOLATED !== "true") {
+  throw new Error("WRAPT_E2E_URL benötigt eine isolierte Testinstanz und WRAPT_E2E_ISOLATED=true.");
+}
 
 export const workbenchUrl = `${e2eOrigin.replace(/\/$/, "")}/wrapt`;
 

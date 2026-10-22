@@ -1,9 +1,13 @@
 {
   "name": "@wrapt/contracts",
-  "version": "0.18.0",
+  "version": "0.24.0",
   "private": true,
   "type": "module",
   "exports": {
+    "./hermes-v2": {
+      "types": "./src/hermes-v2.ts",
+      "default": "./dist/hermes-v2.js"
+    },
     ".": {
       "types": "./src/index.ts",
       "default": "./dist/index.js"

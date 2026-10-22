@@ -1,6 +1,6 @@
 {
   "name": "@wrapt/web",
-  "version": "2.8.0",
+  "version": "2.19.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -55,7 +55,8 @@
     "react-resizable-panels": "4.12.4",
     "react-router": "8.4.0",
     "zod": "4.6.5",
-    "zustand": "5.0.15"
+    "zustand": "5.0.15",
+    "@wrapt/plugin-sdk": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",

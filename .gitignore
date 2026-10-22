@@ -32,6 +32,8 @@ tp.mjs
 identity-proxy.mjs
 # Testing-/Screenshot-Artefakte im Repo-Root
 /*.png
+temp/
+*.tsbuildinfo
 .DS_Store
 .idea/
 .vscode/
