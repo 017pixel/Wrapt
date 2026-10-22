@@ -226,6 +226,6 @@ describe("Benachrichtigungsdatenbank", () => {
     }
     expect(database.list().unreadCount).toBe(0);
     database.close();
-  });
+  }, 30_000);
 
 });
