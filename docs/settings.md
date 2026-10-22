@@ -1,22 +1,26 @@
 # Einstellungen
 
 Die Einstellungsseite ist unter `/wrapt/settings` erreichbar und bleibt auch ohne eigene
-Anmeldung durch die bestehende Tailscale-Identität geschützt. Die Navigation trennt clientweite
-Einstellungen, das lokale Layout und verbundene Wrapt-Instanzen:
+Anmeldung durch die bestehende Tailscale-Identität geschützt. Client-Einstellungen liegen pro
+Workbench-Identität auf dem Server und werden zwischen allen Clients abgeglichen; der Browser
+behält nur einen lokalen Cache für schnellen Start und Offline-Bedienung. Die Navigation trennt
+clientweite Einstellungen, das geteilte Layout und verbundene Wrapt-Instanzen:
 
 - **Client-weit** enthält Allgemein, Design, Navigation, Rechtsklick, Benachrichtigungen, System,
-  Erweiterungen, Werkzeuge, Easter Eggs und Start-App.
-- **Allgemein** bündelt Status, Verknüpfungen, App-Installation, Version und Neustart.
-- **Design** verwaltet Theme-Vorlagen und eigene Farbrollen. Änderungen werden sofort auf die
-  Workbench angewendet; ein heller Modus gehört nicht zum Produktvertrag.
+  Plugin-Berechtigungen, Nutzung & Limits, Experimente, Easter Eggs und Start-App.
+- **Allgemein** bündelt Status, Verknüpfungen, App-Installation und Version. Updates und Neustart liegen gemeinsam unter **System**.
+- **Design** verwaltet Theme-Vorlagen und eigene Farbrollen. Änderungen werden sofort auf der
+  Workbench angewendet und über den Server an alle Clients verteilt; ein heller Modus gehört
+  nicht zum Produktvertrag.
 - **Navigation** bündelt Dashboard-Bereiche, Orbit-Sidebar und globale Seiten-Sichtbarkeit.
 - **Layout** verwaltet geöffnete Panels, bis zu acht Arbeitsflächen und das Zurücksetzen des
-  lokalen Zustands.
+  geteilten Zustands. Ein Zurücksetzen gilt für alle Clients.
 - **Workspaces** verwaltet verbundene lokale und entfernte Wrapt-Instanzen, prüft ihren
   Verbindungsstatus und wechselt zwischen erreichbaren Instanzen. Derselbe Wechsel ist über den
-  Workspace-Wechsler in der Seitenleiste verfügbar. Die Liste bleibt browserlokal und wird beim
-  Wechsel per URL-Fragment zur Zielinstanz übertragen; Layout und Darstellung bleiben je Instanz.
-- **Easter Eggs** enthält zwei optionale Extras, beide standardmäßig deaktiviert.
+  Workspace-Wechsler in der Seitenleiste verfügbar. Die Liste wird über den Server abgeglichen
+  und beim Wechsel per URL-Fragment zur Zielinstanz übertragen; Layout und Darstellung bleiben
+  je Instanz.
+- **Easter Eggs** enthält optionale Extras, standardmäßig deaktiviert.
   Das Capybara-Maskottchen läuft in der Statusleiste zufällig umher, wird nach längerer Ruhe müde
   (nachts schneller) und feiert selten mit Partyhut und Konfetti, nach einem gelungenen Neustart
   sofort. Die Größe lässt sich zwischen 50 und 200 Prozent einstellen; die Vorschau im Bereich löst
@@ -27,8 +31,15 @@ Einstellungen, das lokale Layout und verbundene Wrapt-Instanzen:
   Originale in voller Auflösung bleiben für die Dokumentationsseite erhalten; die kleineren Varianten
   erzeugt `pnpm build:artwork`, `pnpm build:artwork: --check` prüft, ob sie zu den aktuellen
   Parametern passen.
+- **Experimente** enthält den Schalter „Hermes V2 aktivieren“. Er öffnet den [nativen Hermes-Chat](hermes-v2.md).
+  Er wirkt sofort und gilt nach dem Abgleich auch auf allen anderen Clients.
 - **Start-App** legt fest, welche sichtbare Seite beim Öffnen des Root-Pfads geladen wird. Eine
   ausgeblendete Seite kann nicht als Startseite ausgewählt werden.
+
+Mobil ersetzt eine Bereichsauswahl die Tab-Gruppen. Suche und bestehende Deep-Links bleiben verfügbar.
+
+Unter **Plugin-Berechtigungen** werden installierte Erweiterungspakete verwaltet. Der Link
+zu **Plugins** öffnet Entwürfe, Code-Plugins und den Katalog.
 
 ## Suche
 
@@ -42,12 +53,32 @@ kurz. `Enter` öffnet den besten Treffer, `Escape` leert die Suche. Alte Links a
 `#einstellungen:oberflaeche` bleiben gültig und öffnen den Tab **Navigation**. Alte Links auf
 `#einstellungen:workspace` öffnen weiter den Bereich **Layout**.
 
-## Speicherung und Neustart
+## Speicherung und Synchronisierung
 
-Browserbezogene Einstellungen wie Theme, Navigation, Layout und Start-App bleiben in den
-bestehenden versionierten Browser-Speichern. Serverweite Werte werden weiterhin über die
-bestehenden typisierten APIs und `config/wrapt.local.json` verwaltet. Die Neustartaktionen in
-**Allgemein** und **System** verwenden denselben sicheren Restart-Workflow:
+Client-Einstellungen liegen pro Workbench-Identität in der Tabelle `ui_settings` der bestehenden
+Wrapt-SQLite (Schlüssel, JSON-Wert, Revision). Der Browser hält daneben einen versionierten
+`localStorage`-Cache, damit die Oberfläche sofort startet und auch bei kurzer Netzunterbrechung
+bedienbar bleibt. Ein Abgleich läuft:
+
+- beim Öffnen der Workbench und nach jedem Wiederverbinden,
+- gebündelt kurz nach einer lokalen Änderung,
+- live über `/api/v1/settings/ws`,
+- zusätzlich alle 45 Sekunden als Fallback und bei Rückkehr in den Tab.
+
+Der Server führt pro Schlüssel eine eigene Revision. Zwei Clients können daher unterschiedliche
+Einstellungen ändern, ohne sich gegenseitig zu überschreiben. Bei derselben Einstellung gewinnt
+die letzte Änderung. Ungesendete Änderungen werden lokal markiert und beim nächsten Start
+nachgereicht; `pagehide` versucht einen letzten `keepalive`-Schreibvorgang. Beim ersten Start
+nach dem Update hebt jeder Client seine vorhandenen lokalen Einstellungen einmalig auf den Server.
+
+Serverweite Werte (Theme, Rechtsklick-Menü, Maskottchen, Benachrichtigungseinstellungen,
+T3-Kanal, Limitüberwachung und Reset-Historie) bleiben in `config/wrapt.local.json`. Ändert ein
+Client einen dieser Werte, benachrichtigt der Server alle verbundenen Clients; die betroffenen
+React-Queries laden neu. Nicht abgeglichen werden gerätegebundene Daten (Push-Abos,
+PWA-Installationshinweise) und flüchtige Entwürfe oder Sitzungszustände.
+
+Die Neustartaktionen in **Allgemein** und **System** verwenden denselben sicheren
+Restart-Workflow:
 
 - **Frontend** baut nur die Web-Oberfläche neu.
 - **Backend** baut den Server neu und startet den Dienst neu.

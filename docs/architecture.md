@@ -1,25 +1,75 @@
 # Architektur
 
+Die [lokale Code-Plugin-Plattform](extensions/plugin-platform/README.md) nutzt den
+bestehenden Extension-Manager für Release-Slots und Lifecycle. Ihr privates SDK
+liegt in `packages/plugin-sdk`, der Prozesshost und die öffentliche Fach-API in
+`apps/server/src/plugins`, die React-Registry in `apps/web/src/extensions/code-*`.
+Vertrauenswürdiger Code läuft je Plugin in einer eigenen Prozessgruppe.
+
 ## Prozesse und Netzwerk
 
 - T3 Code läuft unabhängig auf `127.0.0.1:3773` und bleibt über Tailscale Serve HTTPS 443 erreichbar. Für die eingebettete Ansicht stellt das Wrapt-Backend zusätzlich einen gleich-originigen HTTP-/WebSocket-Proxy unter `/t3` bereit; dadurch bleibt T3 Codes eigener `frame-ancestors 'self'`-Schutz intakt.
 - OpenCode Web läuft als eigene User-Unit auf `127.0.0.1:3774`. Der gleich-originige Proxy unter `/opencode` scoped HTML-Assets sowie absolute API-/Event-/WebSocket-Ziele und verwendet weiterhin dasselbe OpenCode-Home wie die CLI.
 - Wrapt-Backend und gebautes Frontend laufen gemeinsam auf `127.0.0.1:3010`; Tailscale Serve veröffentlicht diesen Dienst privat auf HTTPS 8443.
+- Client-Einstellungen (Startseite, Navigation, Dashboard-Sichtbarkeit, Layout, Nutzungsdarstellung und Transparenz) liegen pro Identität in der Tabelle `ui_settings` der Wrapt-SQLite. Jeder Schlüssel trägt seine eigene Revision; der Browser cached den Stand in `localStorage` und gleicht ihn per REST sowie über `/api/v1/settings/ws` live ab. Serverweite Werte aus `config/wrapt.local.json` melden Änderungen über denselben Socket.
 - code-server bindet ausschließlich an `127.0.0.1:8080`. Fastify leitet `/editor/*` inklusive WebSocket-Upgrades dorthin weiter. Dieser datenintensive Pfad ist nicht Teil des API-Request-Limits; der WebSocket-Transport erlaubt die größeren Initialisierungsframes von VS Code.
 - Lokale Development-Server binden ebenfalls nur an Loopback. 60 interne Preview-Listener auf den konfigurierten `previews.slotPorts` leiten HTTP und WebSocket am Root an zugewiesene Devserver weiter. Tailscale Serve veröffentlicht sie 1:1 auf getrennten HTTPS-Ports; Preview-Sessions reservieren Haupt- und bestätigte Projekt-Begleitdienste atomar und überbrücken deren lokale URLs.
 - Ein kurzzeitig gecachter Port-Scanner ermittelt lokale TCP-Listener, prüft HTTP und HTTPS und stellt erreichbare Dienste als Schnellstart bereit. Angezeigt werden nur Projekt-Devserver: privilegierte Ports unter 1024, bekannte Systemprozesse und Listener ohne HTTP-Antwort bleiben ausgeblendet. Prozessdetails bleiben auf Name und Port begrenzt.
 - Es gibt weder Funnel noch öffentliche Router-Portweiterleitungen. Tailscale authentifiziert den Benutzer und ergänzt die Identitätsheader für das Terminal.
 
 Hermes Agent läuft als eigener User-Dienst auf Loopback. Die sichtbare Chat- und
-Verwaltungsoberfläche ist ausschließlich die offizielle Hermes-SPA im Iframe. Ihr PTY-Chat und
+Verwaltungsoberfläche ist standardmäßig die offizielle Hermes-SPA im Iframe. Ihr PTY-Chat und
 Events Feed verwenden die offiziellen WebSocket-Endpunkte `/api/pty`, `/api/ws`, `/api/pub` und
 `/api/events`. Der Dashboard-Proxy liegt ausschließlich unter `/hermes`, setzt den Upstream-
 `Host` auf die Hermes-Bind-Adresse, leitet `X-Forwarded-Prefix` weiter und übersetzt den äußeren
 Browser-Origin beim WebSocket-Handshake auf den Loopback-Upstream. Die Wrapt prüft den
 äußeren Same-Origin-Zugriff vorher. ACP-Funktionen können intern für Hintergrundaufgaben bestehen;
-eine zweite sichtbare Chatfläche gibt es nicht. Das ephemere Hermes-Session-Token wird nur
+der optionale native V2-Chat nutzt den bestehenden Gateway. Das Hermes-Session-Token wird nur
 serverseitig aus dem Dashboard-HTML gelesen und nie an den Browser oder in Logs weitergereicht.
 Telegram, Cron und Web schreiben weiterhin in denselben Hermes-Sessionbestand.
+
+Der native [Hermes-V2-Chat](hermes-v2.md) hängt hinter einem standardmäßig
+abgeschalteten Browserflag. Route, Panels, Orbit und Standalone verwenden denselben
+Dispatcher. Featuremodule liegen unter `components/hermes/v2`, Serveradapter unter
+`hermes/v2`, Zod-Verträge im Package-Subpath `@wrapt/contracts/hermes-v2`.
+Die gemeinsame Browserlaufzeit verwaltet Ownerauswahl, flüchtige Drafts und
+referenzgezählte aktive Chatleases. Summaries öffnen keine vollständigen Chatstreams.
+Organisation und persönliche ACKs liegen als getrennte Tabellen in der vorhandenen
+Wrapt-SQLite. Sie speichern keine zweite Nachrichtensammlung; opaque Lesebelege
+bestätigen ausschließlich ihre eingefrorenen Quellen. Hermes bleibt Source of Truth.
+
+Anhänge und Ressourcen verwenden denselben physischen HOME-Nachweis mit monotoner
+Generation. Anhangbindungen prüfen zusätzlich die Sessionkontextrevision, damit
+beobachtetes Zurückwechseln ältere Captures nicht wieder gültig macht. Die finale
+Historyprojektion begrenzt erst nach Maskierung auf das Client-Empfangsbudget;
+sie erhält Zeilen und Seitenzählung und entfernt Lesebelege gekürzter Inhalte.
+
+Memo-Grenzen halten statische Nachrichten, Sidebar und Ressourcenansicht beim
+Tokenstreaming ruhig; deren eigene Zustandsänderungen bleiben sichtbar. Große
+Toolausgaben scrollen innerhalb einer fokussierbaren, begrenzten Kartenregion.
+
+Die Darstellungsauswahl bleibt beim jeweiligen Host: Route und Standalone nutzen
+ihre Sessionquery, normale Panels den vorhandenen Layoutpfad. Orbit speichert den
+geprüften internen Pfad unter `node.state.hermesAdminPath` am genauen Knoten;
+andere Statefelder bleiben erhalten. Das bestehende erweiterbare Stateformat
+bleibt gleich. Ein optionaler Hostcallback verbindet Classic und V2 mit dieser
+Auswahl, ohne weitere Persistenz, Sessionkopie oder Transportverbindung.
+
+Strukturierte Aufgaben verwenden dieselbe Chatverbindung mit ausdrücklichem
+Work-Opt-in. Vollständige Roster und versionierte Teilereignisse bleiben getrennt;
+Tokenfortschritt löst keine Rosterabfrage aus. Queueanzeige und Nebenaufgaben
+behalten die belegte native Teilabdeckung. Konkrete offene Startquittungen halten
+Abschlussbelege unabhängig vom begrenzten sichtbaren Roster, ohne neue Historie.
+
+Cron, Skills, Memory und passive Diagnose verwenden feste authentifizierte
+RESTprojektionen unter `/api/v1/hermes/v2`. Der Ressourcenclient teilt die vorhandene
+Verbindung für ausdrücklich abonnierte Invalidierungen; reine Reads öffnen keine
+Chatlease. Begrenzte Inhalte bleiben flüchtig und werden beim Verlassen verworfen.
+Schreibaktionen binden frisches Profil, HOMEgeneration und konkretes Ziel; unklare
+Quittungen erfordern einen neuen bewussten Abgleich des betreffenden Vorgangs.
+Sitzungsdelete bestätigt die native Kettenwirkung und räumt nur konkret abwesende
+IDs sowie unveränderte lokale Bindungsgenerationen auf. Skillseditor und Hermes-
+Speicher bleiben ihre bestehenden Quellen, ohne zusätzliche Registry oder Cronengine.
 
 Das Iframe wird genau einmal montiert; Seitenwechsel laufen über eine Routen-Brücke, die der
 Proxy vor `</head>` injiziert und die in beide Richtungen spricht. `route.changed` meldet den

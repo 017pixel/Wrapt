@@ -252,6 +252,7 @@ async function build() {
   await rm(distDir, { recursive: true, force: true });
   await mkdir(join(distDir, "data"), { recursive: true });
   await cp(assetsDir, join(distDir, "assets"), { recursive: true });
+  await cp(join(repoRoot, "docs/extensions/plugin-platform/examples"), join(distDir, "plugin-examples"), { recursive: true });
   await cp(mascotAssetsDir, join(distDir, "assets/capybara"), { recursive: true });
   await writeFile(join(distDir, "index.html"), html);
   await writeFile(join(distDir, "app.js"), app);

@@ -5,6 +5,62 @@ Ergänzt den [Umsetzungsbericht](performance-implementation.md) und den
 Alle Zahlen stammen aus eigenen Dummy-Fixtures, nicht aus Nutzer-Previews oder
 privaten Sessions. Browserzugriff ausschließlich über Playwright-MCP.
 
+## Nachprüfung vom 22.10.2026, Wrapt 2.19.0
+
+Der aktuelle Stand wurde in einer eigenen Quellkopie gebaut und auf Loopback-Port
+24410 mit temporärer Datenbank geprüft. Nutzer-Previews und laufende Dienste
+blieben unverändert. Die folgenden älteren Abschnitte beschreiben Wrapt 2.2.10;
+ihre Werte sind keine Baseline für diesen Build.
+
+`pnpm performance:smoke` verlangt `WRAPT_E2E_URL` und
+`WRAPT_E2E_ISOLATED=true`, akzeptiert ausschließlich Loopback und liest keine
+privaten Sessions. Drei Clients lesen je 40 Health-Antworten im Abstand von 25 ms.
+Das Budget beträgt jeweils 100 ms für Health-p95 und Event-Loop-p99.
+
+| Probe | Ergebnis |
+| --- | ---: |
+| Health, 120 Antworten, p50 / p95 | 3,29 / 6,84 ms |
+| Event-Loop-p99 während dieser Probe | 22,81 ms |
+| Echter Code-Plugin-Build | 1.940 ms |
+| Health während des Builds, drei Clients, 152 Antworten, p50 / p95 | 2,99 / 34,37 ms |
+| Langsamste einzelne Health-Antwort während des Builds | 304,86 ms |
+
+Der Build-Test legt ausschließlich in der Testinstanz ein eigenes Plugin über
+`POST /plugins/code/scaffold` an, baut es über `POST /plugins/code/:id/build` und
+entfernt es anschließend. Währenddessen laufen drei Health-Leser im 25-ms-Takt.
+Der Compiler läuft in einem eigenen Prozess. Die Perzentilbudgets gelten nicht
+als Garantie für einzelne Antworten. Ein früherer Messlauf enthielt einen
+Event-Loop-Ausreißer von 1,41 Sekunden bei noch synchroner Kompilierung; wegen
+unterschiedlicher Begleitlast ist das kein kontrollierter Vorher-Nachher-Vergleich.
+
+Mobilprofil: drei kalte Browserkontexte, 390 × 844 Pixel, CPU-Faktor 4,
+150 ms Netzlatenz und 200.000 Bytes/s Downstream. Der Vergleich betrifft nur den
+Startzustand dieses Arbeitsschritts, nicht den ursprünglichen Projektstand.
+
+| Messpunkt | Vor sichtbarem Ladehinweis | Mit sichtbarem Ladehinweis |
+| --- | ---: | ---: |
+| First Contentful Paint | 5.732–5.876 ms | 2.708–2.728 ms |
+| Dashboard sichtbar | 5.855–6.016 ms | 5.810–5.899 ms |
+
+Der Hinweis verkürzt die leere Startphase. Er beschleunigt den vollständigen
+Dashboard-Aufbau nicht. CLS liegt in den neuen Läufen bei 0,0062 bis 0,0219.
+Der große gemeinsam genutzte Notiz-Chunk von rund 1,1 MB bleibt eine Buildwarnung;
+das Warnlimit wurde nicht angehoben. Diese synthetischen Werte sind keine
+Messung auf einem echten Smartphone oder über Tailscale.
+
+Der isolierte Server startet den produktiven Terminal-Sync nicht. Seine Diagnose
+meldet deshalb korrekt `lastSuccessAt: null`. Datenbanksperren und anschließende
+Erholung sind separat mit echter temporärer SQLite-Datenbank geprüft.
+
+Bestanden: 4.970 Vitest-Tests, fünf Launcher-/Dokumentationstests und 45
+Chromium-E2E-Tests ohne Skip oder Flake. Server-Coverage: 83,87 % Zeilen,
+79,71 % Statements, 71,35 % Branches und 80,68 % Funktionen. Die zuvor falsch
+verschachtelten Server-Schwellen sind aktiv; die Qualitäts-Gate-Probe prüft
+zusätzlich die tatsächlich geladene Server- und Webkonfiguration.
+Typecheck, Lint ohne Warnungen, Dateigrößencheck und isolierter Gesamtbuild sind
+grün. Desktop und Mobil wurden mit Playwright-MCP geprüft, ohne Konsolenfehler.
+Rohdaten und Screenshots liegen unter `temp/verbesserungen-2026-10-22/`.
+
 ## Buildmetriken und Prozesswartezeiten
 
 Drei kopierte Releases mit denselben 742 Dateien wie beim Audit. Je 20 Reads,

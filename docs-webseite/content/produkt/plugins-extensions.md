@@ -1,54 +1,70 @@
 # Plugins und Extensions
 
-Wrapt lädt persönliche Plugins für eine Instanz und versionierte Extensions aus dem Repository. Beide erweitern die Oberfläche und unterscheiden sich bei Speicherort, Freigabe und Veröffentlichung.
+Mit lokalen Plugins kannst du eigene Werkzeuge und Anwendungen auf Wrapt bauen,
+Daten sammeln und bestehende Oberflächen oder Abläufe verändern. Deine Quellen
+bleiben lokal. Es gibt keinen Marketplace und keine Installation von npm-Plugins.
 
-| Art | Typischer Zweck | Ablage und Sichtbarkeit |
+| Art | Geeignet für | Zugriff |
 | --- | --- | --- |
-| Persönlicher Plugin-Entwurf | Ein eigenes Werkzeug für die aktuelle Instanz | Lokaler Entwurf im Wrapt-Datenbereich; sichtbar unter **Eigene Plugins** |
-| Installiertes persönliches Plugin | Ein geprüfter Entwurf, der in der Instanz läuft | Lokaler Runtime-Catalog; nicht automatisch veröffentlicht |
-| Versionierte Extension | Teilbare oder mit Wrapt ausgelieferte Erweiterung | Projektordner `extensions/`, gemeinsam versionierbar |
+| Deklarativer Entwurf | Einfache Werkzeuge und vorgegebene Aktionen | Vom Host begrenzt |
+| Lokales Code-Plugin | Eigene React-Seiten, Datenmodelle, Hooks, Dienste und Jobs | Nach ausdrücklichem Vollvertrauen |
+| Mitgelieferte Extension | Versionierte Produktbausteine und Beispiele | Bestehender Extension-Lifecycle |
 
 ![Plugin-Verwaltung mit neutralen Beispielen](../assets/12-plugins.png)
 
-## Persönliches Plugin erstellen
+## Eigenes Code-Plugin erstellen
 
-1. Öffne **Plugins** und wähle **Neues Plugin erstellen**.
-2. Starte mit dem KI-Prompt, dem visuellen Editor oder dem Code-Modus.
-3. Beschreibe Aufgabe, gewünschte Oberfläche und benötigte Datenzugriffe.
-4. Prüfe Manifest und angeforderte Berechtigungen.
-5. Validiere den Entwurf und aktiviere ihn erst nach erfolgreicher Prüfung.
+1. Öffne **Plugins → Code-Plugins**.
+2. Erstelle ein Startprojekt oder registriere deinen eigenen lokalen Quellordner.
+3. Bearbeite TypeScript, JavaScript oder React mit dem API-Editor oder deinem Editor.
+4. Wähle **Bauen** und behebe angezeigte Fehler.
+5. Prüfe den Code und bestätige bei der ersten Aktivierung das Vollvertrauen.
+6. Teste echte Nutzeraktionen und gespeicherte Daten in der Oberfläche.
 
-Ein persönlicher Entwurf bleibt in der Wrapt-Instanz. Du kannst ihn bearbeiten, deaktivieren oder nach Bestätigung entfernen. Die Rubrik **Installieren** zeigt mitgelieferte Beispiele, sie ist keine Veröffentlichungsliste für deine persönlichen Entwürfe.
+Wrapt bringt Compiler, SDK, React und Zod bereits mit. Das Startprojekt enthält
+Server-RPC, dauerhafte Daten und eine eigene Seite mit Navigation. Deine Plugins
+brauchen keine Änderung am Wrapt-Quellcode. Auto-Reload erkennt Quelländerungen
+und hält bei Build- oder Setup-Fehlern die bisherige funktionierende Version aktiv.
 
-Für Codex gibt es zusätzlich den projektspezifischen Skill `$wrapt-plugins`. Er erstellt und ändert persönliche Entwürfe über die geschützte Authoring-API. Das Agenten-Plugin verteilt die Anleitung, es veröffentlicht das daraus erzeugte Wrapt-Plugin nicht.
+## Was Code-Plugins verändern können
 
-## Versionierte Extensions
+Du kannst Seiten, Dashboard-Bereiche, Navigation, Kopfleiste, Statusleiste,
+Einstellungen, Kontextmenüs, Werkzeugflächen und Orbit-Inhalte ergänzen.
+UI-Transformationen ändern vorhandene Beiträge oder blenden sie aus. Beim
+Deaktivieren kehrt deren ursprünglicher Zustand zurück.
 
-Versionierte Extensions werden mit dem öffentlichen Contract erstellt und geprüft. Im Repository liegen dafür ein Scaffolder und ein Validator:
+Auf dem Server stehen eigene Collections, Revisionen, Migrationen, RPC, Commands,
+Ressourcen, Dienste, Ereignisse und Hintergrundjobs bereit. Hooks verändern
+öffentliche Fachoperationen wie das Erstellen einer Notiz. Mehrere lokale
+Plugins können über registrierte Dienste zusammenarbeiten.
 
-```bash
-pnpm extension:create beispiel.mein-plugin
-pnpm extension:validate extensions/beispiel.mein-plugin
-```
+## Vertrauen und Betrieb
 
-Eine Extension deklariert ihre Funktionen über Contributions wie Navigation, Seiten, Commands, Orbit, Einstellungen oder Benachrichtigungen. Wrapt prüft das Manifest und aktiviert Contributions erst nach dem vorgesehenen Lifecycle. Ein deaktiviertes oder fehlendes UI-Modul lässt den gespeicherten Orbit-Knotenstatus bestehen.
+Vertrauenswürdiger Servercode läuft mit den Rechten des Wrapt-Systembenutzers
+und kann dessen Dateien, Netzwerk und Prozesse nutzen. Browsercode hat Zugriff
+auf die angemeldete Wrapt-Oberfläche. Der eigene Prozess ist keine Sandbox.
+Deklarative Plugins behalten ihre eingeschränkte Ausführung.
 
-## Berechtigungen
+Die Verwaltung zeigt Build-Diagnosen, Logs, registrierte Schnittstellen und
+Job-Verläufe. Du kannst Plugins deaktivieren, neu laden oder einen Release
+zurückrollen. Ein Rollback stellt dessen eigenen Datensnapshot wieder her;
+Host-Dateien und externe Änderungen werden nicht zurückgenommen. Safe Mode
+verhindert bei einem Serverstart das Laden persönlichen Codes.
 
-Extensions erhalten nur die Rechte, die ihre Aufgabe braucht. Das kann das Lesen von Projekten betreffen, das Schreiben in freigegebene Projektbereiche oder das Aufrufen registrierter Agenten. Rechte für Prozesse und Systemdienste brauchen eine eigene Begründung. Die Oberfläche zeigt angeforderte Rechte vor der Freigabe.
+## KI-Agenten und Referenz
 
-Beiträge nutzen die UI-Flächen und Theme-Tokens des Hosts. Fremdes Manipulieren am Host-DOM und unkontrollierte Iframe-Rechte sind nicht vorgesehen.
+Der Creator-Skill `$wrapt-plugins` verweist auf einen gemeinsamen Markdown-Ordner
+mit API-Verträgen, Abläufen und Beispielen. Agenten können dieselbe Referenz aus
+der laufenden Instanz lesen. Ein einfacher Aufgabenprompt reicht als Start;
+der Agent muss das erzeugte Plugin anschließend bauen und tatsächlich testen.
 
-## Grenzen
+- [Plugin-SDK und Lesepfad für Agenten](../plugins/README.md)
+- [Erstes Code-Plugin](../plugins/getting-started.md)
+- [Server-SDK](../plugins/server-sdk.md)
+- [React und veränderbare UI-Flächen](../plugins/client-sdk.md)
+- [Lokale Entwicklung, CLI und Lifecycle](../plugins/development.md)
+- [Vertrauen und Fehlerbehandlung](../plugins/troubleshooting.md)
 
-- Ein persönlicher Entwurf gehört zur jeweiligen Instanz und wird nicht automatisch zwischen Servern abgeglichen.
-- Persönliche Entwürfe landen nicht auf GitHub und nicht in einem öffentlichen Marktplatz.
-- Eine Version im Repository ist noch keine Aktivierung in einer Instanz.
-- Erweiterungen erhalten nicht automatisch alle verfügbaren Berechtigungen; Änderungen daran müssen geprüft werden.
-
-## Weiterlesen
-
-- [Orbit-Extensions](./orbit.md)
-- [Wrapt-Plugin-Marktplatz und Agenten-Skill](https://github.com/017pixel/Wrapt/blob/master/docs/extensions/plugin-marketplace.md)
-- [Extension-Authoring-Guide](https://github.com/017pixel/Wrapt/blob/master/docs/extensions/authoring.md)
-- [Extension-Verträge und Architektur](https://github.com/017pixel/Wrapt/blob/master/docs/architecture.md)
+Für einfache deklarative Entwürfe bleiben der visuelle Editor und die bisherige
+Draft-API erhalten. Die Rubrik **Installieren** enthält mitgelieferte Beispiele,
+deine persönlichen Quellen werden dadurch nicht veröffentlicht.

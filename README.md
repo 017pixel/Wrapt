@@ -4,7 +4,7 @@ Die selbst gehostete Remote-Development-Workbench für den privaten Arbeitsplatz
 Wrapt verbindet Projekte, Terminals, Editoren, Coding-Agenten, Previews, Dateien,
 Automatisierungen und Systemdiagnose in einer Oberfläche.
 
-**Aktuelle Version 2.5.1 · MIT · Node.js 22+ · pnpm 10 · [Changelog](CHANGELOG.md)**
+**Aktuelle Version 2.19.0 · MIT · Node.js 22+ · pnpm 10 · [Changelog](CHANGELOG.md)**
 
 ![Wrapt-Dashboard mit anonymisiertem Beispielserver](docs-webseite/assets/01-dashboard.png)
 
@@ -18,9 +18,9 @@ vorgesehen; öffentliche Freigaben per Funnel gehören bewusst nicht zum Betrieb
 - Persistente PTY-Terminals mit tmux-Supervisor, Wiederaufnahme und Projektbindung.
 - Direkte Development-Previews und einen Dateimanager.
 - [Notizen](docs/notes.md) mit Unterseiten, Favoriten, eigenen Ordnern und sortierbarer Seitenleiste.
-- Hermes Agent mit offizieller Weboberfläche, Chat, Cron, Skills und Verwaltung.
+- Hermes Agent mit offizieller Verwaltung und optionaler [nativer V2-Fläche](docs/hermes-v2.md) für Chat, Sitzungsorganisation, Cron, Skills, Memory und Diagnose.
 - Benachrichtigungen, Nutzungsanalyse, Accountwechsel und lokale Systemdiagnose.
-- Ein versioniertes Extension-System und persönliche, deklarative Plugins mit Least Privilege.
+- Eine [lokale Plugin-Plattform](docs/extensions/plugin-platform/README.md) mit TypeScript, React, eigenen Daten, Hooks, Jobs und veränderbaren Oberflächen. Einfache deklarative Plugins bleiben unterstützt.
 
 ## Installation
 

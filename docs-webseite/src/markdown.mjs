@@ -29,6 +29,9 @@ function safeHref(target, source, pageIds, contentRoot) {
   const resolved = resolve(contentRoot, dirname(source), pathPart);
   if (!resolved.startsWith(`${contentRoot}${sep}`) && resolved !== contentRoot) return "";
   const relative = resolved.slice(contentRoot.length + 1).replaceAll(sep, "/");
+  if (/^plugins\/examples\/[a-z0-9-]+\/(?:plugin\.json|server\.ts|ui\.tsx)$/.test(relative)) {
+    return `./plugin-examples/${relative.slice("plugins/examples/".length)}`;
+  }
   if (!relative.endsWith(".md")) return "";
   const id = pageIds.get(relative);
   return id ? `#/${id}${anchor}` : "";

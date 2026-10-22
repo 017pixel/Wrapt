@@ -2,6 +2,199 @@
 
 Alle relevanten Änderungen werden in kurzen Stichpunkten dokumentiert.
 
+## [2.19.0] - 2026-10-22
+
+### Verändert
+- Wrapt prüft den Tailscale-Zugriff vor dem Laden der Arbeitsflächen. Fehlende Berechtigungen stoppen automatische Wiederholungen; bei Verbindungsfehlern wächst der Abstand.
+- Ein fehlgeschlagener Hintergrundabruf erhält geladene Inhalte und Notizeditoren. Entfernte oder nicht mehr erlaubte Inhalte zeigen einen eigenen Fehlerzustand.
+- Updates und Neustarts warten auf den passenden Auftrag und die bestätigte Rückkehr. Vor dem Neuladen werden ungespeicherte Änderungen der geöffneten Editoren berücksichtigt.
+- Mobile Einstellungen haben eine kompakte Bereichsauswahl. Wartung liegt unter System, Hermes V2 unter Experimente; Notizen und Nutzung & Limits heißen einheitlich.
+- Code-Plugins verwenden die gemeinsame Fehlerbehandlung, bündeln Aktualisierungen und warnen vor dem Verwerfen ungespeicherter Quellen. Entwürfe speichern nur bei Änderungen und erhalten neue Eingaben während eines laufenden Saves.
+- Plugin-Kompilierung läuft in einem eigenen Prozess. Bei Typfehlern, Absturz oder Timeout bleibt der bisherige Build erhalten.
+- Bestätigungsdialoge bleiben nach Hintergrundarbeit und fehlgeschlagenen Aufträgen erneut bedienbar. Terminal-Aktionsknöpfe haben auch auf Touch-Geräten mindestens 44 Pixel Platz.
+- Terminal-Sync meldet Lesefehler in der Diagnose und wartet bei Datenbanksperren auf den nächsten Abruf, ohne den Server zu blockieren.
+- Der Start zeigt einen Ladehinweis, bevor die Anwendung bereit ist. Eine isolierte Performance-Probe prüft feste Budgets für API-Antworten und Event-Loop-Verzögerungen.
+- Qualitätsprüfungen prüfen ihre eigenen Fehlerfälle mit Gegenproben. Terminal- und Plugin-E2E-Tests nutzen dieselbe isolierte Testadresse.
+
+## [2.18.0] - 2026-10-22
+
+### Erstellt
+- Persönliche Code-Plugins mit TypeScript, eigenen React-Seiten, dauerhaft gespeicherten Daten, Hooks, Diensten und Hintergrundjobs.
+- Bestehende Seiten, Navigation, Dashboard, Einstellungen, Panels und Kontextmenüs lassen sich durch Plugins ergänzen, verändern oder ersetzen.
+- Lokale Quellordner, Editor, Typprüfung, CLI, automatisches Neuladen und Laufzeit-Inspektor für die Plugin-Entwicklung.
+- Öffentliche Schnittstellen für Projekte, Dateien, Notizen, Orbit, Git, Benachrichtigungen, Terminals und Previews.
+- Entwicklerreferenz mit ausführbarem Projektjournal auf der Docs-Website und im verlinkten Plugin-Creator-Skill.
+
+### Verändert
+- Vertrauenswürdiger Plugin-Code läuft nach ausdrücklicher Freigabe in eigenen Serverprozessen. Deklarative Plugins bleiben im bisherigen eingeschränkten Modus nutzbar.
+- Versionswechsel sichern die eigenen Plugin-Daten und Dateien. Bei einem Fehler bleibt der vorherige Stand erhalten; ein Rollback lädt dessen Datensnapshot.
+- Aktive deklarative Plugins führen registrierte Plugin-Commands tatsächlich aus und können ihre Inhalte erneut laden.
+
+## [2.17.0] - 2026-10-22
+
+### Erstellt
+- Einstellungen liegen auf dem Server und gleichen sich live zwischen allen Clients ab. Das gilt für Navigation, Start-App, Layout, Dashboard-Hintergrund, Hermes V2, Nutzungsdarstellung und Transparenz.
+- Änderungen an Theme, Rechtsklick-Menü, Maskottchen, Benachrichtigungen, T3-Kanal, Limitüberwachung und Reset-Historie erscheinen auf anderen Clients ohne Neuladen.
+- Ungesendete Änderungen werden lokal markiert und beim nächsten Start oder nach einer Verbindungsunterbrechung nachgereicht.
+
+### Verändert
+- Der lokale Speicher bleibt als schneller Cache erhalten; der Server ist die gemeinsame Quelle für alle Geräte.
+- Das Zurücksetzen des Layouts gilt jetzt für alle Clients.
+
+## [2.16.0] - 2026-10-22
+
+### Verändert
+- Die Hermes-Chatliste zeigt nur noch Titel und nötigen Status. Projekt, Modell und Zeitangaben stehen in einer kleinen Vorschau beim Überfahren, die sich auch per Tastatur und auf Touch-Geräten öffnen lässt.
+- Sitzungsaktionen öffnen sich per Rechtsklick, Menütaste oder Umschalt+F10. Der Drei-Punkte-Knopf entfällt; auf Touch-Geräten bleibt eine kompakte Aktionen-Schaltfläche.
+- Längere Chattitel haben zwei Zeilen Platz. Die Vorschau bleibt beim Überfahren lesbar, schließt mit Escape und lädt keine zusätzliche Sitzung.
+
+## [2.15.0] - 2026-10-22
+
+### Verändert
+- „Eingabe nötig“ steht direkt unter der Suche. „In Arbeit“ und „Erledigt“ bleiben unten; die Gruppenköpfe haben mehr Abstand zu den Rändern.
+- Beendete Turns erscheinen grün. Die zusätzlichen „neu“-Zähler und der Hinweis „Organisation geändert“ entfallen. Strg+Z beziehungsweise Cmd+Z macht Organisationsänderungen rückgängig, während Textfelder ihr eigenes Rückgängig behalten.
+- Gedankenfragmente stehen gesammelt in einem aufklappbaren Block mit eigenem Scrollbereich. Arbeitszeiten ab einer Minute erscheinen in Minuten und Sekunden.
+- Werkzeugdetails zeigen Befehle und Ausgaben getrennt mit Kopieraktionen. Sitzungsmenüs sind breiter, Dialoge und das Feld zum Umbenennen luftiger. Die Scrollleiste des Chatverlaufs entfällt.
+
+### Behoben
+- Nach dem Verschieben eines Chats bleibt der Tastaturfokus in Hermes, damit Rückgängig direkt erreichbar ist.
+- Aufgeklappte Gedanken bleiben beim Eintreffen weiterer Gedankenfragmente offen.
+- Beim Öffnen eines Sitzungsmenüs verrutscht die Chatzeile nicht mehr seitlich.
+
+## [2.14.0] - 2026-10-21
+
+### Erstellt
+- Im Modellpicker lassen sich Modelle mit einem Stern markieren. Favoriten stehen ganz oben und bleiben über Neustarts hinweg gespeichert.
+- Die Projektwahl beim Anlegen einer Sitzung ist ein eigenes Menü statt eines Standardsystems. Zuletzt genutzte Projekte stehen oben, "Ohne Projekt" bleibt der Standard.
+- Die Freigabe der Befehle lässt sich zwischen "Nachfragen" und "Bypass" umschalten. Der aktive Zustand steht am Chip und ist jederzeit sichtbar.
+- Aufeinanderfolgende Werkzeugaufrufe im Chat stehen als ein einklappbarer Block mit einer Zeile je Aufruf. Die Details einer Zeile klappen einzeln auf.
+- Beim Überfahren einer Chatzeile erscheint ein Haken-Knopf, mit dem sich eine Sitzung selbst als erledigt markieren lässt. Eine vom Agenten beendete Sitzung gilt nicht automatisch als erledigt.
+- "oder ohne Projekt beginnen" startet auf Klick sofort einen Chat ohne Projekt, ohne Umweg und ohne Seitenwechsel.
+
+### Verändert
+- Die Hermes-Fläche ist durchgehend eckig: Karte, Senden-Knopf, Plus-Knopf, Chips und Sprechblase.
+- Die Seitenleiste führt die zuletzt benutzten Chats oben. Die Bereichsgruppen stehen unten über der Iconreihe, wie in T3 Code. "Erledigt" ist die letzte Gruppe.
+- Die Bereiche klappen weich auf und zu, mit derselben Animation wie die Wrapt-Hauptspalte.
+- Die Marke über der Seitenleiste entfällt.
+- Die Seitenleiste meldet beim Aktualisieren nicht mehr "Lädt..." und zeigt keine leeren Bereiche an.
+- "Erledigt" klappt über die ganze Kopfzeile weich auf, zeigt die letzten fünf Chats und trägt sein "Mehr laden" direkt darunter. Das "Mehr laden" steht nur noch bei der Liste, zu der es gehört.
+- Die Chatzeile zeigt die Zeit rechts, rückt links um 16 Pixel ein und ist luftiger. Der Drei-Punkte-Knopf liegt bündig in der Zeile und legt seinen Tooltip nicht mehr über die Nachbarzeile.
+- Der Leerzustand zeigt nur noch eine große Überschrift und eine ruhige Unterzeile.
+- Die Bereichs-Buttons für Chat, Cron, Skills, Memory, Konfiguration und Diagnose sitzen ganz unten in der Seitenleiste. Auf dem Telefon stehen sie als untere Leiste unter der Fläche, weil die Seitenleiste dort eine Schublade ist. Der aktive Bereich ist nur an der Iconfarbe erkennbar, ohne Rahmen und ohne Kasten.
+- Der Projektfilter listet die bekannten Projekte und fragt die Sitzungen des gewählten Projekts ab, statt eine leere Auswahl zu zeigen.
+- Die beiden Aktionen einer Chatzeile haben getrennte Klickflächen. Ein Klick löst nicht mehr beide aus.
+- Der OpenCode-Go-Katalog listet alle verfügbaren Modelle, auch direkt nach der Anmeldung. Kein Anbieter bleibt hinter der Anzeigebegrenzung verborgen; jede Gruppe nennt, wie viele Modelle die Suche zusätzlich findet.
+- Die Seitenleiste blendet ihre Scrollleiste aus. Scrollen mit dem Mausrad bleibt wie gehabt.
+- Die Knöpfe der Eingabeleiste behalten auf dem Telefon ihre volle Griffgröße, obwohl die Hermes-Fläche dichter dargestellt wird.
+- Der Knopf für ältere Nachrichten erscheint nur noch, wenn es nachweislich ältere Nachrichten gibt.
+- Aufeinanderfolgende Werkzeugaufrufe stehen als eine Liste mit einer Zeile je Aufruf. Ein einzelner Aufruf steht direkt in der Liste, ohne zusätzlichen Kopf.
+- Die Werkzeuggruppen nennen die Zeit bis zur Antwort, nicht die Summe der einzelnen Werkzeugaufrufe.
+- Die eigenen Nachrichten sitzen als Sprechblase rechts, die Antworten tragen keine Rollenbeschriftung mehr. Zeit und Kopieren stehen als schmale Zeile unter dem Text.
+- Die Gedanken des Agenten stehen in derselben Liste wie die Werkzeugaufrufe, so wie in T3 Code.
+- Die Memory-Fläche hat zwei Spalten mit sinnvollen Breiten: Dateien links breit und lesbar, Anbieter rechts kompakt. Der JSON-Vorschlag ist aufklappbar.
+- Die Sitzungsdetails stehen in der Ecke oben rechts. Nicht belegte Angaben wie "Projekt nicht gemeldet" entfallen.
+
+### Behoben
+- Eine Sitzung bleibt durchgehend in "In Arbeit", während der Agent arbeitet. Vorher flackerte sie weg, sobald ein Werkzeug lief oder eine Skill gesucht wurde.
+- Fehler und Laufzustand einer Nachricht bleiben sichtbar, auch wenn die Zeile keinen sichtbaren Text trägt.
+- Aufeinanderfolgende Gedankblöcke eines Turns gehen nicht mehr verloren.
+- Der Verlauf folgt dem Wachstum der Antwort, auch wenn das Markdown gebremst nachläuft.
+- Memory, Konfiguration und Diagnose laden im Browser wieder, statt einen Zugriffsfehler zu melden.
+- In einem neuen Chat gibt es weder einen Knopf für ältere Nachrichten noch eine Fehlermeldung.
+- Fehlermeldungen erscheinen nicht mehr doppelt.
+- Die Auswahl der Bereichs-Buttons zeigt keinen blauen Kasten mehr.
+- Der Chat baut beim Streamen nur noch die betroffene Zeile neu auf. Vorher wurden mit jedem Token auch alle Werkzeugkarten des Verlaufs neu aufgebaut; das bremste den Aufbau um ein Vielfaches.
+
+## [2.13.0] - 2026-10-20
+
+### Verändert
+- Die Bereichsauswahl im Hermes V2 sitzt jetzt als schmale Iconreihe am unteren Rand der Seitenleiste. Die Namen stehen nur noch als Tooltip und zugänglicher Name bereit.
+- Cron, Skills und Konfiguration sind zu Verwaltungsseiten nach dem Vorbild der T3-Einstellungen umgebaut: Kopf mit Aktionen, Abschnitte mit Überschrift, Kartengruppen und Zeilen mit Bedienelement rechts.
+- Ältere Nachrichten werden im Chatverlauf über einen schlichten Textlink geladen statt über eine große Schaltfläche.
+
+### Behoben
+- Die Hermes-Sidebar lässt sich am Desktop nicht mehr unter 264 Pixel verbreitern. Die Bereichsleiste am unteren Rand braucht sechs Ziele mit je 44 Pixel, sonst würde sie scrollen.
+
+## [2.12.0] - 2026-10-20
+
+### Erstellt
+- Die Hermes-V2-Sidebar lässt sich am Desktop ziehen, per Tastatur einstellen und auf ihre Standardbreite zurücksetzen. Die gewählte Breite bleibt gespeichert.
+- Eigener Konfigurationsbereich für Zeitzone, Agentenschritte und Kontextkomprimierung. Cron, Skills, Memory und Diagnose bleiben getrennte Bereiche.
+
+### Verändert
+- Hermes V2 übernimmt Akzentfarben und Auswahlflächen der Wrapt-Farbpalette.
+- Cron bekommt Suche und Statusfilter; Skills zeigt Katalog und Details nebeneinander. Mobil bleiben fünf Navigationsziele mit weiteren Bereichen unter „Mehr“.
+- Drawer und Dialoge reagieren mit kurzen Übergängen. Tastaturbedienung und reduzierte Bewegung wechseln ohne Animation; mobile Bedienelemente behalten ausreichend große Touchflächen.
+
+## [2.11.1] - 2026-10-20
+
+### Verändert
+- Die gesamte Hermes-V2-Oberfläche einschließlich Dialogen und Menüs ist um 20 % verkleinert. Die äußere Wrapt-Navigation behält ihre Größe.
+
+## [2.11.0] - 2026-10-20
+
+### Verändert
+- Hermes V2 bekommt eine gemeinsame Sidebar nach dem Vorbild von T3 Code: Suche und neuer Chat oben, kompakte Sitzungsgruppen und Werkzeuge unten. Leere Gruppen werden ausgeblendet; die Sidebar lässt sich am Desktop einklappen.
+- Antworten stehen frei im Chatverlauf. Nachrichten sind größer gesetzt, Listen zeigen wieder Aufzählungszeichen, und Eingabe, Modellwahl und Anhänge liegen in einer gemeinsamen Fläche.
+- Arbeitsverzeichnis und Verbrauch sind unter „Sitzungsdetails“ aufklappbar. Auf dem Handy liegen die fünf Bereiche am unteren Rand; die Sitzungswahl schließt die Sidebar und öffnet direkt den Chat.
+
+## [2.10.1] - 2026-10-18
+
+### Verändert
+- Terminalwechsel behalten Bildschirm, Auswahl und Scrollposition. Hover lädt vorhandene Sitzungen und die Verbindung vor.
+- Terminalhinweise erscheinen oben rechts als Toast und verschieben die Ausgabe nicht. Der Sidebar-Button sitzt bündig links und zeigt die Öffnungsrichtung.
+
+### Behoben
+- Terminals verbinden sich nach Standby, Tabwechsel und Netzunterbrechungen automatisch erneut. Scrollen bleibt nach dem Minimieren und Wiederöffnen nutzbar.
+- Schnelles Scrollen bündelt Eingaben und vermeidet unnötige Verbindungsabbrüche. Die Hover-Vorschau setzt den Terminalbildschirm nicht mehr zurück.
+
+## [2.10.0] - 2026-10-18
+
+### Erstellt
+- Projekte und Modelle zeigen eine gemeinsame Gesamtsumme für Kosten und Tokens im ausgewählten Zeitraum über Codex, Claude Code und OpenCode.
+
+### Verändert
+- Das Slash-Menü in Notes ist größer und besser lesbar. Der sichtbare Scrollbalken ist entfernt.
+- Im Nutzungsverlauf werden Gesamt- und Output-Tokens samt Kosten klarer ausgewiesen.
+
+### Behoben
+- Überschriften in Notes behalten Leerzeichen und Cursorposition während des Schreibens.
+- Eine neu angelegte Unterseite erscheint direkt an der Stelle des Slash-Befehls, ohne den folgenden Inhalt zu verschieben.
+- Nutzungszahlen wechseln beim Zeitraumwechsel nicht mehr vorübergehend zu Werten des zuvor gewählten Zeitraums.
+
+## [2.9.0] - 2026-10-18
+
+### Erstellt
+- Experimentelle native Hermes-V2-Oberfläche unter Einstellungen → Easter Eggs, standardmäßig ausgeschaltet. Die Auswahl bleibt nach dem Neuladen erhalten und synchronisiert sich zwischen Tabs.
+- Hermes V2 kann als eigene Browserfläche ohne Workbench-Navigation geöffnet werden. Panels behalten ihre eigene Sitzungswahl und öffnen dieselbe Sitzung im eigenen Fenster; klassische Oberfläche und Einstellungen bleiben erreichbar.
+- Der Chat zeigt das von Hermes gemeldete Arbeitsverzeichnis, die Projektkennung und die Herkunft der gewählten Sitzung auch bei geschlossener Sidebar.
+- Der native Hermes-Gateway nutzt dieselbe vorhandene Installation und stellt Verlauf, Streaming, Eingabeanfragen und Kataloge abgesichert bereit.
+- Der native Chat unterstützt neue und bestehende Sitzungen, nachladbaren Verlauf, Streaming, Toolkarten, sichtbares Reasoning, Codekopieren und Stoppen. Nach Verbindungsabbrüchen bleibt ein unbekannter Sendeausgang sichtbar und wird erst auf ausdrücklichen Wunsch erneut gesendet.
+- Die V2-Sidebar ordnet Sitzungen nach Eingabebedarf, Arbeit und persönlicher Organisation. Anheften, Zurückstellen mit genauer Rückkehrzeit, Erledigen, Ziehen und Rückgängig verändern keine Hermes-Turns; sichtbare Antworten werden gezielt als gelesen bestätigt.
+- Freigaben, Rückfragen und geheime Eingaben können direkt im nativen Chat beantwortet werden. Doppelte Antworten werden gesperrt; Passwörter verschwinden beim Senden oder Sitzungswechsel sofort aus den Eingabefeldern.
+- Modelle und Anbieter lassen sich aus dem echten Hermes-Katalog wählen. Die Befehlsauswahl bietet native Aktionen und installierte Skills; Kostenbestätigungen, vorgemerkte Wechsel und unbestätigte Denktiefen bleiben sichtbar.
+- Dateien können ausgewählt oder in den Chat gezogen werden. Bestätigte Anhänge erscheinen an ihrer ursprünglichen Nachricht und lassen sich geschützt herunterladen; unklare Uploads werden gezielt geprüft und nicht automatisch wiederholt.
+- Die Aufgabenansicht zeigt belegte Unteraufgaben, Prozesse und Nebenaufträge. Nachrichten lassen sich einreihen, laufende Arbeit steuern und eigene Hintergrundaufgaben starten; unvollständige Abdeckung und unklare Ergebnisse bleiben sichtbar.
+- Cron-Jobs lassen sich nativ ansehen, erstellen, gezielt bearbeiten, pausieren und fortsetzen. Ausführen und Löschen verlangen eine Bestätigung; unklare Quittungen werden bewusst abgeglichen.
+- Skills, Builtin-Memory, ausstehende Änderungen und passive Diagnose sind in derselben Fläche erreichbar. Persönliche Skills bleiben im bestehenden Editor; nicht unterstützte Freigaben und begrenzte Inhalte werden ausdrücklich angezeigt.
+- Sitzungen können nach frischer Prüfung mit ihrer nativen Kompressionskette und delegierten Unteraufgaben gelöscht werden. Laufende oder ungeklärte Arbeit bleibt geschützt; nur bestätigte Abwesenheit bereinigt die Anzeige.
+
+### Behoben
+- Die native Modellauswahl wechselt auch den gewählten Anbieter korrekt. Der Wechsel gilt weiterhin nur für die jeweilige Sitzung.
+- Die Befehlspalette übernimmt beim Öffnen den Tastaturfokus und schließt mit Escape, auch im Nur-Lese-Modus. Vorhandene Entwürfe bleiben erhalten.
+- In Memory bleiben ausstehende Änderungen, Dateien und Anbieter auch bei wenig Platz klar untereinander angeordnet.
+- Große Chatverläufe bleiben auch nach der Geheimnismaskierung ladbar. Nötige Textkürzungen sind sichtbar und bestätigen die betroffene Antwort nicht vollständig als gelesen.
+- Alte Anhangbindungen werden auch nach einem beobachteten Zurückwechseln von Profil oder Arbeitsverzeichnis ungültig. Ein ausgetauschtes Hermes-Datenverzeichnis am selben Pfad wird erkannt.
+- Sidebar und offene Ressourcenflächen werden beim Chatstreaming nicht mehr mit jedem Token neu gezeichnet. Große Werkzeugausgaben scrollen in ihrer Karte; Aufklapp- und Kopieraktionen haben vollständige Klickflächen.
+- Große Werkzeugausgaben mit vielen bekannten Geheimwerten werden schneller maskiert. Auch überlappende Werte und über mehrere Textstücke verteilte Eingaben bleiben geschützt.
+- Nach dem Schließen der Befehlshilfe kehrt der Tastaturfokus in das Sendefeld zurück. Auch Sitzungsaktionen, Denktiefe und Dateiauswahl haben auf großen Bildschirmen volle Klickflächen.
+- Wechselt beim Senden eines Anhangs das Hermes-Profil oder dessen Datenverzeichnis, zeigt V2 den Ausgang als unbekannt. Veraltete Uploadinformationen werden nach einem Profilwechsel verworfen.
+- Secretmaskierung schützt auch lange Streams sowie gekürzte und überlappende Tool-, Aufgaben- und Memoryinhalte. Teilansichten kennzeichnen tatsächliche Kürzungen; darstellbare kleine Antworten werden erhalten.
+- Ungeklärte Cron-Aktionen bleiben auch neben neueren bestätigten Quittungen sichtbar und bewusst abgleichbar.
+- Befehlsauswahl und Modellsuche erhalten normale Entwürfe; übersprungene Anhänge, Aktionssperren und Aufgabenstatus bleiben erkennbar. Der klassische Befehlseinstieg berücksichtigt den App-Basispfad.
+- Eine neu gewählte Sitzung bleibt auch bei verspäteter Erstellung ausgewählt. Gelesene Antworten werden nach dem Scrollen bestätigt; die lokale Navigation bleibt auch im schmalen Panel mit vollen Touchzielen erreichbar.
+- Auf niedrigen Displays und in kleinen Panels bleibt Stop auch mit offener Freigabe und vielen Anhängen erreichbar. Lange Entwürfe und Nebenaktionen lassen sich im verfügbaren Platz scrollen.
+
 ## [2.8.0] - 2026-10-15
 
 ### Verändert

@@ -51,7 +51,9 @@ angezeigt; die anderen Sitzungen bleiben erhalten. Die mobile Sidebar schließt 
 Auswahl und bietet Touch-Aktionen. Eine Sondertastenleiste liefert unter anderem
 Esc, Tab, Pfeiltasten und Strg-Kombinationen.
 
-Zuletzt verwendete Terminals bleiben als Renderer im Hintergrund geladen.
+Zuletzt verwendete Terminals behalten ihren Renderer einschließlich Scrollposition
+und Auswahl. Hover und Tastaturfokus laden vorhandene Sitzungen vor; eine
+Vorschau liest denselben Bildschirm ohne zusätzliche Terminalverbindung.
 Weitere Prozesse laufen im Supervisor weiter und werden beim Öffnen wieder
 synchronisiert. Ein Wechsel zu einem anderen Werkzeug beendet die Sitzung nicht.
 
@@ -61,13 +63,19 @@ Werkzeug-Fokusmodus blendet die Workbench-Navigation aus; Escape beendet ihn.
 
 ## Verbindung und Wiederherstellung
 
-Ein gemeinsamer WebSocket transportiert die Terminalnachrichten. Aufbau und
-Wiederverbindung erscheinen als sichtbarer Status. Fehlgeschlagene Start- und
+Ein gemeinsamer WebSocket transportiert die Terminalnachrichten. Das
+Terminalsymbol lädt ihn beim Hover vor. Nach Standby, Fensterfokus und
+Netzrückkehr wird die Verbindung sofort geprüft; ein veralteter Socket wird
+ersetzt. Meldungen erscheinen oben rechts als Toast, ohne die Ausgabe oder
+die Terminalgröße zu verschieben. Kurze Verbindungswechsel bleiben still. Fehlgeschlagene Start- und
 Neustartanfragen werden dem betroffenen Terminal zugeordnet. Heartbeats erkennen
 einen hängenden Transport; die Verbindung wird automatisch erneut aufgebaut.
-Layout-Ladefehler werden angezeigt und erneut versucht. Noch nicht gespeicherte
+Layout-Ladefehler erscheinen als Toast und werden erneut versucht. Noch nicht gespeicherte
 Layoutänderungen bleiben im lokalen Puffer und werden nach einem Reload erneut
-mit dem Server abgeglichen.
+mit dem Server abgeglichen. Schnelle Eingabefolgen werden verlustfrei gebündelt;
+Scrollen im lokalen Verlauf benötigt keine Netzwerkverbindung. Noch ungesendete
+Eingaben werden bei einem Verbindungsabbruch verworfen und gemeldet, damit sie
+nach der Wiederverbindung keinen Befehl unbemerkt ausführen.
 
 Der Server hält den gerenderten Bildschirm einschließlich Cursor, Alternate
 Screen und Mausmodus in einer Headless-xterm-Emulation. Ein neu verbundener

@@ -31,6 +31,36 @@ meldet damit keine Advisories; das CI-Gate ignoriert keine Advisory-ID mehr.
   sind User-Units; Dienstnamen kommen aus einer festen serverseitig validierten Zuordnung.
 - Bei der Integration wurden die zuvor dauerhaft freigegebenen Muster für rekursives Löschen,
   Root-Löschen, privilegiertes `sudo`, Skriptausführung per `-c`/`-e` und Überschreiben von
-  Projekt-Config entfernt. Ziel ist `approvals.mode: ask`, `cron_mode: deny` und keine globale
-  `Immer erlauben`-Aktion in der Wrapt-UI. Ein Installationslauf mit `--keep-allowlist` ist
+  Projekt-Config entfernt. Der globale Standard ist jetzt Bypass (`approvals.mode: "off"`).
+  Die native Wrapt-Oberfläche bietet dafür einen sichtbaren Umschalter zwischen
+  „Nachfragen“ (`manual`) und „Bypass“ (`off`); Hermes unterstützt außerdem `smart`.
+  `cron_mode: deny` bleibt erhalten, weil Cron ohne anwesenden Nutzer läuft.
+  Erzwungene Schreibfreigaben und geschützte Dateien bleiben auch unter Bypass geschützt.
+  Native V2-Karten zeigen nur die für
+  den konkreten Request von Hermes angebotenen Entscheidungen, einschließlich einer
+  ausdrücklich als dauerhaft beschrifteten Option, wenn diese angeboten wird.
+  Ein Installationslauf mit `--keep-allowlist` ist
   ausdrücklich sichtbar und bleibt eine dokumentierte Ausnahme.
+
+Die nativen V2-Ressourcen erlauben feste Reads und eng typisierte Cronaktionen,
+keinen freien Datei-, Config- oder Commandproxy. Profil, HOME und erlaubter
+Projektordner werden an den relevanten Awaitgrenzen erneut geprüft. Ein tatsächlich
+beobachteter HOMEverlust widerruft ältere Scopes dauerhaft. Eine unklare Annahme
+wird nie automatisch wiederholt; ein Read ersetzt keine native Schreibquittung.
+Anhänge und Ressourcen teilen den Nachweis der physischen HOME-Identität und
+deren Generation. Beobachtete Profil-, Arbeitsverzeichnis- oder HOME-Wechsel
+entwerten alte Bindungen auch nach einer Rückkehr zum vorherigen Wert. Das ist
+keine atomare Sperre gegen externe Änderungen zwischen zwei Prüfungen.
+
+Anzeigetexte schützen sensible Originalstrukturen und bekannte Secretwerte gemeinsam
+vor Kürzung. Auch bereits gekürzte Cacheanzeigen werden vor erneuter Browserausgabe
+geschützt. Die Kenntnis eines kurzen Secrets darf keine andere Credentialklassifikation
+aufheben. Routingkennungen bleiben exakt; Inhalte und Gesamtantworten sind begrenzt.
+Streams führen vollständige Originalfragmente zuerst im vorhandenen, begrenzten
+Verbindungspuffer zusammen. Erst nach dem gemeinsamen Schutz entstehen Masken
+und begrenzte Anzeigen; es gibt keinen weiteren Rawcache oder Browservertrag.
+Verlaufsseiten und Sitzungssnapshots bleiben auch nach wachsender Maskierung
+innerhalb des Client-Empfangsbudgets. Eine nötige Textkürzung erhält Zeilen und
+Seitenzählung, zeigt ihren Grund und entfernt den vollständigen Lesebeleg.
+Externe Coreänderungen sind kein atomarer Wrapt-CAS. Bei unvollständigem aktuellem
+Laufzeitbeleg bleibt natives Sitzungsdelete gesperrt.

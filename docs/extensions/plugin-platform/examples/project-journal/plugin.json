@@ -1,0 +1,9 @@
+{
+  "formatVersion": 3,
+  "id": "personal.project-journal",
+  "name": "Projektjournal",
+  "description": "Aufgaben, Notizereignisse und regelmäßig gesammelte Projektstände",
+  "version": "0.1.0",
+  "server": "server.ts",
+  "ui": "ui.tsx"
+}

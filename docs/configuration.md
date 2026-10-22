@@ -79,9 +79,16 @@ Memory, Skills und Provider-Konfiguration. Der Wrapt-Adapter speichert keine Her
 }
 ```
 
-Die Wrapt öffnet Hermes ausschließlich in der offiziellen Hermes-SPA. Chat, Cron,
-Einstellungen, Skills, Webhooks, Kanäle, Profile und weitere Funktionen laufen damit über
-dieselbe eingebettete Oberfläche. Eine eigene Hermes-Agent-UI gibt es nicht mehr.
+Standardmäßig öffnet Wrapt die offizielle Hermes-SPA für Chat und Verwaltung.
+Optional aktiviert Einstellungen → Easter Eggs den [nativen Hermes-V2-Chat](hermes-v2.md).
+Die klassische Verwaltung mit Settings, Skills, Webhooks und Profilen bleibt erreichbar.
+
+`approvals.mode` in `~/.hermes/config.yaml` gilt global. Die Installation setzt `"off"`
+(Bypass); das Freigabemenü im V2-Composer schaltet auf „Nachfragen“ (`manual`) oder „Bypass“.
+Hermes unterstützt auch `smart`. `config.set` mit Key `approvals.mode` wirkt ohne Neustart;
+die Antwort enthält den beobachteten Zustand und separat den effektiven Session-/CLI-Yolo-Bypass.
+`approvals.cron_mode: deny` und erzwungene Schreibfreigaben bleiben erhalten.
+Ein erneuter Installationslauf setzt den Modus wieder auf Bypass.
 
 Die Installationsroutine erkennt CLI, Checkout, virtuelle Python-Umgebung und `HERMES_HOME` und
 schreibt die erkannten Pfade atomar in die lokale Config. `host` muss Loopback sein, `port` darf
@@ -89,7 +96,7 @@ nicht mit Wrapt, T3 oder Preview-Ports kollidieren. Die Verwaltung läuft über 
 Pfad `/hermes`; deren sichtbarer Chat verwendet die offiziellen Hermes-WebSockets unter
 `/hermes/api/pty`, `/hermes/api/ws` und `/hermes/api/events`. Die ACP-Bridge unter
 `/api/v1/hermes/chat` bleibt für interne Hintergrundaufgaben verfügbar und ist kein
-zweiter sichtbarer Chat.
+zusätzlicher Runtimeprozess. V2 verwendet den vorhandenen `/api/ws`-Gateway.
 
 Folgende Env-Variablen können die nicht-sensiblen Defaults überschreiben:
 
@@ -164,26 +171,16 @@ Ergebnis-Meldungen mit einer Stunde.
 
 ## Hermes-Modell
 
-Das Standardmodell liegt in der Hermes-eigenen Konfiguration (`~/.hermes/config.yaml`), nicht in
-der Wrapt. Die Wrapt liest es nur an und zeigt es in der Kopfzeile an. Der Wechsel auf
-einen OpenAI-kompatiblen Provider (etwa DeepSeek V4 Flash über den OpenCode-Go-Key) erfolgt dort
-als benannter Provider:
+Das Standardmodell liegt unter `model.default` und `model.provider` in
+`~/.hermes/config.yaml`. Wrapt speichert keine Hermes-Credentials und schreibt sie
+weder in Logs noch in Browserzustand. Der OpenCode-Go-Key bleibt als `OPENCODE_GO_API_KEY`
+in `~/.hermes/.env`; eigene Provider verweisen mit `key_env` darauf.
 
-```yaml
-model:
-  default: deepseek-v4-flash
-  provider: custom:opencode.go.ai
-fallback_providers:
-  - custom:backup.example.invalid
-custom_providers:
-  - name: Opencode.go.ai
-    base_url: https://opencode.ai/zen/go/v1
-    api_key: <OpenCode-Go-Key>
-    model: deepseek-v4-flash
-```
-
-API-Schlüssel bleiben ausschließlich in `HERMES_HOME`; die Wrapt speichert keine
-Hermes-Credentials und schreibt sie weder in Logs noch in Browserzustand.
+`scripts/install-hermes.sh` hinterlegt 37 OpenCode-Go-Modelle in `custom_providers`
+(Name `opencode-go`, URL `https://opencode.ai/zen/go/v1`) und `providers.opencode-go.models`.
+Die zweite Liste ergänzt den eingebauten Provider, weil aktuelle Hermes-Versionen eigene
+Provider mit derselben URL ausblenden. Die deklarierte Liste funktioniert auch ohne warmen Cache.
+Bestehende Modelle und der aktive Provider bleiben beim Installationslauf erhalten.
 
 Web-Push benötigt den privaten HTTPS-Origin und einen aktiven Service Worker unter
 `/wrapt/`. Die Berechtigung wird ausschließlich nach einem Klick auf „Auf diesem Gerät
