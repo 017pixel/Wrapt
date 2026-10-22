@@ -1,5 +1,5 @@
 import type { Page } from "@playwright/test";
-import { apiIdentityHeaders } from "./environment";
+import { apiIdentityHeaders, e2eOrigin } from "./environment";
 
 const e2eBoardId = "orbit-e2e-workspace";
 
@@ -20,7 +20,7 @@ export async function enableOrbitInTestBrowser(page: Page): Promise<void> {
 
 /** Setzt das temporäre Orbit-Dokument des isolierten E2E-Servers zurück. */
 export async function resetOrbitTestWorkspace(page: Page, login: string): Promise<void> {
-  const origin = process.env.WRAPT_E2E_URL ?? "http://127.0.0.1:3010";
+  const origin = e2eOrigin;
   const headers = apiIdentityHeaders(login);
   const orbitUrl = new URL("/api/v1/orbit", origin).toString();
   const currentResponse = await page.request.get(orbitUrl, { headers });

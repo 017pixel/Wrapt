@@ -17,6 +17,8 @@ import { z } from "zod";
 import type { RouteServices } from "../api/services.js";
 import { AppError } from "../utils/errors.js";
 
+import { pluginRouteOperation } from "../plugins/host-route.js";
+
 const assetCursorSchema = z.object({ createdAt: z.string().datetime(), id: z.string().uuid() });
 
 function decodeAssetCursor(cursor: string | undefined, code: string, message: string) {
@@ -29,13 +31,13 @@ function decodeAssetCursor(cursor: string | undefined, code: string, message: st
 }
 
 export async function registerOrbitRoutes(app: FastifyInstance, services: RouteServices) {
-  app.get("/orbit", async () => orbitDocumentResponseSchema.parse(services.orbit.get()));
+  app.get("/orbit", async (request) => pluginRouteOperation(services, request, "orbit.get", undefined, () => orbitDocumentResponseSchema.parse(services.orbit.get())));
   app.put("/orbit", async (request, reply) => {
     const input = saveOrbitDocumentRequestSchema.parse(request.body);
     const supportsCurrentConflictHandling = request.headers["x-wrapt-sync-version"] === "2"
       || request.headers["x-workbench-sync-version"] === "2";
     if (supportsCurrentConflictHandling) {
-      return orbitDocumentResponseSchema.parse(services.orbit.save(input.document, input.expectedRevision));
+      return pluginRouteOperation(services, request, "orbit.save", input, () => orbitDocumentResponseSchema.parse(services.orbit.save(input.document, input.expectedRevision)));
     }
     const settled = services.orbit.saveLegacy(input.document, input.expectedRevision);
     // Legacy-Sunset 01.08.2027 (D-005/A-007). Kein 200-ohne-Hinweis mehr:

@@ -17,6 +17,7 @@ import { AdvancedDashboardPanel, CopyButton } from "./DashboardTechnicalPanels";
 import { RuntimePanel } from "./DashboardRuntime";
 import { DashboardRecentProjects } from "./DashboardRecentProjects";
 import "./dashboard-artwork.css";
+import { CodePluginSurface } from "../extensions/code-surface";
 
 const dashboardSections: DashboardSection[] = [
   "quickActions",
@@ -93,19 +94,14 @@ export function Dashboard() {
         <VitalsBand metrics={metrics} showMetrics={metricsVisible} />
 
         <div className="dash-bento">
-          {serverVisible ? <ServerDiagnosticsPanel summary={summary} metrics={metrics} /> : null}
-          {projectActivityVisible ? <DashboardRecentProjects projects={projects} /> : null}
-          {servicesVisible ? <ServicesPanel services={services} /> : null}
-          {runtimeVisible ? <RuntimePanel ports={ports} sessions={sessions} projects={projects} onOpenPort={openPort} /> : null}
-          {usageVisible ? <UsagePanel usage={usage} /> : null}
-          <AdvancedDashboardPanel
-            diagnosticsVisible={diagnosticsVisible}
-            commandsVisible={commandsVisible}
-            diagnostics={diagnostics}
-            readiness={readiness}
-            commands={commands}
-            onSelect={setSelectedCommand}
-          />
+          <CodePluginSurface surface="dashboard" builtins={[
+            { id: "wrapt.dashboard.section.server", surface: "dashboard", title: "Server", order: 10, children: serverVisible ? <ServerDiagnosticsPanel summary={summary} metrics={metrics} /> : null },
+            { id: "wrapt.dashboard.section.projects", surface: "dashboard", title: "Projekte", order: 20, children: projectActivityVisible ? <DashboardRecentProjects projects={projects} /> : null },
+            { id: "wrapt.dashboard.section.services", surface: "dashboard", title: "Dienste", order: 30, children: servicesVisible ? <ServicesPanel services={services} /> : null },
+            { id: "wrapt.dashboard.section.runtime", surface: "dashboard", title: "Laufzeiten", order: 40, children: runtimeVisible ? <RuntimePanel ports={ports} sessions={sessions} projects={projects} onOpenPort={openPort} /> : null },
+            { id: "wrapt.dashboard.section.usage", surface: "dashboard", title: "Nutzung", order: 50, children: usageVisible ? <UsagePanel usage={usage} /> : null },
+            { id: "wrapt.dashboard.section.advanced", surface: "dashboard", title: "Diagnose und Befehle", order: 60, children: <AdvancedDashboardPanel diagnosticsVisible={diagnosticsVisible} commandsVisible={commandsVisible} diagnostics={diagnostics} readiness={readiness} commands={commands} onSelect={setSelectedCommand} /> },
+          ]} />
         </div>
 
         {visibleCount === 0 ? (
