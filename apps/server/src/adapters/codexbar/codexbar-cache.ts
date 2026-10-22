@@ -123,7 +123,7 @@ export function createCodexbarUsageService(options: CodexbarCacheOptions): Codex
     const opencode = monitoring.opencode
       ? options.client.getUsage("opencodego")
           .then((payloads) => normalizeProviderUsage("opencode", payloads))
-          .catch((reason: unknown) => unavailableUsage("opencode", errorCode(reason), "CodexBar ist für OpenCode Go momentan nicht erreichbar."))
+          .catch((reason: unknown) => unavailableUsage("opencode", errorCode(reason), "OpenCode Go konnte nicht über die API geladen werden (API-Schlüssel prüfen)."))
       : Promise.resolve(disabledUsage("opencode"));
     const claude = monitoring.claude
       ? options.client.getUsage("claude")

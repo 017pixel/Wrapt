@@ -38,6 +38,19 @@ export class CodexbarClient {
   }
 
   async getUsage(provider: CodexbarProvider): Promise<CodexbarPayload[]> {
+    // OpenCode Go liefert seine offiziellen Account-Limits über die API. Der
+    // lokale Schätzpfad (CodexBars "auto"-Quelle) darf hier nicht als Fallback
+    // dienen: er produziert veraltete/ungenaue Werte und maskiert abgelaufene
+    // oder ungültige API-Schlüssel. Daher wird ausschließlich die API-Quelle
+    // abgefragt; bei einem Fehler propagiert er, damit der Aufrufer den Account
+    // als nicht verfügbar markieren kann statt falsche Zahlen zu zeigen.
+    if (provider === "opencodego" && this.options.cliPath) {
+      return this.getFromCli(
+        ["usage", "--provider", "opencodego", "--source", "api", "--format", "json"],
+        codexbarUsageResponseSchema,
+        "CodexBar konnte die OpenCode-Go-Quota nicht über die API laden.",
+      );
+    }
     if (provider === "claude" && this.options.cliPath) {
       const payloads = await this.getClaudeUsage();
       return this.enrichClaudeIdentity(payloads);
@@ -95,7 +108,7 @@ export class CodexbarClient {
     if (!this.options.cliPath) return this.get("/usage", "opencodego", codexbarUsageResponseSchema);
     try {
       const payloads = await this.getFromCli(
-        ["usage", "--provider", "opencodego", "--all-accounts", "--format", "json"],
+        ["usage", "--provider", "opencodego", "--all-accounts", "--source", "api", "--format", "json"],
         codexbarUsageResponseSchema,
         "CodexBar konnte die OpenCode-Go-Quota nicht laden.",
       );

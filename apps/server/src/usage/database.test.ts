@@ -78,6 +78,50 @@ describe("usage history", () => {
     expect(dashboard.totals.totalTokens).toBe(300);
   });
 
+  it("hält die Summen mit größerem Zeitraum monoton steigend", () => {
+    const database = new UsageDatabase(":memory:"); databases.push(database);
+    const today = new Date();
+    const date = (daysAgo: number) => new Date(today.getTime() - daysAgo * 86_400_000).toISOString().slice(0, 10);
+    database.importCost([{
+      provider: "codex",
+      source: "local",
+      updatedAt: today.toISOString(),
+      projects: [],
+      daily: [
+        { date: date(20), inputTokens: 80, outputTokens: 20, cacheReadTokens: 0, cacheCreationTokens: 0, totalTokens: 100, totalCost: 1, modelBreakdowns: [] },
+        { date: date(6), inputTokens: 160, outputTokens: 40, cacheReadTokens: 0, cacheCreationTokens: 0, totalTokens: 200, totalCost: 2, modelBreakdowns: [] },
+        { date: date(0), inputTokens: 240, outputTokens: 60, cacheReadTokens: 0, cacheCreationTokens: 0, totalTokens: 300, totalCost: 3, modelBreakdowns: [] },
+        { date: date(200), inputTokens: 320, outputTokens: 80, cacheReadTokens: 0, cacheCreationTokens: 0, totalTokens: 400, totalCost: 4, modelBreakdowns: [] },
+      ],
+    }]);
+
+    const week = database.dashboard("7d").totals;
+    const month = database.dashboard("30d").totals;
+    const quarter = database.dashboard("90d").totals;
+    const year = database.dashboard("365d").totals;
+    const all = database.dashboard("all").totals;
+    expect(week.totalTokens).toBe(500);
+    expect(week.totalCost).toBe(5);
+    expect(month.totalTokens).toBe(600);
+    expect(month.totalCost).toBe(6);
+    expect(quarter.totalTokens).toBe(600);
+    expect(quarter.totalCost).toBe(6);
+    expect(year.totalTokens).toBe(1000);
+    expect(year.totalCost).toBe(10);
+    expect(all.totalTokens).toBe(1000);
+    expect(all.totalCost).toBe(10);
+    expect(all.totalTokens).toBeGreaterThanOrEqual(week.totalTokens);
+    expect(all.totalCost).toBeGreaterThanOrEqual(week.totalCost);
+    expect(week.totalTokens).toBeLessThanOrEqual(month.totalTokens);
+    expect(month.totalTokens).toBeLessThanOrEqual(quarter.totalTokens);
+    expect(quarter.totalTokens).toBeLessThanOrEqual(year.totalTokens);
+    expect(year.totalTokens).toBeLessThanOrEqual(all.totalTokens);
+    expect(week.totalCost).toBeLessThanOrEqual(month.totalCost);
+    expect(month.totalCost).toBeLessThanOrEqual(quarter.totalCost);
+    expect(quarter.totalCost).toBeLessThanOrEqual(year.totalCost);
+    expect(year.totalCost).toBeLessThanOrEqual(all.totalCost);
+  });
+
   it("fasst dasselbe Projekt über mehrere Provider zu einer Zeile zusammen", () => {
     const database = new UsageDatabase(":memory:"); databases.push(database);
     database.importCost([

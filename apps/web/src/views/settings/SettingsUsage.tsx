@@ -5,6 +5,7 @@ import { Card } from "../../components/Card";
 import { NutzungIcon } from "../../components/icons";
 import { apiClient } from "../../lib/apiClient";
 import { wraptQueries } from "../../lib/queryOptions";
+import { QueryBoundary } from "../../components/QueryBoundary";
 
 const usageMonitoringLabels: Record<UsageProviderId, string> = {
   codex: "Codex",
@@ -67,8 +68,15 @@ function UsageControls() {
     }
   };
 
-  if (!current || !resetHistory.data) return <div className="settings-notification-skeleton"><span /><span /><span /></div>;
   return (
+    <QueryBoundary
+      isLoading={monitoring.isPending || resetHistory.isPending}
+      isError={monitoring.isError || resetHistory.isError}
+      error={monitoring.error ?? resetHistory.error}
+      data={current && resetHistory.data ? { current } : undefined}
+      loadingLabel="Limitüberwachung wird geladen…"
+      refetch={() => Promise.all([monitoring.refetch(), resetHistory.refetch()])}
+    >{({ current }) => (
     <div className="notification-settings">
       <p className="settings-section-note">
         Ausgeschaltete Werkzeuge werden nicht mehr auf ihre Limits abgefragt. Die Nutzungshistorie bleibt davon unberührt.
@@ -121,5 +129,6 @@ function UsageControls() {
       </div>
       {message ? <p className="text-[12px] text-muted" role="status">{message}</p> : null}
     </div>
+    )}</QueryBoundary>
   );
 }
