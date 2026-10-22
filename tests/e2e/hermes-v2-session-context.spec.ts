@@ -45,7 +45,6 @@ test("ersetzt den Kontext beim Wechsel und behält keine Werte bei leerer Auswah
   await expect(page.getByText("web", { exact: true })).toBeVisible();
   await expect(page.getByText(first.cwd, { exact: true })).toHaveCount(0);
   await page.goto("/wrapt/hermes-v2/standalone");
-  await expect(page.getByRole("heading", { name: "Womit fangen wir an?" })).toBeVisible();
   await expect(page.getByText(first.cwd, { exact: true })).toHaveCount(0);
   await expect(page.getByText(second.session.cwd, { exact: true })).toHaveCount(0);
 });

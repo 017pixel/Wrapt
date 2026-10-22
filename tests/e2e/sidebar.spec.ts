@@ -1,10 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
+import { resetSidebarPreferences } from "./helpers/ui-settings";
 
 // Regressionstest für den Sidebar-Absturz: Die Hooks der Sektionen standen hinter
 // `!collapsed &&` im JSX. Startete die Seite eingeklappt, fehlten alle Einträge unterhalb
 // von "Workbench", und beim Ausklappen sprang die Hook-Anzahl — React brach den Baum ab.
 
 const SIDEBAR_KEY = "wrapt.sidebar.v1";
+
+test.beforeEach(async () => { await resetSidebarPreferences(); });
 
 /** Startet die Seite mit einer eingeklappten, persistierten Sidebar — wie nach F5 beim Nutzer. */
 async function openCollapsed(page: Page) {
@@ -66,7 +69,7 @@ test("hält eigene Werkzeugseiten im Orbit getrennt von der Einfügepalette erre
   const sidebar = page.locator(".sidebar-shell");
   const pages = sidebar.getByRole("navigation", { name: "Seiten und Werkzeuge" });
   await expect(pages.getByRole("link", { name: "Terminal" })).toBeVisible();
-  await expect(pages.getByRole("link", { name: "Notes" })).toBeVisible();
+  await expect(pages.getByRole("link", { name: "Notizen" })).toBeVisible();
   await expect(sidebar.getByText("Zum Orbit hinzufügen")).toBeVisible();
   await expect(sidebar.getByRole("button", { name: "Orbit-Werkzeuge einklappen" })).toBeVisible();
   const library = sidebar.locator(".sidebar-orbit-library");

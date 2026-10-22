@@ -116,6 +116,7 @@ test("hält den Hauptstop während einer ausstehenden Kindantwort erreichbar", a
 });
 
 test("erzeugt bei Tokenfortschritt weder Rosterpolling noch zusätzliche Chatabos", async ({ page, gateway }) => {
+  gateway.work.seedSubagent(sessionId, "token-progress", { goal: "Eigene Fortschrittsaufgabe", status: "running" });
   await openWork(page);
   await expect.poll(() => gateway.calls.filter((call) => call.op === "work.read").length).toBeGreaterThan(0);
   const initial = gateway.calls.filter((call) => call.op === "work.read").length;

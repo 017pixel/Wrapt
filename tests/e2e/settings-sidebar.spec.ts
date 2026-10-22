@@ -1,10 +1,12 @@
 import { expect, test, type Page } from "@playwright/test";
+import { resetSidebarPreferences } from "./helpers/ui-settings";
 
 test.use({ extraHTTPHeaders: { "tailscale-user-login": process.env.WRAPT_E2E_USER ?? "user@example.com" } });
 
 const SIDEBAR_PREFERENCES_KEY = "wrapt.sidebar-preferences.v1";
 
 async function startWithDefaultSidebarPreferences(page: Page) {
+  await resetSidebarPreferences();
   await page.addInitScript((key) => {
     const resetMarker = `${key}.test-reset`;
     if (window.sessionStorage.getItem(resetMarker)) return;

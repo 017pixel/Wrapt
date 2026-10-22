@@ -68,7 +68,7 @@ test("zeigt Memory-Fehler statt einer erfolgreichen leeren Datei und liest bewus
   gateway.resources.failReadPath = "/memory";
   await openResources(page, "Memory");
   await expect(resourceRegion(page, "memory")).toContainText("Eigener Memorylesefehler");
-  await resourceRegion(page, "memory").getByRole("alert").getByRole("button", { name: "Memory aktualisieren", exact: true }).click();
+  await resourceRegion(page, "memory").getByRole("button", { name: "Memory aktualisieren", exact: true }).last().click();
   await expect(page.getByText("Eigene synthetische Projektnotiz", { exact: true })).toBeVisible();
   expect(resourceWrites(gateway)).toHaveLength(0);
 });

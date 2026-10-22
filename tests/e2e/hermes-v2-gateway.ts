@@ -36,11 +36,11 @@ export class HermesV2BrowserGateway {
   private timers = new Set<ReturnType<typeof setTimeout>>();
   private counter = 0;
 
-  seed(id = "stored-browser", title = "Browser-Testsession"): HermesV2Snapshot {
+  seed(id = "stored-browser", title = "Browser-Testsession", updatedAt = Date.now()): HermesV2Snapshot {
     const session: HermesV2Session = {
       id, title, preview: "", source: "web", model: "browser-model", provider: "test",
-      cwd: "/testprojekt", projectId: null, messageCount: 0, updatedAt: 1_800_000_000_000,
-      running: false, startedAt: 1_800_000_000_000, draft: false,
+      cwd: "/testprojekt", projectId: null, messageCount: 0, updatedAt,
+      running: false, startedAt: updatedAt, draft: false,
     };
     const snapshot: HermesV2Snapshot = {
       session, epoch: "browser-epoch", cursor: 0, writable: true, blockedReason: null,
