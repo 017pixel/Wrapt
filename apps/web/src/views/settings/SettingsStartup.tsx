@@ -24,7 +24,7 @@ export function SettingsStartup() {
   return (
     <div id="settings-start-app">
       <Card title="Start-App" subtitle="Welche Seite beim Öffnen von Wrapt geladen wird" action={<GitBranchIcon className="h-4 w-4 text-faint" />}>
-        <p className="settings-section-note">Das Dashboard ist der Standard. Wählst du eine andere Seite, leitet Wrapt den Root-Pfad dorthin weiter. Die Auswahl bleibt lokal in diesem Browser.</p>
+        <p className="settings-section-note">Das Dashboard ist der Standard. Wählst du eine andere Seite, leitet Wrapt den Root-Pfad dorthin weiter. Die Auswahl wird auf dem Server gespeichert und gilt für alle Clients.</p>
         <div className="settings-radio-list">
           {options.map((option) => {
             const isHidden = !isPageVisibleIn(hiddenPages, option.key);

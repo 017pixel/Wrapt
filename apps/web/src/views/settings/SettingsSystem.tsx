@@ -16,6 +16,7 @@ import { ConfirmDialog } from "../../components/ModalDialog";
 import { ApiClientError, apiClient } from "../../lib/apiClient";
 import { wraptQueries } from "../../lib/queryOptions";
 import { SystemRestartControls } from "../../components/SystemRestartControls";
+import { SystemUpdateControls } from "../../components/SystemUpdateControls";
 
 const t3ChannelLabels: Record<T3Channel, string> = {
   stable: "Stable",
@@ -30,6 +31,7 @@ const t3Channels: T3Channel[] = ["stable", "nightly"];
 export function SettingsSystem({ onJumpToRestart }: { onJumpToRestart: () => void }) {
   return (
     <div id="settings-system">
+      <div id="settings-system-update"><Card title="Wrapt aktualisieren"><SystemUpdateControls /></Card></div>
       <div id="restart-controls">
         <span id="settings-system-restart" className="settings-anchor-alias" aria-hidden="true" />
         <Card

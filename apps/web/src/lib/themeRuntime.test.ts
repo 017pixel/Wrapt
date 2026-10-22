@@ -8,6 +8,8 @@ describe("Theme-Runtime", () => {
   it("übersetzt Projektfarben in semantische CSS-Variablen", () => {
     const variables = appearanceThemeCssVariables(defaultAppearanceTheme);
 
+    expect(variables["--color-accent-soft"]).toContain(defaultAppearanceTheme.colors.accent);
+    expect(variables["--color-accent-line"]).toContain(defaultAppearanceTheme.colors.accent);
     expect(variables["--wrapt-accent"]).toBe(defaultAppearanceTheme.colors.accent);
     expect(variables["--wrapt-hover"]).toBe(defaultAppearanceTheme.colors.hover);
     expect(variables["--wrapt-surface-base"]).toBe(defaultAppearanceTheme.colors.background);

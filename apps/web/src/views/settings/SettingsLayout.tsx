@@ -12,7 +12,7 @@ export function SettingsLayout() {
   const [resetOpen, setResetOpen] = useState(false);
   return (
     <div id="settings-layout">
-      <Card title="Layout" subtitle="Lokaler, persistenter Zustand">
+      <Card title="Layout" subtitle="Auf dem Server gespeichert und zwischen allen Clients abgeglichen">
         <div className="space-y-3 text-[13px]">
           <div className="data-row px-0">
             <span className="text-muted">Geöffnete Panels</span>
@@ -24,7 +24,7 @@ export function SettingsLayout() {
           </div>
           <div className="data-row px-0">
             <span className="text-muted">Speicherort</span>
-            <span className="font-mono text-[12px] text-faint">{LAYOUT_STORAGE_KEY}</span>
+            <span className="font-mono text-[12px] text-faint">Server · Cache {LAYOUT_STORAGE_KEY}</span>
           </div>
           <button
             type="button"
@@ -38,7 +38,7 @@ export function SettingsLayout() {
       <ConfirmDialog
         open={resetOpen}
         title="Layout zurücksetzen?"
-        description="Alle geöffneten Panels, Arbeitsflächen und Auswahlen dieses Browsers werden zurückgesetzt. Diese Aktion kann nicht rückgängig gemacht werden."
+        description="Alle geöffneten Panels, Arbeitsflächen und Auswahlen aller Clients werden zurückgesetzt. Diese Aktion kann nicht rückgängig gemacht werden."
         confirmLabel="Layout zurücksetzen"
         danger
         onConfirm={() => {

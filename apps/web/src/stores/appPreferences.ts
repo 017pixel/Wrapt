@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import { allPageRoutes, type PageRouteId } from "./sidebarPreferences";
 
 /**
@@ -17,31 +17,72 @@ function isPageRouteId(value: unknown): value is PageRouteId {
 
 interface AppPreferencesState {
   defaultPage: PageRouteId;
+  hermesV2Enabled: boolean;
   setDefaultPage: (page: PageRouteId) => void;
+  setHermesV2Enabled: (enabled: boolean) => void;
 }
 
 const STORAGE_KEY = "wrapt.app-preferences.v1";
-const PERSIST_VERSION = 1;
+const PERSIST_VERSION = 2;
+let readingStorageEvent = false;
+
+function readPreferences(key: string): string | null {
+  const raw = localStorage.getItem(key);
+  if (raw === null) return null;
+  try {
+    JSON.parse(raw);
+    return raw;
+  } catch {
+    // Beschädigte UI-Präferenzen werden wie fehlende Daten mit sicheren Defaults geladen.
+    return null;
+  }
+}
+
+function preferences(value: unknown): Pick<AppPreferencesState, "defaultPage" | "hermesV2Enabled"> {
+  const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  return {
+    defaultPage: isPageRouteId(raw.defaultPage) ? raw.defaultPage : DEFAULT_PAGE,
+    hermesV2Enabled: raw.hermesV2Enabled === true,
+  };
+}
 
 export const useAppPreferences = create<AppPreferencesState>()(
   persist(
     (set) => ({
       defaultPage: DEFAULT_PAGE,
+      hermesV2Enabled: false,
       setDefaultPage: (page) => set({ defaultPage: page }),
+      setHermesV2Enabled: (enabled) => set({ hermesV2Enabled: enabled }),
     }),
     {
       name: STORAGE_KEY,
-      partialize: (state) => ({ defaultPage: state.defaultPage }),
+      storage: createJSONStorage(() => ({
+        getItem: readPreferences,
+        setItem: (key, value) => { if (!readingStorageEvent) localStorage.setItem(key, value); },
+        removeItem: (key) => localStorage.removeItem(key),
+      })),
+      partialize: (state) => ({ defaultPage: state.defaultPage, hermesV2Enabled: state.hermesV2Enabled }),
       version: PERSIST_VERSION,
-      merge: (persisted, current) => {
-        const raw = persisted as Partial<{ defaultPage: unknown }> | undefined;
-        return {
-          ...current,
-          defaultPage: isPageRouteId(raw?.defaultPage)
-            ? raw.defaultPage
-            : DEFAULT_PAGE,
-        };
-      },
+      // Der Speicherschlüssel bleibt stabil, damit die bisherige Startseite erhalten bleibt.
+      migrate: (persisted) => preferences(persisted),
+      merge: (persisted, current) => ({ ...current, ...preferences(persisted) }),
     },
   ),
 );
+
+/** Rehydrate liest ohne erneutes Schreiben; der App-Lebenszyklus entfernt den Listener. */
+export function subscribeAppPreferencesStorage(): () => void {
+  const sync = (event: StorageEvent) => {
+    if (event.key !== STORAGE_KEY && event.key !== null) return;
+    if (event.storageArea && event.storageArea !== window.localStorage) return;
+    readingStorageEvent = true;
+    try {
+      // localStorage wird synchron gelesen; auch eine Migration erzeugt hier kein Echo.
+      void useAppPreferences.persist.rehydrate();
+    } finally {
+      readingStorageEvent = false;
+    }
+  };
+  window.addEventListener("storage", sync);
+  return () => window.removeEventListener("storage", sync);
+}

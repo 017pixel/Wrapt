@@ -78,11 +78,11 @@ export function SettingsNavigation({ config }: { config: DashboardConfig | undef
       <div id="settings-navigation-dashboard">
         <Card
           title="Dashboard"
-          subtitle="Bereiche lokal ein- und ausblenden"
+          subtitle="Bereiche für alle Clients ein- und ausblenden"
           action={<EyeIcon className="h-4 w-4 text-faint" />}
         >
           <p className="settings-section-note">
-            Die zentrale Config legt Defaults und verfügbare Bereiche fest. Deine Auswahl wird nur in diesem Browser gespeichert.
+            Die zentrale Config legt Defaults und verfügbare Bereiche fest. Deine Auswahl wird auf dem Server gespeichert und gilt für alle Clients.
           </p>
           <DashboardSectionToggles config={config} />
         </Card>

@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { ApiClientError, apiClient } from "../lib/apiClient";
+import { useQuery } from "@tanstack/react-query";
 import { wraptQueries } from "../lib/queryOptions";
 import { writeClipboardText } from "../lib/clipboard";
 import {
@@ -12,14 +11,15 @@ import {
 import { Badge } from "./primitives";
 import { CheckIcon, CopyIcon, DownloadIcon, LoaderIcon, RefreshIcon, WarningIcon } from "./icons";
 import { ConfirmDialog } from "./ModalDialog";
+import { RestartErrorDetails, RestartProgress, useSystemRestart } from "./SystemRestartControls";
+import { QueryBoundary } from "./QueryBoundary";
 
 export function SystemUpdateControls() {
-  const queryClient = useQueryClient();
   const statusQuery = useQuery(wraptQueries.updateStatus());
-  const [updating, setUpdating] = useState(false);
+  const maintenance = useSystemRestart();
+  const updating = maintenance.phase.status === "working";
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [error, setError] = useState("");
-  const [started, setStarted] = useState(false);
   const [promptCopied, setPromptCopied] = useState(false);
   const [promptError, setPromptError] = useState("");
   const status = statusQuery.data;
@@ -33,22 +33,9 @@ export function SystemUpdateControls() {
 
   async function startUpdate() {
     if (updating) return;
-    setUpdating(true);
     setError("");
-    try {
-      const response = await apiClient.triggerUpdate();
-      if (!response) throw new Error("Keine Antwort vom Server erhalten.");
-      setStarted(true);
-      setConfirmOpen(false);
-      // Der Fortschritt läuft über den Neustart-Status, die Seite lädt danach neu.
-      window.setTimeout(() => window.location.reload(), 2_000);
-      await queryClient.invalidateQueries({ queryKey: ["health"] });
-    } catch (caught) {
-      setError(caught instanceof ApiClientError ? caught.message : "Das Update konnte nicht gestartet werden.");
-      await statusQuery.refetch();
-    } finally {
-      setUpdating(false);
-    }
+    setConfirmOpen(false);
+    await maintenance.update();
   }
 
   async function copyPrompt() {
@@ -70,6 +57,7 @@ export function SystemUpdateControls() {
 
   return (
     <div className="space-y-3">
+      {statusQuery.isError ? <QueryBoundary isLoading={false} isError error={statusQuery.error} refetch={statusQuery.refetch}>{() => null}</QueryBoundary> : null}
       <div className="data-row px-0">
         <span className="text-muted">GitHub-Stand ({status?.branch ?? "…"})</span>
         <span className="flex items-center gap-2">
@@ -90,7 +78,7 @@ export function SystemUpdateControls() {
         </span>
       </div>
       <p className="text-[12px] text-faint" role="status">
-        {statusQuery.isLoading ? "Prüfe GitHub Stand …" : (status?.message ?? "Noch nicht geprüft.")}
+        {statusQuery.isError ? "Der Update-Status konnte nicht aktualisiert werden." : statusQuery.isLoading ? "Prüfe GitHub Stand …" : (status?.message ?? "Noch nicht geprüft.")}
       </p>
       {status?.dirty ? (
         <div className="space-y-1" role="alert">
@@ -120,12 +108,8 @@ export function SystemUpdateControls() {
           <span>{error}</span>
         </p>
       ) : null}
-      {started ? (
-        <p className="flex items-center gap-2 text-[12px] text-muted" role="status">
-          <LoaderIcon className="h-3.5 w-3.5 animate-spin" />
-          Update läuft. Die Seite lädt danach automatisch neu.
-        </p>
-      ) : null}
+      {maintenance.phase.status !== "idle" ? <RestartProgress phase={maintenance.phase} /> : null}
+      {maintenance.phase.status === "error" ? <RestartErrorDetails phase={maintenance.phase} /> : null}
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
@@ -139,7 +123,7 @@ export function SystemUpdateControls() {
         <button
           type="button"
           className="quiet-button-primary"
-          disabled={!status?.updateAvailable || updating || statusQuery.isLoading}
+          disabled={!status?.updateAvailable || updating || statusQuery.isFetching || statusQuery.isError}
           onClick={() => setConfirmOpen(true)}
         >
           {updating ? <LoaderIcon className="h-3.5 w-3.5 animate-spin" /> : <DownloadIcon className="h-3.5 w-3.5" />}

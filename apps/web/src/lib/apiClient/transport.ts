@@ -1,5 +1,6 @@
 import { apiErrorSchema, type ApiError } from "@wrapt/contracts";
 import type { ZodType } from "zod";
+import { workbenchAccess } from "../workbenchAccess.js";
 
 export const WRAPT_SYNC_VERSION = "2";
 
@@ -34,6 +35,7 @@ export async function errorPayload(response: Response): Promise<ApiError | undef
 }
 
 export async function request<T>(path: string, schema: ZodType<T>, signal?: AbortSignal): Promise<T> {
+  workbenchAccess.assertAllowed();
   const response = await fetch(`/api/v1${path}`, {
     method: "GET",
     cache: "no-store",
@@ -44,7 +46,7 @@ export async function request<T>(path: string, schema: ZodType<T>, signal?: Abor
 
   if (!response.ok) {
     const payload = await errorPayload(response);
-    throw new ApiClientError(
+    const error = new ApiClientError(
       response.status,
       payload?.error.code ?? "REQUEST_FAILED",
       payload?.error.message ?? "Die Wrapt-API ist momentan nicht erreichbar.",
@@ -52,14 +54,22 @@ export async function request<T>(path: string, schema: ZodType<T>, signal?: Abor
       payload?.error.retryable ?? response.status >= 500,
       payload?.error.details ?? null,
     );
+    workbenchAccess.report(error);
+    throw error;
   }
 
   return schema.parse(await response.json());
 }
 
 export async function mutate<T>(path: string, method: "POST"|"PUT"|"PATCH"|"DELETE", schema: ZodType<T> | null, body?: unknown): Promise<T | undefined> {
+  workbenchAccess.assertAllowed();
   const response = await fetch(`/api/v1${path}`, { method, cache: "no-store", credentials: "same-origin", signal: requestSignal(), headers: { Accept: "application/json", "X-Wrapt-Sync-Version": WRAPT_SYNC_VERSION, ...(body === undefined ? {} : { "Content-Type": "application/json" }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
-  if (!response.ok) { const payload = await errorPayload(response); throw new ApiClientError(response.status, payload?.error.code ?? "REQUEST_FAILED", payload?.error.message ?? "Die Änderung konnte nicht gespeichert werden.", payload?.error.requestId ?? response.headers.get("x-request-id"), payload?.error.retryable ?? response.status >= 500, payload?.error.details ?? null); }
+  if (!response.ok) {
+    const payload = await errorPayload(response);
+    const error = new ApiClientError(response.status, payload?.error.code ?? "REQUEST_FAILED", payload?.error.message ?? "Die Änderung konnte nicht gespeichert werden.", payload?.error.requestId ?? response.headers.get("x-request-id"), payload?.error.retryable ?? response.status >= 500, payload?.error.details ?? null);
+    workbenchAccess.report(error);
+    throw error;
+  }
   if (!schema || response.status === 204) return undefined;
   return schema.parse(await response.json());
 }

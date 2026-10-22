@@ -12,6 +12,7 @@ import {
 } from "@wrapt/contracts";
 import { z } from "zod";
 import { persistNotificationPreferences } from "../config/wrapt-config.js";
+import { notifySharedConfigChanged } from "../settings/events.js";
 import { isSameOriginRequest } from "../security/same-origin.js";
 import { resolveWorkbenchUser, type WorkbenchIdentityOptions } from "../security/workbench-identity.js";
 import { AppError } from "../utils/errors.js";
@@ -71,6 +72,7 @@ export async function registerNotificationRoutes(app: FastifyInstance, options: 
     const preferences = notificationPreferencesSchema.parse(request.body);
     persistNotificationPreferences(options.configDirectory, preferences);
     options.push.setPreferences(preferences);
+    notifySharedConfigChanged("notificationPreferences");
     return settingsResponse(userId);
   });
   app.post("/notifications/push-subscription", async (request, reply) => {

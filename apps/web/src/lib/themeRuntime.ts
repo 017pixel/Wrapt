@@ -23,6 +23,8 @@ export function appearanceThemeCssVariables(theme: AppearanceTheme): Record<stri
     "--wrapt-focus": colors.focus,
     "--color-accent": colors.accent,
     "--color-accent-contrast": colors.accentContrast,
+    "--color-accent-soft": `color-mix(in oklab, ${colors.accent} 15%, transparent)`,
+    "--color-accent-line": `color-mix(in oklab, ${colors.accent} 40%, transparent)`,
     "--color-accent-light": `color-mix(in oklab, ${colors.accent} 80%, white)`,
     "--surface-base": colors.background,
     "--surface-raised": colors.surfaceRaised,

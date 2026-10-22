@@ -3,7 +3,7 @@
 // Dreiklang plus Retry — statt roher Error.message ohne Lösungsweg (U-003).
 import { ApiClientError } from "./apiClient/transport.js";
 
-export type QueryErrorKind = "netzwerk" | "timeout" | "validierung" | "quarantaene" | "unbekannt";
+export type QueryErrorKind = "zugriff" | "entfernt" | "netzwerk" | "timeout" | "validierung" | "quarantaene" | "unbekannt";
 
 export interface QueryErrorGuide {
   kind: QueryErrorKind;
@@ -31,6 +31,8 @@ function fehlerText(error: unknown): { text: string; name: string; code: string;
 
 export function classifyQueryError(error: unknown): QueryErrorKind {
   const { text, name, status } = fehlerText(error);
+  if (status === 401 || status === 403) return "zugriff";
+  if (status === 404 || status === 410) return "entfernt";
   if (text.includes("quarantäne") || text.includes("quarantaene") || text.includes("quarantine")) return "quarantaene";
   if (
     name === "AbortError" || name === "TimeoutError"
@@ -56,6 +58,10 @@ export function queryErrorGuide(error: unknown, fallback: string): QueryErrorGui
   const requestId = extractRequestId(error);
   const retryable = error instanceof ApiClientError ? error.retryable : kind === "netzwerk" || kind === "timeout";
   switch (kind) {
+    case "zugriff":
+      return { kind, ursache, requestId, titel: "Zugriff nicht erlaubt", aktion: "Prüfe die Tailscale-Verbindung und die Freigabe deines Kontos für diesen Bereich.", docsHinweis: null, retryable: false };
+    case "entfernt":
+      return { kind, ursache, requestId, titel: "Inhalt nicht mehr verfügbar", aktion: "Öffne die Übersicht und wähle einen vorhandenen Eintrag.", docsHinweis: null, retryable: false };
     case "quarantaene":
       return {
         kind, ursache, requestId,

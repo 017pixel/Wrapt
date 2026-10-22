@@ -8,6 +8,7 @@ import type {
   SkillEditorScope,
 } from "@wrapt/contracts";
 import { ApiClientError, apiClient } from "./apiClient";
+import { registerEditorReloadGuard } from "./reloadGuard";
 
 export const SKILL_NAME_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -180,6 +181,10 @@ export function useAutosave({ file, debounceMs, onSaved }: AutosaveOptions): Aut
   const contentRef = useRef(content);
   const timerRef = useRef<number | null>(null);
   const chainRef = useRef<Promise<void>>(Promise.resolve());
+  useEffect(() => registerEditorReloadGuard(() => {
+    const document = documentRef.current;
+    return document !== null && (document.conflicted || document.pendingSaves > 0 || contentRef.current !== document.saved);
+  }), []);
   // Solange ein Konflikt offen ist, wird nichts mehr von allein geschrieben: Jeder
   // weitere Versuch liefe in denselben 409, und die Entscheidung liegt beim Nutzer.
   const onSavedRef = useRef(onSaved);

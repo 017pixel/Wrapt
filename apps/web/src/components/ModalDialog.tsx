@@ -88,8 +88,7 @@ export function ConfirmDialog({ open, title, description, confirmLabel, cancelLa
   const lockedRef = useRef(false);
   confirmRef.current = onConfirm;
   useEffect(() => { if (open) window.setTimeout(() => cancelRef.current?.focus(), 0); }, [open]);
-  useEffect(() => { if (!open) lockedRef.current = false; }, [open]);
-  useEffect(() => { if (confirmPending) lockedRef.current = true; }, [confirmPending]);
+  useEffect(() => { lockedRef.current = open && confirmPending; }, [open, confirmPending, error]);
   return <ModalFrame open={open} title={title} description={description} className={className} backdropClassName={backdropClassName} onClose={onClose}>{(requestClose) =>
     <div className="modal-actions-column">
       {error ? <p className="modal-error" role="alert">{error}</p> : null}
@@ -116,7 +115,7 @@ export function ConfirmDialog({ open, title, description, confirmLabel, cancelLa
 export function ContentDialog({ open, title, description, onClose, children }: Omit<ModalFrameProps, "children"> & { children: ReactNode }) {
   return <ModalFrame open={open} title={title} description={description} onClose={onClose}>{(requestClose) => <>
     <div className="modal-content">{children}</div>
-    <div className="modal-actions"><button type="button" className="quiet-button" onClick={requestClose} autoFocus>Schließen</button></div>
+    <div className="modal-actions"><button type="button" className="quiet-button" onClick={requestClose} data-modal-autofocus>Schließen</button></div>
   </>}</ModalFrame>;
 }
 

@@ -50,4 +50,25 @@ describe("QueryBoundary", () => {
     expect(screen.getByText("Preview-Slot gesperrt (Quarantäne)")).toBeTruthy();
     expect(screen.getByText(/preview\.config\.json/)).toBeTruthy();
   });
+
+  it("erhält den laufenden Editor samt Eingabe bei einem Hintergrundfehler", () => {
+    const children = () => <input aria-label="Entwurf" defaultValue="gespeichert" />;
+    const view = render(<QueryBoundary isLoading={false} isError={false} data="Notiz">{children}</QueryBoundary>);
+    const editor = screen.getByRole("textbox");
+    fireEvent.change(editor, { target: { value: "lokaler Entwurf" } });
+    view.rerender(<QueryBoundary isLoading={false} isError error={new TypeError("Failed to fetch")} data="Notiz">{children}</QueryBoundary>);
+    expect(screen.getByRole("textbox")).toBe(editor);
+    expect((editor as HTMLInputElement).value).toBe("lokaler Entwurf");
+    expect(screen.getByText("Aktualisierung fehlgeschlagen")).toBeTruthy();
+    view.rerender(<QueryBoundary isLoading={false} isError={false} data="Notiz">{children}</QueryBoundary>);
+    expect(screen.getByRole("textbox")).toBe(editor);
+  });
+
+  it.each([401, 403, 404, 410])("zeigt bei HTTP %i keine veralteten geschützten Inhalte", (status) => {
+    render(<QueryBoundary isLoading={false} isError error={new ApiClientError(status, "FAILED", "Nicht verfügbar")} data="geschützt">
+      {(data) => <p>{data}</p>}
+    </QueryBoundary>);
+    expect(screen.queryByText("geschützt")).toBeNull();
+    expect(screen.getByRole("alert")).toBeTruthy();
+  });
 });

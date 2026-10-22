@@ -35,6 +35,28 @@ function GeloeschterDialog({ laeuft, onBestaetigt }: { laeuft: (fertig: () => vo
 describe("ConfirmDialog", () => {
   afterEach(cleanup);
 
+  it("bleibt nach Hintergrundarbeit im geschlossenen Zustand bestätigbar", () => {
+    const onConfirm = vi.fn();
+    const props = { title: "Code-Plugin vertrauen?", description: "Eigenen Code aktivieren.", confirmLabel: "Aktivieren", onConfirm, onClose: vi.fn() };
+    const view = render(<ConfirmDialog {...props} open={false} confirmPending={false} />);
+    view.rerender(<ConfirmDialog {...props} open={false} confirmPending />);
+    view.rerender(<ConfirmDialog {...props} open={false} confirmPending={false} />);
+    view.rerender(<ConfirmDialog {...props} open confirmPending={false} />);
+    fireEvent.click(screen.getByRole("button", { name: "Aktivieren" }));
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  it("lässt nach einem fehlgeschlagenen Auftrag eine erneute Bestätigung zu", () => {
+    const onConfirm = vi.fn();
+    const props = { open: true, title: "Löschen?", description: "Eintrag löschen.", confirmLabel: "Löschen", onConfirm, onClose: vi.fn() };
+    const view = render(<ConfirmDialog {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    view.rerender(<ConfirmDialog {...props} confirmPending />);
+    view.rerender(<ConfirmDialog {...props} confirmPending={false} error="Fehlgeschlagen" />);
+    fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+    expect(onConfirm).toHaveBeenCalledTimes(2);
+  });
+
   it("Doppelklick löst nur eine Mutation aus und verriegelt danach", () => {
     const mutation = vi.fn();
     let fertig!: () => void;

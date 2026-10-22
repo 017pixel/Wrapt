@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { apiClient } from "../lib/apiClient";
 import { useOrbitStore } from "../stores/orbit";
 import { restartEnv, useSystemRestart } from "./SystemRestartControls";
+import { registerEditorReloadGuard } from "../lib/reloadGuard";
 
 vi.mock("../lib/apiClient", async () => {
   const { ApiClientError: RealApiClientError } = await import("../lib/apiClient/transport.js");
@@ -11,6 +12,7 @@ vi.mock("../lib/apiClient", async () => {
     ApiClientError: RealApiClientError,
     apiClient: {
       restartSystem: vi.fn(),
+      triggerUpdate: vi.fn(),
       restartStatus: vi.fn(),
     },
   };
@@ -39,7 +41,7 @@ const statusOk = {
 
 function laufStatus(override: Record<string, unknown> = {}) {
   return {
-    jobId: null,
+    jobId: "00000000-0000-4000-8000-000000000001",
     phase: "running",
     target: "backend",
     exitCode: null,
@@ -80,6 +82,30 @@ afterEach(() => {
 });
 
 describe("useSystemRestart", () => {
+  it("wartet beim Update auf den eigenen Auftrag und beide Marker", async () => {
+    vi.mocked(apiClient.triggerUpdate).mockResolvedValue({ status: "accepted", jobId: statusOk.jobId, target: "both", bootId: "boot-alt", webBuildId: 7, logFile: "update.log", fromHash: "alt", toHash: "neu" });
+    vi.mocked(apiClient.restartStatus)
+      .mockResolvedValueOnce({ ...statusOk, jobId: "00000000-0000-4000-8000-000000000002" })
+      .mockResolvedValueOnce({ ...statusOk })
+      .mockResolvedValue({ ...statusOk, webBuildId: 8 });
+    const { result } = renderHook(() => useSystemRestart({ deadlineMs: 1_000, pollMs: 5 }));
+    await act(async () => { await result.current.update(); });
+    expect(apiClient.triggerUpdate).toHaveBeenCalledTimes(1);
+    expect(apiClient.restartStatus).toHaveBeenCalledTimes(3);
+    expect(restartEnv.reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("respektiert ungespeicherte Änderungen aus beliebigen Editor-Guards", async () => {
+    const unregister = registerEditorReloadGuard(() => true);
+    restartEnv.confirmDirty = vi.fn(() => false);
+    try {
+      const { result } = renderHook(() => useSystemRestart({ deadlineMs: 1_000, pollMs: 5 }));
+      await act(async () => { await result.current.restart("backend"); });
+      expect(restartEnv.confirmDirty).toHaveBeenCalledTimes(1);
+      expect(restartEnv.reload).not.toHaveBeenCalled();
+    } finally { unregister(); }
+  });
+
   it("lädt nach bootId-Wechsel neu (Erfolg)", async () => {
     const { result } = renderHook(() => useSystemRestart({ deadlineMs: 1_000, pollMs: 5 }));
 

@@ -36,6 +36,14 @@ describe("settingsSearch", () => {
     expect(searchSettings("systm").some((result) => result.entry.id === "system")).toBe(true);
   });
 
+  it("findet Hermes V2 unter Experimente", () => {
+    expect(searchSettings("Hermes V2")[0]?.entry).toMatchObject({
+      id: "hermes-v2",
+      tab: "experimente",
+      anchor: "settings-hermes-v2",
+    });
+  });
+
   it("verwirft deutlich weiter entfernte Eingaben", () => {
     expect(levenshteinDistanceWithin("design", "design")).toBe(0);
     expect(levenshteinDistanceWithin("design", "dxxixn")).toBe(3);

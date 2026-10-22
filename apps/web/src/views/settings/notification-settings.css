@@ -1,0 +1,32 @@
+@layer components {
+.notification-settings { display: grid; gap: var(--space-2); }
+.notification-settings .settings-toggle-row > span:first-child { display: grid; gap: 2px; text-align: left; }
+.notification-settings .settings-toggle-row small { color: var(--color-faint); font-size: var(--text-xs); font-weight: 400; }
+.push-device-settings { display: grid; gap: var(--space-3); border: 1px solid var(--color-line); border-radius: var(--radius-md); background: var(--color-ink-800); padding: var(--space-3); }
+.push-device-settings > header { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: var(--space-3); }
+.push-device-settings > header > div { display: grid; min-width: 0; gap: 2px; }
+.push-device-settings > header strong { color: var(--color-text); font-size: var(--text-sm); font-weight: 600; }
+.push-device-settings > p { margin: 0; color: var(--color-muted); font-size: var(--text-xs); line-height: 1.5; }
+.push-device-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.push-device-actions > button { min-height: 44px; }
+.push-device-count { color: var(--color-faint); font: var(--text-2xs)/1.4 var(--font-mono); }
+.push-device-settings .push-device-feedback { border-top: 1px solid var(--color-line-soft); padding-top: var(--space-2); color: var(--color-text); }
+.notification-source-settings { overflow: hidden; border: 1px solid var(--color-line); border-radius: var(--radius-md); }
+.notification-source-settings > header, .notification-source-settings > div { display: grid; min-height: 46px; grid-template-columns: minmax(0, 1fr) 64px; align-items: center; border-bottom: 1px solid var(--color-line); padding-inline: var(--space-3); }
+.notification-source-settings > div:last-child { border-bottom: 0; }
+.notification-source-settings > header { min-height: 36px; color: var(--color-faint); font-size: var(--text-2xs); letter-spacing: .08em; text-transform: uppercase; }
+.notification-source-settings > header span:not(:first-child) { text-align: center; }
+.notification-source-settings > div strong { font-size: var(--text-sm); font-weight: 500; }
+.notification-source-settings > div > button { display: grid; min-width: 44px; min-height: 44px; place-items: center; }
+.settings-toggle-switch.is-compact { scale: .82; }
+.settings-notification-skeleton { display: grid; gap: var(--space-2); }
+.settings-notification-skeleton span { height: 48px; border-radius: var(--radius-md); background: var(--color-ink-800); }
+
+@media (max-width: 560px) {
+  .notification-source-settings > header, .notification-source-settings > div { grid-template-columns: minmax(0, 1fr) 54px; padding-inline: var(--space-2); }
+  .push-device-settings > header { align-items: flex-start; }
+  .push-device-actions { display: grid; grid-template-columns: 1fr; }
+  .push-device-actions > button { justify-content: center; }
+}
+
+}

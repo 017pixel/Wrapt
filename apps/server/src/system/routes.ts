@@ -22,6 +22,7 @@ import type { FastifyInstance } from "fastify";
 import { settings } from "../config/settings.js";
 import { requireWorkbenchAdmin } from "../security/workbench-identity.js";
 import { persistAppearanceTheme, persistContextMenuConfig, persistMascotConfig, readAppearanceTheme, readContextMenuConfig, readMascotConfig } from "../config/wrapt-config.js";
+import { notifySharedConfigChanged } from "../settings/events.js";
 import type { RouteServices } from "../api/services.js";
 import { systemService } from "../services/systemService.js";
 import { t3ChannelService } from "../services/t3ChannelService.js";
@@ -61,6 +62,7 @@ export async function registerSystemRoutes(app: FastifyInstance, services: Route
     requireWorkbenchAdmin(request, services.identity);
     const { theme } = appearanceResponseSchema.parse({ theme: request.body, source: "project" });
     persistAppearanceTheme(settings.configDirectory, theme);
+    notifySharedConfigChanged("appearance");
     return appearanceResponseSchema.parse({ theme, source: "project" });
   });
   app.get("/system/context-menu", async () => contextMenuConfigResponseSchema.parse({
@@ -70,6 +72,7 @@ export async function registerSystemRoutes(app: FastifyInstance, services: Route
     requireWorkbenchAdmin(request, services.identity);
     const { contextMenu } = contextMenuConfigResponseSchema.parse(request.body);
     persistContextMenuConfig(settings.configDirectory, contextMenu);
+    notifySharedConfigChanged("contextMenu");
     return contextMenuConfigResponseSchema.parse({ contextMenu });
   });
   app.get("/system/mascot", async () => mascotConfigResponseSchema.parse({
@@ -79,13 +82,16 @@ export async function registerSystemRoutes(app: FastifyInstance, services: Route
     requireWorkbenchAdmin(request, services.identity);
     const { mascot } = mascotConfigResponseSchema.parse(request.body);
     persistMascotConfig(settings.configDirectory, mascot);
+    notifySharedConfigChanged("mascot");
     return mascotConfigResponseSchema.parse({ mascot });
   });
   app.get("/system/codex-reset-history/settings", async () => codexResetHistorySettingsResponseSchema.parse({ settings: codexResetHistoryService.getSettings() }));
   app.put("/system/codex-reset-history/settings", async (request) => {
     requireWorkbenchAdmin(request, services.identity);
     const { settings: next } = codexResetHistorySettingsResponseSchema.parse({ settings: request.body });
-    return codexResetHistorySettingsResponseSchema.parse({ settings: codexResetHistoryService.updateSettings(next) });
+    const updated = codexResetHistoryService.updateSettings(next);
+    notifySharedConfigChanged("codexResetHistory");
+    return codexResetHistorySettingsResponseSchema.parse({ settings: updated });
   });
   app.get("/system/codex-reset-history", async () => codexResetHistoryResponseSchema.parse(await codexResetHistoryService.get()));
   app.post("/system/restart", { config: { rateLimit: { max: 3, timeWindow: "1 minute" } } }, async (request, reply) => {
@@ -130,7 +136,9 @@ export async function registerSystemRoutes(app: FastifyInstance, services: Route
   app.post("/system/t3-channel", async (request) => {
     requireWorkbenchAdmin(request, services.identity);
     const { channel } = t3ChannelRequestSchema.parse(request.body);
-    return t3ChannelService.setChannel(channel);
+    const status = await t3ChannelService.setChannel(channel);
+    notifySharedConfigChanged("t3Channel");
+    return status;
   });
   app.get("/system/usage-monitoring", async () => usageMonitoringResponseSchema.parse({ monitoring: usageMonitoringService.get() }));
   // Wirkt sofort: Der Sync überspringt deaktivierte Anbieter, der Live-Cache meldet sie
@@ -141,6 +149,7 @@ export async function registerSystemRoutes(app: FastifyInstance, services: Route
     const result = usageMonitoringService.update(monitoring);
     // Gespeicherte Live-Antwort verwerfen, damit der neue Stand ohne Wartezeit ankommt.
     services.usage.invalidate();
+    notifySharedConfigChanged("usageMonitoring");
     return usageMonitoringResponseSchema.parse({ monitoring: result });
   });
   app.get("/server/summary", async () => serverSummarySchema.parse(await systemService.getSummary()));

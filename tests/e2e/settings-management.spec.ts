@@ -5,11 +5,12 @@ test.use({
   serviceWorkers: "block",
 });
 
-test("ordnet die Einstellungsbereiche und den Neustart auf Allgemein", async ({ page }) => {
+test("bündelt Update und Neustart unter System", async ({ page }) => {
   await page.goto("/wrapt/settings");
 
   await expect(page.getByRole("searchbox", { name: "Einstellungen durchsuchen" })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Neustart", exact: true })).toBeVisible();
+  await page.getByRole("link", { name: "Updates und Neustart öffnen" }).click();
+  await expect(page.getByRole("heading", { name: "Dienst neu starten", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Frontend/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Backend/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Beides/ })).toBeVisible();
@@ -50,11 +51,12 @@ test("erreicht jeden Einstellungs-Tab und rendert seinen Fachbereich", async ({ 
     ["Rechtsklick", "settings-context-menu"],
     ["Benachrichtigungen", "settings-notifications"],
     ["System", "settings-system"],
-    ["Erweiterungen", "settings-extensions"],
-    ["Werkzeuge", "settings-usage"],
+    ["Plugin-Berechtigungen", "settings-extensions"],
+    ["Nutzung & Limits", "settings-usage"],
     ["Layout", "settings-layout"],
     ["Workspaces", "settings-workspaces"],
     ["Easter Eggs", "settings-easter-eggs"],
+    ["Experimente", "settings-hermes-v2"],
     ["Start-App", "settings-start-app"],
   ] as const;
 

@@ -9,7 +9,7 @@ describe("settingsTabs", () => {
 
   it("ordnet Client-Einstellungen, Layout und Workspaces sichtbar in Ebenen", () => {
     expect(settingsTabs.map((tab) => tab.group)).toEqual([
-      ...Array.from({ length: 7 }, () => "Wrapt"),
+      ...Array.from({ length: 8 }, () => "Wrapt"),
       ...Array.from({ length: 4 }, () => "Oberfläche & Bedienung"),
       "Verbindungen",
     ]);

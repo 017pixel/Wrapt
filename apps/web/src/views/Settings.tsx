@@ -1,3 +1,4 @@
+import { CodePluginSurface } from "../extensions/code-surface";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ContextMenuSettings } from "../components/context-menu/ContextMenuSettings";
@@ -10,6 +11,8 @@ import { useRouteActivity } from "../lib/routeActivity";
 import { SettingsSearch } from "./settings/SettingsSearch";
 import { SettingsTabNavigation } from "./settings/SettingsTabNavigation";
 import { SettingsEasterEggs } from "./settings/SettingsEasterEggs";
+import { HermesV2Settings } from "./settings/HermesV2Settings";
+import { Link } from "react-router";
 import { SettingsGeneral } from "./settings/SettingsGeneral";
 import { SettingsNavigation } from "./settings/SettingsNavigation";
 import { SettingsNotifications } from "./settings/SettingsNotifications";
@@ -84,6 +87,7 @@ export function Settings() {
         />
 
         <div className="settings-tab-content">
+          <CodePluginSurface surface="settings" target={activeTab} builtins={[{ id: `wrapt.settings.section.${activeTab}`, surface: "settings", title: activeTab, children: <>
           {activeTab === "allgemein" ? (
             <SettingsGeneral
               version={health.data?.version}
@@ -118,17 +122,19 @@ export function Settings() {
               <section className="document-section">
                 <header className="section-heading">
                   <div>
-                    <h2 className="section-title">Erweiterungen</h2>
+                    <h2 className="section-title">Plugin-Berechtigungen</h2>
                     <p className="section-subtitle">
-                      Lokale Extensions installieren, aktivieren und berechtigen
+                      Installierte Erweiterungspakete und ihre Berechtigungen verwalten
                     </p>
                   </div>
                 </header>
+                <Link className="quiet-button min-h-11" to="/plugins">Plugins erstellen und verwalten</Link>
                 <ExtensionSettings />
               </section>
             </div>
           ) : null}
           {activeTab === "werkzeuge" ? <SettingsUsage /> : null}
+          {activeTab === "experimente" ? <HermesV2Settings /> : null}
           {activeTab === "layout" ? <SettingsLayout /> : null}
           {activeTab === "workspaces" ? <SettingsWorkspaces /> : null}
           {activeTab === "easter-eggs" ? (
@@ -137,9 +143,10 @@ export function Settings() {
             </div>
           ) : null}
           {activeTab === "start-app" ? <SettingsStartup /> : null}
+          </> }]} />
         </div>
 
-        <footer className="settings-system-footer"><span>{health.data?.appName ?? "Wrapt"}</span><strong>Version {health.data?.version ?? "–"}</strong><span>Lokale Remote-Entwicklungsumgebung</span></footer>
+        <footer className="settings-system-footer"><span>{health.data?.appName ?? "Wrapt"}</span><strong>Version {health.data?.version ?? "–"}</strong><span>Lokale Remote-Entwicklungsumgebung</span><span>Einstellungen werden zwischen allen Clients abgeglichen</span></footer>
       </div>
     </div>
   );

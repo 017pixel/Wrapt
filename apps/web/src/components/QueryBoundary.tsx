@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { RefreshIcon } from "./icons";
 import { formatRequestId, queryErrorGuide } from "../lib/queryErrorGuide";
+import { ApiClientError } from "../lib/apiClient/transport";
 
 interface QueryBoundaryProps<T> {
   isLoading: boolean;
@@ -32,7 +33,9 @@ export function QueryBoundary<T>({
       </div>
     );
   }
-  if (isError) {
+  const unavailable = error instanceof ApiClientError && [401, 403, 404, 410].includes(error.status);
+  const stale = isError && data !== undefined && !unavailable;
+  if (isError && !stale) {
     const guide = queryErrorGuide(error, "Daten konnten nicht geladen werden.");
     const requestZeile = formatRequestId(guide.requestId);
     return (
@@ -56,5 +59,11 @@ export function QueryBoundary<T>({
       </div>
     );
   }
-  return <>{children(data as Exclude<T, undefined>)}</>;
+  return <>
+    {stale ? <div className="query-error" role="status">
+      <div><strong>Aktualisierung fehlgeschlagen</strong><span>Der zuletzt geladene Stand bleibt sichtbar.</span></div>
+      {refetch ? <button type="button" className="quiet-button min-h-11 px-4" onClick={() => void refetch()}><RefreshIcon className="h-4 w-4" /> Erneut versuchen</button> : null}
+    </div> : null}
+    {children(data as Exclude<T, undefined>)}
+  </>;
 }

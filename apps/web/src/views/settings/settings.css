@@ -1,4 +1,5 @@
 @layer components {
+  .settings-mobile-navigation { display: none; }
   .settings-page {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
@@ -224,8 +225,23 @@
 }
 
 @media (max-width: 720px) {
-  .settings-tab-navigation {
+  .settings-mobile-navigation {
+    display: grid;
     gap: var(--space-2);
+    color: var(--color-muted);
+    font-size: var(--text-sm);
+  }
+
+  .settings-mobile-navigation select {
+    width: 100%;
+    min-height: 48px;
+    color: var(--color-text);
+    background: var(--surface-overlay);
+    font-size: var(--text-md);
+  }
+
+  .settings-tab-navigation {
+    display: none;
   }
 
   .settings-search-result {

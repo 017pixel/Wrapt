@@ -1,3 +1,4 @@
+import { queryPollingInterval } from "./queryPolicy";
 import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import { orbitUsageRefreshIntervalMs } from "./orbitUsage";
 import type { NoteSearchQuery } from "@wrapt/contracts";
@@ -13,17 +14,17 @@ export const wraptQueries = {
   mascot: () =>
     queryOptions({ queryKey: ["system", "mascot"], queryFn: ({ signal }) => apiClient.getMascot(signal), staleTime: Infinity }),
   restartStatus: () =>
-    queryOptions({ queryKey: ["system", "restart-status"], queryFn: ({ signal }) => apiClient.restartStatus(signal), refetchInterval: 25_000, staleTime: 5_000 }),
+    queryOptions({ queryKey: ["system", "restart-status"], queryFn: ({ signal }) => apiClient.restartStatus(signal), refetchInterval: queryPollingInterval(25_000), staleTime: 5_000 }),
   codexResetHistory: () =>
     queryOptions({ queryKey: ["system", "codex-reset-history"], queryFn: ({ signal }) => apiClient.codexResetHistory(signal), staleTime: 60_000 }),
   codexResetHistorySettings: () =>
     queryOptions({ queryKey: ["system", "codex-reset-history", "settings"], queryFn: ({ signal }) => apiClient.codexResetHistorySettings(signal), staleTime: 15_000 }),
   health: (refetchInterval = 5_000) =>
-    queryOptions({ queryKey: ["health"], queryFn: ({ signal }) => apiClient.health(signal), refetchInterval }),
+    queryOptions({ queryKey: ["health"], queryFn: ({ signal }) => apiClient.health(signal), refetchInterval: queryPollingInterval(refetchInterval) }),
   readiness: (refetchInterval = 30_000) =>
-    queryOptions({ queryKey: ["health", "readiness"], queryFn: ({ signal }) => apiClient.readiness(signal), refetchInterval }),
+    queryOptions({ queryKey: ["health", "readiness"], queryFn: ({ signal }) => apiClient.readiness(signal), refetchInterval: queryPollingInterval(refetchInterval) }),
   operationalMetrics: (refetchInterval = 5_000) =>
-    queryOptions({ queryKey: ["system", "operational-metrics"], queryFn: ({ signal }) => apiClient.operationalMetrics(signal), refetchInterval, staleTime: Math.min(refetchInterval, 5_000) }),
+    queryOptions({ queryKey: ["system", "operational-metrics"], queryFn: ({ signal }) => apiClient.operationalMetrics(signal), refetchInterval: queryPollingInterval(refetchInterval), staleTime: Math.min(refetchInterval, 5_000) }),
   t3Channel: () =>
     queryOptions({ queryKey: ["system", "t3-channel"], queryFn: ({ signal }) => apiClient.t3Channel(signal), staleTime: 5_000 }),
   updateStatus: () =>
@@ -44,36 +45,36 @@ export const wraptQueries = {
     queryOptions({ queryKey: ["plugins", "drafts"], queryFn: ({ signal }) => apiClient.pluginDrafts(signal), staleTime: 5_000 }),
   pluginDraft: (id: string) =>
     queryOptions({ queryKey: ["plugins", "draft", id], queryFn: ({ signal }) => apiClient.pluginDraft(id, signal), staleTime: 1_000 }),
-  hermesStatus: () => queryOptions({ queryKey: ["hermes", "status"], queryFn: ({ signal }) => apiClient.hermesStatus(signal), refetchInterval: 30_000, staleTime: 10_000 }),
-  hermesTasks: () => queryOptions({ queryKey: ["hermes", "tasks"], queryFn: ({ signal }) => apiClient.hermesTasks(signal), refetchInterval: 6_000, staleTime: 2_000, refetchIntervalInBackground: false }),
-  hermesCron: () => queryOptions({ queryKey: ["hermes", "cron"], queryFn: ({ signal }) => apiClient.hermesCron(signal), refetchInterval: 60_000, staleTime: 15_000, refetchIntervalInBackground: false }),
-  hermesResults: (source?: string, status?: string) => queryOptions({ queryKey: ["hermes", "results", source ?? "all", status ?? "all"], queryFn: ({ signal }) => apiClient.hermesResults({ ...(source ? { source } : {}), ...(status ? { status } : {}) }, signal), refetchInterval: 20_000, staleTime: 5_000, refetchIntervalInBackground: false }),
-  notifications: (unreadOnly = false) => queryOptions({ queryKey: ["notifications", unreadOnly], queryFn: ({ signal }) => apiClient.notifications({ unreadOnly }, signal), refetchInterval: 15_000, staleTime: 2_000 }),
+  hermesStatus: () => queryOptions({ queryKey: ["hermes", "status"], queryFn: ({ signal }) => apiClient.hermesStatus(signal), refetchInterval: queryPollingInterval(30_000), staleTime: 10_000 }),
+  hermesTasks: () => queryOptions({ queryKey: ["hermes", "tasks"], queryFn: ({ signal }) => apiClient.hermesTasks(signal), refetchInterval: queryPollingInterval(6_000), staleTime: 2_000, refetchIntervalInBackground: false }),
+  hermesCron: () => queryOptions({ queryKey: ["hermes", "cron"], queryFn: ({ signal }) => apiClient.hermesCron(signal), refetchInterval: queryPollingInterval(60_000), staleTime: 15_000, refetchIntervalInBackground: false }),
+  hermesResults: (source?: string, status?: string) => queryOptions({ queryKey: ["hermes", "results", source ?? "all", status ?? "all"], queryFn: ({ signal }) => apiClient.hermesResults({ ...(source ? { source } : {}), ...(status ? { status } : {}) }, signal), refetchInterval: queryPollingInterval(20_000), staleTime: 5_000, refetchIntervalInBackground: false }),
+  notifications: (unreadOnly = false) => queryOptions({ queryKey: ["notifications", unreadOnly], queryFn: ({ signal }) => apiClient.notifications({ unreadOnly }, signal), refetchInterval: queryPollingInterval(15_000), staleTime: 2_000 }),
   notificationSettings: () => queryOptions({ queryKey: ["notifications", "settings"], queryFn: ({ signal }) => apiClient.notificationSettings(signal), staleTime: 30_000 }),
   serverSummary: (refetchInterval = 30_000) =>
     queryOptions({
       queryKey: ["server", "summary"],
       queryFn: ({ signal }) => apiClient.serverSummary(signal),
-      refetchInterval,
+      refetchInterval: queryPollingInterval(refetchInterval),
     }),
   serverMetrics: (refetchInterval = 5_000) =>
     queryOptions({
       queryKey: ["server", "metrics"],
       queryFn: ({ signal }) => apiClient.serverMetrics(signal),
-      refetchInterval,
+      refetchInterval: queryPollingInterval(refetchInterval),
       staleTime: 5_000,
     }),
   services: (refetchInterval = 5_000) =>
     queryOptions({
       queryKey: ["services"],
       queryFn: ({ signal }) => apiClient.services(signal),
-      refetchInterval,
+      refetchInterval: queryPollingInterval(refetchInterval),
     }),
   localPorts: (refetchInterval = 5_000) =>
     queryOptions({
       queryKey: ["local-ports"],
       queryFn: ({ signal }) => apiClient.localPorts(signal),
-      refetchInterval,
+      refetchInterval: queryPollingInterval(refetchInterval),
       staleTime: 5_000,
     }),
   previewSlots: () =>
@@ -99,14 +100,14 @@ export const wraptQueries = {
       queryKey: ["preview-dev-server", projectId],
       queryFn: ({ signal }) => apiClient.previewDevServer(projectId!, signal),
       enabled: projectId !== null,
-      refetchInterval,
+      refetchInterval: queryPollingInterval(refetchInterval),
       staleTime: 1_000,
     }),
   previewDevServers: (refetchInterval = 5_000) =>
     queryOptions({
       queryKey: ["preview-dev-servers"],
       queryFn: ({ signal }) => apiClient.previewDevServers(signal),
-      refetchInterval,
+      refetchInterval: queryPollingInterval(refetchInterval),
       staleTime: 2_000,
     }),
   previewRuntimeProfile: (projectId: string | null) =>
@@ -121,7 +122,7 @@ export const wraptQueries = {
       queryKey: ["preview-dev-server", projectId, "logs"],
       queryFn: ({ signal }) => apiClient.previewDevServerLogs(projectId!, signal),
       enabled: projectId !== null,
-      refetchInterval,
+      refetchInterval: queryPollingInterval(refetchInterval),
       staleTime: 500,
     }),
   previewServiceCandidates: (projectId: string | null) =>
@@ -152,17 +153,17 @@ export const wraptQueries = {
       queryFn: ({ signal }) => apiClient.usage(signal),
       // Der Server hält den Live-Cache selbst warm; ein 30-Sekunden-Takt hält
       // die Statusleiste nah am aktuellen Stand, ohne CodexBar zu belasten.
-      refetchInterval: orbitUsageRefreshIntervalMs,
+      refetchInterval: queryPollingInterval(orbitUsageRefreshIntervalMs),
       // Der Takt soll auch laufen, wenn der Tab nicht im Fokus ist, und beim
       // Zurückkehren sofort aktualisieren.
       refetchIntervalInBackground: true,
       refetchOnWindowFocus: true,
       staleTime: 15_000,
     }),
-  // `keepPreviousData`: Beim Wechsel des Zeitraums bleibt die alte Auswertung
-  // stehen, statt die Seite für die Dauer der Anfrage zu leeren.
-  usageDashboard: (range: string, refetchInterval = 60_000) => queryOptions({ queryKey: ["usage", "dashboard", range], queryFn: ({signal}) => apiClient.usageDashboard(range, signal), refetchInterval, staleTime: 30_000, placeholderData: keepPreviousData }),
-  usageTimeline: (refetchInterval = 30_000) => queryOptions({ queryKey: ["usage", "timeline"], queryFn: ({signal}) => apiClient.usageTimeline(signal), refetchInterval, staleTime: 15_000, placeholderData: keepPreviousData }),
+  // Zeitraumgebundene Zahlen zeigen beim Wechsel keinen alten Cachewert unter
+  // dem neuen Filter. Die QueryBoundary zeigt stattdessen den Ladezustand.
+  usageDashboard: (range: string, refetchInterval = 60_000) => queryOptions({ queryKey: ["usage", "dashboard", range], queryFn: ({signal}) => apiClient.usageDashboard(range, signal), refetchInterval: queryPollingInterval(refetchInterval), staleTime: 30_000 }),
+  usageTimeline: (refetchInterval = 30_000) => queryOptions({ queryKey: ["usage", "timeline"], queryFn: ({signal}) => apiClient.usageTimeline(signal), refetchInterval: queryPollingInterval(refetchInterval), staleTime: 15_000, placeholderData: keepPreviousData }),
   accounts: () => queryOptions({ queryKey: ["accounts"], queryFn: ({signal}) => apiClient.accounts(signal), staleTime: 15_000 }),
   discoveredAccounts: () => queryOptions({ queryKey: ["accounts", "discovered"], queryFn: ({signal}) => apiClient.discoverAccounts(signal), staleTime: 15_000 }),
   orbit: () => queryOptions({ queryKey: ["orbit"], queryFn: ({signal}) => apiClient.orbit(signal), staleTime: 1_000 }),
@@ -170,7 +171,7 @@ export const wraptQueries = {
   note: (noteId: string) => queryOptions({
     queryKey: ["notes", "detail", noteId],
     queryFn: ({ signal }) => apiClient.note(noteId, signal),
-    refetchInterval: 3_000,
+    refetchInterval: queryPollingInterval(3_000),
     refetchIntervalInBackground: false,
     refetchOnWindowFocus: "always",
     staleTime: 1_000,
@@ -181,6 +182,6 @@ export const wraptQueries = {
       queryFn: ({ signal }) => apiClient.searchNotes(input, signal),
       staleTime: 5_000,
     }),
-  terminalSessions: (refetchInterval = 3_000) => queryOptions({ queryKey: ["terminal", "sessions"], queryFn: ({ signal }) => apiClient.terminalSessions(signal), refetchInterval, staleTime: 1_000 }),
+  terminalSessions: (refetchInterval = 3_000) => queryOptions({ queryKey: ["terminal", "sessions"], queryFn: ({ signal }) => apiClient.terminalSessions(signal), refetchInterval: queryPollingInterval(refetchInterval), staleTime: 1_000 }),
   terminalWorkspace: () => queryOptions({ queryKey: ["terminal", "workspace"], queryFn: ({ signal }) => apiClient.terminalWorkspace(signal), staleTime: 1_000 }),
 };

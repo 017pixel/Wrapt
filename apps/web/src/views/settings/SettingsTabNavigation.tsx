@@ -8,7 +8,15 @@ interface SettingsTabNavigationProps {
 
 export function SettingsTabNavigation({ activeId, onSelect }: SettingsTabNavigationProps) {
   return (
-    <div className="settings-tab-navigation">
+    <nav aria-label="Einstellungsbereiche">
+      <label className="settings-mobile-navigation">Bereich
+        <select className="quiet-button" value={activeId} onChange={(event) => onSelect(event.target.value as VisibleSettingsTabId)}>
+          {settingsTabGroups.map((group) => <optgroup key={group.id} label={group.label}>
+            {settingsTabs.filter((tab) => tab.group === group.label).map((tab) => <option key={tab.id} value={tab.id}>{tab.label}</option>)}
+          </optgroup>)}
+        </select>
+      </label>
+      <div className="settings-tab-navigation">
       {settingsTabGroups.map((group) => {
         const items = settingsTabs
           .filter((tab) => tab.group === group.label)
@@ -32,6 +40,7 @@ export function SettingsTabNavigation({ activeId, onSelect }: SettingsTabNavigat
           </section>
         );
       })}
-    </div>
+      </div>
+    </nav>
   );
 }

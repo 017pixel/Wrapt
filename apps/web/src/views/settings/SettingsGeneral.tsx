@@ -1,8 +1,6 @@
 import { usePwaInstall } from "../../lib/usePwaInstall";
 import { Card } from "../../components/Card";
 import { DownloadIcon, GitBranchIcon, RefreshIcon } from "../../components/icons";
-import { SystemRestartControls } from "../../components/SystemRestartControls";
-import { SystemUpdateControls } from "../../components/SystemUpdateControls";
 
 interface SettingsGeneralProps {
   readonly version: string | undefined;
@@ -16,11 +14,10 @@ export function SettingsGeneral({ version, healthStatus }: SettingsGeneralProps)
     <>
       <div id="settings-general-restart">
         <Card
-          title="Neustart"
-          subtitle="Frontend, Backend oder beides neu bauen"
+          title="Wartung"
           action={<RefreshIcon className="h-4 w-4 text-faint" />}
         >
-          <SystemRestartControls />
+          <a className="quiet-button min-h-11" href="#einstellungen:system">Updates und Neustart öffnen</a>
         </Card>
       </div>
 
@@ -47,9 +44,6 @@ export function SettingsGeneral({ version, healthStatus }: SettingsGeneralProps)
               <button type="button" onClick={() => void pwa.install()} className="quiet-button-primary"><DownloadIcon className="h-3.5 w-3.5" /> App installieren</button>
             </div>
           ) : null}
-          <div className="settings-subsection">
-            <SystemUpdateControls />
-          </div>
         </Card>
       </div>
     </>

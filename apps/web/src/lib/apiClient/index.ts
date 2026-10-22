@@ -8,6 +8,7 @@ import { orbitApi } from "./orbit.js";
 import { previewsApi } from "./previews.js";
 import { projectsApi } from "./projects.js";
 import { skillsApi } from "./skills.js";
+import { settingsApi } from "./settings.js";
 import { systemApi } from "./system.js";
 import { terminalApi } from "./terminal.js";
 import { usageApi } from "./usage.js";
@@ -18,6 +19,7 @@ export { ApiClientError };
 
 export const apiClient = {
   ...systemApi,
+  ...settingsApi,
   ...extensionsApi,
   ...hermesApi,
   ...notesApi,
