@@ -16,7 +16,7 @@ export interface SlashCommandContext {
   /** Öffnet den Dateidialog und fügt das Ergebnis ein (Bild oder Datei). */
   pickFile: () => void;
   /** Erstellt eine Unterseite unter dieser Notiz, verlinkt sie und öffnet sie. */
-  createSubpage: () => void;
+  createSubpage: (inlineReference?: boolean) => void;
   /** Öffnet die interne Seitensuche für einen Verweis auf eine vorhandene Seite. */
   pickNoteLink?: () => void;
 }
@@ -196,7 +196,7 @@ export const slashCommands: SlashCommandItem[] = [
     // Der Suchtext verschwindet sofort; die Seite entsteht danach asynchron.
     run: (editor, range, context) => {
       chain(editor, range).run();
-      context.createSubpage();
+      context.createSubpage(true);
     },
   },
   {

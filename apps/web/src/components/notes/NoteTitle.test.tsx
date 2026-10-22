@@ -76,3 +76,39 @@ it("speichert die Rückkehr zum ursprünglichen Titel während einer offenen Bes
   act(() => vi.advanceTimersByTime(500));
   expect(save.mock.calls).toEqual([[{ title: "Zwischenstand" }], [{ title: note.title }]]);
 });
+
+it("behält ein Leerzeichen nach der Titelbestätigung, solange weitergeschrieben wird", () => {
+  vi.useFakeTimers();
+  const save = vi.fn();
+  const view = render(<NoteTitle note={note} onPatch={save} />);
+  const input = screen.getByRole("textbox", { name: "Notiztitel" }) as HTMLTextAreaElement;
+  input.focus();
+  fireEvent.change(input, { target: { value: "Neues Wort " } });
+  const cursor = input.selectionStart;
+
+  act(() => vi.advanceTimersByTime(500));
+  expect(save).toHaveBeenCalledExactlyOnceWith({ title: "Neues Wort" });
+  view.rerender(<NoteTitle note={{ ...note, title: "Neues Wort" }} onPatch={save} />);
+
+  expect(input.value).toBe("Neues Wort ");
+  expect(input.selectionStart).toBe(cursor);
+  fireEvent.change(input, { target: { value: "Neues Wort weiter" } });
+  act(() => vi.advanceTimersByTime(500));
+  expect(save).toHaveBeenLastCalledWith({ title: "Neues Wort weiter" });
+});
+
+it("hält ein Leerzeichen beim Löschen des letzten Wortes bis zur nächsten Eingabe", () => {
+  vi.useFakeTimers();
+  const save = vi.fn();
+  const view = render(<NoteTitle note={{ ...note, title: "Vorher" }} onPatch={save} />);
+  const input = screen.getByRole("textbox", { name: "Notiztitel" }) as HTMLTextAreaElement;
+  input.focus();
+  fireEvent.change(input, { target: { value: "Vorher " } });
+  act(() => vi.advanceTimersByTime(500));
+  view.rerender(<NoteTitle note={{ ...note, title: "Vorher" }} onPatch={save} />);
+
+  expect(input.value).toBe("Vorher ");
+  fireEvent.change(input, { target: { value: "Vorher nächstes" } });
+  act(() => vi.advanceTimersByTime(500));
+  expect(save).toHaveBeenLastCalledWith({ title: "Vorher nächstes" });
+});

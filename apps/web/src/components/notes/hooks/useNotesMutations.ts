@@ -6,7 +6,7 @@ import type { NotesDropResult } from "../sidebar/treeDrop.js";
 import { cacheSavedNote, publishMovedNote, publishSavedNote } from "../noteQueryUpdates.js";
 
 interface Options {
-  appendParentReference: (parentId: string, note: Note) => Promise<boolean>;
+  appendParentReference: (parentId: string, note: Note, inline?: boolean) => Promise<boolean>;
   invalidateNotes: () => Promise<unknown>;
   showActionError: (message: string) => void;
   onSelectNote: (id: string | null) => void;
@@ -16,14 +16,15 @@ interface Options {
 export function useNotesMutations(options: Options) {
   const queryClient = useQueryClient();
   const createMutation = useMutation({
-    mutationFn: async (input: { parentId: string | null; folderId?: string | null; favorite?: boolean }) => {
-      const created = await apiClient.createNote({ title: newNoteTitle(), ...input });
+    mutationFn: async (input: { parentId: string | null; folderId?: string | null; favorite?: boolean; inlineReference?: boolean }) => {
+      const { inlineReference = false, ...request } = input;
+      const created = await apiClient.createNote({ title: newNoteTitle(), ...request });
       if (!created?.note) throw new Error("Die Seite konnte nicht erstellt werden.");
-      return created.note;
+      return { note: created.note, inlineReference };
     },
-    onSuccess: async (note, variables) => {
+    onSuccess: async ({ note, inlineReference }, variables) => {
       cacheSavedNote(queryClient, note);
-      if (variables.parentId !== null && !await options.appendParentReference(variables.parentId, note)) {
+      if (variables.parentId !== null && !await options.appendParentReference(variables.parentId, note, inlineReference)) {
         options.showActionError("Unterseite erstellt; der Verweis konnte nicht gespeichert werden.");
       }
       // Der Verweis kann durch einen fremden Editor geschrieben worden sein.

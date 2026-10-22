@@ -3,6 +3,7 @@ import type { Note, UpdateNoteRequest } from "@wrapt/contracts";
 import { NOTE_TITLE_MAX_LENGTH } from "@wrapt/contracts";
 import { IconPicker } from "./icons/IconPicker.js";
 import { NotePageIcon } from "./icons/NotePageIcon.js";
+import { registerEditorReloadGuard } from "../../lib/reloadGuard";
 
 interface NoteTitleProps {
   note: Note;
@@ -22,13 +23,21 @@ export function NoteTitle({ note, onPatch, disabled = false }: NoteTitleProps) {
   const iconButtonRef = useRef<HTMLButtonElement>(null);
   const activeNoteRef = useRef(note.id);
   const submittedTitleRef = useRef<string | null>(null);
+  useEffect(() => registerEditorReloadGuard(() => title.trim() !== note.title.trim()), [note.title, title]);
 
   useEffect(() => {
     if (activeNoteRef.current !== note.id) {
       activeNoteRef.current = note.id;
       submittedTitleRef.current = null;
-    } else if (pendingRef.current || (submittedTitleRef.current !== null && submittedTitleRef.current !== note.title)) {
-      return;
+    } else {
+      // Eine Serverbestätigung enthält den getrimmten Titel. Solange das Feld
+      // aktiv ist, bleibt der unveränderte Entwurf mit seinem Leerzeichen
+      // erhalten, damit die nächste Eingabe direkt weitergehen kann.
+      if (document.activeElement === inputRef.current) {
+        if (submittedTitleRef.current === note.title) submittedTitleRef.current = null;
+        return;
+      }
+      if (pendingRef.current || (submittedTitleRef.current !== null && submittedTitleRef.current !== note.title)) return;
     }
     submittedTitleRef.current = null;
     setTitle(note.title);
@@ -118,11 +127,13 @@ export function NoteTitle({ note, onPatch, disabled = false }: NoteTitleProps) {
         maxLength={NOTE_TITLE_MAX_LENGTH}
         onChange={(event) => changeTitle(event.target.value.replace(/[\r\n]+/g, " "))}
         onBlur={() => {
+          const pendingTitle = pendingRef.current?.value.trim();
           if (timerRef.current !== null) {
             window.clearTimeout(timerRef.current);
             timerRef.current = null;
           }
           commitTitle();
+          setTitle(pendingTitle ?? submittedTitleRef.current ?? note.title);
         }}
         onKeyDown={(event) => {
           if (event.key === "Enter") {

@@ -37,9 +37,10 @@ export function SlashMenu() {
 
   if (!open || rect === null) return null;
 
-  const placeAbove = rect.bottom + 320 > window.innerHeight;
+  const menuWidth = 416;
+  const placeAbove = rect.bottom + 442 > window.innerHeight;
   const style = {
-    left: Math.min(rect.left, Math.max(8, window.innerWidth - 340)),
+    left: Math.min(rect.left, Math.max(8, window.innerWidth - menuWidth - 16)),
     ...(placeAbove
       ? { bottom: Math.max(8, window.innerHeight - rect.top + 6) }
       : { top: rect.bottom + 6 }),

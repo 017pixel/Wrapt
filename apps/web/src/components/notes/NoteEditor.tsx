@@ -14,6 +14,7 @@ import { newNoteTitle } from "./noteTitles.js";
 import { SlashMenu } from "./editor/SlashMenu.js";
 import type { SlashCommandContext } from "./editor/slashCommands.js";
 import { useNoteAutosave, type NoteSaveState } from "./editor/useNoteAutosave.js";
+import { insertNoteReferenceInEditor } from "./editor/noteReferences.js";
 
 interface NoteEditorProps {
   note: Note;
@@ -24,7 +25,7 @@ interface NoteEditorProps {
   /** Nach dem Anlegen einer Unterseite (Liste neu laden). */
   onSubpageCreated?: () => void;
   /** Workspace-Erstellung, damit auch die Sidebar dieselbe Verweislogik nutzt. */
-  onCreateSubpage?: (parentId: string) => void;
+  onCreateSubpage?: (parentId: string, inlineReference?: boolean) => void;
   /** Registriert den sicheren Editor-Pfad zum Anhängen eines Seitenverweises. */
   onRegisterNoteReferenceAppender?: (parentId: string, append: NoteReferenceAppender | null) => void;
   /** Öffnet eine Notiz, etwa die frisch angelegte Unterseite. */
@@ -34,7 +35,7 @@ interface NoteEditorProps {
   ariaLabel?: string;
 }
 
-export type NoteReferenceAppender = (parentId: string, target: Pick<Note, "id" | "title">) => Promise<boolean>;
+export type NoteReferenceAppender = (parentId: string, target: Pick<Note, "id" | "title">, inline?: boolean) => Promise<boolean>;
 
 function fileContent(file: File, url: string): JSONContent {
   if (file.type.startsWith("image/")) {
@@ -81,7 +82,7 @@ export function NoteEditor({
   const requestLink = useCallback(() => setLinkOpen(true), []);
   const requestNoteLink = useCallback(() => setNoteLinkOpen(true), []);
 
-  const appendNoteReference: NoteReferenceAppender = useCallback(async (parentId, target) => {
+  const appendNoteReference: NoteReferenceAppender = useCallback(async (parentId, target, inline = false) => {
     const currentEditor = editorRef.current;
     if (!currentEditor || currentEditor.isDestroyed || parentId !== noteIdRef.current) return false;
     let exists = false;
@@ -93,14 +94,7 @@ export function NoteEditor({
       return !exists;
     });
     if (exists) return true;
-    const inserted = currentEditor
-      .chain()
-      .focus()
-      .insertContentAt(currentEditor.state.doc.content.size, {
-        type: "paragraph",
-        content: [{ type: "noteMention", attrs: { noteId: target.id, label: target.title } }],
-      })
-      .run();
+    const inserted = insertNoteReferenceInEditor(currentEditor, target, inline);
     if (!inserted) return false;
     return saveNowRef.current();
   }, []);
@@ -126,9 +120,9 @@ export function NoteEditor({
     input.click();
   }, [uploadFile]);
 
-  const createSubpage = useCallback(() => {
+  const createSubpage = useCallback((inlineReference = false) => {
     if (onCreateSubpage) {
-      onCreateSubpage(noteIdRef.current);
+      onCreateSubpage(noteIdRef.current, inlineReference);
       return;
     }
     void (async () => {
@@ -138,7 +132,7 @@ export function NoteEditor({
       });
       const created = response?.note;
       if (!created) return;
-      const linked = await appendNoteReference(noteIdRef.current, created);
+      const linked = await appendNoteReference(noteIdRef.current, created, inlineReference);
       onSubpageCreated?.();
       if (linked) onOpenNote?.(created.id);
     })().catch(() => undefined);

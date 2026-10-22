@@ -63,10 +63,10 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
     [],
   );
 
-  const appendParentReference = useCallback(async (parentId: string, child: Note) => {
+  const appendParentReference = useCallback(async (parentId: string, child: Note, inline = false) => {
     const editorAppender = editorReferenceAppenderRef.current;
     try {
-      if (editorAppender?.parentId === parentId) return await editorAppender.append(parentId, child);
+      if (editorAppender?.parentId === parentId) return await editorAppender.append(parentId, child, inline);
       return await appendNoteReferenceToPage(parentId, child);
     } catch {
       return false;
@@ -102,7 +102,7 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
   );
 
   const handleCreate = useCallback(
-    (parentId: string | null = null, options: { folderId?: string | null; favorite?: boolean } = {}) => {
+    (parentId: string | null = null, options: { folderId?: string | null; favorite?: boolean; inlineReference?: boolean } = {}) => {
       createMutation.mutate({ parentId, ...options });
     },
     [createMutation],
@@ -319,7 +319,9 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
                         onSaved={handleEditorSaved}
                         onStateChange={setSaveState}
                         onSubpageCreated={() => void invalidateNotes()}
-                        onCreateSubpage={handleCreate}
+                        onCreateSubpage={(parentId, inlineReference) =>
+                          handleCreate(parentId, inlineReference === undefined ? {} : { inlineReference })
+                        }
                         onRegisterNoteReferenceAppender={registerReferenceAppender}
                         onOpenNote={handleSelect}
                       />

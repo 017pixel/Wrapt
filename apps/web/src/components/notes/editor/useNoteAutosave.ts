@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Note } from "@wrapt/contracts";
 import { apiClient } from "../../../lib/apiClient";
+import { registerEditorReloadGuard } from "../../../lib/reloadGuard";
 
 export type NoteSaveState = "saved" | "dirty" | "saving" | "conflict" | "error";
 
@@ -226,11 +227,12 @@ export function useNoteAutosave({ noteId, revision, captureMarkdown, onSaved }: 
   }, []);
 
   useEffect(() => {
+    const unregister = registerEditorReloadGuard(() => state !== "saved");
     const guard = (event: BeforeUnloadEvent) => {
       if (state === "dirty" || state === "saving" || state === "error" || state === "conflict") event.preventDefault();
     };
     window.addEventListener("beforeunload", guard);
-    return () => window.removeEventListener("beforeunload", guard);
+    return () => { unregister(); window.removeEventListener("beforeunload", guard); };
   }, [state]);
 
   return {

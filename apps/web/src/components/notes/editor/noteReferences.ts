@@ -1,5 +1,19 @@
 import type { Note } from "@wrapt/contracts";
+import type { Editor } from "@tiptap/core";
 import { apiClient } from "../../../lib/apiClient";
+
+export function insertNoteReferenceInEditor(
+  editor: Editor,
+  target: Pick<Note, "id" | "title">,
+  inline = false,
+): boolean {
+  const mention = { type: "noteMention", attrs: { noteId: target.id, label: target.title } };
+  if (inline) return editor.chain().focus().insertContent(mention).run();
+  return editor.chain().focus().insertContentAt(editor.state.doc.content.size, {
+    type: "paragraph",
+    content: [mention],
+  }).run();
+}
 
 function noteReferenceMarkdown(note: Pick<Note, "id" | "title">): string {
   return `[noteMention noteId=${JSON.stringify(note.id)} label=${JSON.stringify(note.title)}]`;
