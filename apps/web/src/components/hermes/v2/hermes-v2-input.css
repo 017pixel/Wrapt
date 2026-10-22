@@ -71,10 +71,10 @@
   justify-content: center;
   /* Der Knopf behält sein Touch-Ziel, auch wenn die Leiste auf Mobil eng wird. */
   flex: none;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  width: calc(44px / var(--hermesv2-ui-scale, 1));
+  height: calc(44px / var(--hermesv2-ui-scale, 1));
+  min-width: calc(44px / var(--hermesv2-ui-scale, 1));
+  min-height: calc(44px / var(--hermesv2-ui-scale, 1));
   padding: 0;
   border: 0;
   border-radius: var(--radius);
@@ -98,10 +98,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
+  width: calc(44px / var(--hermesv2-ui-scale, 1));
+  height: calc(44px / var(--hermesv2-ui-scale, 1));
+  min-width: calc(44px / var(--hermesv2-ui-scale, 1));
+  min-height: calc(44px / var(--hermesv2-ui-scale, 1));
   padding: 0;
   border: 1px solid var(--color-line);
   border-radius: var(--radius);

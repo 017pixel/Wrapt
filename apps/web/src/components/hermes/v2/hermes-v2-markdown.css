@@ -88,7 +88,7 @@
 
 /* Die volle Copyfläche liegt oberhalb des Codes, auch bei nur einer Zeile. */
 .hermesv2-markdown pre {
-  padding-top: calc(44px + var(--space-2));
+  padding-top: calc(44px / var(--hermesv2-ui-scale, 1) + var(--space-2));
 }
 
 /* Syntaxfarben über die vorhandenen Projektsyntax-Tokens (vgl. Dateivorschau). */
@@ -138,8 +138,8 @@
   position: absolute;
   top: var(--space-1);
   right: var(--space-1);
-  min-height: 44px;
-  min-width: 44px;
+  min-height: calc(44px / var(--hermesv2-ui-scale, 1));
+  min-width: calc(44px / var(--hermesv2-ui-scale, 1));
   max-width: 60%;
   padding: 0 var(--space-2);
   border: 1px solid var(--color-line);

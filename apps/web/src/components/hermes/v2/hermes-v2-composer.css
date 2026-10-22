@@ -20,7 +20,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  min-height: 44px;
+  min-width: calc(44px / var(--hermesv2-ui-scale, 1));
+  min-height: calc(44px / var(--hermesv2-ui-scale, 1));
   padding-inline: var(--space-2);
   border: 0;
   border-radius: var(--radius);
@@ -105,7 +106,7 @@ body > .hermesv2-work-menu {
   justify-content: flex-start;
   gap: var(--space-2);
   width: 100%;
-  min-height: 44px;
+  min-height: calc(44px / var(--hermesv2-ui-scale, 1));
   padding-inline: var(--space-2);
   border: 0;
   border-radius: var(--radius);

@@ -11,8 +11,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 44px;
-  min-width: 44px;
+  min-height: calc(44px / var(--hermesv2-ui-scale, 1));
+  min-width: calc(44px / var(--hermesv2-ui-scale, 1));
   padding: var(--space-1) var(--space-2);
   cursor: pointer;
   font-size: var(--text-xs);
@@ -108,8 +108,8 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  min-height: 44px;
-  min-width: 44px;
+  min-height: calc(44px / var(--hermesv2-ui-scale, 1));
+  min-width: calc(44px / var(--hermesv2-ui-scale, 1));
   padding: 0 var(--space-2);
   cursor: pointer;
   font-size: var(--text-xs);

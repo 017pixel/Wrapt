@@ -57,7 +57,7 @@
   flex: 1 1 auto;
   min-width: 0;
   width: 100%;
-  min-height: 44px;
+  min-height: calc(44px / var(--hermesv2-ui-scale, 1));
   padding: var(--space-2) var(--space-3);
   border: 0;
   border-radius: var(--radius);
@@ -76,8 +76,8 @@
   gap: var(--space-1);
 }
 .hermesv2-sidebar-tools .icon-button {
-  min-width: 44px;
-  min-height: 44px;
+  min-width: calc(44px / var(--hermesv2-ui-scale, 1));
+  min-height: calc(44px / var(--hermesv2-ui-scale, 1));
   color: var(--color-muted);
 }
 .hermesv2-sidebar-tools .icon-button svg {
@@ -86,7 +86,7 @@
 }
 .hermesv2-new-session {
   flex: none;
-  min-height: 44px;
+  min-height: calc(44px / var(--hermesv2-ui-scale, 1));
 }
 
 .hermesv2-search-state {

@@ -32,7 +32,7 @@
 }
 
 .hermesv2-work-head .quiet-button {
-  min-height: 44px;
+  min-height: calc(44px / var(--hermesv2-ui-scale, 1));
   background: transparent;
   color: var(--color-muted);
   border-color: transparent;
