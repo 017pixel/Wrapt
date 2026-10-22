@@ -1,5 +1,6 @@
 import { expect, test as base, type Locator } from "@playwright/test";
 import { HermesV2BrowserGateway } from "./hermes-v2-gateway";
+import { enableHermesV2 } from "./helpers/hermes-v2-settings";
 
 const sessionId = "eigene-ausgabe-layoutpruefung";
 const output = `${"Vollständige eigene Werkzeugzeile.\n".repeat(5000)}ENDE_EIGENER_AUSGABE`;
@@ -19,8 +20,7 @@ const test = base.extend<{ gateway: HermesV2BrowserGateway }>({
     };
     story.snapshot.messages = [...story.history];
     await gateway.install(context);
-    await context.addInitScript(() => localStorage.setItem("wrapt.app-preferences.v1",
-      JSON.stringify({ version: 2, state: { defaultPage: "dashboard", hermesV2Enabled: true } })));
+    await enableHermesV2(context);
     try { await use(gateway); }
     finally { gateway.dispose(); }
   },

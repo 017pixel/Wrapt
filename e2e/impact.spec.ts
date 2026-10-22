@@ -26,7 +26,7 @@ for (const theme of ["Ember", "Grove", "T3 Code"]) {
 
 test("Start-App: Root öffnet Notes, direkte Seiten und Kernaktionen bleiben erreichbar", async ({ page, api, appErrors }) => {
   await settings(page, "Start-App");
-  await page.getByRole("button", { name: /^Notes \/notizen/ }).click();
+  await page.getByRole("button", { name: /^Notizen \/notizen/ }).click();
   await page.reload();
   await visitMainPages(page, "notizen");
   await noteLifecycle(page, api, "Neue Start-App");
@@ -107,7 +107,7 @@ test("Benachrichtigungen: globaler Push und Quellenwechsel erhalten Navigation u
 });
 
 test("Limitüberwachung: deaktiviertes Werkzeug aktualisiert Nutzung, Dashboard und Notes", async ({ page, api, appErrors }) => {
-  await settings(page, "Werkzeuge");
+  await settings(page, "Nutzung & Limits");
   await page.getByRole("switch", { name: "Limitüberwachung Codex", exact: true }).click();
   await expect.poll(async () => (await getJson(api, "/system/usage-monitoring")).monitoring.codex).toBe(false);
   await page.reload();

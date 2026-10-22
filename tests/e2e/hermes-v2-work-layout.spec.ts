@@ -1,6 +1,6 @@
 import { expect } from "@playwright/test";
 import { workTest as test, prepareWork, openWork, workRegion, workRow, sessionId,
-  composerInput as input, queueButton, clickVisible, settleAnimations } from "./hermes-v2-work-fixture";
+  composerInput as input, workMenuItem, clickVisible, settleAnimations } from "./hermes-v2-work-fixture";
 import { fileInput } from "./hermes-v2-composer-fixture";
 import { openApproval } from "./hermes-v2-request-fixture";
 
@@ -15,16 +15,24 @@ for (const [width, height] of [[390, 844], [768, 1024], [1024, 768], [1440, 900]
     await openWork(page);
     await expect(page.locator('[data-hermes-work-kind="subagent"]')).toHaveCount(12);
     await input(page).fill("Eigene sichtbare Folge");
-    await expect(queueButton(page)).toBeEnabled();
+    await expect(await workMenuItem(page, "Einreihen")).toBeEnabled();
     await settleAnimations(page);
     const stop = page.getByRole("button", { name: "Stoppen", exact: true });
     const box = await stop.boundingBox();
     expect(box!.height).toBeGreaterThanOrEqual(44);
     expect(box!.width).toBeGreaterThanOrEqual(44);
     expect(box!.y + box!.height).toBeLessThanOrEqual(height);
-    for (const name of ["Aufgaben ausblenden", "Aufgaben aktualisieren", "Diese Nachricht einreihen",
-      "Diese Nachricht als Hintergrundaufgabe starten", "Diese Nachricht als Zwischenauftrag starten"]) {
+    for (const name of ["Aufgaben ausblenden", "Aufgaben aktualisieren"]) {
       const target = await page.getByRole("button", { name, exact: true }).boundingBox();
+      expect(target, name).not.toBeNull();
+      expect(target!.height, name).toBeGreaterThanOrEqual(44);
+      expect(target!.width, name).toBeGreaterThanOrEqual(44);
+    }
+    const more = await page.getByRole("button", { name: "Weitere Aktionen", exact: true }).boundingBox();
+    expect(more!.height).toBeGreaterThanOrEqual(44);
+    expect(more!.width).toBeGreaterThanOrEqual(44);
+    for (const name of ["Einreihen", "Hintergrund", "Zwischenauftrag"]) {
+      const target = await (await workMenuItem(page, name)).boundingBox();
       expect(target, name).not.toBeNull();
       expect(target!.height, name).toBeGreaterThanOrEqual(44);
       expect(target!.width, name).toBeGreaterThanOrEqual(44);
@@ -95,6 +103,7 @@ test("verwendet bei zwanzig weiteren arbeitenden Sitzungen nur das ausgewählte 
     const snapshot = gateway.seed(`working-summary-${index}`, `Eigene arbeitende Sitzung ${index}`);
     snapshot.running = snapshot.session.running = true;
   }
+  gateway.work.seedSubagent(sessionId, "summary-own", { goal: "Eigene ausgewählte Aufgabe", status: "running" });
   await page.setViewportSize({ width: 1440, height: 900 });
   await openWork(page);
   await expect.poll(() => gateway.calls.filter((call) => call.op === "work.read").length).toBeGreaterThan(0);

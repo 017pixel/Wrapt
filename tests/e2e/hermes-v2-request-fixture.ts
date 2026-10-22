@@ -1,6 +1,7 @@
 import { expect, test as base, type Page } from "@playwright/test";
 import type { HermesV2Request } from "../../packages/contracts/src/hermes-v2";
 import { HermesV2BrowserGateway } from "./hermes-v2-gateway";
+import { enableHermesV2 } from "./helpers/hermes-v2-settings";
 
 export const sessionId = "request-browser";
 export const otherId = "request-other";
@@ -10,12 +11,7 @@ export const requestTest = base.extend<{ gateway: HermesV2BrowserGateway }>({
     gateway.seed(sessionId, "Anfragen prüfen");
     gateway.seed(otherId, "Andere Sitzung");
     await gateway.install(context);
-    await context.addInitScript(() => {
-      if (localStorage.getItem("wrapt.app-preferences.v1") === null) {
-        localStorage.setItem("wrapt.app-preferences.v1", JSON.stringify({ version: 2,
-          state: { defaultPage: "dashboard", hermesV2Enabled: true } }));
-      }
-    });
+    await enableHermesV2(context);
     try { await use(gateway); }
     finally { gateway.dispose(); }
   },

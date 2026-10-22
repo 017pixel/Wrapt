@@ -9,10 +9,18 @@ export const workRow = (page: Page, kind: string, text: string) =>
   page.locator(`[data-hermes-work-kind="${kind}"] > .hermesv2-work-summary`)
     .filter({ hasText: text }).locator("..");
 export const workAction = (page: Page, action: string) => page.locator(`[data-hermes-work-action="${action}"]`);
-export const queueButton = (page: Page) => page.getByRole("button", { name: "Diese Nachricht einreihen", exact: true });
-export const steerButton = (page: Page) => page.getByRole("button", { name: "Diese Nachricht als Steuerung senden", exact: true });
-export const backgroundButton = (page: Page) => page.getByRole("button", { name: "Diese Nachricht als Hintergrundaufgabe starten", exact: true });
-export const btwButton = (page: Page) => page.getByRole("button", { name: "Diese Nachricht als Zwischenauftrag starten", exact: true });
+/** Die Versandarten liegen im Überlaufmenü des Composers. */
+export async function workMenuItem(page: Page, name: string) {
+  const trigger = page.getByRole("button", { name: "Weitere Aktionen", exact: true });
+  if (await trigger.getAttribute("aria-expanded") !== "true") await trigger.click();
+  const item = page.getByRole("menuitem", { name, exact: true });
+  await expect(item).toBeVisible();
+  return item;
+}
+
+export async function runWorkAction(page: Page, name: string): Promise<void> {
+  await (await workMenuItem(page, name)).click();
+}
 
 export function prepareWork(gateway: HermesV2BrowserGateway, running = false): void {
   prepareComposer(gateway);

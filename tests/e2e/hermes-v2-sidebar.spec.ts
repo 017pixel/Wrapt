@@ -1,5 +1,6 @@
 import { expect, test as base, type Page } from "@playwright/test";
 import { HermesV2BrowserGateway } from "./hermes-v2-gateway";
+import { enableHermesV2 } from "./helpers/hermes-v2-settings";
 
 const firstId = "sidebar-first";
 const secondId = "sidebar-second";
@@ -11,10 +12,7 @@ const test = base.extend<{ gateway: HermesV2BrowserGateway }>({
     gateway.seed(firstId, firstTitle);
     gateway.seed(secondId, secondTitle);
     await gateway.install(context);
-    await context.addInitScript(() => {
-      localStorage.setItem("wrapt.app-preferences.v1", JSON.stringify({ version: 2,
-        state: { defaultPage: "dashboard", hermesV2Enabled: true } }));
-    });
+    await enableHermesV2(context);
     try { await use(gateway); }
     finally { gateway.dispose(); }
   },
@@ -266,7 +264,7 @@ test("bedient mobile Snooze- und Neue-Sitzung-Dialoge innerhalb des geöffneten 
   const drawer = page.getByRole("dialog", { name: "Hermes-V2-Sitzungen", exact: true });
   await expect(drawer).toBeVisible();
   await expect.poll(() => drawer.evaluate((element) => element.contains(document.activeElement))).toBe(true);
-  await drawer.getByRole("button", { name: "Neue Sitzung", exact: true }).click();
+  await drawer.getByRole("button", { name: "Neuer Chat", exact: true }).click();
   const create = page.getByRole("dialog", { name: "Neue Sitzung", exact: true });
   const project = create.getByRole("combobox", { name: "Projekt", exact: true });
   await project.selectOption("wrapt");
@@ -284,7 +282,7 @@ test("beendet auch Organisationstraffic beim Abschalten des Flags", async ({ pag
   await page.clock.install();
   await openSidebar(page);
   const settings = await context.newPage();
-  await settings.goto("/wrapt/settings#einstellungen:easter-eggs");
+  await settings.goto("/wrapt/settings#einstellungen:experimente");
   await settings.getByRole("switch", { name: /Hermes V2 aktivieren/ }).click();
   await expect(page.locator('[data-hermes-ui="v2"]')).toHaveCount(0);
   await expect.poll(() => gateway.viewers.size).toBe(0);

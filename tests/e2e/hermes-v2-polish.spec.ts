@@ -6,12 +6,10 @@ test.use({ extraHTTPHeaders: { "tailscale-user-login": "user@example.com" },
   viewport: { width: 1440, height: 900 } });
 test.beforeEach(({ gateway }) => prepareComposer(gateway));
 
-test("erhält einen normalen Entwurf beim Tastatureinstieg in die lokale Hilfe", async ({ page, gateway }) => {
+test("öffnet die lokale Hilfe per Tastatur und kehrt ohne gesendete Nachricht zurück", async ({ page, gateway }) => {
   await openComposer(page);
   const input = composerInput(page);
-  const draft = "Diesen eigenen Entwurf nach dem Nachschlagen weiter bearbeiten";
-  await input.fill(draft);
-  await page.getByRole("button", { name: "Befehle", exact: true }).click();
+  await input.fill("/");
   const palette = page.getByRole("listbox", { name: "Hermes-Befehle", exact: true });
   await expect(palette).toBeVisible();
   const options = await palette.getByRole("option").evaluateAll((nodes) =>
@@ -31,7 +29,7 @@ test("erhält einen normalen Entwurf beim Tastatureinstieg in die lokale Hilfe",
   await expect(help).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(help).toHaveCount(0);
-  await expect(input).toHaveValue(draft);
+  await expect(input).toHaveValue("");
   expect(mutationCalls(gateway, "message.submit")).toHaveLength(0);
   expect(mutationCalls(gateway, "session.create")).toHaveLength(0);
 });

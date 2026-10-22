@@ -49,7 +49,10 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("console", (message) => {
-      if (message.type() === "error") errors.push(message.text());
+      if (message.type() === "error") {
+        const url = message.location().url;
+        errors.push(url ? `${message.text()} (${url})` : message.text());
+      }
     });
     await use(errors);
     await testInfo.attach("browser-errors", { body: JSON.stringify(errors, null, 2), contentType: "application/json" });

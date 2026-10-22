@@ -5,7 +5,7 @@ import { composerTest as test, prepareComposer, openComposer, composerInput,
 test.use({ extraHTTPHeaders: { "tailscale-user-login": "user@example.com" } });
 test.beforeEach(({ gateway }) => prepareComposer(gateway));
 
-async function fullHitTarget(target: Locator): Promise<void> {
+async function fullHitTarget(name: string, target: Locator): Promise<void> {
   await target.scrollIntoViewIfNeeded();
   const hit = await target.evaluate((element) => {
     const box = element.getBoundingClientRect();
@@ -24,21 +24,21 @@ async function fullHitTarget(target: Locator): Promise<void> {
     return { width: right - left, height: bottom - top,
       actual: center !== null && element.contains(center) };
   });
-  expect(hit.width).toBeGreaterThanOrEqual(44);
-  expect(hit.height).toBeGreaterThanOrEqual(44);
-  expect(hit.actual).toBe(true);
+  expect(hit.width, `${name}: Breite`).toBeGreaterThanOrEqual(44);
+  expect(hit.height, `${name}: Höhe`).toBeGreaterThanOrEqual(44);
+  expect(hit.actual, `${name}: erreichbar`).toBe(true);
 }
 
 for (const width of [1440, 1024]) {
   test(`behält volle Sidebar- und Composerziele bei ${width}px`, async ({ page, gateway }) => {
     await page.setViewportSize({ width, height: 900 });
     await openComposer(page);
-    for (const target of [
-      page.getByRole("button", { name: "Neu laden", exact: true }),
-      page.locator(".hermesv2-rowselect").first(),
-      page.getByRole("button", { name: "Denktiefe", exact: true }),
-      page.getByRole("button", { name: "Datei anhängen", exact: true }),
-    ]) await fullHitTarget(target);
+    for (const [name, target] of [
+      ["Neuer Chat", page.getByRole("button", { name: "Neuer Chat", exact: true })],
+      ["Sitzungszeile", page.locator(".hermesv2-rowselect").first()],
+      ["Denktiefe", page.getByRole("button", { name: "Denktiefe", exact: true })],
+      ["Datei anhängen", page.getByRole("button", { name: "Datei anhängen", exact: true })],
+    ] as const) await fullHitTarget(name, target);
     expect(mutationCalls(gateway, "message.submit")).toHaveLength(0);
   });
 }

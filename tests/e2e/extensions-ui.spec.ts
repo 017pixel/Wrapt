@@ -12,10 +12,9 @@ test.use({
 
 test("verwaltet Extensions über den lokalen Catalog mit fail-closed Runtime", async ({ page }) => {
   await page.goto(`${workbench}/settings`);
-  await page.getByRole("button", { name: "Erweiterungen", exact: true }).click();
+  await page.getByRole("button", { name: "Plugin-Berechtigungen", exact: true }).click();
 
-  const extensionsCard = page.getByRole("heading", { name: "Erweiterungen", exact: true });
-  await expect(extensionsCard).toBeVisible();
+  await expect(page.getByRole("button", { name: /Entdecken/ })).toBeVisible();
 
   // Retries teilen sich den Testserver: Eine vom ersten Lauf installierte
   // Extension wird vorab entfernt, damit der Ablauf immer frisch startet.

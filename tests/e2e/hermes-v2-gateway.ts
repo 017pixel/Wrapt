@@ -271,6 +271,7 @@ export class HermesV2BrowserGateway {
   private updateHistory(story: Story): void {
     story.snapshot.messages = story.history.slice(-200);
     story.snapshot.session.messageCount = story.history.length;
+    story.snapshot.hasOlder = story.history.length > story.snapshot.messages.length;
   }
 
   private story(id: string): Story {

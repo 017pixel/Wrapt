@@ -52,7 +52,7 @@ async function savedNode(page: Page) {
 
 test("behält eine im echten Orbitpanel erstellte Sitzung mit Nachricht nach Reload", async ({ page, gateway }) => {
   await openOwnPanel(page);
-  await panel(page).getByRole("button", { name: "Neue Sitzung", exact: true }).click();
+  await panel(page).getByRole("button", { name: "Neuer Chat", exact: true }).click();
   await page.getByRole("button", { name: "Sitzung erstellen", exact: true }).click();
   await expect(composer(page)).toBeEnabled();
   await composer(page).fill("Eigene Nachricht aus dem Orbitpanel");

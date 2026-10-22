@@ -1,5 +1,6 @@
 import { expect, test as base, type Page } from "@playwright/test";
 import { HermesV2BrowserGateway } from "./hermes-v2-gateway";
+import { enableHermesV2 } from "./helpers/hermes-v2-settings";
 
 const sessionId = "stored-browser";
 const root = '[data-hermes-ui="v2"]';
@@ -8,12 +9,7 @@ const test = base.extend<{ gateway: HermesV2BrowserGateway }>({
     const gateway = new HermesV2BrowserGateway();
     gateway.seed(sessionId);
     await gateway.install(context);
-    await context.addInitScript(() => {
-      const key = "wrapt.app-preferences.v1";
-      if (localStorage.getItem(key) === null) {
-        localStorage.setItem(key, JSON.stringify({ version: 2, state: { defaultPage: "dashboard", hermesV2Enabled: true } }));
-      }
-    });
+    await enableHermesV2(context);
     try { await use(gateway); }
     finally { gateway.dispose(); }
   },
@@ -30,7 +26,7 @@ async function openChat(page: Page): Promise<void> {
 
 test("erstellt eine eigene Sitzung und behält sie nach erstem Prompt und Reload", async ({ page, gateway }) => {
   await page.goto("/wrapt/hermes-v2/standalone");
-  await page.getByRole("button", { name: "Neue Sitzung", exact: true }).first().click();
+  await page.getByRole("button", { name: "Neuer Chat", exact: true }).first().click();
   await page.getByRole("button", { name: "Sitzung erstellen", exact: true }).click();
   await expect(page).toHaveURL(/session=stored-created-1/);
   await expect(composer(page)).toBeEnabled();
@@ -239,7 +235,7 @@ test("Flag-off während eines Turns schließt V2-Traffic ohne Stop und stellt na
   await expect.poll(() => submissions(gateway)).toBe(1);
   gateway.delta(sessionId, "Bereits eingetroffener Teil");
   const settings = await context.newPage();
-  await settings.goto("/wrapt/settings#einstellungen:easter-eggs");
+  await settings.goto("/wrapt/settings#einstellungen:experimente");
   const toggle = settings.getByRole("switch", { name: /Hermes V2 aktivieren/ });
   await expect(toggle).toBeChecked();
   await toggle.click();

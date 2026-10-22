@@ -146,7 +146,9 @@ test("sendet einen nicht verfügbaren Slashbefehl weder per Enter noch über Sen
 
 test("benennt eine Sitzung über den nativen Vertrag um und erhält den Titel nach Reload", async ({ page, gateway }) => {
   await open(page);
-  await page.getByRole("button", { name: "Sitzung umbenennen", exact: true }).click();
+  const sessionRow = page.locator(`[data-session-id="${sessionId}"] .hermesv2-rowline`);
+  await sessionRow.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Sitzung umbenennen", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Sitzung umbenennen", exact: true });
   await dialog.getByRole("textbox", { name: "Sitzungstitel", exact: true }).fill("Nativ umbenannt");
   await dialog.getByRole("button", { name: "Umbenennen", exact: true }).click();
@@ -154,7 +156,9 @@ test("benennt eine Sitzung über den nativen Vertrag um und erhält den Titel na
   expect(calls(gateway, "session.title")).toHaveLength(1);
   if (await dialog.isVisible()) await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
-  await page.getByRole("button", { name: "Sitzung umbenennen", exact: true }).click();
+  const sessionRowAgain = page.locator(`[data-session-id="${sessionId}"] .hermesv2-rowline`);
+  await sessionRowAgain.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Sitzung umbenennen", exact: true }).click();
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("textbox", { name: "Sitzungstitel", exact: true })).toHaveValue("Nativ umbenannt");
   await page.keyboard.press("Escape");
@@ -187,7 +191,7 @@ test("zeigt eine unbestätigte Denktiefe als Wunsch und erhält den beobachteten
   await open(page);
   await page.getByRole("button", { name: "Denktiefe", exact: true }).click();
   await page.getByRole("listbox", { name: "Denktiefe wählen", exact: true }).getByRole("option", { name: "Hoch", exact: true }).click();
-  await expect(page.getByText(/unbestätigt/i).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "Denktiefe", exact: true })).toHaveAttribute("title", /unbestätigt/i);
   expect(gateway.stories.get(sessionId)!.snapshot.composer?.reasoning).toEqual({ effort: "medium", wire: "medium" });
   expect(calls(gateway, "reasoning.select")).toHaveLength(1);
 });
@@ -199,7 +203,9 @@ test("sperrt Denktiefe während eines tatsächlich laufenden Turns und zeigt Fre
   story.snapshot.turnStartedAt = Date.now();
   await open(page);
   await expect(page.getByRole("button", { name: "Denktiefe", exact: true })).toBeDisabled();
-  await expect(page.getByText(/Freigaben.*global/i)).toBeVisible();
+  const approval = page.locator('.hermesv2-approval-chip[data-readonly="true"]');
+  await expect(approval).toBeVisible();
+  await expect(approval).toHaveAttribute("title", /global/i);
   await expect(page.getByRole("combobox", { name: /Freigaben|Approval/i })).toHaveCount(0);
   expect(calls(gateway, "reasoning.select")).toHaveLength(0);
 });

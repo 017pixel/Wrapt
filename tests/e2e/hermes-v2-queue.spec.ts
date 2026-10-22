@@ -1,20 +1,24 @@
 import { expect } from "@playwright/test";
 import { workTest as test, prepareWork, openWork, workRegion, workAction, sessionId,
-  composerInput as input, queueButton, steerButton, backgroundButton, btwButton } from "./hermes-v2-work-fixture";
+  composerInput as input, runWorkAction, workMenuItem } from "./hermes-v2-work-fixture";
 
 test.use({ extraHTTPHeaders: { "tailscale-user-login": "user@example.com" }, viewport: { width: 1440, height: 900 } });
-test.beforeEach(({ gateway }) => prepareWork(gateway, true));
+test.beforeEach(({ gateway }) => {
+  prepareWork(gateway, true);
+  // Die Aufgabenansicht erscheint nur mit mindestens einer belegten Zeile.
+  gateway.work.seedSubagent(sessionId, "queue-main-turn", { goal: "Eigene laufende Aufgabe", status: "running" });
+});
 
 test("reiht zwei Nachrichten ein und erhält den tatsächlich ersten nativen Kopf", async ({ page, gateway }) => {
   await openWork(page);
   const head = page.getByRole("status", { name: "Nächste eingereihte Nachricht", exact: true });
   await input(page).fill("Erste eigene Folgenachricht");
-  await queueButton(page).click();
+  await runWorkAction(page, "Einreihen");
   await expect(input(page)).toHaveValue("");
   await expect(head).toContainText("Erste eigene Folgenachricht");
   await input(page).fill("Zweite eigene Folgenachricht");
-  await expect(queueButton(page)).toBeEnabled();
-  await queueButton(page).click();
+  await expect(await workMenuItem(page, "Einreihen")).toBeEnabled();
+  await runWorkAction(page, "Einreihen");
   await expect(input(page)).toHaveValue("");
   await expect(workAction(page, "queue")).toHaveCount(2);
   await expect(head).toContainText("Erste eigene Folgenachricht");
@@ -34,7 +38,7 @@ test("erhält Stop während einer ausstehenden Queuequittung", async ({ page, ga
   gateway.holdSubmitResults = true;
   await openWork(page);
   await input(page).fill("Eigener ausstehender Folgeauftrag");
-  await queueButton(page).click();
+  await runWorkAction(page, "Einreihen");
   await expect(workAction(page, "queue")).toContainText(/läuft|ausstehend/i);
   const stop = page.getByRole("button", { name: "Stoppen", exact: true });
   await expect(stop).toBeEnabled();
@@ -53,7 +57,7 @@ for (const [status, label] of [
     await openWork(page);
     const text = "Eigene konkrete Steuerung";
     await input(page).fill(text);
-    await steerButton(page).click();
+    await runWorkAction(page, "Steuern");
     await expect(workAction(page, "steer")).toContainText(label);
     expect(gateway.calls.filter((call) => call.op === "session.steer")).toHaveLength(1);
     expect(gateway.calls.filter((call) => call.op === "message.submit")).toHaveLength(0);
@@ -68,13 +72,13 @@ test("bereitet queue und steer aus der Palette bewusst vor und sendet keine rohe
   await input(page).press("Enter");
   await expect(input(page)).toHaveValue("Eigene Slashfolge");
   expect(gateway.calls.filter((call) => call.op === "message.submit")).toHaveLength(0);
-  await queueButton(page).click();
+  await runWorkAction(page, "Einreihen");
   await expect(workAction(page, "queue")).toContainText(/eingereiht/i);
   await input(page).fill("/steer Eigene Slashsteuerung");
   await input(page).press("Enter");
   await expect(input(page)).toHaveValue("Eigene Slashsteuerung");
   expect(gateway.calls.filter((call) => call.op === "session.steer")).toHaveLength(0);
-  await steerButton(page).click();
+  await runWorkAction(page, "Steuern");
   await expect(workAction(page, "steer")).toContainText(/eingereiht/i);
   expect(gateway.calls.filter((call) => call.op === "message.submit")).toHaveLength(1);
 });
@@ -83,7 +87,7 @@ test("wiederholt bei verlorener Queuequittung auch nach Reconnect nicht automati
   gateway.loseNextSubmitResult = true;
   await openWork(page);
   await input(page).fill("Eigene Queue mit unklarem Ausgang");
-  await queueButton(page).click();
+  await runWorkAction(page, "Einreihen");
   await expect(page.getByRole("button", { name: "Abgleichen", exact: true })).toBeVisible();
   await expect.poll(() => gateway.calls.filter((call) => call.op === "session.subscribe").length).toBeGreaterThanOrEqual(2);
   expect(gateway.calls.filter((call) => call.op === "message.submit")).toHaveLength(1);
@@ -95,7 +99,7 @@ test("erhält Completion vor Startquittung und lässt den Hauptturn weiterlaufen
   gateway.work.holdActions = true;
   await openWork(page);
   await input(page).fill("Eigene schnelle Nebenfrage");
-  await btwButton(page).click();
+  await runWorkAction(page, "Zwischenauftrag");
   const task = page.locator('[data-hermes-work-kind="btw"]');
   await expect(task).toContainText(/fertig|abgeschlossen/i);
   gateway.work.finishActions();
@@ -112,7 +116,7 @@ test("startet einen konkreten Hintergrundauftrag ohne erfundenen Hauptturn", asy
   snapshot.inflight = null;
   await openWork(page);
   await input(page).fill("Eigener Hintergrundauftrag");
-  await backgroundButton(page).click();
+  await runWorkAction(page, "Hintergrund");
   const task = page.locator('[data-hermes-work-kind="background"]');
   await expect(task).toContainText(/läuft/i);
   await expect(workAction(page, "background")).toContainText(/bestätigt/i);
@@ -128,7 +132,7 @@ test("behält unbekannten Nebenauftragsausgang bei bewusstem Read ohne neuen Sta
   gateway.work.failNextAction = "unknown";
   await openWork(page);
   await input(page).fill("Eigener unbekannter Zwischenauftrag");
-  await btwButton(page).click();
+  await runWorkAction(page, "Zwischenauftrag");
   await expect(workAction(page, "btw")).toContainText(/Ausgang unklar|unbekannt/i);
   await page.getByRole("button", { name: "Aufgaben aktualisieren", exact: true }).click();
   await expect(workRegion(page)).toContainText(/Teilabdeckung/i);
@@ -141,7 +145,7 @@ test("erhält den Entwurf bei nachweislich ungesendetem Nebenauftrag", async ({ 
   await openWork(page);
   const text = "Eigener ungesendeter Hintergrundauftrag";
   await input(page).fill(text);
-  await backgroundButton(page).click();
+  await runWorkAction(page, "Hintergrund");
   await expect(workAction(page, "background")).toContainText(/nicht gesendet/i);
   await expect(input(page)).toHaveValue(text);
   expect(gateway.work.roster(sessionId).tasks).toHaveLength(0);

@@ -1,6 +1,6 @@
 import { expect } from "@playwright/test";
 import { workTest as test, prepareWork, openWork, workRegion, workRow, sessionId,
-  otherId, workAction, queueButton, composerInput } from "./hermes-v2-work-fixture";
+  otherId, workAction, runWorkAction, composerInput } from "./hermes-v2-work-fixture";
 import type { HermesV2BrowserGateway } from "./hermes-v2-gateway";
 
 test.use({ extraHTTPHeaders: { "tailscale-user-login": "user@example.com" }, viewport: { width: 1440, height: 900 } });
@@ -27,8 +27,8 @@ function updateCwd(gateway: HermesV2BrowserGateway, cwd: string) {
 
 test("verwirft einen alten Rosterread über A-B-A und zeigt den frischen Stand", async ({ page, gateway }) => {
   gateway.work.seedSubagent(sessionId, "context-child", { goal: "Veralteter Rostertext", status: "running" });
-  gateway.work.holdReads = true;
   await openWork(page);
+  gateway.work.holdReads = true;
   await expect.poll(() => gateway.calls.filter((call) => call.op === "work.read").length).toBeGreaterThan(0);
   await select(page, otherId);
   await select(page, sessionId);
@@ -59,8 +59,9 @@ test("zeigt keine alte Tailantwort nach Wechsel und Rückkehr zur gleichen Sitzu
 });
 
 test("beendet bei ausgeschaltetem Flag zusätzlichen Worktraffic ohne Hauptstop", async ({ page, gateway }) => {
+  gateway.work.seedSubagent(sessionId, "flag-context", { goal: "Eigene Flagprüfung", status: "running" });
   await openWork(page);
-  await page.goto("/wrapt/settings#einstellungen:easter-eggs");
+  await page.goto("/wrapt/settings#einstellungen:experimente");
   const toggle = page.getByRole("switch", { name: /Hermes V2 aktivieren/ });
   await expect(toggle).toBeChecked();
   await toggle.click();
@@ -92,18 +93,19 @@ test("verwirft eine alte Tailantwort nach beobachtetem Live-CWD-A-B-A", async ({
 });
 
 test("beendet Queuepending bei Livekontextverlust und nimmt einen neuen bewussten Klick an", async ({ page, gateway }) => {
+  gateway.work.seedSubagent(sessionId, "queue-context", { goal: "Eigene Kontextprüfung", status: "running" });
   gateway.holdSubmitResults = true;
   await openWork(page);
   const text = "Eigene bewusst wieder gewählte Folgenachricht";
   await composerInput(page).fill(text);
-  await queueButton(page).click();
+  await runWorkAction(page, "Einreihen");
   await expect.poll(() => gateway.calls.filter((call) => call.op === "message.submit").length).toBe(1);
   updateCwd(gateway, "/anderes-synthetisches-projekt");
   gateway.finishSubmitResults();
   await expect(workAction(page, "queue")).toContainText(/Ausgang unklar/i);
   gateway.holdSubmitResults = false;
   await composerInput(page).fill(text);
-  await queueButton(page).click();
+  await runWorkAction(page, "Einreihen");
   await expect.poll(() => gateway.calls.filter((call) => call.op === "message.submit").length).toBe(2);
   await expect(workAction(page, "queue").last()).toContainText(/bestätigt/i);
 });

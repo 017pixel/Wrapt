@@ -41,7 +41,13 @@ test("Transparenz wirkt live, bleibt gespeichert und respektiert höheren Kontra
 });
 
 test("Nutzungspopup und native Auswahl behalten Glas und Tastaturbedienung", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("wrapt:overlay-transparency:v1", "100"));
+  // Die Transparenz liegt serverseitig; der vorherige Test hinterlässt dort 73.
+  // Über die Oberfläche setzen, damit der Startwert unabhängig von der Testreihenfolge ist.
+  await page.goto("/wrapt/settings#einstellungen:design");
+  const transparency = page.getByRole("slider", { name: "Transparenz-Intensität" });
+  await transparency.fill("100");
+  await page.reload();
+  await expect(transparency).toHaveValue("100");
   await page.goto("/wrapt/usage");
   await page.getByRole("button", { name: "Ansichtseinstellungen", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Ansichtseinstellungen" });

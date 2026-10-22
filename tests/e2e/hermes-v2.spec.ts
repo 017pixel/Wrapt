@@ -1,11 +1,13 @@
 import { expect, test as base } from "@playwright/test";
 import { HermesV2BrowserGateway } from "./hermes-v2-gateway";
+import { enableHermesV2, setHermesV2, waitForHermesV2 } from "./helpers/hermes-v2-settings";
 
 const test = base.extend<{ gateway: HermesV2BrowserGateway }>({
   gateway: [async ({ context }, use) => {
     const gateway = new HermesV2BrowserGateway();
     gateway.seed("stored-id");
     await gateway.install(context);
+    await setHermesV2(context, false);
     await context.route("**/hermes/**", async (route) => {
       await route.fulfill({ contentType: "text/html", body: "<!doctype html><title>Hermes Verwaltung</title><p>Klassische Testfläche</p>" });
     });
@@ -15,7 +17,7 @@ const test = base.extend<{ gateway: HermesV2BrowserGateway }>({
 });
 
 const e2eUser = process.env.WRAPT_E2E_USER ?? "user@example.com";
-const settingsUrl = "/wrapt/settings#einstellungen:easter-eggs";
+const settingsUrl = "/wrapt/settings#einstellungen:experimente";
 const nativeRoot = '[data-hermes-ui="v2"]';
 test.use({ extraHTTPHeaders: { "tailscale-user-login": e2eUser }, viewport: { width: 1440, height: 900 } });
 
@@ -36,10 +38,14 @@ test("lässt V1 standardmäßig unverändert und erzeugt bei ausgeschaltetem Fla
 
 test("aktiviert V2 über Easter Eggs, erhält den Schalter nach Reload und kehrt zu V1 zurück", async ({ page }) => {
   await page.goto(settingsUrl);
+  // Erst den initialen Serverabgleich abwarten, damit der Klick nicht von
+  // einem verspäteten Fremdstand überschrieben wird.
+  await page.waitForTimeout(750);
   const toggle = page.getByRole("switch", { name: /Hermes V2 aktivieren/ });
   await expect(toggle).not.toBeChecked();
   await toggle.click();
   await expect(toggle).toBeChecked();
+  await waitForHermesV2(page, true);
   await page.reload();
   await expect(page.getByRole("switch", { name: /Hermes V2 aktivieren/ })).toBeChecked();
   await page.goto("/wrapt/hermes-agent");
@@ -47,13 +53,16 @@ test("aktiviert V2 über Easter Eggs, erhält den Schalter nach Reload und kehrt
   await expect(page.locator(`${nativeRoot} iframe`)).toHaveCount(0);
   await page.goto(settingsUrl);
   await page.getByRole("switch", { name: /Hermes V2 aktivieren/ }).click();
+  await waitForHermesV2(page, false);
   await page.goto("/wrapt/hermes-agent");
   await expect(page.locator('[data-hermes-ui="official"]')).toBeVisible();
 });
 
 test("öffnet dieselbe native Oberfläche im Standalone und erhält klassische Verwaltungslinks", async ({ page }) => {
   await page.goto(settingsUrl);
+  await page.waitForTimeout(750);
   await page.getByRole("switch", { name: /Hermes V2 aktivieren/ }).click();
+  await waitForHermesV2(page, true);
   await page.goto("/wrapt/hermes-v2/standalone?session=stored-id");
   await expect(page.locator(nativeRoot)).toBeVisible();
   await expect(page.locator(".app-shell")).toHaveCount(0);
@@ -77,9 +86,8 @@ test("synchronisiert den Flag zwischen normalem Tab und Standalone ohne Reload",
   await other.close();
 });
 
-test("hält den Chat auf allen Abnahmebreiten zugänglich und den mobilen Drawer schließbar", async ({ page }) => {
-  await page.goto(settingsUrl);
-  await page.getByRole("switch", { name: /Hermes V2 aktivieren/ }).click();
+test("hält den Chat auf allen Abnahmebreiten zugänglich und den mobilen Drawer schließbar", async ({ page, context }) => {
+  await enableHermesV2(context);
   for (const [width, height] of [[1440, 900], [1024, 768], [768, 1024], [390, 844]]) {
     await page.setViewportSize({ width: width!, height: height! });
     await page.goto("/wrapt/hermes-v2/standalone?session=stored-id");

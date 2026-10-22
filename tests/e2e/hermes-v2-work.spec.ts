@@ -5,10 +5,11 @@ import { workTest as test, prepareWork, openWork, workRegion, workRow, workActio
 test.use({ extraHTTPHeaders: { "tailscale-user-login": "user@example.com" }, viewport: { width: 1440, height: 900 } });
 test.beforeEach(({ gateway }) => prepareWork(gateway, true));
 
-test("zeigt begrenzte leere Sicht mit ehrlicher Teilabdeckung", async ({ page, gateway }) => {
-  await openWork(page);
-  await expect(workRegion(page)).toContainText(/Teilabdeckung/i);
-  await expect.poll(() => gateway.calls.filter((call) => call.op === "work.read").length).toBeGreaterThan(0);
+test("blendet die Aufgabenansicht ohne belegte Zeilen aus, ohne den Hauptstop zu sperren", async ({ page, gateway }) => {
+  await page.goto(`/wrapt/hermes-v2/standalone?session=${sessionId}`);
+  await expect(page.getByRole("textbox", { name: "Nachricht an Hermes" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Aufgaben anzeigen", exact: true })).toHaveCount(0);
+  await expect(workRegion(page)).toHaveCount(0);
   expect(gateway.work.observations).toHaveLength(0);
   await expect(page.getByRole("button", { name: "Stoppen", exact: true })).toBeEnabled();
 });

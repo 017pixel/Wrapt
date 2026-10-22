@@ -42,7 +42,9 @@ test("zeigt einen nur vorgemerkten Titel ohne eine gespeicherte Umbenennung zu b
   gateway.composer.titlePending = true;
   await open(page);
   const initialTitle = gateway.stories.get(sessionId)!.snapshot.session.title;
-  await page.getByRole("button", { name: "Sitzung umbenennen", exact: true }).click();
+  const sessionRow = page.locator(`[data-session-id="${sessionId}"] .hermesv2-rowline`);
+  await sessionRow.click({ button: "right" });
+  await page.getByRole("menuitem", { name: "Sitzung umbenennen", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Sitzung umbenennen", exact: true });
   await dialog.getByRole("textbox", { name: "Sitzungstitel", exact: true }).fill("Noch unbestätigter Titel");
   await dialog.getByRole("button", { name: "Umbenennen", exact: true }).click();
