@@ -20,6 +20,7 @@ interface CatalogSource {
   providerId: CatalogProviderId;
   directory: string;
   include?: (manifest: ExtensionManifestV1) => boolean;
+  effectiveTrust?: "catalog-first-party" | "developer";
 }
 
 interface CatalogLogger {
@@ -102,7 +103,7 @@ export class LocalExtensionCatalog {
 
   addSourceDirectory(
     directory: string,
-    options: { include?: (manifest: ExtensionManifestV1) => boolean } = {},
+    options: { include?: (manifest: ExtensionManifestV1) => boolean; effectiveTrust?: "catalog-first-party" | "developer" } = {},
   ): void {
     this.sources.push({ providerId: this.providerId, directory, ...options });
     this.scanned = false;
@@ -148,7 +149,7 @@ export class LocalExtensionCatalog {
 
           const entry = catalogEntrySchema.parse({
             providerId: source.providerId,
-            effectiveTrust: "catalog-first-party",
+            effectiveTrust: source.effectiveTrust ?? "catalog-first-party",
             manifest,
             package: descriptor,
           });

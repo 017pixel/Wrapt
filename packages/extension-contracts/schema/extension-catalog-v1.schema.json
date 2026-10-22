@@ -25,7 +25,10 @@
           },
           "effectiveTrust": {
             "type": "string",
-            "const": "catalog-first-party"
+            "enum": [
+              "catalog-first-party",
+              "developer"
+            ]
           },
           "manifest": {
             "type": "object",

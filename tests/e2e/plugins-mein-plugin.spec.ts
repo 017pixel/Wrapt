@@ -1,8 +1,7 @@
+import { workbenchUrl } from "./helpers/environment";
 import { expect, test } from "@playwright/test";
 
-const workbench = process.env.WRAPT_E2E_URL
-  ? `${process.env.WRAPT_E2E_URL.replace(/\/$/, "")}/wrapt`
-  : undefined;
+const workbench = workbenchUrl;
 
 test.use({
   extraHTTPHeaders: { "tailscale-user-login": "user@example.com" },
@@ -10,7 +9,6 @@ test.use({
 test.use({ serviceWorkers: "block" });
 
 test("installiert mein-plugin und zeigt die Hello-World-Seite auf Desktop und Mobil", async ({ page, browserName, context }, testInfo) => {
-  test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   await page.setExtraHTTPHeaders({ "tailscale-user-login": `plugins-mein-plugin-${browserName}-${testInfo.retry}@example.com` });
   if (browserName === "chromium") {
     await context.grantPermissions(["clipboard-read", "clipboard-write"]);

@@ -14,7 +14,10 @@ export function syncCatalogUpdates(database: ExtensionDatabase, catalog: LocalEx
   const updates: ExtensionRegistryDetail[] = [];
   for (const detail of database.listExtensions()) {
     const entry = catalog.get(detail.id);
-    if (entry === undefined || detail.installedVersion === undefined || entry.package.version === detail.installedVersion) continue;
+    if (entry === undefined || detail.installedVersion === undefined) continue;
+    const integrity = "packageIntegrity" in detail.source ? detail.source.packageIntegrity : undefined;
+    if (entry.package.version === detail.installedVersion && (integrity === undefined || integrity === entry.package.integrity)) continue;
+    if (detail.availableVersion === entry.package.version && detail.lifecycle === "update-available") continue;
     updates.push({
       ...detail,
       availableVersion: entry.package.version,

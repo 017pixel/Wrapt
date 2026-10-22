@@ -21,6 +21,55 @@ nicht als GitHub-Datei behandelt und nicht im Bereich „Installieren“ angezei
 aktiviertes Laufzeitpaket unter `<dataDirectory>/extension-catalog` ist nur eine vom
 Server erzeugte lokale Ableitung des Drafts.
 
+## Code-Plattform Format 3
+
+Für eigene Logik, Collections, React, Hooks, Dienste, Ressourcen oder Jobs verwende
+**Code-Plugins Format 3**. Die vollständige Markdown-Referenz mit Beispielen liegt
+im verlinkten Ordner [references/plugin-platform](references/plugin-platform/README.md),
+kanonisch unter `docs/extensions/plugin-platform/`. Lies zuerst README, Start,
+Server-SDK und Client-SDK; danach die für die Aufgabe nötigen Detailseiten.
+Die laufende Instanz liefert dieselbe Doku unter `/api/v1/plugins/docs/README.md`
+und das tatsächliche Register über `GET /api/v1/plugins/api`.
+Ein vollständiges, im Integrationstest ausgeführtes Projektjournal steht unter
+[examples.md](references/plugin-platform/examples.md). JSON-Schemas im API-Register
+zeigen die konkreten Host-Eingaben; Plugin-IDs mit Punkten nicht als Routen kopieren.
+
+Der folgende Draft-Workflow bleibt für einfache deklarative Plugins gültig.
+Die dortigen Beschränkungen auf Daten-Drafts und eingeschränkte Aktionen gelten
+nicht für ausdrücklich vertraute Code-Plugins. Wähle anhand der benötigten
+Fähigkeiten, erfinde keine nicht dokumentierten Context-Funktionen.
+
+Code-Workflow:
+
+1. Persönliche Quellen über `POST /api/v1/plugins/code` mit `definition`, `files`
+   und `expectedRevision: 0` anlegen. Oder einen eigenen lokalen Ordner außerhalb
+   des Wrapt-Quellcodes mit `POST /api/v1/plugins/code/register` registrieren.
+2. `plugin.json` hat `formatVersion: 3`, eigene ID wie `personal.aufgaben`, Name,
+   Beschreibung, Version sowie `server` und/oder `ui`. Keine npm-Plugin-Pakete.
+3. Importiere `definePlugin`, `z`, `defineMethod` aus `@wrapt/plugin-sdk`,
+   `defineClientPlugin` aus `@wrapt/plugin-sdk/client` und React aus `react`.
+4. Daten mit `storage.collection()` anlegen. Datensätze enthalten `value`, nicht
+   `data`. `create/put/list/get/remove`, Revisionen und Migrationen sind dokumentiert.
+5. UI mit `ctx.ui.register` und `ctx.ui.transform` bauen. Jede ID liegt unter der
+   Plugin-ID plus Punkt. Eigene Seiten brauchen Page und Navigation mit gleichem
+   lokalen Pfad. Auf vorhandenen Flächen sind Ausblenden und Ersetzen erlaubt.
+6. `POST /api/v1/plugins/code/:id/build` ausführen, alle echten Diagnosen beheben.
+   Über `GET .../source` gelesene Revision beim `PUT .../source` wieder mitsenden.
+7. Mit `POST .../:id/activate` aktivieren. `trust: true` nur bei ausdrücklicher
+   Nutzerfreigabe für ausführbaren Code oder bereits vorliegender Freigabe des
+   aktuellen Auftrags. Servercode besitzt OS-Benutzerrechte, Browsercode den
+   Zugriff der angemeldeten Wrapt-Oberfläche. Der Prozess ist keine Sandbox.
+8. Setup darf eigene Daten migrieren und Handler registrieren. Host-Mutationen
+   erst nach Aktivierung, etwa per Job mit `runOnActivation`, ausführen.
+9. RPC und fachliche Wirkung mit echten Daten prüfen, danach die vollständige UI
+   mit Playwright inklusive Fehlerpfad, Neuladen und Deaktivieren prüfen.
+10. `GET .../:id/inspector` für Logs, Jobs und registrierte Schnittstellen nutzen.
+    Änderungen aus Auto-Reload müssen ohne Workbench-Neustart funktionieren.
+
+Quellen bleiben lokal. Keine Host-Dateien für eine Plugin-Idee verändern, keine
+Nutzer-Previews oder Dienste als Testinstanz benutzen und keine neuen Freigaben
+verlangen, wenn der Nutzer den konkreten Zugriff bereits autorisiert hat.
+
 ## Ein-Satz-Aufträge sind ausreichend
 
 Der Nutzer muss keinen technischen Plan liefern. Leite aus einem groben Satz eine
@@ -50,15 +99,17 @@ die Annahme im Abschlussbericht.
 Ein Auftrag ohne ausdrücklichen Repository- oder Veröffentlichungswunsch ist immer
 ein persönlicher Draft. Für diesen Skill gelten daher folgende Regeln:
 
-- Persönliche Inhalte werden ausschließlich über `/api/v1/plugins/drafts` verwaltet.
+- Deklarative Inhalte werden über `/api/v1/plugins/drafts`, Code-Plugins über
+  `/api/v1/plugins/code` oder registrierte eigene lokale Quellordner verwaltet.
 - Niemals persönliche Plugin-Dateien unter `extensions/`, `extensions/plugins/`,
   `.agents/plugins/`, `.codex/`, `.opencode/` oder einem anderen Repository-Ordner
   anlegen oder verändern.
 - Niemals `AppShell`, globale Host-Komponenten, Produktseiten, `index.css`,
   `packages/contracts`, Runtime-Dateien oder Core-Routen für eine einzelne
   Plugin-Idee ändern.
-- Niemals selbst `extension-catalog/<slug>`, `plugin.json`, `extension.json` oder
-  `index.js` als Ersatz für die Authoring-API schreiben.
+- Niemals selbst `extension-catalog/<slug>`, `extension.json` oder `index.js` als
+  Ersatz für die Authoring-API schreiben. Eine Format-3-`plugin.json` im eigenen
+  registrierten Quellordner ist ausdrücklich erlaubt.
 - Niemals `git add`, Commit, Push oder GitHub-Upload auslösen.
 - Ein Beispiel aus `extensions/plugins` gehört zum lokalen Store. Es ist keine
   persönliche Quelle und darf nicht durch eine Datei an dieser Stelle überschrieben

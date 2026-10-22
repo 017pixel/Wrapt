@@ -1,10 +1,9 @@
+import { workbenchUrl } from "./helpers/environment";
 import { expect, test } from "@playwright/test";
 
 // `WRAPT_E2E_URL` zeigt auf den Origin des Testservers; die Wrapt
 // selbst wird unter dem `/wrapt`-Basispfad ausgeliefert.
-const workbench = process.env.WRAPT_E2E_URL
-  ? `${process.env.WRAPT_E2E_URL.replace(/\/$/, "")}/wrapt`
-  : undefined;
+const workbench = workbenchUrl;
 
 test.use({
   extraHTTPHeaders: { "tailscale-user-login": "user@example.com" },
@@ -12,7 +11,6 @@ test.use({
 });
 
 test("verwaltet Extensions über den lokalen Catalog mit fail-closed Runtime", async ({ page }) => {
-  test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   await page.goto(`${workbench}/settings`);
   await page.getByRole("button", { name: "Erweiterungen", exact: true }).click();
 

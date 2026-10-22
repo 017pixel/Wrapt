@@ -6,6 +6,7 @@ import type { PluginDraftContent, PluginFunction, PluginSurface } from "@wrapt/c
 import { CloseIcon, CopyIcon, ExternalLinkIcon } from "../icons";
 import { PluginSurfacePreview } from "./PluginSurfacePreview";
 import { pluginHostRoute } from "./pluginSurfaceState";
+import { pluginRequest } from "../../extensions/code-client";
 
 function safeIframeUrl(value: string | null): string | null {
   if (!value) return null;
@@ -45,7 +46,7 @@ function pluginStorage(): Storage | null {
   }
 }
 
-export function PluginPreview({ draft, compact = false }: { draft: PluginDraftContent; compact?: boolean }) {
+export function PluginPreview({ draft, compact = false, active = false, onRefresh }: { draft: PluginDraftContent; compact?: boolean; active?: boolean; onRefresh?: () => Promise<unknown> }) {
   const navigate = useNavigate();
   const [message, setMessage] = useState<string | null>(null);
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
@@ -125,9 +126,23 @@ export function PluginPreview({ draft, compact = false }: { draft: PluginDraftCo
     if (item.action === "set-filter") setMessage(`Filter gesetzt: ${item.value || "Standard"}.`);
     if (item.action === "save-state") setMessage("Lokaler Plugin-Zustand gespeichert.");
     if (item.action === "load-state") setMessage("Lokaler Plugin-Zustand geladen.");
-    if (item.action === "run-command") setMessage(`Command vorbereitet: ${item.value || "ohne Namen"}.`);
+    if (item.action === "run-command") {
+      if (!active) setMessage("Commands werden erst im aktivierten Plugin ausgeführt.");
+      else {
+        try {
+          await pluginRequest(`commands/${encodeURIComponent(item.value)}`);
+          setMessage("Command ausgeführt.");
+        } catch (error) { setMessage(error instanceof Error ? error.message : "Command fehlgeschlagen."); }
+      }
+    }
     if (item.action === "activate-account") setMessage("Account-Aktionen werden in der aktiven Plugin-Topbar ausgeführt.");
-    if (item.action === "refresh-data") setMessage("Plugin-Daten werden aktualisiert.");
+    if (item.action === "refresh-data") {
+      if (!onRefresh) setMessage("Daten werden erst im aktivierten Plugin neu geladen.");
+      else {
+        try { await onRefresh(); setMessage("Plugin-Daten neu geladen."); }
+        catch (error) { setMessage(error instanceof Error ? error.message : "Aktualisierung fehlgeschlagen."); }
+      }
+    }
     if (item.action === "save-state") {
       try {
         const storage = pluginStorage();

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { act } from "react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -14,6 +14,33 @@ afterEach(() => {
 });
 
 describe("Plugin-Vorschau für Host-Flächen", () => {
+  it("führt registrierte Commands im aktiven Plugin aus und lädt dessen Inhalt erneut", async () => {
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ result: true }), { status: 200 }));
+    const refresh = vi.fn().mockResolvedValue(undefined);
+    const draft = emptyPluginDraft("command-test");
+    draft.functions = [
+      { id: "collect", label: "Stand sammeln", action: "run-command", value: "personal.journal:collect" },
+      { id: "refresh", label: "Aktualisieren", action: "refresh-data", value: "" },
+    ];
+    draft.blocks = draft.functions.map(item => ({ id: item.id, type: "button", title: item.label, content: "", actionId: item.id }));
+    render(<MemoryRouter><PluginPreview draft={draft} active onRefresh={refresh} /></MemoryRouter>);
+    fireEvent.click(screen.getByRole("button", { name: "Stand sammeln" }));
+    await waitFor(() => expect(screen.getByRole("status").textContent).toContain("Command ausgeführt"));
+    expect(fetch).toHaveBeenCalledWith("/api/v1/plugins/commands/personal.journal%3Acollect", expect.objectContaining({ method: "POST" }));
+    fireEvent.click(screen.getByRole("button", { name: "Aktualisieren" }));
+    await waitFor(() => expect(refresh).toHaveBeenCalledOnce());
+  });
+
+  it("führt beim Bearbeiten eines Entwurfs keine Commands aus", () => {
+    const fetch = vi.spyOn(globalThis, "fetch");
+    const draft = emptyPluginDraft("draft-command");
+    draft.functions = [{ id: "collect", label: "Stand sammeln", action: "run-command", value: "personal.journal:collect" }];
+    draft.blocks = [{ id: "collect", type: "button", title: "Stand sammeln", content: "", actionId: "collect" }];
+    render(<MemoryRouter><PluginPreview draft={draft} /></MemoryRouter>);
+    fireEvent.click(screen.getByRole("button", { name: "Stand sammeln" }));
+    expect(fetch).not.toHaveBeenCalled();
+    expect(screen.getByRole("status").textContent).toContain("erst im aktivierten Plugin");
+  });
   it("zeigt für Sidebar-Plugins die kanonische Werkzeugroute", () => {
     render(<MemoryRouter><PluginPreview draft={emptyPluginDraft("sichtbare-seite")} /></MemoryRouter>);
 

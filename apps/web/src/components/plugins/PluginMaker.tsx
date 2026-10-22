@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import type { PluginBlock, PluginDraft, PluginDraftContent, PluginFunction } from "@wrapt/contracts";
@@ -14,6 +14,12 @@ import { PluginHelpPopover } from "./PluginHelpPopover";
 import { PluginPreview } from "./PluginPreview";
 import { PluginIconPicker } from "./pluginIcons";
 import { setPluginOrbitEnabled } from "./pluginSurfaceState";
+import { registerEditorReloadGuard } from "../../lib/reloadGuard";
+
+function draftSignature(draft: PluginDraftContent, mode: PluginDraftContent["creationMode"]): string {
+  const content = Object.fromEntries(Object.entries(draft).filter(([key]) => !["id", "createdAt", "updatedAt"].includes(key)));
+  return JSON.stringify({ ...content, creationMode: mode });
+}
 
 function Field({ label, children, help, className = "" }: { label: string; children: ReactNode; help?: string; className?: string }) {
   return <label className={`plugin-form-field ${className}`}><span className="plugin-field-label">{label}{help ? <PluginHelpPopover title={label}>{help}</PluginHelpPopover> : null}</span>{children}</label>;
@@ -35,13 +41,23 @@ export function PluginMaker() {
   const [hydratedDraftId, setHydratedDraftId] = useState<string | null>(null);
   const mode = (search.get("mode") ?? (search.get("ai") === "1" ? "ai" : draft.creationMode)) as PluginDraftContent["creationMode"];
   const editing = search.get("edit") === "1";
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+  const savingRef = useRef(false);
+  const [savedSignature, setSavedSignature] = useState(() => draftSignature(emptyPluginDraft(), mode));
+  const savedSignatureRef = useRef(savedSignature);
+  savedSignatureRef.current = savedSignature;
+  const dirty = draftSignature(draft, mode) !== savedSignature;
+  useEffect(() => registerEditorReloadGuard(() => dirty || savingRef.current), [dirty]);
 
   useEffect(() => {
     if (loaded.data?.draft) {
+      if (hydratedDraftId === loaded.data.draft.id && draftSignature(draftRef.current, mode) !== savedSignatureRef.current) return;
       setDraft(loaded.data.draft);
+      setSavedSignature(draftSignature(loaded.data.draft, mode));
       setHydratedDraftId(loaded.data.draft.id);
     }
-  }, [loaded.data?.draft]);
+  }, [hydratedDraftId, loaded.data?.draft, mode]);
 
   const update = (patch: Partial<PluginDraftContent>) => setDraft((current) => ({ ...current, ...patch }));
   const setPageMode = (pageMode: PluginDraftContent["pageMode"]) => update({ pageMode, iframeUrl: pageMode === "iframe" ? draft.iframeUrl : null, wizard: { ...draft.wizard, includeHtml: pageMode === "html", includeIframe: pageMode === "iframe" } });
@@ -50,32 +66,37 @@ export function PluginMaker() {
   const updateFunction = (index: number, patch: Partial<PluginFunction>) => update({ functions: draft.functions.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) });
 
   const saveDraft = useCallback(async (silent = false): Promise<PluginDraft | null> => {
-    if (!silent) setBusy(true);
+    if (savingRef.current) return null;
+    savingRef.current = true;
+    setBusy(true);
+    const submittedSignature = draftSignature(draft, mode);
     if (!silent) setMessage(null);
     try {
       const content = Object.fromEntries(Object.entries(draft).filter(([key]) => key !== "id" && key !== "createdAt" && key !== "updatedAt")) as PluginDraftContent;
       content.creationMode = mode;
       const response = draftId ? await apiClient.updatePluginDraft(draftId, content) : await apiClient.createPluginDraft(content);
       if (!response?.draft) throw new Error("Der Draft wurde nicht gespeichert.");
-      setDraft(response.draft);
+      setSavedSignature(draftSignature(response.draft, mode));
+      setDraft((current) => draftSignature(current, mode) === submittedSignature ? response.draft : { ...current, revision: response.draft.revision });
       setHydratedDraftId(response.draft.id);
       if (!draftId) setSearch({ draft: response.draft.id, mode }, { replace: true });
       await queryClient.invalidateQueries({ queryKey: ["plugins"] });
       if (!silent) setMessage("Draft gespeichert.");
       return response.draft;
     } catch (error) {
-      if (!silent) setMessage(error instanceof ApiClientError ? error.message : "Der Draft konnte nicht gespeichert werden.");
+      setMessage(error instanceof ApiClientError ? error.message : "Der Draft konnte nicht gespeichert werden.");
       return null;
     } finally {
-      if (!silent) setBusy(false);
+      savingRef.current = false;
+      setBusy(false);
     }
   }, [draft, draftId, mode, queryClient, setSearch]);
 
   useEffect(() => {
-    if (!draftId || hydratedDraftId !== draftId) return undefined;
+    if (!dirty || !draftId || hydratedDraftId !== draftId) return undefined;
     const timeout = window.setTimeout(() => void saveDraft(true), 1_200);
     return () => window.clearTimeout(timeout);
-  }, [draft, draftId, hydratedDraftId, mode, saveDraft]);
+  }, [dirty, draft, draftId, hydratedDraftId, mode, saveDraft]);
 
   const validate = async () => {
     const saved = await saveDraft();
@@ -85,6 +106,7 @@ export function PluginMaker() {
       const result = await apiClient.validatePluginDraft(id);
       if (!result) throw new Error("Die Prüfung hat keine Antwort geliefert.");
       setDraft(result.draft);
+      setSavedSignature(draftSignature(result.draft, mode));
       setMessage(result.valid ? "Plugin ist bereit für die Aktivierung." : result.errors.map((error) => error.message).join(" "));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Die Prüfung ist fehlgeschlagen.");
@@ -100,6 +122,7 @@ export function PluginMaker() {
       const result = await apiClient.activatePluginDraft(id);
       if (!result) throw new Error("Die Aktivierung hat keine Antwort geliefert.");
       setDraft(result.draft);
+      setSavedSignature(draftSignature(result.draft, mode));
       await queryClient.invalidateQueries({ queryKey: ["plugins"] });
       await queryClient.invalidateQueries({ queryKey: ["extensions"] });
       setMessage("Plugin lokal aktiviert.");
@@ -117,6 +140,7 @@ export function PluginMaker() {
       const result = await apiClient.deactivatePluginDraft(draftId);
       if (!result) throw new Error("Die Deaktivierung hat keine Antwort geliefert.");
       setDraft(result.draft);
+      setSavedSignature(draftSignature(result.draft, mode));
       await queryClient.invalidateQueries({ queryKey: ["plugins"] });
       await queryClient.invalidateQueries({ queryKey: ["extensions"] });
       setMessage("Plugin lokal deaktiviert.");

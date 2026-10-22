@@ -19,7 +19,7 @@ export function PluginRuntime({ pluginSlug }: PluginRuntimeProps = {}) {
   );
 
   if (!content) return <div className="page-scroll"><div className="page-frame plugins-page"><div className="plugins-empty"><strong>Plugin nicht gefunden</strong><span>Das Plugin ist nicht installiert oder nicht aktiv.</span></div></div></div>;
-  return <div className="page-scroll"><div className="page-frame plugins-page plugins-runtime-page"><header className="plugins-runtime-heading"><span className="plugins-kicker">Werkzeugseite</span><h1>{content.name}</h1><p>{content.description}</p></header><PluginPreview draft={content} /></div></div>;
+  return <div className="page-scroll"><div className="page-frame plugins-page plugins-runtime-page"><header className="plugins-runtime-heading"><span className="plugins-kicker">Werkzeugseite</span><h1>{content.name}</h1><p>{content.description}</p></header><PluginPreview draft={content} active onRefresh={() => runtimes.refetch({ throwOnError: true })} /></div></div>;
 }
 
 export function createPluginToolPage(slug: string) {

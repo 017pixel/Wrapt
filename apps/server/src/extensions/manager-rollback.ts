@@ -18,7 +18,7 @@ export function rollbackExtension(
     throw new AppError(409, "rollback-unavailable", "Die Zielversion liegt nicht für Rollback vor.");
   }
 
-  if (detail.source.kind === "catalog") {
+  if (detail.source.kind === "catalog" || (detail.source.kind === "developer" && detail.source.packageIntegrity !== undefined && releaseStore !== undefined)) {
     const slot = detail.rollbackAssetRevision === undefined
       ? releaseStore?.readVersion(detail.id, detail.rollbackVersion)
       : releaseStore?.readSlot(detail.id, detail.rollbackVersion, detail.rollbackAssetRevision);

@@ -14,6 +14,7 @@ import { z } from "zod";
 import type { RouteServices } from "../api/services.js";
 import { settings } from "../config/settings.js";
 import { AppError } from "../utils/errors.js";
+import { pluginRouteOperation } from "../plugins/host-route.js";
 
 export async function registerFilesystemRoutes(app: FastifyInstance, services: RouteServices) {
   app.get("/filesystem/tree", async (request) => {
@@ -22,20 +23,20 @@ export async function registerFilesystemRoutes(app: FastifyInstance, services: R
       cursor: z.string().min(1).optional(),
       limit: z.coerce.number().int().min(1).max(500).optional(),
     }).parse(request.query);
-    return filesystemTreeResponseSchema.parse(await services.projectBrowser.tree({
+    return pluginRouteOperation(services, request, "filesystem.tree", query, async () => filesystemTreeResponseSchema.parse(await services.projectBrowser.tree({
       ...(query.path === undefined ? {} : { path: query.path }),
       ...(query.cursor === undefined ? {} : { cursor: query.cursor }),
       ...(query.limit === undefined ? {} : { limit: query.limit }),
-    }));
+    })));
   });
-  app.get("/filesystem/state", async () => services.fileManager.state());
+  app.get("/filesystem/state", async (request) => pluginRouteOperation(services, request, "filesystem.state", undefined, () => services.fileManager.state()));
   app.put("/filesystem/state", async (request) => {
     const input = saveFileManagerStateRequestSchema.parse(request.body);
-    return services.fileManager.saveState(input);
+    return pluginRouteOperation(services, request, "filesystem.saveState", input, () => services.fileManager.saveState(input));
   });
   app.get("/filesystem/file", async (request) => {
     const query = z.object({ path: z.string().trim().min(1).max(4_096) }).parse(request.query);
-    return fileManagerTextPreviewResponseSchema.parse(await services.fileManager.textPreview({ path: query.path }));
+    return pluginRouteOperation(services, request, "filesystem.read", query, async () => fileManagerTextPreviewResponseSchema.parse(await services.fileManager.textPreview({ path: query.path })));
   });
   app.get("/filesystem/media", async (request, reply) => {
     const query = z.object({ path: z.string().trim().min(1).max(4_096) }).parse(request.query);
@@ -68,22 +69,22 @@ export async function registerFilesystemRoutes(app: FastifyInstance, services: R
   });
   app.post("/filesystem/rename", async (request) => {
     const input = fileManagerRenameRequestSchema.parse(request.body);
-    return services.fileManager.response(await services.fileManager.rename(input));
+    return pluginRouteOperation(services, request, "filesystem.rename", input, async () => services.fileManager.response(await services.fileManager.rename(input)));
   });
   app.post("/filesystem/move", async (request) => {
     const input = fileManagerMoveRequestSchema.parse(request.body);
-    return services.fileManager.response(await services.fileManager.move(input));
+    return pluginRouteOperation(services, request, "filesystem.move", input, async () => services.fileManager.response(await services.fileManager.move(input)));
   });
   app.post("/filesystem/delete", async (request) => {
     const input = fileManagerDeleteRequestSchema.parse(request.body);
-    return services.fileManager.response(await services.fileManager.remove({ path: input.path }));
+    return pluginRouteOperation(services, request, "filesystem.remove", input, async () => services.fileManager.response(await services.fileManager.remove({ path: input.path })));
   });
   app.post("/filesystem/mkdir", async (request) => {
     const input = fileManagerMkdirRequestSchema.parse(request.body);
-    return services.fileManager.response(await services.fileManager.mkdir(input));
+    return pluginRouteOperation(services, request, "filesystem.mkdir", input, async () => services.fileManager.response(await services.fileManager.mkdir(input)));
   });
   app.get("/filesystem/search", async (request) => {
     const query = z.object({ q: z.string().trim().min(1).max(200) }).parse(request.query);
-    return fileManagerSearchResponseSchema.parse(await services.fileManager.search(query.q));
+    return pluginRouteOperation(services, request, "filesystem.search", query, async () => fileManagerSearchResponseSchema.parse(await services.fileManager.search(query.q)));
   });
 }

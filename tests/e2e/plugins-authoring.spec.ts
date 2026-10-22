@@ -1,8 +1,7 @@
+import { workbenchUrl } from "./helpers/environment";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-const workbench = process.env.WRAPT_E2E_URL
-  ? `${process.env.WRAPT_E2E_URL.replace(/\/$/, "")}/wrapt`
-  : undefined;
+const workbench = workbenchUrl;
 
 test.use({
   extraHTTPHeaders: { "tailscale-user-login": "user@example.com" },
@@ -47,7 +46,6 @@ async function expectActionsInOneLine(row: Locator) {
 }
 
 test("erstellt leichte, mittlere und komplexe Plugins im visuellen Editor", async ({ page, browserName }, testInfo) => {
-  test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   test.setTimeout(120_000);
   await page.setExtraHTTPHeaders({ "tailscale-user-login": `plugins-authoring-${browserName}-${testInfo.retry}@example.com` });
   const suffix = `${browserName}-${testInfo.retry}`;
@@ -94,7 +92,6 @@ test("erstellt leichte, mittlere und komplexe Plugins im visuellen Editor", asyn
 });
 
 test("erstellt leichte, mittlere und komplexe Plugins im Code-Modus", async ({ page, browserName }, testInfo) => {
-  test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   test.setTimeout(120_000);
   await page.setExtraHTTPHeaders({ "tailscale-user-login": `plugins-authoring-code-${browserName}-${testInfo.retry}@example.com` });
   const suffix = `${browserName}-${testInfo.retry}`;

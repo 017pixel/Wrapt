@@ -1,8 +1,7 @@
+import { workbenchUrl } from "./helpers/environment";
 import { expect, test } from "@playwright/test";
 
-const workbench = process.env.WRAPT_E2E_URL
-  ? `${process.env.WRAPT_E2E_URL.replace(/\/$/, "")}/wrapt`
-  : undefined;
+const workbench = workbenchUrl;
 
 test.use({
   extraHTTPHeaders: { "tailscale-user-login": "user@example.com" },
@@ -10,7 +9,6 @@ test.use({
 });
 
 test("aktiviert ein verifiziertes Catalog-Plugin und entfernt es wieder", async ({ page }) => {
-  test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   await page.goto(`${workbench}/plugins`);
 
   await expect(page.getByRole("heading", { name: "Plugins", exact: true })).toBeVisible();

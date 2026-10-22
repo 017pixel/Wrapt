@@ -13,6 +13,7 @@ import { PluginCreationChooser } from "../components/plugins/PluginCreationChoos
 import { PluginNotice } from "../components/plugins/PluginNotice";
 import { ConfirmDialog } from "../components/ModalDialog";
 import { useHashTab } from "../lib/hashTabs";
+import { CodePluginWorkbench } from "../components/plugins/CodePluginWorkbench";
 
 export { PluginRuntime } from "./PluginRuntime";
 
@@ -132,6 +133,7 @@ export function Plugins() {
   return <div className="page-scroll"><div className="page-frame plugins-page">
     {notice ? <PluginNotice tone={notice.tone} onClose={() => setNotice(null)}><span>{notice.text}</span></PluginNotice> : null}
     <PluginOverview activeTab={tab as PluginTabId} examples={examples.data?.examples ?? []} drafts={drafts.data?.drafts ?? []} catalogEntries={catalog.data?.entries ?? []} installed={pluginInstalled} onCreate={() => setChooserOpen(true)} onTabChange={setTab} onDeleteDraft={deleteDraft} onActivateDraft={(id) => void activateDraft(id)} onDeactivateDraft={(id) => void deactivateDraft(id)} onEditInstalled={(plugin) => void editInstalled(plugin)} onToggleInstalled={(plugin) => void runInstalledOperation(plugin, plugin.lifecycle === "active" ? "disable" : "enable")} onUninstallInstalled={setUninstallTarget} />
+    {tab === "code" ? <CodePluginWorkbench /> : null}
     <PluginCreationChooser open={chooserOpen || editTarget !== null} purpose={editTarget ? "edit" : "create"} {...(editTarget ? { pluginName: editTarget.name } : {})} onClose={() => { setChooserOpen(false); setEditTarget(null); }} onSelect={editTarget ? onSelectEditMode : onSelectCreationMode} />
     <ConfirmDialog open={uninstallTarget !== null} title={`„${uninstallTarget?.name ?? "Plugin"}“ deinstallieren?`} description="Das Plugin wird aus Wrapt entfernt. Ein eigener Draft bleibt erhalten und kann später erneut aktiviert werden." confirmLabel={uninstallPending ? "Wird deinstalliert …" : "Deinstallieren"} danger confirmPending={uninstallPending} error={uninstallError} onConfirm={() => {
       const target = uninstallTarget;

@@ -1,5 +1,6 @@
 import { join, resolve } from "node:path";
 import type { WraptConfig } from "./wrapt-config.js";
+import { pluginRuntimeConfigSchema } from "./plugin-settings.js";
 
 interface SharedHomePaths {
   codex: string;
@@ -17,6 +18,7 @@ export function resolveAgentHomeSettings(
   const opencodeSharedHome = resolve(paths.opencode);
 
   return {
+    pluginRuntime: pluginRuntimeConfigSchema.parse(plugins.runtime ?? {}),
     pluginCreatorSkillPath: resolve(
       plugins.wraptPluginsSkillPath
         ?? plugins.creatorSkillPath

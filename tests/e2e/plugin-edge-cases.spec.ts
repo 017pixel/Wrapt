@@ -1,7 +1,8 @@
+import { e2eOrigin, workbenchUrl } from "./helpers/environment";
 import { expect, test, type APIRequestContext } from "@playwright/test";
 
-const origin = process.env.WRAPT_E2E_URL?.replace(/\/$/, "");
-const workbench = origin ? `${origin}/wrapt` : undefined;
+const origin = e2eOrigin;
+const workbench = workbenchUrl;
 const identity = "user@example.com";
 const extensionId = "wrapt.example.focus-timer";
 const headers = { "tailscale-user-login": identity };
@@ -21,7 +22,6 @@ test.use({ extraHTTPHeaders: headers, viewport: { width: 1000, height: 800 } });
 test.use({ serviceWorkers: "block" });
 
 test("verhindert doppeltes Installieren und zeigt keinen falschen Fehler", async ({ page, request }) => {
-  test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   await uninstallFocus(request);
   await page.goto(`${workbench}/plugins`);
   await page.getByRole("button", { name: "Installieren", exact: true }).click();
@@ -38,7 +38,6 @@ test("verhindert doppeltes Installieren und zeigt keinen falschen Fehler", async
 });
 
 test("zeigt bei Offline-Catalog keinen Installationserfolg", async ({ page }) => {
-  test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   await page.route("**/api/v1/extensions/catalog", (route) => route.fulfill({
     status: 503,
     contentType: "application/json",
@@ -52,7 +51,6 @@ test("zeigt bei Offline-Catalog keinen Installationserfolg", async ({ page }) =>
 });
 
 test("übernimmt eine serverseitige Plugin-Änderung nach Tabwechsel", async ({ page, context, request }) => {
-  test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
   await uninstallFocus(request);
   const secondTab = await context.newPage();
   try {

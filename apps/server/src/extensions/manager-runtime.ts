@@ -4,12 +4,14 @@ import {
   type ExtensionRegistryDetail,
   type ExtensionSource,
   type Sha256Integrity,
+  type ExtensionManagementRequest,
 } from "@wrapt/extension-contracts";
 import type { LocalExtensionCatalog } from "./catalog.js";
 import type { ExtensionDatabase } from "./database.js";
 import { runtimeCanActivate as baseRuntimeCanActivate } from "./manager-operations.js";
 import type { ExtensionReleaseStore } from "./release-store.js";
 import type { ExtensionRuntimeHost, ExtensionRuntimePointer } from "./runtime-host.js";
+import type { ExecutableExtensionRuntime } from "./executable-runtime.js";
 
 interface RuntimeCoordinatorOptions {
   database: ExtensionDatabase;
@@ -20,6 +22,7 @@ interface RuntimeCoordinatorOptions {
 
 /** Kapselt Runtime-Pointer, Release-Handshake und Catalog-Staging. */
 export class ExtensionRuntimeCoordinator {
+  private executable: ExecutableExtensionRuntime | undefined;
   private readonly database: ExtensionDatabase;
   private readonly getCatalog: () => LocalExtensionCatalog | undefined;
   private readonly releaseStore: ExtensionReleaseStore | undefined;
@@ -32,9 +35,21 @@ export class ExtensionRuntimeCoordinator {
     this.runtimeHost = options.runtimeHost;
   }
 
+  attachExecutableRuntime(runtime: ExecutableExtensionRuntime): void { this.executable = runtime; }
+
+  async prepare(request: ExtensionManagementRequest, current: ExtensionRegistryDetail | null): Promise<void> {
+    if (this.executable?.handles(request.extensionId)) await this.executable.prepare(request, current);
+  }
+
+  complete(extensionId: string): void { this.executable?.complete(extensionId); }
+
   canActivateSource(source: ExtensionSource, manifest: ExtensionManifestV1): boolean {
     const packagedSource = source.kind === "catalog" || source.kind === "local-package" || source.kind === "developer";
     const packageIntegrity = packagedSource ? source.packageIntegrity : undefined;
+    if (this.executable?.handles(manifest.id)) {
+      return source.kind === "developer" && this.executable.canActivate(manifest, packageIntegrity);
+    }
+    if (packagedSource && packageIntegrity !== undefined && manifest.entrypoints.server !== undefined) return false;
     const packagedUi = packageIntegrity !== undefined && manifest.entrypoints.ui !== undefined;
     if (packagedUi && packagedSource) {
       return this.runtimeHost?.canActivate(manifest, packageIntegrity) ?? baseRuntimeCanActivate(source);
@@ -47,6 +62,7 @@ export class ExtensionRuntimeCoordinator {
   }
 
   finalize(detail: ExtensionRegistryDetail, previous: ExtensionRegistryDetail | null): ExtensionRegistryDetail {
+    if (this.executable?.handles(detail.id)) return this.executable.finalize(detail, previous);
     if (this.isHostedRuntime(detail) && detail.runtimeActive) {
       const runtime = this.runtimeHost!.activate(detail);
       return {
@@ -66,6 +82,10 @@ export class ExtensionRuntimeCoordinator {
   }
 
   restorePointer(extensionId: string, pointer: ExtensionRuntimePointer | null): void {
+    this.executable?.rollback(extensionId);
+    // Die Code-Laufzeit kennt den Prozesszustand und restauriert nur lebende
+    // Pointer. Ein vor dem Fehler gelesener Pointer könnte inzwischen tot sein.
+    if (this.executable?.handles(extensionId)) return;
     try {
       this.runtimeHost?.restorePointer(extensionId, pointer);
     } catch {
@@ -74,15 +94,17 @@ export class ExtensionRuntimeCoordinator {
   }
 
   /** Prüft beim Start Pointer, Release-Slot und Health erneut und fällt sonst zurück. */
-  reconcile(): void {
+  reconcile(extensionId?: string): void {
     if (this.runtimeHost === undefined) return;
     for (const detail of this.database.listExtensions()) {
+      if (extensionId !== undefined && detail.id !== extensionId) continue;
       const pointer = this.runtimeHost.readPointer(detail.id);
       if (!detail.runtimeActive) {
         if (pointer !== null) this.runtimeHost.deactivate(detail.id);
         continue;
       }
-      if (this.isHostedRuntime(detail) && pointer !== null && this.runtimeHost.matches(detail)) continue;
+      if (this.executable?.handles(detail.id) && this.executable.matches(detail)) continue;
+      if (!this.executable?.handles(detail.id) && this.isHostedRuntime(detail) && pointer !== null && this.runtimeHost.matches(detail)) continue;
       this.runtimeHost.deactivate(detail.id);
       const recovered = {
         ...detail,

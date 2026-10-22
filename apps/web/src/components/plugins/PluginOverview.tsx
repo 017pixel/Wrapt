@@ -14,11 +14,12 @@ import { openGlobalContextMenu } from "../context-menu/contextMenuEvents";
 import { hostContextMenuId } from "../../extensions/hostContextMenus";
 import { useNavigationRegistry } from "../../extensions/useNavigationRegistry";
 
-export type PluginTabId = "allgemein" | "eigene" | "store" | "installiert";
+export type PluginTabId = "allgemein" | "eigene" | "code" | "store" | "installiert";
 
 export const pluginTabs: { id: PluginTabId; label: string }[] = [
   { id: "allgemein", label: "Allgemein" },
   { id: "eigene", label: "Eigene Plugins" },
+  { id: "code", label: "Code-Plugins" },
   { id: "store", label: "Installieren" },
   { id: "installiert", label: "Installierte Plugins" },
 ];

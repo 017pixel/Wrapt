@@ -1,3 +1,5 @@
+import { codePluginUi } from "../../extensions/code-ui";
+import { useCodeUiRevision } from "../../extensions/code-surface";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { contextMenuSurfaceSchema, hostContextMenuSurfaceSchema } from "@wrapt/extension-contracts";
@@ -82,6 +84,7 @@ function surfaceEnabled(request: GlobalContextMenuRequest, config: typeof defaul
 }
 
 export function ContextMenuProvider({ children }: { children: ReactNode }) {
+  useCodeUiRevision();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const navigation = useNavigationRegistry();
@@ -177,7 +180,7 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
     if (response) queryClient.setQueryData<ContextMenuConfigResponse>(wraptQueries.contextMenu().queryKey, response);
   }, [availableTools, config, queryClient, usageEntries]);
 
-  const renderedItems = useMemo(() => {
+  const builtinItems = useMemo(() => {
     if (!request) return [];
     const overrides = new Map((request.actions ?? []).map((action) => [action.id, action]));
     if (request.quickActionToolId) {
@@ -214,6 +217,10 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
       }];
     });
   }, [pinQuickAction, registry, request]);
+
+  const renderedItems = codePluginUi.resolve("context-menu", builtinItems.map((item) => ({ id: item.id, surface: "context-menu", title: item.label, action: item.run })))
+    .filter((item) => !item.target || item.target === request?.surface)
+    .map((item): RenderedContextMenuItem => ({ group: "plugin", disabled: false, danger: false, ...builtinItems.find((value) => value.id === item.id), id: item.id, label: item.title, run: () => { void item.action?.(); } }));
 
   const close = useCallback(() => setRequest(null), []);
   return <>

@@ -120,7 +120,7 @@ export type ExtensionPackageDescriptor = z.infer<
 export const catalogEntrySchema = z
   .strictObject({
     providerId: catalogProviderIdSchema,
-    effectiveTrust: z.literal("catalog-first-party"),
+    effectiveTrust: z.enum(["catalog-first-party", "developer"]),
     manifest: extensionManifestV1Schema,
     package: extensionPackageDescriptorSchema,
     screenshots: z

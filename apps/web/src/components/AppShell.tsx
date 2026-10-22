@@ -1,3 +1,4 @@
+import { CodePluginSurface } from "../extensions/code-surface";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
 import { useShallow } from "zustand/react/shallow";
@@ -337,7 +338,7 @@ export function AppShell() {
           </div>
           <div className="topbar-right-actions">
             {!isStandaloneT3 && !isStandaloneOpenCode && location.pathname !== "/terminal" ? <ContextProjectPicker /> : null}
-            <PluginTopbar />
+            <CodePluginSurface surface="topbar" builtins={[{ id: "wrapt.shell.topbar.plugins", surface: "topbar", title: "Plugin-Aktionen", children: <PluginTopbar /> }]} />
             {(isStandaloneT3 || isStandaloneOpenCode || location.pathname === "/code-editor") ? <div id="topbar-tool-actions" className="topbar-tool-actions" aria-label={`${title} Aktionen`} /> : hasStandaloneToolMenu ? <StandaloneRouteActions terminalFocus={terminalFocus} onTerminalFocusChange={setTerminalFocus} /> : null}
           </div>
         </header></ErrorBoundary> : isOrbit ? (showNavigationTrigger ? <button ref={navigationTriggerRef} type="button" className="orbit-app-menu mobile-nav-trigger" onClick={() => setMobileNavigationOpen(true)} aria-label="Navigation öffnen"><MenuIcon className="h-[18px] w-[18px]" /></button> : null) : null}
@@ -346,7 +347,7 @@ export function AppShell() {
           <PersistentOutlet />
         </main>
         <PwaInstallHint />
-        {showsNavigationSidebar ? <ErrorBoundary label="Statusleiste"><StatusBar /></ErrorBoundary> : <ErrorBoundary label="Statusleiste"><CompactSystemStatus /></ErrorBoundary>}
+        <CodePluginSurface surface="statusbar" builtins={[{ id: "wrapt.shell.statusbar", surface: "statusbar", title: "Statusleiste", children: showsNavigationSidebar ? <StatusBar /> : <CompactSystemStatus /> }]} />
       </div>
       {terminalFocus ? <button type="button" className="terminal-focus-exit" onClick={() => setTerminalFocus(false)} aria-label="Vollbild verlassen" title="Vollbild verlassen"><RestoreIcon className="h-4 w-4" /></button> : null}
       <MobileNav open={mobileNavigationOpen && !hasTabletSidebar} onClose={closeMobileNavigation} triggerRef={navigationTriggerRef} />
