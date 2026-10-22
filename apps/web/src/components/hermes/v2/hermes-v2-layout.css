@@ -1,0 +1,162 @@
+/* Aufbau nach der T3-Sidebar: ein Kopf, eine scrollende Liste, Werkzeuge unten. */
+.hermesv2 .hermesv2-sidebar {
+  width: 272px;
+  padding: 0 var(--space-2);
+  gap: 0;
+  overflow: hidden;
+}
+
+.hermesv2-sidebar-brand {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 56px;
+  padding-inline: var(--space-2);
+  font-size: var(--text-md);
+}
+.hermesv2-sidebar-brand > svg {
+  width: 20px;
+  height: 20px;
+}
+.hermesv2-sidebar-brand > span {
+  color: var(--color-muted);
+}
+.hermesv2-sidebar-brand .hermesv2-drawer-close {
+  margin-left: auto;
+}
+.hermesv2 .hermesv2-toolbar {
+  min-height: 56px;
+  padding: var(--space-1) var(--space-4);
+}
+.hermesv2 .hermesv2-toolbar-title {
+  display: block;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-md);
+  font-weight: 500;
+}
+.hermesv2 .hermesv2-drawer-toggle {
+  display: inline-flex;
+}
+.hermesv2-toolbar .icon-button,
+.hermesv2-sidebar-brand .icon-button {
+  min-width: 44px;
+  min-height: 44px;
+  color: var(--color-muted);
+}
+.hermesv2-toolbar .icon-button svg,
+.hermesv2-sidebar-brand .icon-button svg {
+  width: 18px;
+  height: 18px;
+}
+.hermesv2 .hermesv2-toolbar-links {
+  align-items: center;
+  gap: var(--space-1);
+}
+.hermesv2 .hermesv2-classic-link,
+.hermesv2-sidebar-footer .quiet-button {
+  background: transparent;
+  color: var(--color-muted);
+  border-color: transparent;
+  font-size: var(--text-sm);
+}
+.hermesv2 .hermesv2-classic-link:hover,
+.hermesv2-sidebar-footer .quiet-button:hover {
+  color: var(--color-text);
+  background: var(--color-ink-800);
+}
+.hermesv2-sidebar-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex: none;
+  padding-block: var(--space-1);
+  padding-bottom: max(var(--space-1), env(safe-area-inset-bottom));
+}
+.hermesv2-sidebar-footer .quiet-button {
+  min-height: 44px;
+}
+
+/* Die Bereichsauswahl steht als schmale Iconreihe am unteren Rand der
+   Sidebar, mobil am unteren Rand der Fläche. Die Reihe nutzt die volle
+   Breite, damit jedes Ziel mindestens 44 px breit bleibt. */
+.hermesv2 .hermesv2-areanav {
+  flex: none;
+  width: 100%;
+  padding: var(--space-2) 0 0;
+  border: 0;
+  overflow: hidden;
+}
+/* In der Seitenleiste nutzt die Reihe die volle Breite der Spalte, damit
+   jedes der sechs Ziele mindestens 44 px breit bleibt. Sie steht dort ganz
+   unten, deshalb hält sie den sicheren Bereich der Umgebung frei. */
+.hermesv2 .hermesv2-sidebar .hermesv2-areanav {
+  width: auto;
+  align-self: stretch;
+  margin-inline: calc(-1 * var(--space-2));
+  padding-bottom: max(var(--space-2), env(safe-area-inset-bottom));
+}
+.hermesv2 .hermesv2-areanav-list {
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.hermesv2 .hermesv2-areanav-list::-webkit-scrollbar {
+  display: none;
+}
+.hermesv2 .hermesv2-areanav-target {
+  flex: 1 1 0;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+}
+
+.hermesv2 :is(button, a, summary, input, textarea):focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: -2px;
+}
+
+@container hermesv2 (min-width: 641px) {
+  .hermesv2.is-sidebar-collapsed .hermesv2-sidebar {
+    display: none;
+  }
+}
+@container hermesv2 (max-width: 640px) {
+  .hermesv2 .hermesv2-sidebar {
+    width: min(88cqw, 320px);
+    transition: transform var(--duration-base) var(--ease-standard);
+  }
+  /* Die Fläche läuft mit 80 % Dichte. Auf dem Telefon wachsen die Ziele der
+     Composer-Leiste deshalb, damit sie trotz Zoom 44 Pixel Bildschirmhöhe
+     und Breite behalten. */
+  .hermesv2 .hermesv2-composer-area :is(.hermesv2-send, .hermesv2-stop, .hermesv2-attach, .hermesv2-chip) {
+    min-width: 55px;
+    min-height: 55px;
+  }
+  .hermesv2 .hermesv2-toolbar {
+    padding-inline: var(--space-2);
+  }
+  .hermesv2-main > .hermesv2-areanav {
+    padding: var(--space-1) var(--space-2);
+    padding-bottom: max(var(--space-1), env(safe-area-inset-bottom));
+    background: var(--color-ink-900);
+  }
+  .hermesv2-main > .hermesv2-areanav .hermesv2-areanav-target {
+    min-height: 55px;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hermesv2 :is(.icon-button, .hermesv2-rowselect, .hermesv2-areanav-target, .hermesv2-send) {
+    transition: transform var(--duration-fast) var(--ease-standard);
+  }
+  .hermesv2 :is(.icon-button, .hermesv2-rowselect, .hermesv2-areanav-target, .hermesv2-send):active {
+    transform: scale(.97);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hermesv2 .hermesv2-sidebar {
+    transition: none;
+  }
+}

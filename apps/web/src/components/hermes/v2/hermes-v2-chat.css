@@ -1,0 +1,338 @@
+@import "./hermes-v2-messages.css";
+
+/* Hermes V2 Chat: Nachrichten, Composer, Karten und Sitzungsspalte.
+   Ausschließlich Wrapt-Tokens, keine neuen Farbimporte, Reduced Motion hinter Mqueries. */
+
+/* --- Echte Chatfläche ----------------------------------------------------- */
+
+.hermesv2-chat-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Eine begrenzte Metadatenzeile; Originalwerte bleiben im jeweiligen Feld scrollbar. */
+.hermesv2-session-context {
+  flex: none;
+  min-width: 0;
+  margin: 0;
+}
+
+.hermesv2-session-context dl {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.hermesv2-context-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-width: 0;
+  height: 44px;
+  overflow: auto;
+  white-space: pre;
+  scrollbar-width: thin;
+}
+
+.hermesv2-context-field dt {
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  line-height: 1.2;
+}
+
+.hermesv2-context-field dd {
+  flex: none;
+  margin: 0;
+  color: var(--color-text);
+  font: max(16px, var(--text-md))/1.1 var(--font-mono);
+}
+
+.hermesv2-context-field:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: -2px;
+  border-radius: var(--radius);
+}
+
+/* Leerzustand nach T3-Vorbild: eine große Überschrift, darunter eine ruhige
+   Zeile. Die Zeile ist ein Knopf und startet eine Sitzung ohne Projekt. */
+.hermesv2-chat-empty.is-lead {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+  margin: auto;
+}
+
+/* Die Zeile unter der Überschrift bleibt ein Textlink: ruhig, ohne Rahmen,
+   mit derselben Schriftgröße wie die Zeile zuvor und 44 px Touchziel. */
+.hermesv2-chat-empty.is-lead .hermesv2-chat-empty-start {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--color-muted);
+  font-family: inherit;
+  font-size: var(--text-base);
+  font-weight: 400;
+  line-height: 1.5;
+  text-decoration: underline;
+  text-decoration-color: var(--color-line);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.hermesv2-chat-empty.is-lead .hermesv2-chat-empty-start:hover:not(:disabled) {
+  color: var(--color-text);
+  text-decoration-color: currentColor;
+}
+.hermesv2-chat-empty.is-lead .hermesv2-chat-empty-start:disabled {
+  color: var(--color-faint);
+  text-decoration-color: transparent;
+  cursor: default;
+}
+
+.hermesv2-chat-empty h2 {
+  margin: 0;
+  font-size: var(--text-3xl);
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: -.03em;
+  text-wrap: balance;
+}
+
+/* Sitzungsdetails: schmale Disclosure-Zeile ohne Kasten und ohne Rahmen.
+   Der Inhalt (Arbeitsverzeichnis, Modell, Nutzung) bleibt. */
+.hermesv2-chat-details {
+  flex: none;
+  margin-inline: max(var(--space-6), calc((100% - 760px) / 2));
+  color: var(--color-faint);
+  font-size: var(--text-xs);
+}
+.hermesv2-chat-details > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: fit-content;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+}
+.hermesv2-chat-details > summary::before {
+  content: "+";
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+.hermesv2-chat-details[open] > summary::before {
+  content: "−";
+}
+.hermesv2-chat-details summary::-webkit-details-marker {
+  display: none;
+}
+.hermesv2-chat-details[open] {
+  padding-bottom: var(--space-2);
+}
+
+/* Die Sitzungsdetails stehen in der oberen rechten Ecke der Chatfläche: eine
+   schmale, aufklappbare Ecke statt einer Zeile über dem Verlauf. Sie stehen
+   nie über dem Leerzustand - der Leerzustand zeigt keine Sitzung, die Ecke
+   nur mit Sitzung. */
+.hermesv2-chat-corner {
+  flex: none;
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-1) var(--space-4) 0;
+}
+.hermesv2-chat-corner .hermesv2-chat-details {
+  width: fit-content;
+  max-width: min(300px, 100%);
+  margin-inline: 0;
+}
+.hermesv2-chat-corner .hermesv2-chat-details > summary {
+  margin-inline-start: auto;
+}
+.hermesv2-chat-corner .hermesv2-session-context dl {
+  grid-template-columns: minmax(0, 1fr);
+}
+.hermesv2-chat-details-body {
+  display: grid;
+  gap: var(--space-1);
+}
+
+/* Verbindung, ReadOnly, Fehler und Requests */
+
+.hermesv2-connection,
+.hermesv2-readonly,
+.hermesv2-action-error,
+.hermesv2-unknown {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  margin: var(--space-2) var(--space-4) 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-850);
+  font-size: var(--text-sm);
+}
+
+.hermesv2-connection[data-state="reconnecting"],
+.hermesv2-connection[data-state="connecting"] {
+  border-color: var(--color-warn);
+  background: var(--color-warn-soft);
+}
+.hermesv2-connection[data-state="incompatible"],
+.hermesv2-readonly,
+.hermesv2-unknown {
+  border-color: var(--color-warn);
+  background: var(--color-warn-soft);
+}
+.hermesv2-action-error {
+  border-color: var(--color-bad);
+  background: var(--color-bad-soft);
+}
+
+.hermesv2-connection button,
+.hermesv2-action-error button,
+.hermesv2-unknown button {
+  min-height: 44px;
+}
+
+.hermesv2-connection p,
+.hermesv2-readonly,
+.hermesv2-action-error p,
+.hermesv2-unknown p {
+  margin: 0;
+}
+
+.hermesv2-unknown-detail {
+  color: var(--color-muted);
+}
+
+/* Composer */
+
+.hermesv2-composer {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  padding-bottom: max(var(--space-2), env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-line);
+  background: var(--color-ink-900);
+}
+
+.hermesv2-composer-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 44px;
+  resize: none;
+  max-height: 220px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-950);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: max(16px, var(--text-md));
+  line-height: 1.5;
+}
+
+.hermesv2-composer-input:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: 1px;
+}
+.hermesv2-composer-input::placeholder {
+  color: var(--color-faint);
+}
+
+.hermesv2-usage,
+.hermesv2-catalog-error {
+  flex: none;
+  font-size: var(--text-2xs);
+  color: var(--color-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Die Nutzungszeile liegt in den Sitzungsdetails und richtet sich danach. */
+.hermesv2-usage {
+  margin: 0 0 var(--space-1);
+}
+
+.hermesv2-catalog-error {
+  margin: 0 var(--space-4) var(--space-1);
+  color: var(--color-warn);
+}
+
+/* Toolbar-Links und Dialog */
+
+.hermesv2-toolbar-links {
+  display: flex;
+  margin-left: auto;
+  gap: var(--space-2);
+}
+
+.hermesv2-new-session-form {
+  display: grid;
+  gap: var(--space-6);
+  padding: var(--space-6);
+}
+.hermesv2-field {
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+.hermesv2-select {
+  min-height: 44px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-950);
+  color: var(--color-text);
+  font-size: max(16px, var(--text-sm));
+}
+.hermesv2-form-error {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-bad);
+}
+.hermesv2-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+.hermesv2-form-actions button {
+  min-height: 44px;
+}
+
+/* Mobil: Composer und Aktionen bleiben voll bedienbar, Karten passen sich an.
+   Touch-Ziele bleiben auch bei sekundären Bedienelementen 44 × 44 px. */
+@container (max-width: 640px) {
+  .hermesv2-connection,
+  .hermesv2-readonly,
+  .hermesv2-action-error,
+  .hermesv2-unknown {
+    margin: var(--space-2) var(--space-3) 0;
+  }
+
+  .hermesv2-chat-corner {
+    padding-inline: var(--space-3);
+  }
+
+  .hermesv2-session-search,
+  .hermesv2-select,
+  .hermesv2-session-reload {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

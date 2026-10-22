@@ -89,6 +89,79 @@ else
 fi
 "$python_path" "$repo_root/scripts/hermes-config.py" theme "$home_directory/config.yaml" wrapt
 
+# Ein fester Katalog hält auch den ersten Picker-Aufruf ohne warmen Hermes-Cache vollständig.
+# Nur diesen Block separat ausführen, wenn keine Installation/kein Dienststart gewünscht ist.
+"$python_path" - "$home_directory/config.yaml" <<'HERMES_WRAPt_CATALOG'
+import os
+import sys
+from pathlib import Path
+from ruamel.yaml import YAML
+from ruamel.yaml.scalarstring import DoubleQuotedScalarString
+
+path = Path(sys.argv[1])
+yaml = YAML()
+yaml.preserve_quotes = True
+with path.open(encoding="utf-8") as handle:
+    data = yaml.load(handle)
+if not isinstance(data, dict):
+    raise SystemExit("Die Hermes-Konfiguration ist kein YAML-Objekt.")
+approvals = data.setdefault("approvals", {})
+custom = data.setdefault("custom_providers", [])
+providers = data.setdefault("providers", {})
+if not isinstance(approvals, dict) or not isinstance(custom, list) or not isinstance(providers, dict):
+    raise SystemExit("Ungültiger approvals-/Provider-Abschnitt.")
+# YAML 1.1 interpretiert ein unzitiertes off als Boolean; deshalb ausdrücklich zitieren.
+approvals["mode"] = DoubleQuotedScalarString("off")
+# cron_mode und alle übrigen Freigaberegeln bleiben erhalten.
+models = (
+    'deepseek-v4.1-flash deepseek-v4-pro glm-5.1 '
+    'glm-5.2 glm-5.3 grok-4.6 '
+    'grok-4.7 muse-spark-1.2-contributor muse-spark-1.3-contributor '
+    'glm-5.3-flash omen-alpha gpt-5.6-luna '
+    'gpt-6-luna claude-haiku-5-5 hy3 '
+    'hy4-preview kimi-k2.6 kimi-k2.7-code '
+    'kimi-k3 mimo-v2.5 mimo-v2.6-flash '
+    'mimo-v2.5-pro mimo-v2.6-pro minimax-m2.5 '
+    'minimax-m2.7 gemini-4-argon-contributor minimax-m3 '
+    'minimax-m3.1-flash-free longcat-2.0 longcat-2.5-preview-free '
+    'step-5-preview beam-free qwen3.6-plus '
+    'qwen3.7-max qwen3.8-max qwen3.8-flash '
+    'qwen3.7-plus '
+).split()
+entry = next((item for item in custom if isinstance(item, dict) and item.get("name") == "opencode-go"), None)
+if entry is None:
+    entry = {"name": "opencode-go"}
+    custom.append(entry)
+entry.update({"base_url": "https://opencode.ai/zen/go/v1", "api_mode": "anthropic_messages",
+              "key_env": "OPENCODE_GO_API_KEY"})
+entry.pop("api_key", None)
+entry.setdefault("model", "minimax-m3.1-flash-free")
+native = providers.setdefault("opencode-go", {})
+if not isinstance(native, dict):
+    raise SystemExit("providers.opencode-go muss ein YAML-Objekt sein.")
+# Aktuelle Hermes-Versionen verwerfen eigene Provider mit der URL eines eingebauten Providers.
+# Dessen deklarierter Katalog muss deshalb dieselbe Liste enthalten.
+for target in (entry, native):
+    existing = target.get("models", {})
+    if isinstance(existing, list):
+        existing = {item: {} for item in existing if isinstance(item, str)}
+    if not isinstance(existing, dict):
+        raise SystemExit("Der opencode-go-Modellkatalog ist ungültig.")
+    for model in models:
+        existing.setdefault(model, {})
+    target["models"] = existing
+
+temporary = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+try:
+    with temporary.open("x", encoding="utf-8") as handle:
+        os.chmod(temporary, 0o600)
+        yaml.dump(data, handle)
+    os.replace(temporary, path)
+finally:
+    temporary.unlink(missing_ok=True)
+print(f"Hermes: Freigabemodus off, {len(models)} OpenCode-Go-Modelle hinterlegt; cron_mode unverändert.")
+HERMES_WRAPt_CATALOG
+
 node "$repo_root/deploy/systemd/render-units.mjs"
 units=(hermes-dashboard.service hermes-update.service hermes-update.timer hermes-update-retry.timer)
 installed=()

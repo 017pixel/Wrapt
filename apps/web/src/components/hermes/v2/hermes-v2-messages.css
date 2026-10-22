@@ -1,0 +1,208 @@
+@import "./hermes-v2-tools.css";
+@import "./hermes-v2-markdown.css";
+
+/* Nachrichten, Markdown, Reasoning und Werkzeugausgaben des nativen Chats. */
+
+/* Nachrichtenliste */
+
+.hermesv2-messages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  /* Der Verlauf erhält den Restplatz; sein Inhalt verdrängt keine Eingabeanfragen. */
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--space-6) max(var(--space-6), calc((100% - 760px) / 2));
+  scroll-behavior: auto;
+  scrollbar-width: none;
+}
+
+.hermesv2-messages::-webkit-scrollbar {
+  display: none;
+}
+
+/* Unter Höhendruck reserviert leerer Verlauf keine zwei Paddingzeilen. */
+@container hermesv2 (max-height: 640px) {
+  .hermesv2-messages {
+    padding-block: 0;
+  }
+}
+
+.hermesv2-log-empty {
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-xs);
+  color: var(--color-faint);
+}
+
+/* Ältere Nachrichten laden als schlichter Textlink über dem Verlauf. */
+.hermesv2-history-link {
+  align-self: center;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  padding: 0 var(--space-2);
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.hermesv2-history-link:hover:not(:disabled) {
+  color: var(--color-text);
+}
+.hermesv2-history-link:disabled {
+  color: var(--color-faint);
+  cursor: progress;
+  text-decoration: none;
+}
+
+/* Kleiner Lesemarker am Ende vollständiger Antwort-/Fehler-/Notice-Zeilen;
+   der Read-Observer beobachtet ihn statt der ganzen langen Row. */
+.hermesv2-read-end {
+  position: absolute;
+  inset-block-end: 0;
+  inset-inline-start: var(--space-3);
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.hermesv2-row {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  max-width: 100%;
+  width: 100%;
+  padding: 0;
+  border-radius: var(--radius);
+  border: 0;
+  background: transparent;
+  min-width: 0;
+}
+
+.hermesv2-row.is-user {
+  align-self: flex-end;
+  width: fit-content;
+  max-width: 85%;
+  padding: 0;
+  background: transparent;
+}
+
+/* Die Sprechblase umschliesst nur den Text; die Meta-Zeile steht darunter,
+   damit die Blase ruhig bleibt und wie bei T3 Code nur den Inhalt traegt.
+   Eigene Nachrichten sitzen eckig rechts. */
+.hermesv2-row.is-user .hermesv2-row-text {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  background: var(--color-ink-800);
+}
+.hermesv2-row.is-system,
+.hermesv2-row.is-tool {
+  background: transparent;
+  border-style: dashed;
+}
+.hermesv2-row.is-error {
+  padding: var(--space-3);
+  border: 1px solid var(--color-bad);
+}
+/* Die Rollenbezeichnung lebt in der Meta-Zeile unter der Nachricht. */
+.hermesv2-row-role {
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+/* Ruhige Meta-Zeile unter der Nachricht: Zeit, Status und Kopieren.
+   Wie bei T3 Code steht unter dem Text eine schmale Zeile statt einer
+   beschrifteten Kopfzeile über dem Text. */
+.hermesv2-row-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  min-height: 32px;
+  margin-block-start: var(--space-1);
+  color: var(--color-faint);
+  font-size: var(--text-2xs);
+}
+.hermesv2-row-meta .hermesv2-copy {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+.hermesv2-row:hover .hermesv2-row-meta .hermesv2-copy,
+.hermesv2-row-meta .hermesv2-copy:focus-visible {
+  opacity: 1;
+}
+/* Ohne Zeigegerät gibt es keinen Hover: das Kopieren bleibt sichtbar. */
+@media (hover: none) {
+  .hermesv2-row-meta .hermesv2-copy {
+    opacity: 1;
+  }
+}
+
+.hermesv2-row-role {
+  color: var(--color-muted);
+  font-weight: 600;
+}
+.hermesv2-row-status.is-bad {
+  color: var(--color-bad);
+}
+.hermesv2-row-time {
+  font-variant-numeric: tabular-nums;
+}
+
+.hermesv2-row-text {
+  margin: 0;
+  font-size: var(--text-lg);
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.hermesv2-row[data-status="streaming"] .hermesv2-cursor {
+  display: inline-block;
+  width: 1px;
+  height: 1em;
+  background: var(--color-accent);
+  animation: hermesv2-blink 1s steps(1) infinite;
+}
+
+@keyframes hermesv2-blink {
+  50% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hermesv2-row[data-status="streaming"] .hermesv2-cursor {
+    animation: none;
+  }
+}
+
+
+
+.hermesv2-copy {
+  width: auto;
+  min-width: 44px;
+  min-height: 44px;
+  margin-left: auto;
+  padding-inline: var(--space-2);
+  font-size: var(--text-2xs);
+  color: var(--color-faint);
+}
+.hermesv2-copy:hover {
+  color: var(--color-text);
+}
+.hermesv2-copy svg {
+  width: 16px;
+  height: 16px;
+}
+
+@container (max-width: 640px) {
+  .hermesv2-row {
+    max-width: 100%;
+  }
+}

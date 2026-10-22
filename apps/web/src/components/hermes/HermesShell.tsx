@@ -1,56 +1,32 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
-import type { Panel } from "@wrapt/contracts";
-import { HermesAdminFrame, safeHermesPath } from "./HermesAdminFrame";
-import { useLayoutStore } from "../../stores/layout";
+import { useAppPreferences } from "../../stores/appPreferences";
 import { useRouteActivity } from "../../lib/routeActivity";
+import { HermesClassicShell, type HermesShellProps } from "./HermesClassicShell";
 
-/** Die offizielle Hermes-Chatroute bleibt der Einstiegspunkt der SPA. */
-export const DEFAULT_HERMES_PATH = "/chat";
+export { DEFAULT_HERMES_PATH, hermesSessionPath, type HermesShellProps } from "./HermesClassicShell";
 
-export interface HermesShellProps {
-  variant: "route" | "panel" | "orbit";
-  minimal?: boolean;
-  panel?: Panel;
-  active?: boolean;
-}
+const HermesV2Shell = lazy(() => import("./v2/HermesV2Shell").then((module) => ({ default: module.HermesV2Shell })));
 
-export function hermesSessionPath(sessionId: string): string {
-  return `/chat?resume=${encodeURIComponent(sessionId)}`;
-}
-
-/** Die einzige sichtbare Hermes-Fläche der Workbench ist die offizielle SPA. */
-export function HermesShell({ variant, minimal = false, panel, active }: HermesShellProps) {
-  const [searchParams] = useSearchParams();
+/** Route, Panel und Orbit wählen dieselbe Oberfläche; Verwaltungslinks bleiben klassisch. */
+export function HermesShell(props: HermesShellProps) {
+  const enabled = useAppPreferences((state) => state.hermesV2Enabled);
+  const [params] = useSearchParams();
   const routeActive = useRouteActivity();
-  const frameActive = active ?? routeActive;
-  const panelId = panel?.id;
-  const updateHermesPanel = useLayoutStore((state) => state.updateHermesPanel);
-
-  const urlSessionId = searchParams.get("session");
-  const urlAdminPath = searchParams.get("path");
-  const explicitUrlPath = urlAdminPath ?? (urlSessionId ? hermesSessionPath(urlSessionId) : null);
-  const requestedAdminPath = safeHermesPath(explicitUrlPath ?? panel?.hermesAdminPath ?? DEFAULT_HERMES_PATH);
-  const [adminPath, setAdminPath] = useState(requestedAdminPath);
-  // Eine geparkte Route sieht weiterhin die URL der gerade aktiven Seite. Sie
-  // darf deshalb ihren gemerkten Hermes-Pfad nicht auf `/chat` zurücksetzen.
+  const active = props.active ?? routeActive;
+  const requestedClassic = params.get("ui") === "classic" || params.has("path");
+  const [lastClassicSelection, setLastClassicSelection] = useState(requestedClassic);
   useEffect(() => {
-    if (!frameActive || explicitUrlPath === null) return;
-    setAdminPath(safeHermesPath(explicitUrlPath));
-  }, [explicitUrlPath, frameActive]);
-  const setAdminPathValue = useCallback((value: string) => {
-    const next = safeHermesPath(value);
-    setAdminPath(next);
-    if (panelId) updateHermesPanel(panelId, { hermesAdminPath: next });
-  }, [panelId, updateHermesPanel]);
-
+    if (active) setLastClassicSelection(requestedClassic);
+  }, [active, requestedClassic]);
+  const panelPath = props.panel?.hermesAdminPath;
+  const panelAdmin = panelPath && panelPath !== "/chat" && !panelPath.startsWith("/chat?");
+  // Geparkte Routen sehen die URL der nächsten Seite und behalten ihre eigene UI-Auswahl.
+  const classic = (active ? requestedClassic : lastClassicSelection) || panelAdmin;
+  if (!enabled || classic) return <HermesClassicShell {...props} />;
   return (
-    <section
-      className={`hermes-shell hermes-variant-${variant} ${minimal ? "is-minimal" : ""}`}
-      data-surface="admin"
-      data-hermes-ui="official"
-    >
-      <HermesAdminFrame path={adminPath} active={frameActive} onPathChange={setAdminPathValue} />
-    </section>
+    <Suspense fallback={<div className="route-skeleton" aria-label="Hermes V2 wird geladen"><span /><span /></div>}>
+      <HermesV2Shell {...props} />
+    </Suspense>
   );
 }

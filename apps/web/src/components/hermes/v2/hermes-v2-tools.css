@@ -1,0 +1,244 @@
+/* Reasoning und Werkzeuggruppen */
+
+.hermesv2-reasoning {
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  min-width: 0;
+}
+
+.hermesv2-reasoning summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  min-width: 44px;
+  padding: var(--space-1) var(--space-2);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  list-style: none;
+}
+
+.hermesv2-reasoning summary::-webkit-details-marker {
+  display: none;
+}
+.hermesv2-reasoning summary::before {
+  content: "›";
+  font-size: var(--text-xl);
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+.hermesv2-reasoning[open] > summary::before {
+  transform: rotate(90deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hermesv2-reasoning summary::before {
+    transition: none;
+  }
+}
+
+.hermesv2-reasoning-body {
+  max-height: min(40cqh, 20rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-800);
+}
+.hermesv2-reasoning-body p {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* Werkzeuggruppe: einklappbarer Block über aufeinanderfolgenden Aufrufen. */
+
+.hermesv2-tool-group {
+  border: 0;
+  border-bottom: 1px solid var(--color-line);
+  background: transparent;
+  min-width: 0;
+}
+
+/* Ein einzelner Aufruf steht ohne Gruppenkopf direkt in der Liste. */
+.hermesv2-tool-group.is-single {
+  border-bottom: 0;
+}
+
+.hermesv2-tool-group summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 var(--space-2);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  list-style: none;
+}
+
+.hermesv2-tool-group summary::-webkit-details-marker {
+  display: none;
+}
+
+.hermesv2-tool-group-title {
+  color: var(--color-muted);
+}
+
+.hermesv2-tool-group-body {
+  display: flex;
+  flex-direction: column;
+  padding-block-end: var(--space-1);
+}
+
+/* Eine Zeile je Werkzeugaufruf. */
+
+.hermesv2-tool {
+  border: 0;
+  background: transparent;
+  min-width: 0;
+}
+
+.hermesv2-tool summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 var(--space-2);
+  cursor: pointer;
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  list-style: none;
+}
+
+.hermesv2-tool summary::-webkit-details-marker {
+  display: none;
+}
+
+.hermesv2-tool-marker {
+  flex: none;
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+}
+
+.hermesv2-tool-name {
+  flex: none;
+  max-width: 45%;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hermesv2-tool-summary {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--color-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hermesv2-tool-state {
+  flex: none;
+  color: var(--color-faint);
+  font-size: var(--text-2xs);
+}
+.hermesv2-tool[data-state="running"] .hermesv2-tool-state {
+  color: var(--color-accent);
+}
+.hermesv2-tool[data-outcome="error"] .hermesv2-tool-state {
+  color: var(--color-bad);
+}
+.hermesv2-tool[data-outcome="success"] .hermesv2-tool-state {
+  color: var(--color-ok);
+}
+
+.hermesv2-tool-caret {
+  flex: none;
+  color: var(--color-faint);
+  transition: transform var(--duration-fast) var(--ease-standard);
+}
+.hermesv2-tool[open] > summary .hermesv2-tool-caret,
+.hermesv2-tool-group[open] > summary .hermesv2-tool-caret {
+  transform: rotate(90deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hermesv2-tool-caret {
+    transition: none;
+  }
+}
+
+.hermesv2-tool-time {
+  flex: none;
+  color: var(--color-faint);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.hermesv2-tool-body {
+  display: grid;
+  gap: var(--space-4);
+  margin: var(--space-1) var(--space-2) var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-900);
+  max-height: min(40cqh, 28rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.hermesv2-tool-body:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: -2px;
+  border-radius: var(--radius);
+}
+.hermesv2-tool-note {
+  margin: 0;
+  font-size: var(--text-2xs);
+  color: var(--color-warn);
+}
+
+.hermesv2-reasoning-body:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: -2px;
+}
+
+
+/* Ein ruhiger Ausgabebereich; Befehl und Ergebnis bleiben klar getrennt. */
+.hermesv2-tool-section {
+  min-width: 0;
+}
+.hermesv2-tool-section > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 44px;
+}
+.hermesv2-tool-section h4 {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 500;
+  color: var(--color-muted);
+}
+.hermesv2-tool-section .hermesv2-copy {
+  min-width: calc(44px / var(--hermesv2-ui-scale, 1));
+  min-height: calc(44px / var(--hermesv2-ui-scale, 1));
+}
+.hermesv2-tool-section .hermesv2-plain {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

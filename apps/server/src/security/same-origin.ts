@@ -16,6 +16,24 @@ export function isSameOriginRequest(request: FastifyRequest): boolean {
   }
 }
 
+export function isSameOriginReadRequest(request: FastifyRequest): boolean {
+  const fetchSite = firstHeader(request.headers["sec-fetch-site"]);
+  if (fetchSite !== undefined && fetchSite !== "same-origin") return false;
+  // Ein vorhandener Origin muss auch bei same-origin-Metadaten übereinstimmen.
+  if (request.headers.origin !== undefined) return isSameOriginRequest(request);
+
+  const rawHost = firstHeader(request.headers["x-forwarded-host"]) ?? request.headers.host;
+  const rawProtocol = firstHeader(request.headers["x-forwarded-proto"]) ?? request.protocol;
+  if (!rawHost || (rawProtocol !== "http" && rawProtocol !== "https")) return false;
+  try {
+    new URL(`${rawProtocol}://${rawHost}`);
+    // Browser-GETs senden oft nur Fetch-Metadata, CLI-Aufrufe keinen der Header.
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function isWebSocketOriginAllowed(request: FastifyRequest): boolean {
   return firstHeader(request.headers.origin) !== undefined && isSameOriginRequest(request);
 }

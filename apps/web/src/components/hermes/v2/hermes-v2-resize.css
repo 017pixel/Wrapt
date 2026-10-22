@@ -1,0 +1,38 @@
+.hermesv2 .hermesv2-sidebar {
+  width: clamp(264px, var(--hermesv2-sidebar-width, 272px), 55cqw);
+}
+.hermesv2-sidebar-resize {
+  position: relative;
+  z-index: 3;
+  flex: none;
+  width: 8px;
+  margin-inline: -4px;
+  cursor: col-resize;
+  touch-action: none;
+}
+.hermesv2-sidebar-resize::after {
+  content: "";
+  position: absolute;
+  inset: var(--space-2) 3px;
+  border-radius: var(--radius);
+  background: var(--color-accent);
+  opacity: 0;
+  transition: opacity var(--duration-fast) var(--ease-standard);
+}
+.hermesv2-sidebar-resize:is(:hover, :focus-visible)::after,
+.hermesv2.is-sidebar-resizing .hermesv2-sidebar-resize::after {
+  opacity: 1;
+}
+.hermesv2.is-sidebar-resizing .hermesv2-sidebar {
+  transition: none;
+}
+@container hermesv2 (max-width: 640px) {
+  .hermesv2 .hermesv2-sidebar {
+    width: min(88cqw, 320px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hermesv2-sidebar-resize::after {
+    transition: none;
+  }
+}

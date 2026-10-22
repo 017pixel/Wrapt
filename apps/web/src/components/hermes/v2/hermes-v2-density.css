@@ -1,0 +1,15 @@
+/* Einheitliche Dichte für die gesamte Hermes-Fläche und ihre Portale. */
+:root {
+  --hermesv2-ui-scale: .8;
+}
+
+.hermesv2 {
+  zoom: var(--hermesv2-ui-scale);
+}
+
+body > .hermesv2-rowmenu-list,
+body > .hermesv2-row-preview,
+body > .hermesv2-effort-pop,
+.modal-backdrop:has([class*="hermesv2-"]) {
+  zoom: var(--hermesv2-ui-scale);
+}

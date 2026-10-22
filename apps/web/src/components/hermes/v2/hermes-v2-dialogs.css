@@ -1,0 +1,365 @@
+/* Dialoge des Composergebiets: Hilfekatalog, Modelpicker, Projektpicker.
+   Ausschließlich Wrapt-Tokens, keine neuen Farben. */
+
+/* Hilfekatalog im ContentDialog */
+.hermesv2-help-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+.hermesv2-help-list code {
+  font-family: var(--font-mono);
+  color: var(--color-accent);
+}
+.hermesv2-help-detail {
+  display: block;
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+}
+
+/* --- Neue Sitzung: Kontext-Chip im Dialogkopf ---------------------------- */
+.hermesv2-newsession {
+  position: relative;
+  /* Platz für den Chip neben dem Schließen-Knopf. */
+  --hermesv2-chip-space: 220px;
+}
+.hermesv2-newsession > header {
+  min-height: 76px;
+  align-items: center;
+}
+.hermesv2-newsession > header > div {
+  margin-right: calc(var(--hermesv2-chip-space) + var(--space-2));
+}
+
+/* --- Projektpicker -------------------------------------------------------- */
+.hermesv2-projectpicker {
+  /* Kein eigener Kasten: Chip und Menü gehören direkt in den Dialogkopf
+     beziehungsweise in den Dialogkörper. */
+  display: contents;
+  /* Abstand zum Blattrand, Breite des Schließen-Knopfes, Griff des mobilen Sheets. */
+  --hermesv2-dialog-gap: var(--space-4);
+  --hermesv2-close-space: 44px;
+  --hermesv2-sheet-handle: 16px;
+}
+.hermesv2-projectpicker-trigger {
+  position: absolute;
+  top: var(--hermesv2-dialog-gap);
+  right: calc(
+    var(--hermesv2-dialog-gap) + var(--hermesv2-close-space) + var(--space-3)
+  );
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: min(var(--hermesv2-chip-space), 46vw);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-800);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  /* Nur transform und opacity werden animiert; der Farbwechsel bleibt schlagartig. */
+  transition: opacity var(--duration-base) var(--ease-standard);
+}
+.hermesv2-projectpicker-trigger:hover,
+.hermesv2-projectpicker-trigger[aria-expanded="true"] {
+  background: var(--color-ink-700);
+}
+.hermesv2-projectpicker-icon,
+.hermesv2-projectpicker-chevron {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+.hermesv2-projectpicker-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hermesv2-projectpicker-chevron {
+  margin-left: auto;
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+.hermesv2-projectpicker-chevron.is-open {
+  transform: rotate(180deg);
+}
+.hermesv2-projectpicker-menu {
+  display: flex;
+  flex-direction: column;
+  /* Das Menü hängt optisch am Chip und lässt dem Schließen-Knopf Platz. */
+  margin-left: auto;
+  margin-right: calc(var(--hermesv2-close-space) + var(--space-3));
+  width: min(320px, 100%);
+  max-height: min(320px, 46dvh);
+  overflow: hidden;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-850);
+}
+.hermesv2-projectpicker-search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--color-line-soft);
+  color: var(--color-muted);
+}
+.hermesv2-projectpicker-search svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+.hermesv2-projectpicker-search input {
+  min-width: 0;
+  flex: 1 1 auto;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--color-text);
+  font-size: max(16px, var(--text-sm));
+}
+.hermesv2-projectpicker-list {
+  display: grid;
+  gap: 2px;
+  overflow-y: auto;
+  padding: var(--space-1);
+}
+.hermesv2-projectpicker-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.hermesv2-projectpicker-option:hover {
+  background: var(--color-ink-700);
+}
+.hermesv2-projectpicker-option.is-selected {
+  font-weight: 500;
+}
+.hermesv2-projectpicker-option svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+.hermesv2-projectpicker-option-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hermesv2-projectpicker-empty {
+  margin: 0;
+  padding: var(--space-2);
+  color: var(--color-faint);
+  font-size: var(--text-xs);
+}
+
+/* --- Modelpicker: ruhige Kopfzeile, getrennte Anbietergruppen -------------- */
+.hermesv2-modelliste {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+.hermesv2-model-groups {
+  display: grid;
+  gap: var(--space-2);
+  max-height: min(48vh, 420px);
+  overflow-y: auto;
+}
+.hermesv2-model-provider {
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--color-line-soft);
+}
+.hermesv2-model-provider:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.hermesv2-model-provider-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  font-weight: 600;
+}
+.hermesv2-model-provider-head svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+.hermesv2-model-provider-count {
+  margin-left: auto;
+  color: var(--color-faint);
+  font-weight: 400;
+}
+.hermesv2-model-provider-note {
+  margin: 0;
+  color: var(--color-faint);
+  font-size: var(--text-xs);
+}
+.hermesv2-model-list {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.hermesv2-model-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.hermesv2-model-row {
+  flex: 1 1 auto;
+  min-width: 0;
+  justify-content: space-between;
+  min-height: 44px;
+  /* Zeilen statt Karten: kein Rahmen, nur die Fläche beim Darüberfahren. */
+  border-color: transparent;
+  background: transparent;
+  font-size: var(--text-sm);
+  text-align: left;
+}
+.hermesv2-model-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hermesv2-model-tag {
+  color: var(--color-faint);
+  font-size: var(--text-2xs);
+}
+.hermesv2-model-favorite {
+  flex: none;
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  color: var(--color-faint);
+}
+.hermesv2-model-favorite:hover {
+  color: var(--color-text);
+}
+.hermesv2-model-favorite[aria-pressed="true"] {
+  color: var(--color-text);
+}
+.hermesv2-model-favorite svg {
+  width: 16px;
+  height: 16px;
+}
+.hermesv2-model-search {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  outline: 0;
+  background: var(--color-ink-950);
+  color: var(--color-text);
+  font-size: max(16px, var(--text-sm));
+}
+.hermesv2-model-current,
+.hermesv2-model-status,
+.hermesv2-model-more,
+.hermesv2-model-empty,
+.hermesv2-model-classic {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+}
+.hermesv2-model-current {
+  font-family: var(--font-mono);
+}
+.hermesv2-model-classic a {
+  color: var(--color-muted);
+}
+.hermesv2-model-confirm {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--color-warn);
+  border-radius: var(--radius);
+  background: var(--color-warn-soft);
+}
+.hermesv2-model-confirm p {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+.hermesv2-catalog-reload {
+  min-height: 24px;
+  min-width: 44px;
+  padding: 0 var(--space-2);
+  margin-left: var(--space-2);
+  font-size: var(--text-2xs);
+  color: var(--color-warn);
+}
+.hermesv2-title-status {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+/* --- Schmale Stände -------------------------------------------------------- */
+@media (max-width: 560px) {
+  .hermesv2-newsession > header > div {
+    margin-right: calc(42vw + var(--space-2));
+  }
+  .hermesv2-projectpicker-trigger {
+    /* Der Griff des mobilen Bottom-Sheets schiebt die Kopfzeile nach unten. */
+    top: calc(var(--hermesv2-dialog-gap) + var(--hermesv2-sheet-handle));
+    max-width: 42vw;
+  }
+  .hermesv2-projectpicker-menu {
+    margin-right: 0;
+    width: 100%;
+  }
+}
+@container (max-width: 640px) {
+  .hermesv2-catalog-reload {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hermesv2-projectpicker-trigger,
+  .hermesv2-projectpicker-chevron {
+    transition: none;
+  }
+}
+
+/* Luftige Titelbearbeitung mit einem vollwertigen Eingabefeld. */
+.hermesv2-title-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 56px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-950);
+  color: var(--color-text);
+  font-size: 1rem;
+}
+.hermesv2-title-input:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: -2px;
+}

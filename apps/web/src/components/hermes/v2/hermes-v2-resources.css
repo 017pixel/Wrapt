@@ -1,0 +1,275 @@
+/* Hermes-V2-Ressourcen: Bereichsauswahl und geteilte Flächen. Ausschließlich
+   Wrapt-Tokens; Touch-Ziele ab 44 px, Textgrößen 16 px, reduced motion. */
+
+.hermesv2-area {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+}
+
+.hermesv2-areabody {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* --- Bereichsleiste ------------------------------------------------------ */
+
+.hermesv2-areanav {
+  flex: none;
+  padding: var(--space-2);
+  border-right: 1px solid var(--color-line);
+  overflow-y: auto;
+}
+
+.hermesv2-areanav-list {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  gap: 0;
+}
+
+/* Ruhige Iconreihe: keine Rahmen, keine gefüllten Flächen, kein Pill. */
+.hermesv2-areanav-target {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  text-align: left;
+}
+
+.hermesv2-areanav-target:hover {
+  background: var(--color-ink-800);
+  color: var(--color-text);
+}
+
+/* Aktiv: nur die Iconfarbe wechselt auf den Akzent. Die Flächenregel in
+   hermes-v2-resource-layout.css liegt später im Bundle und würde sonst einen
+   blau gefüllten Kasten setzen; die höhere Spezifität hier entscheidet den
+   Fall zugunsten der rahmenlosen Iconreihe. */
+.hermesv2 .hermesv2-areanav .hermesv2-areanav-target[aria-selected="true"] {
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-accent);
+}
+
+.hermesv2-areanav-icon {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+/* Ohne Fußzeile trägt die Iconreihe den Abschluss der Seitenleiste selbst. */
+.hermesv2 .hermesv2-sidebar .hermesv2-areanav {
+  padding-bottom: max(var(--space-2), env(safe-area-inset-bottom));
+}
+
+/* --- Geteilte Flächenmuster ---------------------------------------------- */
+
+.hermesv2-resource {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  overflow-y: auto;
+}
+
+.hermesv2-resource h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.hermesv2-resource-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.hermesv2-resource-head strong {
+  font-size: var(--text-lg);
+}
+
+.hermesv2-resource-note {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--color-muted);
+}
+
+.hermesv2-resource-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.hermesv2-resource-status {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-faint);
+  line-height: 1.5;
+}
+
+.hermesv2-resource-status a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.hermesv2-resource-error {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-bad-soft);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+/* Einzelflächen ohne Kartenwand: Liste links, Detail rechts, eigene
+   Scrollflächen. Mobil stapelt der Detailbereich unter der Liste. */
+.hermesv2-resource-split {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+  gap: var(--space-4);
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.hermesv2-resource-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-height: 0;
+}
+
+.hermesv2-resource-scroll {
+  flex: 1 1 auto;
+  min-height: 96px;
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-900);
+  padding: var(--space-3);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.hermesv2-resource-rows {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-900);
+}
+
+/* Skill-/Pending-/Diagnose-Flächen -------------------------------------- */
+
+.hermesv2-pending,
+.hermesv2-diagnose {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-height: 0;
+}
+
+.hermesv2-pending-item {
+  display: grid;
+  gap: var(--space-2);
+  width: 100%;
+  padding: var(--space-3) 0;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--color-line-soft);
+  color: var(--color-text);
+  font-size: var(--text-base);
+  text-align: left;
+}
+
+.hermesv2-pending-item:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.hermesv2-pending-meta,
+.hermesv2-pending-summary {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.hermesv2-pending-summary {
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Kompakte Stufe: Streifen unter der Toolbar, keine zweite Bottom-Nav. Die
+   Segmente schrumpfen gleichmäßig, es entsteht keine Überbreite. */
+@container (max-width: 640px) {
+  .hermesv2-areanav {
+    width: 100%;
+    padding: var(--space-1);
+    border-right: 0;
+    border-bottom: 1px solid var(--color-line);
+    overflow: hidden;
+  }
+  .hermesv2-area {
+    flex-direction: column;
+  }
+  .hermesv2-resource {
+    padding: var(--space-3);
+  }
+}
+
+@media (min-height: 501px) {
+  .hermesv2-resource-scroll,
+  .hermesv2-resource-rows {
+    max-height: none;
+  }
+}
+
+/* Kurze Viewports (z. B. 390×500): der Streifen bleibt einspurig, die
+   Icons behalten ihre Zinnenhöhe von 44 px. Chat-Inhalte behalten ihre
+   Klickwerte, weil der Streifen nichts überdeckt. */
+@media (max-height: 560px) {
+  .hermesv2-areanav {
+    padding: 0;
+    overflow: hidden;
+  }
+  .hermesv2-areanav-target {
+    gap: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hermesv2-area,
+  .hermesv2-areanav-target {
+    transition: none;
+  }
+}

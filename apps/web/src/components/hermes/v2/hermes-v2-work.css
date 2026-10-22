@@ -1,0 +1,234 @@
+/* Aufgabenansicht (Phase 7): ruhige Zeilen, begrenzte eigene Scrollfläche, Wrapt-Tokens. */
+
+.hermesv2-work {
+  /* Unter Druck weicht die Aufgabenansicht; die 44px-Kopfzeile bleibt sichtbar,
+     die Region schrumpft flexibel und scrollt in eigener Fläche. */
+  flex: 0 1 auto;
+  min-height: calc(44px + 2 * var(--space-1) + 2px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  margin: 0 var(--space-4);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  font-size: var(--text-sm);
+}
+
+/* Geöffnete Region: der Raum ist reserviert, damit flex die Scrollfläche nicht
+   immer auf 0 schrumpft. Kopf plus mindestens eine sichtbare Regionzeile. */
+.hermesv2-work[data-open="true"] {
+  min-height: 98px;
+}
+
+.hermesv2-work-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  flex: none;
+  gap: var(--space-2);
+  min-height: 44px;
+}
+
+.hermesv2-work-head .quiet-button {
+  min-height: 44px;
+  background: transparent;
+  color: var(--color-muted);
+  border-color: transparent;
+}
+
+.hermesv2-work-counts {
+  color: var(--color-faint);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.hermesv2-work-region {
+  display: grid;
+  gap: var(--space-2);
+  /* Begrenzte eigene Scrollfläche; Verlauf, Composer, Requests und Stop bleiben
+     erreichbar. Unter Druck schrumpft die Region mit, Inhalt bleibt scrollbar. */
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: clamp(7rem, 30vh, 14rem);
+  overflow-y: auto;
+  padding-bottom: var(--space-2);
+  overscroll-behavior: contain;
+}
+
+.hermesv2-work-section {
+  display: grid;
+  gap: 2px;
+}
+
+.hermesv2-work-heading {
+  margin: 0;
+  font-size: var(--text-2xs);
+  color: var(--color-faint);
+}
+
+.hermesv2-work-row {
+  min-height: 44px;
+  border-radius: var(--radius);
+  background: var(--color-ink-900);
+}
+
+.hermesv2-work-row.is-sub:not(.is-flat) {
+  margin-left: calc(var(--hermesv2-work-depth, 0) * var(--space-4));
+}
+
+.hermesv2-work-summary,
+.hermesv2-work-taskline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-1) var(--space-2);
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  margin: 0;
+}
+
+.hermesv2-work-summary:hover {
+  background: var(--color-ink-800);
+}
+
+.hermesv2-work-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hermesv2-work-state {
+  flex: none;
+  font-size: var(--text-2xs);
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.hermesv2-work-state[data-status="running"],
+.hermesv2-work-state[data-status="queued"] {
+  color: var(--color-accent);
+}
+.hermesv2-work-state[data-status="completed"],
+.hermesv2-work-state[data-status="done"] {
+  color: var(--color-ok);
+}
+.hermesv2-work-state[data-status="failed"],
+.hermesv2-work-state[data-status="error"],
+.hermesv2-work-state[data-status="timeout"] {
+  color: var(--color-bad);
+}
+
+.hermesv2-work-body {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border-top: 1px solid var(--color-line);
+}
+
+.hermesv2-work-detail,
+.hermesv2-work-goal,
+.hermesv2-work-note {
+  margin: 0;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.hermesv2-work-note[role="alert"] {
+  color: var(--color-bad);
+}
+
+.hermesv2-work-children {
+  display: grid;
+  gap: 2px;
+}
+
+.hermesv2-work-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.hermesv2-work-act {
+  min-height: 44px;
+}
+
+.hermesv2-work-body-output .hermesv2-plain code,
+.hermesv2-work-body-output .hermesv2-plain {
+  font-size: var(--text-xs);
+  max-height: 10rem;
+  overflow-y: auto;
+}
+
+.hermesv2-work-queue {
+  margin: 0;
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  background: var(--color-ink-900);
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.hermesv2-work-actionline {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+
+.hermesv2-work-actionline.is-unknown {
+  color: var(--color-warn);
+}
+.hermesv2-work-actionline.is-not_sent {
+  color: var(--color-bad);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hermesv2-work-region {
+    scroll-behavior: auto;
+  }
+}
+
+/* Mobil: Counts weichen, die Region schrumpft, damit Requests, Composer und Stop
+   bei 390 × 500 weiterhin echte Klickpunkte behalten. */
+@container (max-width: 640px) {
+  .hermesv2-work {
+    margin: 0 var(--space-3);
+  }
+  .hermesv2-work-head {
+    gap: var(--space-1) var(--space-2);
+    min-height: 44px;
+  }
+  .hermesv2-work-counts {
+    display: none;
+  }
+  .hermesv2-work-head .quiet-button,
+  .hermesv2-work-act {
+    min-height: 44px;
+  }
+  .hermesv2-work-region {
+    max-height: clamp(5.5rem, 16vh, 8rem);
+    min-height: 0;
+  }
+}
+
+/* Kurze Flächen erhalten auch in hohen Browserfenstern ihre Scrollreserve. */
+@container hermesv2 (max-height: 640px) {
+  .hermesv2-work-region {
+    max-height: clamp(3.5rem, 11cqh, 6rem);
+    min-height: 0;
+    padding-bottom: var(--space-1);
+    gap: var(--space-1);
+  }
+  /* Geöffnete Aufgabenansicht behält die reservierte Regionzeile bei knapper Höhe. */
+  .hermesv2-work[data-open="true"] {
+    min-height: 98px;
+  }
+}

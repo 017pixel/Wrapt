@@ -1,0 +1,169 @@
+/* Markdown: Code und Tabellen scrollen nur innerhalb ihres Blocks. */
+
+.hermesv2-markdown {
+  font-size: var(--text-lg);
+  line-height: 1.7;
+  min-width: 0;
+}
+.hermesv2-markdown > :first-child {
+  margin-top: 0;
+}
+.hermesv2-markdown > :last-child {
+  margin-bottom: 0;
+}
+.hermesv2-markdown :is(h1, h2, h3, h4) {
+  margin: var(--space-6) 0 var(--space-2);
+  font-weight: 600;
+  line-height: 1.4;
+}
+.hermesv2-markdown h1 {
+  font-size: var(--text-2xl);
+}
+.hermesv2-markdown h2 {
+  font-size: var(--text-xl);
+}
+.hermesv2-markdown :is(h3, h4) {
+  font-size: var(--text-lg);
+}
+.hermesv2-markdown a {
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.hermesv2-markdown blockquote {
+  margin: var(--space-4) 0;
+  padding-inline: var(--space-4);
+  color: var(--color-muted);
+}
+.hermesv2-markdown p {
+  margin: 0 0 var(--space-2);
+  overflow-wrap: anywhere;
+}
+.hermesv2-markdown :is(ul, ol) {
+  margin-block: var(--space-3);
+  padding-left: var(--space-6);
+}
+.hermesv2-markdown ul {
+  list-style: disc;
+}
+.hermesv2-markdown ol {
+  list-style: decimal;
+}
+.hermesv2-markdown li + li {
+  margin-top: var(--space-1);
+}
+.hermesv2-markdown table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  max-width: 100%;
+}
+.hermesv2-markdown th,
+.hermesv2-markdown td {
+  border: 1px solid var(--color-line);
+  padding: var(--space-1) var(--space-2);
+  text-align: left;
+}
+.hermesv2-markdown img {
+  max-width: 100%;
+  height: auto;
+}
+
+.hermesv2-plain,
+.hermesv2-markdown pre {
+  display: block;
+  position: relative;
+  overflow-x: auto;
+  max-width: 100%;
+  margin: 0 0 var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-950);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  white-space: pre;
+}
+
+/* Die volle Copyfläche liegt oberhalb des Codes, auch bei nur einer Zeile. */
+.hermesv2-markdown pre {
+  padding-top: calc(44px + var(--space-2));
+}
+
+/* Syntaxfarben über die vorhandenen Projektsyntax-Tokens (vgl. Dateivorschau). */
+.hermesv2-markdown pre .hljs-keyword,
+.hermesv2-markdown pre .hljs-selector-tag,
+.hermesv2-markdown pre .hljs-literal {
+  color: var(--syntax-keyword);
+}
+.hermesv2-markdown pre .hljs-string,
+.hermesv2-markdown pre .hljs-attr,
+.hermesv2-markdown pre .hljs-template-string {
+  color: var(--syntax-string);
+}
+.hermesv2-markdown pre .hljs-title,
+.hermesv2-markdown pre .hljs-title.class_,
+.hermesv2-markdown pre .hljs-title.function_ {
+  color: var(--syntax-title);
+}
+.hermesv2-markdown pre .hljs-number,
+.hermesv2-markdown pre .hljs-symbol {
+  color: var(--syntax-number);
+}
+.hermesv2-markdown pre .hljs-comment,
+.hermesv2-markdown pre .hljs-quote {
+  color: var(--syntax-comment);
+  font-style: italic;
+}
+.hermesv2-markdown pre .hljs-built_in,
+.hermesv2-markdown pre .hljs-type,
+.hermesv2-markdown pre .hljs-tag {
+  color: var(--syntax-type);
+}
+.hermesv2-markdown pre .hljs-variable,
+.hermesv2-markdown pre .hljs-params,
+.hermesv2-markdown pre .hljs-attribute {
+  color: var(--syntax-variable);
+}
+.hermesv2-markdown pre .hljs-meta,
+.hermesv2-markdown pre .hljs-selector-pseudo {
+  color: var(--syntax-meta);
+}
+.hermesv2-markdown pre .hljs-regexp {
+  color: var(--syntax-regexp);
+}
+
+.hermesv2-code-copy {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  min-height: 44px;
+  min-width: 44px;
+  max-width: 60%;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-900);
+  color: var(--color-faint);
+  font-size: var(--text-2xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.hermesv2-code-copy:hover {
+  color: var(--color-text);
+}
+
+.hermesv2-markdown code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
+.hermesv2-markdown :not(pre) > code {
+  padding: 1px var(--space-1);
+  background: var(--color-ink-800);
+  border-radius: var(--radius);
+}
+

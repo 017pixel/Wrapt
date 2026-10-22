@@ -1,0 +1,396 @@
+/* Hermes V2 Composer: Menü-Chips, Slashpalette, Menüs, Anhänge.
+   Ausschließlich Wrapt-Tokens, keine neuen Farben, Reduced Motion berücksichtigt. */
+
+/* --- Menü-Chips (Modell, Denktiefe, Freigabe) ------------------------------ */
+
+.hermesv2-composer-chips {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+/* Feine Linien trennen die Chips, wie in T3. */
+.hermesv2-composer-chips > *:not(:first-child) {
+  margin-left: var(--space-2);
+  border-left: 1px solid var(--color-line);
+}
+
+.hermesv2-composer-area .hermesv2-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding-inline: var(--space-2);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.hermesv2-composer-area .hermesv2-chip:hover:not(:disabled) {
+  color: var(--color-text);
+  background: var(--color-ink-800);
+}
+.hermesv2-composer-area .hermesv2-chip:disabled {
+  color: var(--color-faint);
+}
+.hermesv2-composer-area .hermesv2-chip svg {
+  width: 14px;
+  height: 14px;
+  flex: none;
+}
+/* Alle Bedienelemente der Leiste - Chips, Plus-Knopf, Überlauf, Stoppen und
+   Senden - tragen denselben eckigen Radius wie die Karte darüber. */
+.hermesv2-composer-area .hermesv2-composer-bar :is(button) {
+  border-radius: var(--radius);
+}
+.hermesv2-chip-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hermesv2-composer-area .hermesv2-model-chip {
+  max-width: min(42%, 32ch);
+}
+.hermesv2-composer-model {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Ein offener Wunsch ist blass und erklärt sich am Titel des Chips. */
+.hermesv2-composer-area .hermesv2-effort-button[data-pending] .hermesv2-chip-label {
+  color: var(--color-faint);
+}
+/* Ein aktiver Bypass bleibt sichtbar: eigener Text, Akzentfarbe. */
+.hermesv2-composer-area .hermesv2-approval-chip[data-bypass] .hermesv2-chip-label {
+  color: var(--color-accent);
+}
+.hermesv2-composer-area .hermesv2-approval-chip[data-readonly] {
+  color: var(--color-faint);
+}
+
+/* --- Menüs (Denktiefe, Freigabe, Überlauf) --------------------------------- */
+
+.hermesv2-effort-pop,
+.hermesv2-approval-menu,
+.hermesv2-work-menu {
+  z-index: 3;
+  max-height: min(50vh, 420px);
+  overflow-y: auto;
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-850);
+  box-shadow: var(--shadow-popover, 0 12px 32px rgb(0 0 0 / 0.45));
+}
+
+/* Die Menüs liegen im Portal unterhalb der Fläche; sie tragen dieselbe
+   Dichte wie die Hermes-Fläche selbst. */
+body > .hermesv2-approval-menu,
+body > .hermesv2-work-menu {
+  zoom: var(--hermesv2-ui-scale);
+}
+
+.hermesv2-effort-option,
+.hermesv2-approval-option,
+.hermesv2-work-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 44px;
+  padding-inline: var(--space-2);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  text-align: left;
+}
+.hermesv2-effort-option:hover:not(:disabled),
+.hermesv2-approval-option:hover:not(:disabled),
+.hermesv2-work-menu button:hover:not(:disabled) {
+  background: var(--color-ink-750);
+}
+.hermesv2-effort-option:disabled,
+.hermesv2-approval-option:disabled,
+.hermesv2-work-menu button:disabled {
+  color: var(--color-faint);
+}
+.hermesv2-effort-pop [role="note"] {
+  margin: var(--space-1) var(--space-2);
+  font-size: var(--text-2xs);
+  color: var(--color-faint);
+}
+
+/* --- Composerwrap und Palette ---------------------------------------------- */
+
+.hermesv2-composer-wrap {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.hermesv2-composer-wrap > .hermesv2-composer {
+  width: 100%;
+}
+
+.hermesv2-slash {
+  position: absolute;
+  left: var(--space-4);
+  right: var(--space-4);
+  bottom: calc(100% + var(--space-2));
+  z-index: 3;
+  max-height: min(50vh, 420px);
+  overflow-y: auto;
+  padding: var(--space-1);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-850);
+  box-shadow: var(--shadow-popover, 0 12px 32px rgb(0 0 0 / 0.45));
+  animation: hermesv2-pop 160ms ease-out;
+}
+
+@keyframes hermesv2-pop {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+.hermesv2-slash-option {
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+.hermesv2-slash-option.is-active {
+  background: var(--color-ink-750);
+}
+.hermesv2-slash-option.is-disabled {
+  color: var(--color-faint);
+  cursor: default;
+}
+
+.hermesv2-slash-line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+}
+.hermesv2-slash-key {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--color-accent);
+}
+.hermesv2-slash-label {
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  min-width: 0;
+}
+.hermesv2-slash-tag {
+  flex: none;
+  padding: 0 var(--space-1);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  font-size: var(--text-2xs);
+  color: var(--color-faint);
+}
+.hermesv2-slash-aliases {
+  margin-left: auto;
+  font-size: var(--text-2xs);
+  color: var(--color-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hermesv2-slash-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+.hermesv2-slash-hint {
+  color: var(--color-faint);
+  font-size: var(--text-2xs);
+}
+.hermesv2-slash-notice {
+  flex: none;
+  margin: var(--space-1) var(--space-4) 0;
+  font-size: var(--text-xs);
+  color: var(--color-warn);
+}
+.hermesv2-slash-notice a {
+  color: var(--color-accent);
+}
+
+/* --- Anhänge ---------------------------------------------------------------- */
+
+.hermesv2-attach {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+.hermesv2-attach-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.hermesv2-composer-wrap[data-dragging] {
+  padding: var(--space-1);
+  border: 1px dashed var(--color-accent);
+  border-radius: var(--radius);
+}
+
+.hermesv2-attach-list-wrap {
+  min-width: 0;
+}
+.hermesv2-attach-list {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.hermesv2-attach-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+  max-width: 60ch;
+  min-height: 44px;
+  padding: 0 var(--space-1) 0 var(--space-2);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-800);
+  font-size: var(--text-2xs);
+}
+
+.hermesv2-attach-name {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+.hermesv2-attach-meta {
+  flex: none;
+  color: var(--color-faint);
+  white-space: nowrap;
+}
+.hermesv2-attach-action {
+  flex: none;
+  min-height: 44px;
+  padding-inline: var(--space-2);
+  font-size: var(--text-2xs);
+}
+.hermesv2-attach-remove {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-muted);
+}
+.hermesv2-attach-remove:hover:not(:disabled) {
+  color: var(--color-text);
+  background: var(--color-ink-700);
+}
+.hermesv2-attach-remove svg {
+  width: 14px;
+  height: 14px;
+}
+.hermesv2-attach-chip [role="alert"] {
+  color: var(--color-bad);
+}
+.hermesv2-attach-note {
+  margin: 0;
+  font-size: var(--text-2xs);
+  color: var(--color-warn);
+}
+
+/* Historydateikarten: geschützte Downloads über opaque VertragsIDs. */
+.hermesv2-row-attach {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.hermesv2-row-attach li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-800);
+  font-size: var(--text-2xs);
+}
+.hermesv2-row-attach-link {
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  max-width: 24ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hermesv2-row-attach-size {
+  color: var(--color-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hermesv2-slash,
+  .hermesv2-effort-pop,
+  .hermesv2-approval-menu,
+  .hermesv2-work-menu {
+    animation: none;
+  }
+}
+
+/* --- Mobil ------------------------------------------------------------------ */
+
+@container (max-width: 640px) {
+  .hermesv2-composer-chips {
+    scrollbar-width: none;
+  }
+  .hermesv2-composer-area .hermesv2-model-chip {
+    max-width: 44%;
+  }
+  .hermesv2-slash {
+    left: var(--space-2);
+    right: var(--space-2);
+    max-height: 55vh;
+  }
+}
+
+/* Eigene Höhe statt Viewport: auch kurze Panels behalten die primäre Zeile.
+   Lange Entwürfe und alle Anhänge bleiben in ihren nativen Feldern scrollbar. */
+@container hermesv2 (max-height: 640px) {
+  .hermesv2-composer-wrap .hermesv2-composer-input {
+    max-height: 44px;
+  }
+}

@@ -27,10 +27,25 @@ function mapError(status: number | null, fallback: string): HermesErrorCode {
 
 async function readResponseBody(response: Response): Promise<string> {
   const length = Number(response.headers.get("content-length") ?? 0);
-  if (length > MAX_RESPONSE_BYTES) throw new HermesClientError("INTERNAL_ERROR", "Die Hermes-Antwort ist zu groß.");
-  const buffer = await response.arrayBuffer();
-  if (buffer.byteLength > MAX_RESPONSE_BYTES) throw new HermesClientError("INTERNAL_ERROR", "Die Hermes-Antwort ist zu groß.");
-  return Buffer.from(buffer).toString("utf8");
+  if (length > MAX_RESPONSE_BYTES) {
+    await response.body?.cancel().catch(() => {});
+    throw new HermesClientError("INTERNAL_ERROR", "Die Hermes-Antwort ist zu groß.");
+  }
+  if (!response.body) return "";
+  const reader = response.body.getReader(); const chunks: Buffer[] = []; let bytes = 0;
+  try {
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      bytes += chunk.value.byteLength;
+      if (bytes > MAX_RESPONSE_BYTES) {
+        await reader.cancel().catch(() => {});
+        throw new HermesClientError("INTERNAL_ERROR", "Die Hermes-Antwort ist zu groß.");
+      }
+      chunks.push(Buffer.from(chunk.value));
+    }
+    return Buffer.concat(chunks, bytes).toString("utf8");
+  } finally { reader.releaseLock(); }
 }
 
 export class HermesDashboardClient {
@@ -60,6 +75,7 @@ export class HermesDashboardClient {
       throw new HermesClientError("DASHBOARD_UNREACHABLE", "Das Hermes-Dashboard ist nicht erreichbar.");
     }
     if (response.status === 401 && retry) {
+      await response.body?.cancel().catch(() => {});
       this.token.invalidate();
       return this.requestJson(path, init, false);
     }

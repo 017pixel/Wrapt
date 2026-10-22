@@ -1,3 +1,4 @@
+import { CodePluginSurface } from "../extensions/code-surface";
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createPortal } from "react-dom";
@@ -52,10 +53,11 @@ interface ToolPanelProps {
   minimal?: boolean;
   terminalRenderScale?: number;
   terminalRuntimeId?: string | null;
+  onHermesPathChange?: (path: string) => void;
   actionPlacement?: "overlay" | "topbar" | "hidden";
 }
 
-export function ToolPanel({ panel, project, isFocused, codeServerMode = "external", codeServerState, onFocus, standalone = false, externalMaximized, onMaximizedChange, onReload, onClose, minimal = false, terminalRenderScale = 1, terminalRuntimeId = null, actionPlacement = "overlay" }: ToolPanelProps) {
+export function ToolPanel({ panel, project, isFocused, codeServerMode = "external", codeServerState, onFocus, standalone = false, externalMaximized, onMaximizedChange, onReload, onClose, minimal = false, terminalRenderScale = 1, terminalRuntimeId = null, onHermesPathChange, actionPlacement = "overlay" }: ToolPanelProps) {
   const selectProject = useLayoutStore((s) => s.selectProject);
   const reloadPanel = useLayoutStore((s) => s.reloadPanel);
   const closePanel = useLayoutStore((s) => s.closePanel);
@@ -247,7 +249,7 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
     onToggleFullscreen={toggleFullscreen}
   />;
 
-  return (
+  return <CodePluginSurface surface="panel" target={panel.type} context={{ ...(project ? { projectId: project.id } : {}), selection: panel }} builtins={[{ id: `wrapt.panel.${panel.type}`, surface: "panel", title: panel.type, children: (
     <section
       ref={surfaceRef}
       data-panel-type={panel.type}
@@ -315,7 +317,7 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
           </div>
         ) : panel.type === "hermes" ? (
           <Suspense fallback={<div className="flex h-full items-center justify-center text-sm text-muted">Hermes wird geladen…</div>}>
-            <HermesShell variant="panel" minimal={minimal} panel={panel} active={routeActive && isFocused} />
+            <HermesShell variant="panel" minimal={minimal} panel={panel} active={routeActive && isFocused} {...(onHermesPathChange ? { onHermesPathChange } : {})} />
           </Suspense>
         ) : projectLookupFailed || projectAssociationMissing ? (
           <ToolPanelProjectBindingState
@@ -387,5 +389,5 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
         ) : null}
       </div>
     </section>
-  );
+  ) }]} />;
 }

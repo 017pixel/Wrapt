@@ -1,0 +1,165 @@
+/* Eine gemeinsame Eingabefläche statt separater Toolbar-, Feld- und Aktionsboxen.
+   Die Karte trägt Eingabefeld und eine einzige Werkzeugleiste. */
+.hermesv2-composer-area {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  width: calc(100% - 2 * var(--space-6));
+  max-width: 800px;
+  margin: var(--space-2) auto var(--space-6);
+  padding: 0;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-900);
+}
+.hermesv2-composer-area:focus-within {
+  border-color: var(--color-accent-line);
+}
+.hermesv2-composer-area:has(.hermesv2-composer-input:focus-visible) {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: 2px;
+}
+.hermesv2-composer-area .hermesv2-composer {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.hermesv2-composer-area .hermesv2-composer-input {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: var(--space-3) var(--space-4) var(--space-2);
+  min-height: 56px;
+  font-size: var(--text-lg);
+}
+.hermesv2-composer-area .hermesv2-composer-input:focus-visible {
+  outline: 0;
+}
+
+/* Werkzeugleiste: links die Menü-Chips, rechts die Werkzeuge und das Senden. */
+.hermesv2-composer-bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-top: 1px solid var(--color-line);
+}
+.hermesv2-composer-left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.hermesv2-composer-tools {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* Gefüllter, eckiger Senden-Knopf in Akzentfarbe mit Pfeil nach oben.
+   Er bleibt der auffälligste Punkt der Leiste. */
+.hermesv2-composer-area .hermesv2-send {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Der Knopf behält sein Touch-Ziel, auch wenn die Leiste auf Mobil eng wird. */
+  flex: none;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--color-accent);
+  color: var(--color-accent-contrast);
+}
+.hermesv2-composer-area .hermesv2-send:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--color-accent) 88%, var(--color-accent-contrast));
+}
+.hermesv2-composer-area .hermesv2-send:disabled {
+  background: var(--color-ink-700);
+  color: var(--color-faint);
+}
+.hermesv2-composer-area .hermesv2-send svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Stoppen als ruhiger eckiger Knopf neben dem Senden. */
+.hermesv2-composer-area .hermesv2-stop {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-muted);
+}
+.hermesv2-composer-area .hermesv2-stop:hover:not(:disabled) {
+  color: var(--color-text);
+  background: var(--color-ink-800);
+}
+.hermesv2-stop-glyph {
+  width: 10px;
+  height: 10px;
+  border-radius: var(--radius-sm);
+  background: currentColor;
+}
+
+.hermesv2-composer-area .hermesv2-composer-wrap {
+  flex: none;
+  order: 0;
+}
+.hermesv2-composer-area .hermesv2-slash {
+  left: var(--space-2);
+  right: var(--space-2);
+}
+.hermesv2-chat-body > .hermesv2-work {
+  flex-shrink: 0;
+  width: calc(100% - 2 * var(--space-6));
+  max-width: 800px;
+  margin-inline: auto;
+}
+
+@container hermesv2 (max-width: 640px) {
+  .hermesv2-composer-area {
+    width: calc(100% - 2 * var(--space-3));
+    margin-bottom: var(--space-3);
+  }
+  .hermesv2-composer-area .hermesv2-composer-input {
+    padding-inline: var(--space-3);
+  }
+  .hermesv2-composer-bar {
+    padding-inline: var(--space-1);
+  }
+  .hermesv2 .hermesv2-messages {
+    padding-inline: var(--space-4);
+  }
+  .hermesv2-chat-body > .hermesv2-work {
+    width: calc(100% - 2 * var(--space-3));
+  }
+  .hermesv2-chat-details {
+    margin-inline: var(--space-4);
+  }
+}
+@container hermesv2 (max-height: 640px) {
+  .hermesv2-composer-area {
+    margin-block: var(--space-1);
+  }
+  .hermesv2-composer-area .hermesv2-composer-input {
+    min-height: 44px;
+  }
+}

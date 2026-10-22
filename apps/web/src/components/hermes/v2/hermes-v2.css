@@ -1,0 +1,319 @@
+/* Hermes V2: native Fläche ausschließlich mit Wrapt-Tokens. Keine
+   .hermes-shell-Adminfarbwelt, keine neuen Hex-Farben, kein text-transform;
+   Animationen nur über transform/opacity und werden bei Reduced Motion aus. */
+
+.hermesv2 {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  background: var(--color-ink-950);
+  color: var(--color-text);
+  /* Auch kurze Panels richten ihre Höhenreserve nach der eigenen Fläche aus. */
+  container: hermesv2 / size;
+  /* Die Fläche ist eckig: Karte, Sprechblase und Bedienelemente teilen sich
+     den Radius aus dem Theme (--radius, 4px). Eigene Radien-Tokens gibt es
+     hier nicht mehr; Tiefe entsteht über Haarlinien, nicht über Rundungen. */
+}
+
+.hermesv2-standalone {
+  height: var(--app-viewport-height, 100dvh);
+  min-height: 0;
+}
+.hermesv2-standalone .hermesv2-toolbar {
+  padding-top: max(var(--space-2), env(safe-area-inset-top));
+}
+.hermesv2-standalone .hermesv2-standalone-foot {
+  padding-bottom: max(var(--space-3), env(safe-area-inset-bottom));
+}
+.hermesv2-drawer-layer {
+  display: contents;
+}
+.hermesv2-drawer-close {
+  align-self: flex-end;
+  min-height: 44px;
+}
+
+/* --- Sitzungsspalte (alle Varianten) ------------------------------------- */
+
+.hermesv2-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  flex: none;
+  width: 232px;
+  min-height: 0;
+  padding: var(--space-4);
+  border-right: 1px solid var(--color-line);
+  background: var(--color-ink-900);
+  overflow-y: auto;
+}
+
+.hermesv2-shelf-title {
+  margin: 0;
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.hermesv2-sidebar-empty {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-faint);
+  line-height: 1.5;
+}
+
+/* --- Hauptfläche -------------------------------------------------------- */
+
+.hermesv2-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Überzählige Nebenaktionen bleiben mit Wheel, Touch und Fokus erreichbar. */
+.hermesv2-main .hermesv2-chat-body {
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+.hermesv2-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid var(--color-line);
+}
+
+/* Auch schmale Einbettungen auf breiten Fenstern behalten volle Touchziele. */
+.hermesv2-toolbar .quiet-button,
+.hermesv2-standalone-foot .quiet-button {
+  min-height: 44px;
+}
+
+.hermesv2-toolbar-title {
+  display: inline-flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-base);
+}
+
+.hermesv2-toolbar-title strong {
+  white-space: nowrap;
+}
+
+.hermesv2-toolbar-note {
+  padding: 1px var(--space-2);
+  border-radius: var(--radius);
+  background: var(--color-ink-800);
+  border: 1px solid var(--color-line);
+  font-size: var(--text-2xs);
+  color: var(--color-muted);
+}
+
+.hermesv2-chat {
+  display: grid;
+  flex: 1 1 auto;
+  min-height: 0;
+  place-items: center;
+  padding: var(--space-6);
+  overflow-y: auto;
+}
+
+.hermesv2-chat-empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  max-width: 460px;
+  text-align: center;
+}
+
+.hermesv2-chat-empty p {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: 1.55;
+  color: var(--color-muted);
+}
+
+.hermesv2-chat-empty strong {
+  font-size: var(--text-lg);
+}
+
+.hermesv2-brand {
+  width: 28px;
+  height: 28px;
+  color: var(--color-accent);
+}
+
+/* --- Aktivierungskarte ohne Flag ---------------------------------------- */
+
+.hermesv2-activation {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  place-items: center;
+  padding: var(--space-6);
+  background: var(--color-ink-950);
+  color: var(--color-text);
+  overflow-y: auto;
+}
+
+.hermesv2-activation-card {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  width: min(100%, 440px);
+  padding: var(--space-6);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-900);
+  text-align: center;
+}
+
+.hermesv2-activation-title {
+  margin: 0;
+  font-size: var(--text-2xl);
+}
+
+.hermesv2-activation-subtitle {
+  margin: 0;
+  font-size: var(--text-base);
+  color: var(--color-muted);
+}
+
+.hermesv2-activation-copy {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: 1.55;
+  color: var(--color-muted);
+}
+
+/* Der Toggle nutzt die globalen Settings-Zeilen; hier ohne Tabellenlinie. */
+.hermesv2-activation-toggle {
+  width: 100%;
+  margin-top: var(--space-2);
+  padding: var(--space-3) var(--space-2);
+  border-bottom: 0;
+}
+
+.hermesv2-toggle-copy {
+  display: grid;
+  gap: 2px;
+  text-align: left;
+}
+
+.hermesv2-toggle-copy small {
+  color: var(--color-faint);
+  font-size: var(--text-xs);
+}
+
+.hermesv2-activation-link {
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+
+.hermesv2-activation-link:hover {
+  color: var(--color-text);
+}
+
+/* --- Eigenständiges Fenster --------------------------------------------- */
+
+.hermesv2-standalone-foot {
+  display: flex;
+  flex: none;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4) var(--space-3);
+  border-top: 1px solid var(--color-line);
+}
+
+/* --- Panels, kompakte Varianten ----------------------------------------- */
+
+.hermesv2.is-panel {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+}
+.hermesv2.is-minimal .hermesv2-toolbar {
+  /* Minimale Einbettung bleibt bedienbar: nur der Experimentell-Hinweis
+     weicht, Sitzungsöffner, Klassisch und Fenster bleiben erreichbar. */
+  padding-top: 0;
+}
+.hermesv2.is-minimal .hermesv2-toolbar-note {
+  display: none;
+}
+
+/* --- Mobiler Sitzungs-Drawer --------------------------------------------- */
+
+/* Backdrop und Toggle-Button sind rein mobile Elemente; in breiter Fläche
+   ist die Sitzungsspalte ganz normal sichtbar. */
+.hermesv2-drawer-toggle {
+  display: none;
+}
+.hermesv2-drawer-backdrop {
+  display: block;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease-out;
+}
+
+@container (max-width: 640px) {
+  /* Titel und Aktionen bleiben in einer Zeile; nur die Dekoration weicht. */
+  .hermesv2-toolbar {
+    padding-block: var(--space-1);
+  }
+  .hermesv2-toolbar-title {
+    flex-wrap: nowrap;
+  }
+  .hermesv2-toolbar-title .hermesv2-brand,
+  .hermesv2-toolbar-note {
+    display: none;
+  }
+  .hermesv2-sidebar {
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: 2;
+    width: min(78vw, 300px);
+    border-right: 1px solid var(--color-line);
+    box-shadow: var(--shadow-raised);
+    transform: translateX(-102%);
+    transition: transform 200ms ease-out;
+  }
+  .hermesv2.is-drawer-open .hermesv2-sidebar {
+    transform: translateX(0);
+  }
+  .hermesv2-drawer-backdrop[data-drawer-open="true"] {
+    opacity: 1;
+    pointer-events: auto;
+    background: color-mix(in srgb, var(--color-ink-950) 55%, transparent);
+  }
+  .hermesv2-drawer-toggle {
+    display: inline-flex;
+  }
+  .hermesv2-chat {
+    padding: var(--space-4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hermesv2-sidebar,
+  .hermesv2-drawer-backdrop {
+    transition: none;
+  }
+}

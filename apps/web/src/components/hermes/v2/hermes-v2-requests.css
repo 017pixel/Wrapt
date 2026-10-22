@@ -1,0 +1,232 @@
+/* Hermes V2 Requests: native Eingabekarten. Ausschließlich Wrapt-Tokens,
+   keine neuen Hexfarben; Touchziele ab 44px, Eingaben ab 16px. */
+
+/* Deck: EINE begrenzte Scrollfläche für Karten und Classic-Footer; Composer und
+   Stop bleiben erreichbar. Interne Boxen laufen nie aus der Fläche heraus. */
+
+.hermesv2-request-deck {
+  flex: 0 1 auto;
+  /* Auch bei knappem Viewport bleibt mindestens eine bedienbare Zeile bestehen;
+     das Schrumpfen übernimmt die Aufgabenansicht, niemals die Requestkarte. */
+  min-height: 3.5rem;
+  max-height: min(60vh, 420px);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin: var(--space-2) var(--space-4) 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: var(--space-1);
+}
+
+.hermesv2-request-deck-list {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  min-height: 0;
+  gap: var(--space-2);
+}
+
+.hermesv2-request-card,
+.hermesv2-request-deck-foot {
+  border: 1px solid var(--color-accent-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-850);
+  padding: var(--space-3);
+}
+
+.hermesv2-request-card {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.hermesv2-request-card-title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-accent);
+}
+
+.hermesv2-request-card-body {
+  margin: 0;
+  font-size: var(--text-base);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.hermesv2-request-card-hint {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+.hermesv2-request-card-note {
+  margin: 0;
+  font-size: var(--text-xs);
+  color: var(--color-warn);
+}
+
+.hermesv2-request-command {
+  display: block;
+  overflow-x: auto;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-950);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  white-space: pre;
+}
+
+.hermesv2-request-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.hermesv2-request-deck-foot {
+  display: grid;
+  flex: none;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+.hermesv2-request-deck-foot p {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+.hermesv2-request-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+/* Fragen: eindeutige Labels, Radio/Checkbox, Freitext. */
+
+.hermesv2-request-card-questions,
+.hermesv2-question-wrap {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.hermesv2-question {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.hermesv2-question[data-locked="true"] {
+  color: var(--color-muted);
+}
+
+.hermesv2-question-label {
+  margin: 0;
+  padding: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  font-weight: 600;
+}
+
+.hermesv2-question-locked {
+  margin: 0;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+.hermesv2-question-locked[hidden] {
+  display: none;
+}
+
+.hermesv2-question-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.hermesv2-question-choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-1) var(--space-2);
+  margin: 0;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.hermesv2-question-choice:hover {
+  background: var(--color-ink-800);
+}
+.hermesv2-question-choice:has(input:checked) {
+  background: var(--color-ink-750);
+}
+.hermesv2-question-choice input {
+  accent-color: var(--color-accent);
+}
+.hermesv2-question-choice span {
+  font-size: var(--text-sm);
+}
+
+.hermesv2-question-input,
+.hermesv2-secret-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-950);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+  font-size: max(16px, var(--text-md));
+}
+
+.hermesv2-question-input:focus-visible,
+.hermesv2-secret-input:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: 1px;
+}
+
+.hermesv2-secret-input {
+  font-family: var(--font-mono);
+  letter-spacing: 0.08em;
+}
+
+.hermesv2-question-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.hermesv2-request-card-actions .quiet-button,
+.hermesv2-request-card-actions .quiet-button-primary,
+.hermesv2-question-actions .quiet-button,
+.hermesv2-request-deck-foot .quiet-button {
+  min-height: 44px;
+}
+
+/* Mobil: Karten füllen, Tastaturhygiene bleibt über 16px-Font erhalten. */
+@container (max-width: 640px) {
+  .hermesv2-request-deck {
+    margin: var(--space-2) var(--space-3) 0;
+  }
+  .hermesv2-request-deck-list {
+    max-height: min(55vh, 420px);
+  }
+  .hermesv2-request-card-actions .quiet-button,
+  .hermesv2-request-card-actions .quiet-button-primary {
+    flex: 1 1 calc(50% - var(--space-2));
+  }
+}

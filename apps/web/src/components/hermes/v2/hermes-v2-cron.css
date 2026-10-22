@@ -1,0 +1,140 @@
+/* Cronfläche: Formular, Detailfacts und Runliste. Wrapt-Tokens, 44 px
+   Touch-Ziele, 16 px Eingabetexte, reduced motion. */
+
+.hermesv2-cron-form .quiet-button,
+.hermesv2-cron-form .quiet-button-primary,
+.hermesv2-delete .quiet-button,
+.hermesv2-delete .quiet-button-primary,
+.hermesv2-delete .quiet-button.modal-danger,
+.modal-actions .quiet-button,
+.modal-actions .quiet-button-primary,
+.modal-actions .modal-danger {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Auflage der E2E: echte Aktionen mindestens 44×44 px in der Ressourcen-
+   fläche; sichtbare Labels bleiben kurz, vollständige Namen stehen als
+   aria-label an der jeweiligen Schaltfläche. */
+.hermesv2-resource .quiet-button,
+.hermesv2-resource .quiet-button-primary,
+.hermesv2-resource .modal-danger {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.hermesv2-cron-form {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.hermesv2-cron-prompt {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.hermesv2-field-hint {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  color: var(--color-faint);
+}
+
+.hermesv2-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  font-size: var(--text-base);
+}
+
+.hermesv2-action-outcome {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+  color: var(--color-faint);
+}
+
+.hermesv2-factrow {
+  display: flex;
+  gap: var(--space-3);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  border-bottom: 1px solid var(--color-line-soft);
+  padding: var(--space-1) 0;
+}
+
+.hermesv2-factrow-label {
+  flex: none;
+  min-width: 150px;
+  color: var(--color-muted);
+}
+
+.hermesv2-factrow-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.hermesv2-resource-subhead {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.hermesv2-target-actions {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+
+.hermesv2-target-actions li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.hermesv2-target-actions .quiet-button {
+  min-height: 44px;
+}
+
+.hermesv2-runlist {
+  padding: var(--space-2);
+  gap: var(--space-2);
+}
+
+.hermesv2-runrow {
+  border-bottom: 1px solid var(--color-line-soft);
+  padding-bottom: var(--space-2);
+}
+
+.hermesv2-runrow:last-child {
+  border-bottom: 0;
+}
+
+.hermesv2-runrow-meta {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-xs);
+  color: var(--color-faint);
+}
+
+.hermesv2-runrow-text {
+  max-height: 160px;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+}
+
+@media (max-width: 900px) {
+  .hermesv2-resource-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hermesv2-cron-form {
+    transition: none;
+  }
+}

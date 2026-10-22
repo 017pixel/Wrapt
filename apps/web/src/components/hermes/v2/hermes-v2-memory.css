@@ -1,0 +1,156 @@
+/* Memoryfläche: zwei Spalten mit sinnvollen Breiten - links die nativen
+   Dateien breit und lesbar, rechts die Anbieter kompakt. Der Dateitext hat
+   festen Umbruch, eine begrenzte Vorschau und ein "Mehr anzeigen"; der
+   JSON-Beleg der Schreibvorschläge bleibt monospace, umbruchfähig und
+   begrenzt. Farben kommen ausschließlich aus den Theme-Tokens. */
+
+.hermesv2-settings[data-hermes-area="memory"] .hermesv2-memory-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(17rem, 22rem);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.hermesv2-memory-column {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+/* Abschnittsüberschrift mit Haarlinie statt Karte. */
+.hermesv2-memory-column-title {
+  margin: 0;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-line);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.hermesv2-memory-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Flache Listen: Zeilen trennt eine Haarlinie, keine Kartenwand. */
+.hermesv2-memory-file,
+.hermesv2-memory-provider {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-line-soft);
+}
+
+.hermesv2-memory-list > :last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.hermesv2-memory-file-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.hermesv2-memory-file-name {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.hermesv2-memory-file-meta {
+  color: var(--color-faint);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.hermesv2-memory-file-text {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* Dateitext: fester Umbruch statt schmaler Spalte, begrenzte Vorschau. */
+.hermesv2-memory-file-text .hermesv2-resource-scroll {
+  font-size: var(--text-base);
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.hermesv2-memory-file-text[data-expanded="false"] .hermesv2-resource-scroll {
+  max-height: 18rem;
+  overflow-y: auto;
+}
+
+.hermesv2-memory-file-text[data-expanded="true"] .hermesv2-resource-scroll {
+  max-height: none;
+}
+
+.hermesv2-memory-more {
+  justify-self: start;
+  min-height: 44px;
+}
+
+/* Anbieterzeile: Name, Zustand und Beschreibung ruhig und lesbar. */
+.hermesv2-memory-provider-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.hermesv2-memory-provider-name {
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.hermesv2-memory-provider-state {
+  color: var(--color-faint);
+  font-size: var(--text-xs);
+}
+
+.hermesv2-memory-provider-description {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+/* Schreibvorschläge: eigener Abschnitt, die doppelte Überschrift der
+   Pending-Liste entfällt zugunsten der Abschnittsüberschrift. */
+.hermesv2-settings[data-hermes-area="memory"] .hermesv2-settings-section-head {
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--color-line);
+}
+
+.hermesv2-memory-pending .hermesv2-resource-head > .hermesv2-resource-subhead {
+  display: none;
+}
+
+/* JSON-Beleg: monospace, Umbruch möglich, Höhe begrenzt. */
+.hermesv2-memory-pending .hermesv2-pending-item .hermesv2-resource-scroll {
+  max-height: 16rem;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.hermesv2-memory-pending[data-expanded="true"] .hermesv2-pending-item .hermesv2-resource-scroll {
+  max-height: none;
+}
+
+/* Schmale Flächen stapeln: Dateien zuerst, Anbieter darunter. */
+@container hermesv2 (max-width: 960px) {
+  .hermesv2-settings[data-hermes-area="memory"] .hermesv2-memory-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

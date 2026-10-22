@@ -1,0 +1,40 @@
+.hermesv2-row-preview {
+  z-index: 4;
+  width: min(360px, calc((100vw - 16px) / var(--hermesv2-ui-scale, 1)));
+  padding: var(--space-4);
+  overflow: auto;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-850);
+  color: var(--color-text);
+  box-shadow: var(--shadow-raised);
+  font-size: var(--text-sm);
+}
+.hermesv2-row-preview > strong {
+  display: block;
+  margin-bottom: var(--space-3);
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+.hermesv2-row-preview dl {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+.hermesv2-row-preview dl > div {
+  display: grid;
+  grid-template-columns: 92px minmax(0, 1fr);
+  gap: var(--space-3);
+}
+.hermesv2-row-preview dt {
+  color: var(--color-faint);
+}
+.hermesv2-row-preview dd {
+  margin: 0;
+  color: var(--color-muted);
+  overflow-wrap: anywhere;
+}
+.hermesv2-row-preview:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: -2px;
+}

@@ -1,0 +1,326 @@
+@import "./hermes-v2-snooze.css";
+@import "./hermes-v2-sidebar-rows.css";
+
+/* Hermes V2 Sidebar: Aufbau nach dem T3-Vorbild — Kopf, Suchreihe, Shelfs
+   mit feiner Linie, ein Nachladeknopf unten. Ausschließlich Wrapt-Tokens,
+   keine .hermes-shell-Farbwelt, keine neuen Hex-Farben, keine Gradients.
+   Motion nur transform/opacity, bei Reduced Motion aus. */
+
+.hermesv2-sessionpanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+/* Die Marke der Spalte ist entfallen. Im Drawer bleibt allein der Schließer,
+   deshalb braucht die Leiste keine Höhe und keine Wortmarke mehr. */
+.hermesv2 .hermesv2-sidebar-brand {
+  justify-content: flex-end;
+  align-items: center;
+  min-height: 0;
+  padding-block: var(--space-1);
+}
+.hermesv2 .hermesv2-sidebar-brand .hermesv2-drawer-close {
+  align-self: center;
+}
+
+/* --- Suchreihe ------------------------------------------------------------ */
+
+.hermesv2-sidebar-searchbar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+  padding-bottom: var(--space-2);
+}
+.hermesv2-search-field {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--color-muted);
+  padding-left: var(--space-2);
+  border-radius: var(--radius);
+}
+.hermesv2-search-field:focus-within {
+  background: var(--color-ink-800);
+}
+.hermesv2-search-field > svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.hermesv2-search-field .hermesv2-session-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 1rem; /* >= 16px, damit mobile Browser nicht zoomen */
+}
+.hermesv2-session-search::placeholder {
+  color: var(--color-faint);
+}
+
+.hermesv2-sidebar-tools {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-1);
+}
+.hermesv2-sidebar-tools .icon-button {
+  min-width: 44px;
+  min-height: 44px;
+  color: var(--color-muted);
+}
+.hermesv2-sidebar-tools .icon-button svg {
+  width: 16px;
+  height: 16px;
+}
+.hermesv2-new-session {
+  flex: none;
+  min-height: 44px;
+}
+
+.hermesv2-search-state {
+  margin: 0;
+  padding: 0 var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-faint);
+}
+
+/* --- Shelfs ---------------------------------------------------------------- */
+
+/* Die Hauptliste der zuletzt benutzten Chats füllt den oberen Teil der
+   Spalte und scrollt für sich. */
+.hermesv2-shelves {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  /* Die sichtbare Scrollleiste entfällt, das Scrollen bleibt vollständig. */
+  scrollbar-width: none;
+}
+.hermesv2-shelves::-webkit-scrollbar {
+  display: none;
+}
+
+/* Die Shelfs hängen unten an, direkt über der Bereichsleiste. Sie scrollen
+   getrennt von der Hauptliste und nehmen höchstens die Hälfte der Spalte. */
+.hermesv2-shelf-dock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 50%;
+  overflow-y: auto;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-line);
+  scrollbar-width: none;
+}
+.hermesv2-shelf-dock::-webkit-scrollbar {
+  display: none;
+}
+.hermesv2-shelf-dock[data-empty="true"] {
+  display: none;
+}
+
+.hermesv2-shelf {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  /* Keine Schrumpfung: sonst presst der Scrollbereich Zeilen und Knöpfe weg. */
+  flex: none;
+}
+.hermesv2-shelf[data-empty="true"] {
+  display: none;
+}
+.hermesv2-shelf[data-drop-active="true"] .hermesv2-shelf-collapse {
+  outline: 1px solid var(--color-accent-line);
+  outline-offset: 2px;
+}
+
+.hermesv2-shelf-title {
+  margin: 0;
+  font-size: var(--text-xs);
+}
+.hermesv2-shelf-title[data-accent="true"] {
+  color: var(--color-accent);
+}
+.hermesv2-shelf-collapse,
+.hermesv2-shelf-headline {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  min-height: 44px;
+  padding: 0 calc(var(--space-4) / var(--hermesv2-ui-scale, 1));
+  border: 0;
+  background: transparent;
+  color: var(--color-muted);
+  text-align: left;
+  font: inherit;
+}
+.hermesv2-shelf-collapse {
+  cursor: pointer;
+}
+.hermesv2-shelf-collapse:hover {
+  color: var(--color-text);
+}
+.hermesv2-shelf-title[data-accent="true"] .hermesv2-shelf-collapse {
+  color: var(--color-accent);
+}
+
+.hermesv2-shelf-label {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  white-space: nowrap;
+}
+.hermesv2-shelf-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  color: var(--color-faint);
+}
+.hermesv2-shelf-rule {
+  flex: 1 1 auto;
+  min-width: var(--space-4);
+  height: 1px;
+  background: var(--color-line);
+}
+.hermesv2-shelf-chevron {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--color-faint);
+}
+.hermesv2-shelf-chevron[data-collapsed="true"] {
+  transform: rotate(180deg);
+}
+
+.hermesv2-shelf-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Die Liste fährt weich auf: das Grid-Zeilen-Verfahren klappt den Inhalt
+   ein und aus, ohne Sprung und ohne Messen im Browser. Zugezogen liegt der
+   Inhalt unsichtbar, damit er weder per Tastatur noch per Screenreader
+   erreichbar bleibt. */
+.hermesv2-shelf-body {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  transition:
+    grid-template-rows var(--duration-base) var(--ease-standard),
+    opacity var(--duration-fast) var(--ease-standard),
+    visibility var(--duration-base) var(--ease-standard);
+}
+.hermesv2-shelf-body[data-collapsed="true"] {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  visibility: hidden;
+}
+.hermesv2-shelf-body-inner {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  /* Fokus auf ein Zeilenmenü darf die Liste nicht seitlich verschieben. */
+  overflow: clip;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hermesv2-shelf-body {
+    transition: none;
+  }
+}
+
+.hermesv2-shelf-more {
+  align-self: flex-start;
+  min-height: 44px;
+  margin-top: var(--space-1);
+  padding: 0 var(--space-2);
+  border-color: transparent;
+  background: transparent;
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+}
+.hermesv2-shelf-more:hover {
+  background: transparent;
+  color: var(--color-text);
+}
+.hermesv2-shelf-loading {
+  margin: 0;
+  font-size: var(--text-2xs);
+  color: var(--color-faint);
+}
+
+/* --- Auswahlmenü der Spalte ------------------------------------------------ */
+
+.hermesv2-sidebar-menu {
+  position: relative;
+  display: flex;
+}
+.hermesv2-sidebar-menu-list {
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  min-width: 176px;
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-850);
+  box-shadow: var(--shadow-raised);
+}
+.hermesv2-sidebar-menu-list button {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2);
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-text);
+  text-align: left;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+.hermesv2-sidebar-menu-list button:hover,
+.hermesv2-sidebar-menu-list button:focus-visible {
+  background: var(--color-ink-700);
+}
+.hermesv2-sidebar-menu-list button[data-selected="true"] {
+  color: var(--color-accent);
+}
+
+/* --- Ladezustand und Leertext --------------------------------------------- */
+
+.hermesv2-sidebar-skeleton {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-2);
+}
+.hermesv2-sidebar-skeleton span {
+  display: block;
+  width: 80%;
+  height: var(--space-3);
+  border-radius: var(--radius);
+  background: var(--color-ink-700);
+}
+.hermesv2-sidebar-skeleton span:nth-child(2) {
+  width: 60%;
+}
