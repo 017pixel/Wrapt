@@ -1,6 +1,6 @@
 import { expect, test as base, type Page } from "@playwright/test";
 import { HermesV2BrowserGateway } from "./hermes-v2-gateway";
-import { enableHermesV2, openHermesV2Settings, waitForHermesV2 } from "./helpers/hermes-v2-settings";
+import { enableHermesV2, openHermesV2Settings, waitForHermesV2, waitForHermesV2SyncPending } from "./helpers/hermes-v2-settings";
 
 const sessionId = "stored-browser";
 const root = '[data-hermes-ui="v2"]';
@@ -235,32 +235,40 @@ test("Flag-off während eines Turns schließt V2-Traffic ohne Stop und stellt na
   await expect.poll(() => submissions(gateway)).toBe(1);
   gateway.delta(sessionId, "Bereits eingetroffener Teil");
   const settings = await context.newPage();
-  await openHermesV2Settings(settings);
-  await settings.bringToFront();
-  await expect.poll(() => settings.evaluate(() => document.visibilityState)).toBe("visible");
-  const toggle = settings.getByRole("switch", { name: /Hermes V2 aktivieren/ });
-  await expect(toggle).toBeChecked();
-  await toggle.click();
-  await expect(toggle).not.toBeChecked();
-  await settings.clock.runFor(500);
-  await waitForHermesV2(settings, false);
-  await expect(page.locator(root)).toHaveCount(0);
-  await expect.poll(() => gateway.viewers.size).toBe(0);
-  const afterDisable = gateway.calls.length;
-  await gateway.disconnect();
-  await page.clock.fastForward(20_000);
-  await expect(page.getByRole("switch", { name: /Hermes V2 aktivieren/ })).not.toBeChecked();
-  expect(gateway.calls.length).toBe(afterDisable);
-  expect(gateway.stories.get(sessionId)!.snapshot.running).toBe(true);
-  expect(gateway.calls.filter((call) => call.op === "session.stop")).toHaveLength(0);
-  await toggle.click();
-  await expect(composer(page)).toBeVisible();
-  await expect.poll(() => gateway.viewers.size).toBe(1);
-  await expect(page.getByText("Bereits eingetroffener Teil", { exact: true })).toBeVisible();
-  gateway.complete(sessionId, "Nach Flag-Wechsel vollständig abgeschlossen");
-  await expect(page.getByText("Nach Flag-Wechsel vollständig abgeschlossen", { exact: true })).toBeVisible();
-  expect(submissions(gateway)).toBe(1);
-  await settings.close();
+  try {
+    await openHermesV2Settings(settings);
+    await settings.bringToFront();
+    await expect.poll(() => settings.evaluate(() => document.visibilityState)).toBe("visible");
+    const toggle = settings.getByRole("switch", { name: /Hermes V2 aktivieren/ });
+    await expect(toggle).toBeChecked();
+    await toggle.click();
+    await expect(toggle).not.toBeChecked();
+    await waitForHermesV2SyncPending(settings);
+    await settings.clock.runFor(500);
+    await waitForHermesV2(settings, false);
+    await expect(page.locator(root)).toHaveCount(0);
+    await expect.poll(() => gateway.viewers.size).toBe(0);
+    const afterDisable = gateway.calls.length;
+    await gateway.disconnect();
+    await page.clock.fastForward(20_000);
+    await expect(page.getByRole("switch", { name: /Hermes V2 aktivieren/ })).not.toBeChecked();
+    expect(gateway.calls.length).toBe(afterDisable);
+    expect(gateway.stories.get(sessionId)!.snapshot.running).toBe(true);
+    expect(gateway.calls.filter((call) => call.op === "session.stop")).toHaveLength(0);
+    await toggle.click();
+    await waitForHermesV2SyncPending(settings);
+    await settings.clock.runFor(500);
+    await waitForHermesV2(settings, true);
+    await expect(composer(page)).toBeVisible();
+    await expect.poll(() => gateway.viewers.size).toBe(1);
+    await expect(page.getByText("Bereits eingetroffener Teil", { exact: true })).toBeVisible();
+    gateway.complete(sessionId, "Nach Flag-Wechsel vollständig abgeschlossen");
+    await expect(page.getByText("Nach Flag-Wechsel vollständig abgeschlossen", { exact: true })).toBeVisible();
+    expect(submissions(gateway)).toBe(1);
+  } finally {
+    await settings.close();
+    await enableHermesV2(context);
+  }
 });
 
 test("rendert Markdown und externe Links ohne aktive HTML-Inhalte", async ({ page, gateway }) => {

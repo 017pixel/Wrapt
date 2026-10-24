@@ -2,7 +2,7 @@ import { expect, type Locator } from "@playwright/test";
 import { resourceTest as test, prepareResources, openResources, selectArea, areaTab,
   type ResourceLabel } from "./hermes-v2-resource-fixture";
 import { clickVisible, settleAnimations } from "./hermes-v2-work-fixture";
-import { openHermesV2Settings, waitForHermesV2 } from "./helpers/hermes-v2-settings";
+import { enableHermesV2, openHermesV2Settings, waitForHermesV2, waitForHermesV2SyncPending } from "./helpers/hermes-v2-settings";
 
 test.use({ extraHTTPHeaders: { "tailscale-user-login": "user@example.com" } });
 test.beforeEach(({ gateway }) => prepareResources(gateway));
@@ -85,7 +85,7 @@ test("beendet Ressourcentraffic bei Flagoff aus einem zweiten eigenen Tab", asyn
     await expect(toggle).toBeChecked();
     await toggle.click();
     await expect(toggle).not.toBeChecked();
-    await settings.clock.runFor(500);
+    await waitForHermesV2SyncPending(settings);
     await waitForHermesV2(settings, false);
     await expect(areaTab(page, "Cron")).toHaveCount(0);
     await expect.poll(() => gateway.viewers.size).toBe(0);
@@ -93,5 +93,8 @@ test("beendet Ressourcentraffic bei Flagoff aus einem zweiten eigenen Tab", asyn
     gateway.resources.invalidate();
     expect(gateway.resources.calls).toHaveLength(count);
     expect(gateway.calls.filter((call) => call.op === "session.stop")).toHaveLength(0);
-  } finally { await settings.close(); }
+  } finally {
+    await settings.close();
+    await enableHermesV2(context);
+  }
 });

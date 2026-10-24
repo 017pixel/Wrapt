@@ -79,3 +79,17 @@ export async function waitForHermesV2(page: Page, enabled: boolean): Promise<voi
     return document.entries?.appPreferences?.value?.state?.hermesV2Enabled ?? null;
   }).toBe(enabled);
 }
+
+/** Wartet darauf, dass die lokale Änderung den debouncten Server-Push eingeplant hat. */
+export async function waitForHermesV2SyncPending(page: Page): Promise<void> {
+  await expect.poll(async () => page.evaluate((metaKey) => {
+    try {
+      const meta = JSON.parse(localStorage.getItem(metaKey) ?? "null") as {
+        pending?: Record<string, unknown>;
+      } | null;
+      return typeof meta?.pending?.appPreferences === "number";
+    } catch {
+      return false;
+    }
+  }, settingsSyncMetaKey)).toBe(true);
+}

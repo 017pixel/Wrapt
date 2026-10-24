@@ -1,6 +1,6 @@
 import { expect, test as base, type Page } from "@playwright/test";
 import { HermesV2BrowserGateway } from "./hermes-v2-gateway";
-import { enableHermesV2, openHermesV2Settings, waitForHermesV2 } from "./helpers/hermes-v2-settings";
+import { enableHermesV2, openHermesV2Settings, waitForHermesV2, waitForHermesV2SyncPending } from "./helpers/hermes-v2-settings";
 
 const firstId = "sidebar-first";
 const secondId = "sidebar-second";
@@ -276,21 +276,26 @@ test("beendet auch Organisationstraffic beim Abschalten des Flags", async ({ pag
   await page.clock.install();
   await openSidebar(page);
   const settings = await context.newPage();
-  await openHermesV2Settings(settings);
-  await settings.bringToFront();
-  await expect.poll(() => settings.evaluate(() => document.visibilityState)).toBe("visible");
-  const toggle = settings.getByRole("switch", { name: /Hermes V2 aktivieren/ });
-  await expect(toggle).toBeChecked();
-  await toggle.click();
-  await expect(toggle).not.toBeChecked();
-  await settings.clock.runFor(500);
-  await waitForHermesV2(settings, false);
-  await expect(page.locator('[data-hermes-ui="v2"]')).toHaveCount(0);
-  await expect.poll(() => gateway.viewers.size).toBe(0);
-  const calls = gateway.organization.calls.length;
-  await page.clock.fastForward(20_000);
-  expect(gateway.organization.calls).toHaveLength(calls);
-  await settings.close();
+  try {
+    await openHermesV2Settings(settings);
+    await settings.bringToFront();
+    await expect.poll(() => settings.evaluate(() => document.visibilityState)).toBe("visible");
+    const toggle = settings.getByRole("switch", { name: /Hermes V2 aktivieren/ });
+    await expect(toggle).toBeChecked();
+    await toggle.click();
+    await expect(toggle).not.toBeChecked();
+    await waitForHermesV2SyncPending(settings);
+    await settings.clock.runFor(500);
+    await waitForHermesV2(settings, false);
+    await expect(page.locator('[data-hermes-ui="v2"]')).toHaveCount(0);
+    await expect.poll(() => gateway.viewers.size).toBe(0);
+    const calls = gateway.organization.calls.length;
+    await page.clock.fastForward(20_000);
+    expect(gateway.organization.calls).toHaveLength(calls);
+  } finally {
+    await settings.close();
+    await enableHermesV2(context);
+  }
 });
 
 test("behält Collapse nach Reload und macht mobile Aktionen per Tastatur erreichbar", async ({ page, gateway }) => {
