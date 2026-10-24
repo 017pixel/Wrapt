@@ -18,7 +18,7 @@ const test = base.extend<{ gateway: HermesV2BrowserGateway }>({
   },
 });
 
-test.use({ extraHTTPHeaders: { "tailscale-user-login": "user@example.com" }, viewport: { width: 1440, height: 900 } });
+test.use({ extraHTTPHeaders: { "tailscale-user-login": process.env.WRAPT_E2E_USER ?? "user@example.com" }, viewport: { width: 1440, height: 900 } });
 const shelf = (page: Page, id: string) => page.locator(`[data-hermes-shelf="${id}"]`);
 const actionCalls = (gateway: HermesV2BrowserGateway) => gateway.organization.calls.filter((call) => call.path === "/organization/action");
 

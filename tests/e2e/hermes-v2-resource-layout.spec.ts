@@ -4,7 +4,7 @@ import { resourceTest as test, prepareResources, openResources, selectArea, area
 import { clickVisible, settleAnimations } from "./hermes-v2-work-fixture";
 import { enableHermesV2, openHermesV2Settings, waitForHermesV2, waitForHermesV2SyncPending } from "./helpers/hermes-v2-settings";
 
-test.use({ extraHTTPHeaders: { "tailscale-user-login": "user@example.com" } });
+test.use({ extraHTTPHeaders: { "tailscale-user-login": process.env.WRAPT_E2E_USER ?? "user@example.com" } });
 test.beforeEach(({ gateway }) => prepareResources(gateway));
 
 async function assertVisibleTarget(target: Locator) {
