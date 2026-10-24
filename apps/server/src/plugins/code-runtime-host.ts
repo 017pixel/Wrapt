@@ -47,6 +47,7 @@ export class PluginCodeRuntimeHost implements ExecutableExtensionRuntime {
   private readonly pending = new Map<string, PendingActivation>();
   private readonly data: PluginReleaseDataStore;
   private readonly cleanup = new Set<Promise<void>>();
+  private readonly cleanupByPlugin = new Map<string, Set<Promise<void>>>();
 
   constructor(private readonly options: PluginRuntimeHostOptions) { this.data = new PluginReleaseDataStore(options.dataDirectory); }
 
@@ -74,6 +75,7 @@ export class PluginCodeRuntimeHost implements ExecutableExtensionRuntime {
 
   async prepare(request: ExtensionManagementRequest, current: ExtensionRegistryDetail | null): Promise<void> {
     if (!this.handles(request.extensionId)) return;
+    await this.waitForCleanup(request.extensionId);
     const candidate = this.active.get(request.extensionId);
     const previous = candidate?.process.available ? candidate : undefined;
     if (candidate && !previous) this.active.delete(request.extensionId);
@@ -148,8 +150,8 @@ export class PluginCodeRuntimeHost implements ExecutableExtensionRuntime {
     const pending = this.pending.get(id);
     if (!pending) return;
     this.pending.delete(id);
-    if (pending.previous) this.dispose(pending.previous.process);
-    if (pending.next && !pending.committed) this.dispose(pending.next.process);
+    if (pending.previous) this.dispose(id, pending.previous.process);
+    if (pending.next && !pending.committed) this.dispose(id, pending.next.process);
     this.options.changed?.();
   }
 
@@ -157,7 +159,7 @@ export class PluginCodeRuntimeHost implements ExecutableExtensionRuntime {
     const pending = this.pending.get(id);
     if (!pending) return;
     this.pending.delete(id);
-    const stop = pending.next ? this.dispose(pending.next.process) : undefined;
+    const stop = pending.next ? this.dispose(id, pending.next.process) : undefined;
     if (pending.previous?.process.available) {
       this.active.set(id, pending.previous);
       this.options.pointers.restorePointer(id, pending.previous.pointer);
@@ -173,7 +175,7 @@ export class PluginCodeRuntimeHost implements ExecutableExtensionRuntime {
     if (pending.previousData) this.data.publish(id, pending.previousData);
     if (pending.data) {
       const data = pending.data;
-      if (stop) this.track(stop.then(() => this.data.discard(id, data)));
+      if (stop) this.track(id, stop.then(() => this.data.discard(id, data)));
       else this.data.discard(id, data);
     }
   }
@@ -186,15 +188,26 @@ export class PluginCodeRuntimeHost implements ExecutableExtensionRuntime {
     await Promise.allSettled([...this.cleanup]);
   }
 
-  private dispose(runtime: PluginProcess): Promise<void> {
+  private dispose(id: string, runtime: PluginProcess): Promise<void> {
     const run = runtime.stop().catch(() => undefined);
-    this.track(run);
+    this.track(id, run);
     return run;
   }
 
-  private track(run: Promise<void>): void {
+  private track(id: string, run: Promise<void>): void {
     this.cleanup.add(run);
-    void run.then(() => this.cleanup.delete(run));
+    const pluginCleanup = this.cleanupByPlugin.get(id) ?? new Set<Promise<void>>();
+    pluginCleanup.add(run);
+    this.cleanupByPlugin.set(id, pluginCleanup);
+    void run.then(() => {
+      this.cleanup.delete(run);
+      pluginCleanup.delete(run);
+      if (pluginCleanup.size === 0) this.cleanupByPlugin.delete(id);
+    });
+  }
+
+  private async waitForCleanup(id: string): Promise<void> {
+    await Promise.allSettled([...(this.cleanupByPlugin.get(id) ?? [])]);
   }
 
   private shouldActivate(request: ExtensionManagementRequest, current: ExtensionRegistryDetail | null): boolean {

@@ -2,6 +2,11 @@
 
 Alle relevanten Änderungen werden in kurzen Stichpunkten dokumentiert.
 
+## [2.19.2] - 2026-10-24
+
+### Behoben
+- Beim direkten Wiedereinschalten eines persönlichen Plugins wartet Wrapt jetzt, bis der vorherige Prozess seine Datenbank freigegeben hat.
+
 ## [2.19.1] - 2026-10-24
 
 ### Verändert

@@ -129,7 +129,11 @@ describe("Code-Plugins über den Extension-Manager", { timeout: 20_000 }, () => 
   });
   it("startet ausschließlich ausdrücklich vertraute persönliche Releases", async () => {
     const service = fixture();
-    service.publish("0.1.0", initial);
+    service.publish("0.1.0", `export default { async setup(ctx) {
+      ctx.effect(() => new Promise(resolve => setTimeout(resolve, 50)));
+      await ctx.storage.migrate(1, async storage => { await storage.set('count', 1); });
+      ctx.rpc.register('read', { handler() { return ctx.storage.get('count'); } });
+    } };`);
     await expect(service.install()).rejects.toThrow("Vollvertrauen");
     expect(service.host.list()).toHaveLength(0);
     service.sources.updateState("personal.tasks", { trusted: true });
