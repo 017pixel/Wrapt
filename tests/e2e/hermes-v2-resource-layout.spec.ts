@@ -78,12 +78,14 @@ test("beendet Ressourcentraffic bei Flagoff aus einem zweiten eigenen Tab", asyn
   await expect(page.getByRole("button", { name: "Cron-Job: Eigener Prüfjob", exact: true })).toBeVisible();
   const settings = await context.newPage();
   try {
-    await settings.bringToFront();
     await openHermesV2Settings(settings);
+    await settings.bringToFront();
+    await expect.poll(() => settings.evaluate(() => document.visibilityState)).toBe("visible");
     const toggle = settings.getByRole("switch", { name: /Hermes V2 aktivieren/ });
     await expect(toggle).toBeChecked();
     await toggle.click();
     await expect(toggle).not.toBeChecked();
+    await settings.clock.runFor(500);
     await waitForHermesV2(settings, false);
     await expect(areaTab(page, "Cron")).toHaveCount(0);
     await expect.poll(() => gateway.viewers.size).toBe(0);

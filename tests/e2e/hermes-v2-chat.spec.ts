@@ -235,12 +235,14 @@ test("Flag-off während eines Turns schließt V2-Traffic ohne Stop und stellt na
   await expect.poll(() => submissions(gateway)).toBe(1);
   gateway.delta(sessionId, "Bereits eingetroffener Teil");
   const settings = await context.newPage();
-  await settings.bringToFront();
   await openHermesV2Settings(settings);
+  await settings.bringToFront();
+  await expect.poll(() => settings.evaluate(() => document.visibilityState)).toBe("visible");
   const toggle = settings.getByRole("switch", { name: /Hermes V2 aktivieren/ });
   await expect(toggle).toBeChecked();
   await toggle.click();
   await expect(toggle).not.toBeChecked();
+  await settings.clock.runFor(500);
   await waitForHermesV2(settings, false);
   await expect(page.locator(root)).toHaveCount(0);
   await expect.poll(() => gateway.viewers.size).toBe(0);

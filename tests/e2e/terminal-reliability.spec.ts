@@ -127,7 +127,9 @@ test("bewahrt mobile Split-Terminals bei Auswahl und Drehung und bietet Touch-Ak
     await expect(page.locator(".terminal-session-pane")).toHaveCount(2);
     await expect(page.locator(".terminal-session-pane.is-visible .xterm-screen")).toContainText("__MOBILE_RIGHT__");
     await page.getByRole("button", { name: "Terminal-Sidebar einblenden", exact: true }).click();
-    await page.locator(".terminal-tree-row.is-entry").first().click();
+    const firstEntry = page.locator(".terminal-tree-row.is-entry").first();
+    await expect(firstEntry).toBeVisible();
+    await firstEntry.tap();
     await expect(page.getByRole("complementary", { name: "Terminal-Sidebar" })).not.toBeVisible();
     await expect(page.locator(".terminal-session-pane.is-visible .xterm-screen")).toContainText("__MOBILE_LEFT__");
     await page.setViewportSize({ width: 844, height: 390 });

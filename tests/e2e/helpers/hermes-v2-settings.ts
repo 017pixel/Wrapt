@@ -2,6 +2,11 @@ import { expect, request, type BrowserContext, type Page } from "@playwright/tes
 import { e2eOrigin } from "./environment";
 
 const identity = { "tailscale-user-login": process.env.WRAPT_E2E_USER ?? "user@example.com" };
+const settingsSyncMetaKey = "wrapt.ui-settings-sync.v1";
+
+interface SettingsSyncWindow extends Window {
+  __wraptSettingsSyncReady?: Promise<void>;
+}
 
 /**
  * Hermes V2 liegt in einer serverweit synchronisierten Einstellung. Ein reiner
@@ -47,15 +52,20 @@ export function enableHermesV2(context: BrowserContext): Promise<void> {
 
 /** Wartet vor Änderungen auf den ersten serverweiten Einstellungsabgleich. */
 export async function openHermesV2Settings(page: Page): Promise<void> {
-  const initialSync = page.waitForResponse((response) => {
-    const url = new URL(response.url());
-    return url.pathname === "/api/v1/settings/ui" &&
-      response.request().method() === "GET" && response.ok();
-  });
+  await page.addInitScript((metaKey) => {
+    const nativeSetItem = Storage.prototype.setItem;
+    const target = window as SettingsSyncWindow;
+    target.__wraptSettingsSyncReady = new Promise<void>((resolve) => {
+      Storage.prototype.setItem = function (key, value) {
+        nativeSetItem.call(this, key, value);
+        if (key === metaKey) resolve();
+      };
+    });
+  }, settingsSyncMetaKey);
   await page.goto("/wrapt/settings#einstellungen:experimente");
-  const response = await initialSync;
-  await response.finished();
-  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+  await page.evaluate(async () => {
+    await (window as SettingsSyncWindow).__wraptSettingsSyncReady;
+  });
 }
 
 /** Wartet, bis die debouncte Einstellung den Server erreicht hat. */
