@@ -21,7 +21,10 @@ async function command(pane: Locator, text: string, marker: string) {
   const input = pane.locator(".xterm-helper-textarea");
   await input.fill(text);
   await input.press("Enter");
-  await expect(pane.locator(".xterm-screen")).toContainText(marker, { timeout: 5_000 });
+  await expect.poll(async () => {
+    const screen = await pane.locator(".xterm-screen").textContent() ?? "";
+    return screen.split(marker).length - 1;
+  }, { timeout: 5_000 }).toBeGreaterThanOrEqual(2);
 }
 
 async function sessions(page: Page) {

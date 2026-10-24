@@ -18,7 +18,7 @@
     "lint": "eslint .",
     "test": "pnpm --filter @wrapt/extension-contracts build && pnpm --filter @wrapt/plugin-sdk build && pnpm --filter @wrapt/contracts build && pnpm -r --workspace-concurrency=2 test --maxWorkers=4 && pnpm test:launcher && pnpm test:docs",
     "test:launcher": "node --test tools/launcher/ui/app.test.mjs",
-    "test:coverage": "pnpm -r --workspace-concurrency=2 test:coverage --maxWorkers=4",
+    "test:coverage": "pnpm -r --workspace-concurrency=1 test:coverage --maxWorkers=4",
     "test:artifact-retention": "node scripts/test-web-artifact-retention.mjs",
     "test:extension-deployment": "node scripts/test-extension-deployment.mjs",
     "test:wrapt-plugins-skill": "node scripts/validate-wrapt-plugins-skill.mjs",

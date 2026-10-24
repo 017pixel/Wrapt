@@ -2,6 +2,7 @@ import { expect } from "@playwright/test";
 import { workTest as test, prepareWork, openWork, workRegion, workRow, sessionId,
   otherId, workAction, runWorkAction, composerInput } from "./hermes-v2-work-fixture";
 import type { HermesV2BrowserGateway } from "./hermes-v2-gateway";
+import { waitForHermesV2 } from "./helpers/hermes-v2-settings";
 
 test.use({ extraHTTPHeaders: { "tailscale-user-login": "user@example.com" }, viewport: { width: 1440, height: 900 } });
 test.beforeEach(({ gateway }) => prepareWork(gateway, true));
@@ -66,6 +67,7 @@ test("beendet bei ausgeschaltetem Flag zusätzlichen Worktraffic ohne Hauptstop"
   await expect(toggle).toBeChecked();
   await toggle.click();
   await expect(toggle).not.toBeChecked();
+  await waitForHermesV2(page, false);
   await expect.poll(() => gateway.viewers.size).toBe(0);
   const before = gateway.calls.length;
   gateway.work.invalidate(sessionId);

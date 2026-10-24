@@ -2,6 +2,7 @@ import { expect, type Locator } from "@playwright/test";
 import { resourceTest as test, prepareResources, openResources, selectArea, areaTab,
   type ResourceLabel } from "./hermes-v2-resource-fixture";
 import { clickVisible, settleAnimations } from "./hermes-v2-work-fixture";
+import { waitForHermesV2 } from "./helpers/hermes-v2-settings";
 
 test.use({ extraHTTPHeaders: { "tailscale-user-login": "user@example.com" } });
 test.beforeEach(({ gateway }) => prepareResources(gateway));
@@ -80,6 +81,7 @@ test("beendet Ressourcentraffic bei Flagoff aus einem zweiten eigenen Tab", asyn
     await settings.goto("/wrapt/settings#einstellungen:experimente");
     const toggle = settings.getByRole("switch", { name: /Hermes V2 aktivieren/ });
     await expect(toggle).toBeChecked(); await toggle.click();
+    await waitForHermesV2(settings, false);
     await expect(areaTab(page, "Cron")).toHaveCount(0);
     await expect.poll(() => gateway.viewers.size).toBe(0);
     const count = gateway.resources.calls.length;

@@ -1,6 +1,6 @@
 import { expect, test as base, type Page } from "@playwright/test";
 import { HermesV2BrowserGateway } from "./hermes-v2-gateway";
-import { enableHermesV2 } from "./helpers/hermes-v2-settings";
+import { enableHermesV2, waitForHermesV2 } from "./helpers/hermes-v2-settings";
 
 const firstId = "sidebar-first";
 const secondId = "sidebar-second";
@@ -278,6 +278,7 @@ test("beendet auch Organisationstraffic beim Abschalten des Flags", async ({ pag
   const settings = await context.newPage();
   await settings.goto("/wrapt/settings#einstellungen:experimente");
   await settings.getByRole("switch", { name: /Hermes V2 aktivieren/ }).click();
+  await waitForHermesV2(settings, false);
   await expect(page.locator('[data-hermes-ui="v2"]')).toHaveCount(0);
   await expect.poll(() => gateway.viewers.size).toBe(0);
   const calls = gateway.organization.calls.length;
