@@ -2,9 +2,9 @@ import { expect } from "@playwright/test";
 import { workTest as test, prepareWork, openWork, workRegion, workRow, sessionId,
   otherId, workAction, runWorkAction, composerInput } from "./hermes-v2-work-fixture";
 import type { HermesV2BrowserGateway } from "./hermes-v2-gateway";
-import { waitForHermesV2 } from "./helpers/hermes-v2-settings";
+import { enableHermesV2, waitForHermesV2, waitForHermesV2SyncPending } from "./helpers/hermes-v2-settings";
 
-test.use({ extraHTTPHeaders: { "tailscale-user-login": "user@example.com" }, viewport: { width: 1440, height: 900 } });
+test.use({ extraHTTPHeaders: { "tailscale-user-login": process.env.WRAPT_E2E_USER ?? "user@example.com" }, viewport: { width: 1440, height: 900 } });
 test.beforeEach(({ gateway }) => prepareWork(gateway, true));
 
 async function select(page: Parameters<typeof openWork>[0], id: string) {
@@ -59,21 +59,26 @@ test("zeigt keine alte Tailantwort nach Wechsel und Rückkehr zur gleichen Sitzu
   expect(gateway.work.observations).toHaveLength(1);
 });
 
-test("beendet bei ausgeschaltetem Flag zusätzlichen Worktraffic ohne Hauptstop", async ({ page, gateway }) => {
+test("beendet bei ausgeschaltetem Flag zusätzlichen Worktraffic ohne Hauptstop", async ({ page, gateway, context }) => {
   gateway.work.seedSubagent(sessionId, "flag-context", { goal: "Eigene Flagprüfung", status: "running" });
   await openWork(page);
   await page.goto("/wrapt/settings#einstellungen:experimente");
   const toggle = page.getByRole("switch", { name: /Hermes V2 aktivieren/ });
-  await expect(toggle).toBeChecked();
-  await toggle.click();
-  await expect(toggle).not.toBeChecked();
-  await waitForHermesV2(page, false);
-  await expect.poll(() => gateway.viewers.size).toBe(0);
-  const before = gateway.calls.length;
-  gateway.work.invalidate(sessionId);
-  gateway.work.patch(sessionId, { kind: "subagent", id: "late-disabled-child", status: "running" });
-  expect(gateway.calls).toHaveLength(before);
-  expect(gateway.calls.filter((call) => call.op === "session.stop")).toHaveLength(0);
+  try {
+    await expect(toggle).toBeChecked();
+    await toggle.click();
+    await expect(toggle).not.toBeChecked();
+    await waitForHermesV2SyncPending(page);
+    await waitForHermesV2(page, false);
+    await expect.poll(() => gateway.viewers.size).toBe(0);
+    const before = gateway.calls.length;
+    gateway.work.invalidate(sessionId);
+    gateway.work.patch(sessionId, { kind: "subagent", id: "late-disabled-child", status: "running" });
+    expect(gateway.calls).toHaveLength(before);
+    expect(gateway.calls.filter((call) => call.op === "session.stop")).toHaveLength(0);
+  } finally {
+    await enableHermesV2(context);
+  }
 });
 
 test("verwirft eine alte Tailantwort nach beobachtetem Live-CWD-A-B-A", async ({ page, gateway }) => {
