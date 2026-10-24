@@ -1,11 +1,12 @@
 {
   "name": "@wrapt/web",
-  "version": "2.19.0",
+  "version": "2.19.1",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json --noEmit && vite build && node scripts/compress-dist.mjs",
+    "build:e2e": "vite build && node scripts/compress-dist.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
@@ -44,7 +45,7 @@
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "@xyflow/react": "12.11.6",
-    "dompurify": "^3.4.16",
+    "dompurify": "^3.4.17",
     "highlight.js": "^11.12.0",
     "highlight.js-notes": "npm:highlight.js@11.11.2",
     "katex": "^0.18.7",
@@ -54,7 +55,7 @@
     "react-dom": "19.3.0",
     "react-resizable-panels": "4.12.4",
     "react-router": "8.4.0",
-    "zod": "4.6.5",
+    "zod": "4.6.7",
     "zustand": "5.0.15",
     "@wrapt/plugin-sdk": "workspace:*"
   },
