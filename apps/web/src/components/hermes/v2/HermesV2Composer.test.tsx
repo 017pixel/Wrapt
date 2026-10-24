@@ -94,22 +94,49 @@ describe("HermesV2Composer", () => {
     expect(props.onSubmit).not.toHaveBeenCalled();
   });
 
-  it("zeigt Stoppen bei laufender Arbeit und erklärt gesperrte Eingaben", () => {
+  it("zeigt bei laufender Arbeit und leerem Feld nur Stoppen", () => {
     renderComposer({
       running: true,
       disabled: true,
       disabledReason: "Keine Verbindung zu Hermes.",
     });
     expect(screen.getByRole("button", { name: "Stoppen" })).toBeTruthy();
-    // Der Sperrgrund steht am Feld und am Senden, nicht als eigene Zeile.
+    // Der Sperrgrund steht am Feld, nicht als eigene Zeile.
     expect(input().getAttribute("placeholder")).toContain(
       "Keine Verbindung zu Hermes.",
     );
-    const send = screen.getByRole("button", { name: "Senden" });
-    expect(send.hasAttribute("disabled")).toBe(true);
-    expect(send.getAttribute("title")).toContain("Keine Verbindung");
+    expect(screen.queryByRole("button", { name: "Senden" })).toBeNull();
     expect(document.body.textContent).not.toContain(
       "Keine Verbindung zu Hermes.",
     );
+  });
+
+  it("holt den Senden-Knopf zurück, sobald während der Arbeit Text entsteht", () => {
+    const { rerender } = render(
+      <HermesV2Composer
+        value=""
+        onChange={vi.fn()}
+        onSubmit={vi.fn()}
+        onStop={vi.fn()}
+        running
+        disabled={false}
+        disabledReason={null}
+        submitting={false}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Senden" })).toBeNull();
+    rerender(
+      <HermesV2Composer
+        value="Neue Frage"
+        onChange={vi.fn()}
+        onSubmit={vi.fn()}
+        onStop={vi.fn()}
+        running
+        disabled={false}
+        disabledReason={null}
+        submitting={false}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Senden" })).toBeTruthy();
   });
 });

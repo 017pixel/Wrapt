@@ -67,8 +67,9 @@ test("behält eine im echten Orbitpanel erstellte Sitzung mit Nachricht nach Rel
   await page.locator(`.react-flow__node-orbit[data-id="${nodeId}"] .orbit-node-header`).click();
   await expect(composer(page)).toBeEnabled();
   await expect(panel(page).getByText("Eigene Nachricht aus dem Orbitpanel", { exact: true })).toHaveCount(1);
-  await expect(panel(page).getByRole("link", { name: "Klassisch", exact: true })).toHaveAttribute("href", /session=stored-created-1/);
-  await expect(panel(page).getByRole("link", { name: "Fenster", exact: true })).toHaveAttribute("href", /\/wrapt\/hermes-v2\/standalone\?session=stored-created-1$/);
+  await panel(page).getByRole("button", { name: "Hermes-Optionen" }).click();
+  await expect(panel(page).getByRole("menuitem", { name: "Klassische Oberfläche" })).toHaveAttribute("href", /session=stored-created-1/);
+  await expect(panel(page).getByRole("menuitem", { name: "In eigenem Fenster öffnen" })).toHaveAttribute("href", /\/wrapt\/hermes-v2\/standalone\?session=stored-created-1$/);
   expect(gateway.calls.filter((call) => call.op === "session.create")).toHaveLength(1);
   expect(gateway.calls.filter((call) => call.op === "message.submit")).toHaveLength(1);
 });
@@ -90,8 +91,9 @@ test("wählt im echten schmalen Orbitpanel eine bestehende Sitzung ohne neue Sit
   await page.reload();
   await page.locator(`.react-flow__node-orbit[data-id="${nodeId}"] .orbit-node-header`).click();
   await expect(composer(page)).toBeEnabled();
-  await expect(panel(page).getByRole("link", { name: "Klassisch", exact: true })).toHaveAttribute("href", new RegExp(`session=${sessionId}`));
-  const standalone = panel(page).getByRole("link", { name: "Fenster", exact: true });
+  await panel(page).getByRole("button", { name: "Hermes-Optionen" }).click();
+  await expect(panel(page).getByRole("menuitem", { name: "Klassische Oberfläche" })).toHaveAttribute("href", new RegExp(`session=${sessionId}`));
+  const standalone = panel(page).getByRole("menuitem", { name: "In eigenem Fenster öffnen" });
   await expect(standalone).toHaveAttribute("href", new RegExp(`/wrapt/hermes-v2/standalone\\?session=${sessionId}$`));
   await expect(standalone).toHaveAttribute("target", "_blank");
   await expect(standalone).toHaveAttribute("rel", /noopener/);
@@ -99,7 +101,8 @@ test("wählt im echten schmalen Orbitpanel eine bestehende Sitzung ohne neue Sit
   try {
     await expect(popup.getByRole("textbox", { name: "Nachricht an Hermes", exact: true })).toBeEnabled();
     await expect(popup).toHaveURL(new RegExp(`/wrapt/hermes-v2/standalone\\?session=${sessionId}$`));
-    await expect(popup.getByRole("link", { name: "Klassisch", exact: true })).toHaveAttribute("href", new RegExp(`session=${sessionId}`));
+    await popup.getByRole("button", { name: "Hermes-Optionen" }).click();
+    await expect(popup.getByRole("menuitem", { name: "Klassische Oberfläche" })).toHaveAttribute("href", new RegExp(`session=${sessionId}`));
     expect(gateway.calls.filter((call) => ["session.create", "message.submit", "session.stop"].includes(call.op))).toHaveLength(0);
   } finally { await popup.close(); }
 });

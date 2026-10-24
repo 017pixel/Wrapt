@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { useAppPreferences } from "../../stores/appPreferences";
@@ -20,9 +20,12 @@ describe("Hermes V2 mit echtem Dispatcher", () => {
         <HermesShell variant="route" />
       </MemoryRouter>,
     );
-    const classic = await screen.findByRole("link", { name: "Klassisch" }, { timeout: 10_000 });
-    expect(classic.getAttribute("href")).toBe("/hermes-agent?ui=classic&session=stored-id");
-    expect(screen.getByRole("link", { name: "Fenster" }).getAttribute("href"))
+    const classic = await screen.findByRole("button", { name: "Hermes-Optionen" }, { timeout: 10_000 });
+    fireEvent.click(classic);
+    expect(
+      screen.getByRole("menuitem", { name: "Klassische Oberfläche" }).getAttribute("href"),
+    ).toBe("/hermes-agent?ui=classic&session=stored-id");
+    expect(screen.getByRole("menuitem", { name: "In eigenem Fenster öffnen" }).getAttribute("href"))
       .toContain("/hermes-v2/standalone?session=stored-id");
     expect(container.querySelectorAll('[data-hermes-ui="v2"]')).toHaveLength(1);
     expect(container.querySelector("iframe")).toBeNull();

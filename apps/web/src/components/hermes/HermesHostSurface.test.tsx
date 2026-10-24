@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { HermesV2ChatOptions } from "./v2/chat-types";
@@ -49,8 +49,11 @@ describe("Hostcallback durch echte HermesShell und V2Surface", () => {
     expect(callback).toHaveBeenCalledExactlyOnceWith("/chat?resume=created%2Ffull-id");
     rerender(surface("/chat?resume=created%2Ffull-id"));
     expect(options.at(-1)?.sessionId).toBe("created/full-id");
-    const hrefs = [...container.querySelectorAll("a")].map((anchor) => anchor.getAttribute("href"));
-    expect(hrefs).toContain("/hermes-agent?ui=classic&session=created%2Ffull-id");
+    fireEvent.click(screen.getByRole("button", { name: "Hermes-Optionen" }));
+    const classic = screen.getByRole("menuitem", { name: "Klassische Oberfläche" });
+    expect(classic.getAttribute("href")).toBe(
+      "/hermes-agent?ui=classic&session=created%2Ffull-id",
+    );
     act(() => old("stale"));
     rerender(surface("/chat?resume=created%2Ffull-id", false));
     act(() => options.at(-1)!.onSelectSession!("parked"));

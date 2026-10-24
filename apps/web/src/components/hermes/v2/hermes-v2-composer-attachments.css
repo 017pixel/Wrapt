@@ -1,0 +1,132 @@
+/* Anhänge, Dateikarten und Drag-Zustand des Hermes-V2-Composers.
+   Ausschließlich Wrapt-Tokens, keine neuen Farben, Touchziele ab 44 px. */
+
+/* --- Anhänge ---------------------------------------------------------------- */
+
+.hermesv2-attach {
+  display: flex;
+  flex: none;
+  align-items: center;
+}
+.hermesv2-attach-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.hermesv2-composer-wrap[data-dragging] {
+  padding: var(--space-1);
+  border: 1px dashed var(--color-accent);
+  border-radius: var(--radius);
+}
+
+.hermesv2-attach-list-wrap {
+  min-width: 0;
+}
+.hermesv2-attach-list {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.hermesv2-attach-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex: none;
+  max-width: 60ch;
+  min-height: 44px;
+  padding: 0 var(--space-1) 0 var(--space-2);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-800);
+  font-size: var(--text-2xs);
+}
+
+.hermesv2-attach-name {
+  min-width: 0;
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+.hermesv2-attach-meta {
+  flex: none;
+  color: var(--color-faint);
+  white-space: nowrap;
+}
+.hermesv2-attach-action {
+  flex: none;
+  min-height: 44px;
+  padding-inline: var(--space-2);
+  font-size: var(--text-2xs);
+}
+.hermesv2-attach-remove {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--color-muted);
+}
+.hermesv2-attach-remove:hover:not(:disabled) {
+  color: var(--color-text);
+  background: var(--color-ink-700);
+}
+.hermesv2-attach-remove svg {
+  width: 14px;
+  height: 14px;
+}
+.hermesv2-attach-chip [role="alert"] {
+  color: var(--color-bad);
+}
+.hermesv2-attach-note {
+  margin: 0;
+  font-size: var(--text-2xs);
+  color: var(--color-warn);
+}
+
+/* Historydateikarten: geschützte Downloads über opaque VertragsIDs. */
+.hermesv2-row-attach {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.hermesv2-row-attach li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-800);
+  font-size: var(--text-2xs);
+}
+.hermesv2-row-attach-link {
+  color: var(--color-accent);
+  font-family: var(--font-mono);
+  max-width: 24ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hermesv2-row-attach-size {
+  color: var(--color-faint);
+  font-variant-numeric: tabular-nums;
+}

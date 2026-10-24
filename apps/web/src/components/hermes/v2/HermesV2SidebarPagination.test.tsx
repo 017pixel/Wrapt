@@ -7,7 +7,7 @@ import { makeGroup, makeSidebar } from "./sidebar-test-fixtures";
 describe("HermesV2SidebarPanel – Pagination", () => {
   afterEach(cleanup);
 
-  it("Suche zeigt ehrliche Teilabdeckung und lädt ihre Folgeseiten bei der Liste", () => {
+  it("Suche zeigt ehrliche Teilabdeckung und lädt weitere Treffer ausdrücklich", () => {
     const sidebar = makeSidebar({
       search: {
         query: "api",
@@ -28,10 +28,10 @@ describe("HermesV2SidebarPanel – Pagination", () => {
       />,
     );
     expect(screen.getByText(/ deckt nur geladene Seiten ab/)).toBeTruthy();
-    // Die Folgeseiten kommen über den Knopf bei der Liste, zu der sie gehören.
+    // Nur die Suche bietet einen ausdrücklichen Nachladeknopf; die normale
+    // Hauptliste lädt unsichtbar beim Scrollen nach.
     const knopf = container.querySelector(".hermesv2-shelf-more");
-    expect(knopf).toBeTruthy();
-    expect(knopf!.closest("[data-hermes-shelf='active']")).toBeTruthy();
+    expect(knopf?.textContent).toBe("Weitere Treffer laden");
     fireEvent.click(knopf!);
     expect(sidebar.loadMore).toHaveBeenCalledTimes(1);
   });
@@ -60,7 +60,7 @@ describe("HermesV2SidebarPanel – Pagination", () => {
     expect(sidebar.calls.loadMembers).toEqual(["snoozed"]);
   });
 
-  it("Katalog-Pagination ohne Suchtext lädt die Hauptliste, nicht je Nichtmitgliedergruppe", () => {
+  it("Katalogseiten erscheinen ohne Nachladeknopf in der Hauptliste", () => {
     const sidebar = makeSidebar({
       groups: [
         makeGroup("working", [], { count: 20, hasMore: true, complete: false }),
@@ -76,18 +76,15 @@ describe("HermesV2SidebarPanel – Pagination", () => {
         onCreate={() => undefined}
       />,
     );
-    // Nur die Hauptliste trägt den Nachladeknopf des Katalogs.
-    const buttons = Array.from(document.querySelectorAll(".hermesv2-shelf-more"));
-    expect(buttons).toHaveLength(1);
-    expect(buttons[0]!.closest("[data-hermes-shelf='active']")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Mehr laden" }));
-    expect(sidebar.loadMore).toHaveBeenCalledTimes(1);
+    // Die Hauptliste lädt nicht mehr über einen sichtbaren Knopf nach.
+    expect(document.querySelector(".hermesv2-shelf-more")).toBeNull();
+    expect(sidebar.loadMore).not.toHaveBeenCalled();
     expect(sidebar.calls.loadMembers).toEqual([]);
   });
 
-  it("„Mehr laden“ steht nur bei der Liste und nur bei echter Fortsetzung", () => {
+  it("lädt die normale Hauptliste unsichtbar beim Scrollen ans Ende nach", () => {
     const sidebar = makeSidebar({
-      search: { hasMore: false, nextOffset: null, partial: false },
+      search: { hasMore: true, nextOffset: 100, partial: false },
     });
     const { container } = render(
       <HermesV2SidebarPanel
@@ -97,26 +94,38 @@ describe("HermesV2SidebarPanel – Pagination", () => {
         onCreate={() => undefined}
       />,
     );
-    expect(screen.queryByRole("button", { name: "Mehr laden" })).toBeNull();
-    // Der globale Knopf über der Bereichsleiste ist entfallen.
-    expect(container.querySelector(".hermesv2-sidebar-footer-actions")).toBeNull();
+    expect(container.querySelector(".hermesv2-shelf-more")).toBeNull();
+    const shelves = container.querySelector(".hermesv2-shelves") as HTMLElement;
+    Object.defineProperty(shelves, "scrollHeight", { configurable: true, value: 1_000 });
+    Object.defineProperty(shelves, "clientHeight", { configurable: true, value: 400 });
+    Object.defineProperty(shelves, "scrollTop", { configurable: true, value: 600 });
+    fireEvent.scroll(shelves);
+    expect(sidebar.loadMore).toHaveBeenCalledTimes(1);
+  });
 
-    const withMore = makeSidebar({
-      search: { hasMore: true, nextOffset: 100, partial: false },
+  it("„Mehr laden“ bleibt bei Mitgliedergruppen mit echter Fortsetzung", () => {
+    const sidebar = makeSidebar({
+      groups: [
+        makeGroup("settled", [], {
+          count: 100,
+          hasMore: true,
+          complete: false,
+        }),
+      ],
     });
-    cleanup();
-    const second = render(
+    const { container } = render(
       <HermesV2SidebarPanel
-        sidebar={withMore}
+        sidebar={sidebar}
         activeSessionId={null}
         onSelect={() => undefined}
         onCreate={() => undefined}
       />,
     );
-    const button = second.container.querySelector(".hermesv2-shelf-more");
+    // Der globale Knopf über der Bereichsleiste ist entfallen.
+    expect(container.querySelector(".hermesv2-sidebar-footer-actions")).toBeNull();
+
+    const button = container.querySelector(".hermesv2-shelf-more");
     expect(button).toBeTruthy();
-    // Der Knopf steht bei der Hauptliste, zu der die Katalogseiten gehören.
-    expect(button!.closest("[data-hermes-shelf='active']")).toBeTruthy();
-    expect(container.querySelector(".hermesv2-shelf-more")).toBeNull();
+    expect(button!.closest("[data-hermes-shelf='settled']")).toBeTruthy();
   });
 });

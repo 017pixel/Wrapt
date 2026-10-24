@@ -40,8 +40,9 @@ describe("Hermes-V2-Radien", () => {
     const send = block(areaCss, ".hermesv2-composer-area .hermesv2-send {");
     expect(send).toContain("border-radius: var(--radius);");
     expect(send).toContain("background: var(--color-accent);");
-    expect(send).toContain("width: 44px;");
-    expect(send).toContain("height: 44px;");
+    // Die Dichte skaliert die 44-Pixel-Trefffläche, nicht ihr Seitenverhältnis.
+    expect(send).toContain("width: calc(44px / var(--hermesv2-ui-scale, 1));");
+    expect(send).toContain("height: calc(44px / var(--hermesv2-ui-scale, 1));");
   });
 
   it("die Bedienelemente der Leiste sind eckig", () => {

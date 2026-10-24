@@ -135,6 +135,26 @@
   opacity: 0;
   transition: opacity var(--duration-fast) var(--ease-standard);
 }
+/* Eigene Nachrichten tragen ihre Zeit und das Kopieren dicht unter der Blase.
+   Die Schaltfläche bleibt dabei über eine unsichtbare Fläche 44 px groß. */
+.hermesv2-row.is-user .hermesv2-row-meta {
+  min-height: calc(24px / var(--hermesv2-ui-scale, 1));
+  margin-block-start: 0;
+  gap: var(--space-2);
+}
+.hermesv2-row.is-user .hermesv2-row-meta .hermesv2-copy {
+  position: relative;
+  width: calc(24px / var(--hermesv2-ui-scale, 1));
+  height: calc(24px / var(--hermesv2-ui-scale, 1));
+  min-width: calc(24px / var(--hermesv2-ui-scale, 1));
+  min-height: calc(24px / var(--hermesv2-ui-scale, 1));
+  padding: 0;
+}
+.hermesv2-row.is-user .hermesv2-row-meta .hermesv2-copy::after {
+  content: "";
+  position: absolute;
+  inset: calc(-10px / var(--hermesv2-ui-scale, 1));
+}
 .hermesv2-row:hover .hermesv2-row-meta .hermesv2-copy,
 .hermesv2-row-meta .hermesv2-copy:focus-visible {
   opacity: 1;

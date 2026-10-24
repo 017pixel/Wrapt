@@ -53,17 +53,76 @@
   height: 18px;
 }
 .hermesv2 .hermesv2-toolbar-links {
+  position: relative;
   align-items: center;
   gap: var(--space-1);
+  margin-left: auto;
 }
-.hermesv2 .hermesv2-classic-link,
+
+/* Seltene Wege liegen im Drei-Punkte-Menü; der Auslöser bleibt ein ruhiger
+   Icon-Knopf, das Menü wächst mit einer kurzen Bewegung darunter heraus. */
+.hermesv2-headermenu {
+  position: relative;
+}
+.hermesv2-headermenu-panel {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: 4;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 232px;
+  padding: var(--space-1);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius);
+  background: var(--color-ink-850);
+  box-shadow: var(--shadow-raised);
+  transform-origin: top right;
+  opacity: 0;
+  transform: translateY(-4px) scale(.98);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard),
+    visibility 0s linear var(--duration-fast);
+}
+.hermesv2-headermenu-panel[data-open="true"] {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    opacity var(--duration-base) var(--ease-standard),
+    transform var(--duration-base) var(--ease-standard),
+    visibility 0s;
+}
+.hermesv2-headermenu-entry {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius);
+  color: var(--color-text);
+  font-size: var(--text-sm);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.hermesv2-headermenu-entry:hover,
+.hermesv2-headermenu-entry:focus-visible {
+  background: var(--color-ink-700);
+}
+.hermesv2-headermenu-panel .hermesv2-headermenu-entry:focus-visible {
+  outline: 2px solid var(--focus-ring-color);
+  outline-offset: -2px;
+}
 .hermesv2-sidebar-footer .quiet-button {
   background: transparent;
   color: var(--color-muted);
   border-color: transparent;
   font-size: var(--text-sm);
 }
-.hermesv2 .hermesv2-classic-link:hover,
 .hermesv2-sidebar-footer .quiet-button:hover {
   color: var(--color-text);
   background: var(--color-ink-800);
@@ -119,14 +178,57 @@
 }
 
 @container hermesv2 (min-width: 641px) {
+  /* Die Inhalte behalten ihre Breite, während die Spalte selbst auf- und
+     zufährt. So springt kein Text um und die Bewegung bleibt ruhig. */
+  .hermesv2 .hermesv2-sidebar {
+    overflow: hidden;
+    transition:
+      width var(--duration-slow) var(--ease-standard),
+      padding var(--duration-slow) var(--ease-standard),
+      opacity var(--duration-fast) var(--ease-standard),
+      border-color var(--duration-fast) var(--ease-standard);
+  }
+  .hermesv2 .hermesv2-sidebar > * {
+    min-width: 240px;
+    transition:
+      transform var(--duration-base) var(--ease-standard) 80ms,
+      opacity var(--duration-base) var(--ease-standard) 80ms;
+  }
   .hermesv2.is-sidebar-collapsed .hermesv2-sidebar {
-    display: none;
+    width: 0;
+    padding-inline: 0;
+    border-right-color: transparent;
+    opacity: 0;
+    pointer-events: none;
+    /* Schließen verschwindet schneller als das Öffnen. */
+    transition:
+      width var(--duration-base) var(--ease-standard),
+      padding var(--duration-base) var(--ease-standard),
+      opacity var(--duration-fast) var(--ease-standard),
+      border-color var(--duration-fast) var(--ease-standard);
+  }
+  .hermesv2.is-sidebar-collapsed .hermesv2-sidebar > * {
+    transform: translateX(-6px);
+    opacity: 0;
+    transition:
+      transform var(--duration-fast) var(--ease-standard),
+      opacity var(--duration-fast) var(--ease-standard);
   }
 }
 @container hermesv2 (max-width: 640px) {
   .hermesv2 .hermesv2-sidebar {
     width: min(88cqw, 320px);
     transition: transform var(--duration-base) var(--ease-standard);
+  }
+  /* Der geschlossene Drawer verschwindet mit einem kurzen, klaren Zug. */
+  .hermesv2 .hermesv2-sidebar[data-drawer-open="false"] {
+    transition-duration: var(--duration-fast);
+  }
+  .hermesv2-drawer-backdrop {
+    transition: opacity var(--duration-base) var(--ease-standard);
+  }
+  .hermesv2-drawer-backdrop[data-drawer-open="false"] {
+    transition-duration: var(--duration-fast);
   }
   /* Die Fläche läuft mit 80 % Dichte. Auf dem Telefon wachsen die Ziele der
      Composer-Leiste deshalb, damit sie trotz Zoom 44 Pixel Bildschirmhöhe
@@ -148,15 +250,44 @@
   }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .hermesv2 :is(.icon-button, .hermesv2-rowselect, .hermesv2-areanav-target, .hermesv2-send) {
+  .hermesv2 :is(
+    .icon-button,
+    .hermesv2-rowselect,
+    .hermesv2-areanav-target,
+    .hermesv2-send,
+    .hermesv2-stop,
+    .hermesv2-chip,
+    .hermesv2-attach,
+    .hermesv2-shelf-collapse,
+    .hermesv2-headermenu-entry,
+    .hermesv2-sidebar-menu-entry,
+    .hermesv2-touch-actions
+  ) {
     transition: transform var(--duration-fast) var(--ease-standard);
   }
-  .hermesv2 :is(.icon-button, .hermesv2-rowselect, .hermesv2-areanav-target, .hermesv2-send):active {
+  .hermesv2 :is(
+    .icon-button,
+    .hermesv2-rowselect,
+    .hermesv2-areanav-target,
+    .hermesv2-send,
+    .hermesv2-stop,
+    .hermesv2-chip,
+    .hermesv2-attach,
+    .hermesv2-shelf-collapse,
+    .hermesv2-headermenu-entry,
+    .hermesv2-sidebar-menu-entry,
+    .hermesv2-touch-actions
+  ):active {
     transform: scale(.97);
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .hermesv2 .hermesv2-sidebar {
+  .hermesv2 .hermesv2-sidebar,
+  .hermesv2 .hermesv2-sidebar > *,
+  .hermesv2-drawer-backdrop {
+    transition: none;
+  }
+  .hermesv2-headermenu-panel {
     transition: none;
   }
 }

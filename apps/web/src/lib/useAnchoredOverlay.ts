@@ -5,6 +5,8 @@ interface AnchoredOverlayOptions {
   gap?: number;
   gutter?: number;
   stretchBelowBreakpoint?: number;
+  /** "end" richtet die rechte Kante am Auslöser aus, "start" die linke. */
+  align?: "start" | "end";
 }
 
 export function useAnchoredOverlay(
@@ -12,7 +14,7 @@ export function useAnchoredOverlay(
   anchorRef: RefObject<HTMLElement | null>,
   options: AnchoredOverlayOptions,
 ) {
-  const { width, gap = 8, gutter = 8, stretchBelowBreakpoint } = options;
+  const { width, gap = 8, gutter = 8, stretchBelowBreakpoint, align = "end" } = options;
   const [style, setStyle] = useState<CSSProperties>({ visibility: "hidden" });
 
   const update = useCallback(() => {
@@ -30,7 +32,12 @@ export function useAnchoredOverlay(
     const overlayWidth = stretched ? Math.max(0, viewportWidth - gutter * 2) : Math.min(width, viewportWidth - gutter * 2);
     const left = stretched
       ? viewportLeft + gutter
-      : Math.min(Math.max(viewportLeft + gutter, bounds.right - overlayWidth), viewportRight - overlayWidth - gutter);
+      : align === "start"
+        ? Math.min(
+            Math.max(viewportLeft + gutter, bounds.left),
+            viewportRight - overlayWidth - gutter,
+          )
+        : Math.min(Math.max(viewportLeft + gutter, bounds.right - overlayWidth), viewportRight - overlayWidth - gutter);
     const roomBelow = viewportBottom - bounds.bottom - gap - gutter;
     const roomAbove = bounds.top - viewportTop - gap - gutter;
     const openAbove = roomBelow < 180 && roomAbove > roomBelow;
@@ -44,7 +51,7 @@ export function useAnchoredOverlay(
         ? { top: "auto", bottom: viewportBottom - bounds.top + gap, maxHeight: Math.max(120, roomAbove) }
         : { top: bounds.bottom + gap, bottom: "auto", maxHeight: Math.max(120, roomBelow) }),
     });
-  }, [anchorRef, gap, gutter, stretchBelowBreakpoint, width]);
+  }, [align, anchorRef, gap, gutter, stretchBelowBreakpoint, width]);
 
   useLayoutEffect(() => {
     if (!open) return;

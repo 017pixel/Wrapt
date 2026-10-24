@@ -5,7 +5,7 @@ import { useAnchoredOverlay } from "../../../lib/useAnchoredOverlay";
 export function useHermesV2Overlay(
   open: boolean,
   anchorRef: RefObject<HTMLElement | null>,
-  options: { width: number; gap: number },
+  options: { width: number; gap: number; align?: "start" | "end" },
 ): CSSProperties {
   const anchor = anchorRef.current;
   const scale = anchor
@@ -15,6 +15,7 @@ export function useHermesV2Overlay(
     width: options.width * scale,
     gap: options.gap * scale,
     gutter: 8 * scale,
+    ...(options.align === undefined ? {} : { align: options.align }),
   });
   const scaled = { ...style };
   for (const key of ["left", "top", "bottom", "width", "maxHeight"] as const) {

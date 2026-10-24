@@ -15,8 +15,9 @@ Ausschalten beendet die V2-Verbindungen und zeigt wieder die klassische Fläche.
 Hermes-Sessions werden dabei weder gelöscht noch migriert. Persönliche
 Wrapt-Organisationsdaten können liegen bleiben und gelten beim erneuten Öffnen.
 
-„Klassisch“ öffnet die bestehende Oberfläche ausdrücklich, auch bei aktivem Flag.
-Der Einstieg übernimmt die ausgewählte Sitzungs-ID, soweit Hermes sie öffnen kann.
+Das Drei-Punkte-Menü der Kopfleiste öffnet die bestehende Oberfläche ausdrücklich,
+auch bei aktivem Flag. Der Einstieg übernimmt die ausgewählte Sitzungs-ID, soweit
+Hermes sie öffnen kann.
 
 ## Routen und eigene Browserfläche
 
@@ -32,9 +33,11 @@ Anmeldung und dieselben Serverprüfungen. Die Fläche umgeht keine Anmeldung.
 
 In schmalen Panels öffnet „Sitzungen“ die Auswahl über dem Chat. Jedes Orbitpanel
 behält seine eigene ausgewählte Sitzung im bestehenden Orbitdokument, auch nach
-dem Neuladen. „Fenster“ öffnet genau diese Sitzung in Standalone. Die bestehende
-Sitzung wird dabei weder kopiert noch neu erstellt. Standalone bietet einen
-direkten Rückweg zu Workbench, Einstellungen und klassischer Oberfläche.
+dem Neuladen. „In eigenem Fenster öffnen“ im Drei-Punkte-Menü startet genau diese
+Sitzung in Standalone. Die bestehende Sitzung wird dabei weder kopiert noch neu
+erstellt. Standalone bietet einen direkten Rückweg zu Workbench, Einstellungen und
+klassischer Oberfläche. Kehrt die Workbench ohne Sitzungsparameter zu Hermes
+zurück, öffnet sie den zuletzt gewählten Chat.
 
 Die Fokusansicht liegt im vorhandenen Wrapt-PWA-Scope `/wrapt/` und verwendet
 dessen Manifest und Service Worker. Für Chat und Verwaltung ist weiterhin eine
@@ -66,8 +69,10 @@ enthält Modellwahl, Denktiefe, Anhänge und Befehle. Hintergrund- und
 Zwischenaufträge erscheinen, sobald Text eingegeben ist oder ein Turn läuft.
 
 Enter sendet, Shift+Enter fügt eine Zeile ein. Stoppen unterbricht den aktuellen
-Turn über Hermes. Code und Antworten können kopiert werden. Bilder werden nur
-über erlaubte HTTPS-Ziele eingebettet, Markdown führt kein HTML aus.
+Turn über Hermes. Bei laufender Arbeit zeigt ein leeres Feld nur Stoppen; der
+Senden-Knopf erscheint mit dem ersten Zeichen. Code und Antworten können kopiert
+werden. Bilder werden nur über erlaubte HTTPS-Ziele eingebettet, Markdown führt
+kein HTML aus.
 
 Nach einem Verbindungsabbruch gleicht V2 aktuellen Verlauf und offene Anfragen ab.
 Ein möglicherweise bereits gesendeter Auftrag wird nicht automatisch wiederholt.
@@ -231,12 +236,15 @@ Tastenkürzel für die Textbearbeitung zuständig. Zwischenzeitliche neue
 Änderungen werden nicht zurückgesetzt.
 
 Aufeinanderfolgende Gedankenfragmente stehen in einem einzigen aufklappbaren
-Block mit begrenztem Scrollbereich. Werkzeugdetails trennen Befehl, weitere
-Parameter und Ausgabe. Die Arbeitsdauer erscheint ab einer Minute als Minuten
-und Sekunden; der Chatverlauf scrollt ohne sichtbare Scrollleiste.
+Block ohne eigenen Scrollbereich; der Chatverlauf übernimmt das Scrollen.
+Werkzeugdetails trennen Befehl, weitere Parameter und Ausgabe. Die Arbeitsdauer
+erscheint ab einer Minute als Minuten und Sekunden; der Chatverlauf scrollt ohne
+sichtbare Scrollleiste.
 
-Suche umfasst geladene Titel, IDs und Arbeitsverzeichnisse. Weitere native Seiten
-werden ausdrücklich geladen. Ein begrenzter oder ungeklärter Stand wird angezeigt;
+Suche umfasst geladene Titel, IDs und Arbeitsverzeichnisse. Die Hauptliste lädt
+beim Scrollen ans Ende unsichtbar nach; während einer Suche lädt „Weitere
+Treffer laden“ die nächste Seite ausdrücklich. Mitgliedergruppen behalten ihren
+eigenen Nachladeknopf. Ein begrenzter oder ungeklärter Stand wird angezeigt;
 fehlende Offline-Belege werden nicht als „alles gelesen“ oder „fertig“ behandelt.
 Projektfilter verwenden serverseitig bestätigte Zugehörigkeit.
 

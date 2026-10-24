@@ -234,6 +234,7 @@ export function HermesV2Surface({
     .filter(Boolean)
     .join(" ");
 
+  const sidebarHidden = compact ? !drawerOpen : sidebarCollapsed;
   return (
     <section
       ref={rootRef}
@@ -252,7 +253,7 @@ export function HermesV2Surface({
       <div
         ref={layerRef}
         className="hermesv2-drawer-layer"
-        inert={compact && !drawerOpen}
+        inert={sidebarHidden}
         role={modal ? "dialog" : undefined}
         aria-modal={modal || undefined}
         aria-label={modal ? "Hermes-V2-Sitzungen" : undefined}
@@ -262,7 +263,7 @@ export function HermesV2Surface({
           className="hermesv2-sidebar"
           data-drawer-open={drawerOpen ? "true" : "false"}
           aria-label="Hermes-V2-Sitzungen"
-          aria-hidden={compact && !drawerOpen ? true : undefined}
+          aria-hidden={sidebarHidden ? true : undefined}
         >
           <HermesV2SidebarBrand onClose={compact ? () => setDrawerOpen(false) : undefined} />
           <MemoSidebarPanel

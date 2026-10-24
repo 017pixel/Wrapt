@@ -38,7 +38,15 @@ export function HermesV2SidebarMenu<T extends string>({
   const rootRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
-  const menuStyle = useHermesV2Overlay(open, buttonRef, { width: 200, gap: 4 });
+  const menuStyle = {
+    ...useHermesV2Overlay(open, buttonRef, {
+      width: 280,
+      gap: 4,
+      align: "start",
+    }),
+    // Die lange Projektliste bleibt kurz; gescrollt wird ohne sichtbare Leiste.
+    maxHeight: "min(300px, 48vh)",
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -109,13 +117,16 @@ export function HermesV2SidebarMenu<T extends string>({
       >
         {icon}
       </button>
-      {open && portalRoot
+      {portalRoot
         ? createPortal(
             <ul
               ref={listRef}
               className="hermesv2-sidebar-menu-list hermesv2-sidebar-menu-panel"
               role="menu"
               aria-label={label}
+              data-open={open ? "true" : "false"}
+              aria-hidden={open ? undefined : true}
+              inert={!open}
               style={menuStyle}
             >
               <li role="none" className="hermesv2-sidebar-menu-head">

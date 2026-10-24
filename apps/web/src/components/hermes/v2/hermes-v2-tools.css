@@ -38,9 +38,6 @@
 }
 
 .hermesv2-reasoning-body {
-  max-height: min(40cqh, 20rem);
-  overflow: auto;
-  overscroll-behavior: contain;
   padding: var(--space-4);
   border: 1px solid var(--color-line);
   border-radius: var(--radius);
@@ -204,11 +201,6 @@
   margin: 0;
   font-size: var(--text-2xs);
   color: var(--color-warn);
-}
-
-.hermesv2-reasoning-body:focus-visible {
-  outline: 2px solid var(--focus-ring-color);
-  outline-offset: -2px;
 }
 
 

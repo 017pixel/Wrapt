@@ -36,6 +36,8 @@ export interface HermesV2SidebarShelfProps {
   onLoadMore?: (() => void) | undefined;
   /** Der Shelf bietet "Mehr laden" an, weil seine Liste weitere Seiten hat. */
   loadMoreVisible?: boolean;
+  /** Eigene Beschriftung für den Nachladeknopf, z. B. bei Suchtreffern. */
+  loadMoreLabel?: string;
   /** Natives Sessiondelete über den Menübefehl der Zeile. */
   deleteEnabled?: boolean;
   /** Umbenennen der aktiven Sitzung. */
@@ -66,6 +68,7 @@ export function HermesV2SidebarShelf({
   onSelect,
   onLoadMore,
   loadMoreVisible = false,
+  loadMoreLabel,
   deleteEnabled = false,
   onRenameSession,
 }: HermesV2SidebarShelfProps) {
@@ -83,8 +86,8 @@ export function HermesV2SidebarShelf({
     : group.rows;
   // Eingeklappt und ohne ausgewählte Row: der Inhalt fährt vollständig weg.
   const listHidden = hidden && visibleRows.length === 0;
-  const shownRows = visibleRows.slice(0, limit);
-  const moreLoaded = visibleRows.length > shownRows.length;
+  const shownRows = isList ? visibleRows : visibleRows.slice(0, limit);
+  const moreLoaded = !isList && visibleRows.length > shownRows.length;
   const label = group.id === MAIN_LIST_SHELF ? "" : SHELF_LABELS[group.id];
   const accent = group.id === "needs-input";
   const showLoadMore = loadMoreVisible && Boolean(onLoadMore);
@@ -221,7 +224,7 @@ export function HermesV2SidebarShelf({
                   className="quiet-button hermesv2-shelf-more"
                   onClick={onLoadMore}
                 >
-                  {SHELF_LOAD_LABELS[group.id] ?? "Mehr laden"}
+                  {loadMoreLabel ?? SHELF_LOAD_LABELS[group.id] ?? "Mehr laden"}
                 </button>
               ) : null}
               {showLoading ? (

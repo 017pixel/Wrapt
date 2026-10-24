@@ -27,8 +27,9 @@
 }
 /* Bewegung erklärt den Drawer; Tabs und häufige Menüs wechseln unmittelbar. */
 @media (prefers-reduced-motion: no-preference) {
-  .hermesv2 .hermesv2-sidebar { transition-timing-function: cubic-bezier(.16, 1, .3, 1); }
-  .hermesv2 .hermesv2-resource-filters button { transition: transform 120ms cubic-bezier(.16, 1, .3, 1); }
+  .hermesv2 .hermesv2-resource-filters button {
+    transition: transform var(--duration-fast) var(--ease-standard);
+  }
   .hermesv2 .hermesv2-resource-filters button:active { transform: scale(.97); }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -45,7 +46,9 @@
     animation: none;
     opacity: 1;
     transform: none;
-    transition: opacity 160ms cubic-bezier(.16, 1, .3, 1), transform 160ms cubic-bezier(.16, 1, .3, 1);
+    transition:
+      opacity var(--duration-base) var(--ease-standard),
+      transform var(--duration-base) var(--ease-standard);
   }
   @starting-style {
     body:has(.hermesv2[data-input-mode="pointer"]) .modal-sheet:is([class*="hermesv2-"], :has([class*="hermesv2-"])):not(.hermesv2-area-menu) {

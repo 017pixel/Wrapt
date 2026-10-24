@@ -12,7 +12,7 @@ export function HermesV2Reasoning({
       data-streaming={streaming ? "true" : "false"}
     >
       <summary>{streaming ? "Denkt nach…" : "Gedanken"}</summary>
-      <div className="hermesv2-reasoning-body" role="region" aria-label="Gedanken" tabIndex={0}>
+      <div className="hermesv2-reasoning-body" role="region" aria-label="Gedanken">
         <p>{text}</p>
       </div>
     </details>

@@ -64,7 +64,12 @@
   font-size: var(--text-sm);
   cursor: pointer;
   /* Nur transform und opacity werden animiert; der Farbwechsel bleibt schlagartig. */
-  transition: opacity var(--duration-base) var(--ease-standard);
+  transition:
+    opacity var(--duration-base) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
+}
+.hermesv2-projectpicker-trigger:active {
+  transform: scale(.97);
 }
 .hermesv2-projectpicker-trigger:hover,
 .hermesv2-projectpicker-trigger[aria-expanded="true"] {
@@ -101,6 +106,8 @@
   border: 1px solid var(--color-line);
   border-radius: var(--radius);
   background: var(--color-ink-850);
+  transform-origin: top right;
+  animation: hermesv2-menu-in var(--duration-base) var(--ease-standard);
 }
 .hermesv2-projectpicker-search {
   display: flex;
@@ -345,6 +352,12 @@
   .hermesv2-projectpicker-chevron {
     transition: none;
   }
+  .hermesv2-projectpicker-menu {
+    animation: none;
+  }
+}
+body:has(.hermesv2[data-input-mode="keyboard"]) .hermesv2-projectpicker-menu {
+  animation: none;
 }
 
 /* Luftige Titelbearbeitung mit einem vollwertigen Eingabefeld. */

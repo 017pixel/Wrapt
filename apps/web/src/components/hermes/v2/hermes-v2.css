@@ -18,6 +18,31 @@
      hier nicht mehr; Tiefe entsteht über Haarlinien, nicht über Rundungen. */
 }
 
+/* Scrollen bleibt vollständig, die Leiste selbst ist nirgends sichtbar. */
+.hermesv2,
+.hermesv2 * {
+  scrollbar-width: none;
+}
+.hermesv2 ::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+body > :is(.hermesv2-rowmenu-list, .hermesv2-row-preview, .hermesv2-effort-pop, .hermesv2-approval-menu, .hermesv2-work-menu) {
+  scrollbar-width: none;
+}
+body > :is(.hermesv2-rowmenu-list, .hermesv2-row-preview, .hermesv2-effort-pop, .hermesv2-approval-menu, .hermesv2-work-menu)::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* Ruhiges Einblenden für Menüs, die aus ihrem Auslöser wachsen. */
+@keyframes hermesv2-menu-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(.98);
+  }
+}
+
 .hermesv2-standalone {
   height: var(--app-viewport-height, 100dvh);
   min-height: 0;
@@ -270,7 +295,6 @@
   background: transparent;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 200ms ease-out;
 }
 
 @container (max-width: 640px) {
@@ -293,7 +317,6 @@
     border-right: 1px solid var(--color-line);
     box-shadow: var(--shadow-raised);
     transform: translateX(-102%);
-    transition: transform 200ms ease-out;
   }
   .hermesv2.is-drawer-open .hermesv2-sidebar {
     transform: translateX(0);
@@ -308,12 +331,5 @@
   }
   .hermesv2-chat {
     padding: var(--space-4);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hermesv2-sidebar,
-  .hermesv2-drawer-backdrop {
-    transition: none;
   }
 }

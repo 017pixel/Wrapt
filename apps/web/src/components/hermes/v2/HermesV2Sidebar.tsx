@@ -17,7 +17,7 @@ import {
   MEMBER_SHELVES,
   SHELF_ORDER,
 } from "./sidebar-format";
-import { rowsOfProject, shelvesForMode, type SidebarViewMode } from "./sidebar-view";
+import { rowsOfProject } from "./sidebar-view";
 import "./hermes-v2-sidebar.css";
 
 export interface HermesV2SidebarPanelProps {
@@ -59,6 +59,8 @@ export function HermesV2SidebarPanel({
   onProjectChange,
 }: HermesV2SidebarPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const shelvesRef = useRef<HTMLDivElement>(null);
+  const loadingMoreRef = useRef(false);
   const undoHandle = sidebar.undoView?.handle;
   useEffect(() => {
     // Beim Gruppenwechsel wird der auslösende Zeilenknopf entfernt. Der
@@ -69,7 +71,6 @@ export function HermesV2SidebarPanel({
     }
   }, [undoHandle]);
   const [draggingId, setDraggingId] = useState<string | null>(null);
-  const [mode, setMode] = useState<SidebarViewMode>("all");
   const [localProjectId, setLocalProjectId] = useState<string | null>(null);
   const projectId = controlledProjectId ?? localProjectId;
   const setProjectId = onProjectChange ?? setLocalProjectId;
@@ -150,9 +151,7 @@ export function HermesV2SidebarPanel({
 
   const groups = useMemo(() => {
     const order = new Map(SHELF_ORDER.map((id, index) => [id, index]));
-    const allowed = shelvesForMode(mode);
     return sidebar.groups
-      .filter((group) => !allowed || allowed.includes(group.id))
       .map((group) => {
         if (projectId === null) return group;
         const rows = rowsOfProject(group.rows, projectId);
@@ -163,7 +162,7 @@ export function HermesV2SidebarPanel({
           (order.get(a.id) ?? SHELF_ORDER.length) -
           (order.get(b.id) ?? SHELF_ORDER.length),
       );
-  }, [sidebar.groups, mode, projectId]);
+  }, [sidebar.groups, projectId]);
 
   const mainList = groups.find((group) => group.id === MAIN_LIST_SHELF) ?? null;
   const attention = groups.find((group) => group.id === "needs-input");
@@ -200,9 +199,22 @@ export function HermesV2SidebarPanel({
 
   const search = sidebar.search;
   const searching = search.query.trim().length > 0;
-  // "Mehr laden" steht nur noch bei der Liste, zu der es gehört: unten in der
-  // Hauptliste, wenn der Katalog wirklich weitere Seiten hat.
   const canLoadMore = search.hasMore && search.nextOffset !== null;
+  // Ohne sichtbaren Knopf lädt die Hauptliste beim Scrollen ans Ende nach.
+  // Während einer Suche bleibt der ausdrückliche Treffer-Knopf, weil die
+  // Treffer sonst nicht über die geladene Seite hinaus erreichbar wären.
+  const loadMoreOnScroll = useCallback(() => {
+    if (searching || !canLoadMore || search.loading || loadingMoreRef.current)
+      return;
+    const element = shelvesRef.current;
+    if (!element) return;
+    if (element.scrollHeight - element.scrollTop - element.clientHeight > 160)
+      return;
+    loadingMoreRef.current = true;
+    void sidebar.loadMore().finally(() => {
+      loadingMoreRef.current = false;
+    });
+  }, [searching, canLoadMore, search.loading, sidebar]);
   const empty =
     !sidebar.loading && groups.every((group) => group.rows.length === 0);
   // Das Dock der Shelfs steht unten. Ohne sichtbaren Shelf bleibt es leer -
@@ -234,9 +246,7 @@ export function HermesV2SidebarPanel({
               (entry) => !knownProjects.some((known) => known.id === entry.id),
             ),
           ]}
-          mode={mode}
           projectId={projectId}
-          onModeChange={setMode}
           onProjectChange={setProjectId}
           onCreate={onCreate}
         />
@@ -260,7 +270,11 @@ export function HermesV2SidebarPanel({
           </button>
         </div>
       ) : null}
-      <div className="hermesv2-shelves">
+      <div
+        ref={shelvesRef}
+        className="hermesv2-shelves"
+        onScroll={loadMoreOnScroll}
+      >
         {attention ? (
           <HermesV2SidebarShelf
             group={attention}
@@ -296,8 +310,13 @@ export function HermesV2SidebarPanel({
             onExecuteDrop={(plan) => void sidebar.executeDrop(plan)}
             onCommand={onCommand}
             onSelect={onSelect}
-            onLoadMore={canLoadMore ? () => void sidebar.loadMore() : undefined}
-            loadMoreVisible={canLoadMore}
+            onLoadMore={
+              searching && canLoadMore
+                ? () => void sidebar.loadMore()
+                : undefined
+            }
+            loadMoreVisible={searching && canLoadMore}
+            loadMoreLabel="Weitere Treffer laden"
             deleteEnabled={onDeleteSession !== undefined}
             onRenameSession={onRenameSession}
           />
@@ -310,7 +329,7 @@ export function HermesV2SidebarPanel({
         ) : null}
         {empty ? (
           <p className="hermesv2-sidebar-empty">
-            {searching || mode !== "all" || projectId !== null
+            {searching || projectId !== null
               ? "Keine passenden Chats."
               : "Deine Chats erscheinen hier."}
           </p>

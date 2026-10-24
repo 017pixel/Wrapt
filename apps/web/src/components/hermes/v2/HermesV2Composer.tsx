@@ -98,6 +98,9 @@ export function HermesV2Composer({
     if (disabled || submitting || submittingRef.current) return;
     if (sendBlockedReason) return;
     if (!value.trim() && !allowEmptySubmit) return;
+    // Der Senden-Knopf verschwindet bei laufender Arbeit. Der Fokus bleibt
+    // deshalb im Eingabefeld, statt auf den Seitenkörper zu fallen.
+    textareaRef.current?.focus({ preventScroll: true });
     submittingRef.current = true;
     try {
       const result = onSubmit();
@@ -148,6 +151,9 @@ export function HermesV2Composer({
   // Stop folgt dem tatsächlichen laufenden Turn; ein offenes Sendpromise sperrt
   // das Senden, nicht das Stoppen.
   const canStop = running;
+  // Während der Agent arbeitet, bleibt bei leerem Feld nur Stoppen sichtbar.
+  // Sobald Text oder ein fertiger Anhang da ist, erscheint Senden wieder.
+  const showSend = !canStop || value.trim().length > 0 || allowEmptySubmit;
 
   return (
     <div className="hermesv2-composer">
@@ -183,17 +189,19 @@ export function HermesV2Composer({
               <span className="hermesv2-stop-glyph" aria-hidden="true" />
             </button>
           ) : null}
-          <button
-            type="button"
-            className="quiet-button-primary hermesv2-send"
-            disabled={blocked}
-            title={blocked ? blockedLabel : "Nachricht senden"}
-            aria-disabled={blocked}
-            aria-label={submitting ? "Senden…" : "Senden"}
-            onClick={submit}
-          >
-            <ArrowUpIcon />
-          </button>
+          {showSend ? (
+            <button
+              type="button"
+              className="quiet-button-primary hermesv2-send"
+              disabled={blocked}
+              title={blocked ? blockedLabel : "Nachricht senden"}
+              aria-disabled={blocked}
+              aria-label={submitting ? "Senden…" : "Senden"}
+              onClick={submit}
+            >
+              <ArrowUpIcon />
+            </button>
+          ) : null}
         </div>
       </div>
     </div>

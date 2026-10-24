@@ -1,7 +1,12 @@
 import { expect, test } from "@playwright/test";
+import { setHermesV2 } from "./helpers/hermes-v2-settings";
 
 const e2eUser = process.env.WRAPT_E2E_USER ?? "user@example.com";
 test.use({ extraHTTPHeaders: { "tailscale-user-login": e2eUser }, viewport: { width: 1440, height: 900 } });
+
+// Das Flag liegt serverweit. Andere Hermes-Specs desselben Shards dürfen die
+// offizielle SPA nicht auf die native V2-Fläche umschalten.
+test.beforeEach(async ({ context }) => { await setHermesV2(context, false); });
 
 test("öffnet Hermes ausschließlich in der offiziellen SPA", async ({ page }) => {
   await page.goto("/wrapt/hermes-agent");

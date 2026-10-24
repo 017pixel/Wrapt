@@ -11,6 +11,7 @@
   border: 1px solid var(--color-line);
   border-radius: var(--radius);
   background: var(--color-ink-900);
+  transition: border-color var(--duration-fast) var(--ease-standard);
 }
 .hermesv2-composer-area:focus-within {
   border-color: var(--color-accent-line);
@@ -80,6 +81,14 @@
   border-radius: var(--radius);
   background: var(--color-accent);
   color: var(--color-accent-contrast);
+  transform-origin: center;
+  animation: hermesv2-send-in var(--duration-base) var(--ease-standard);
+}
+@keyframes hermesv2-send-in {
+  from {
+    opacity: 0;
+    transform: scale(.84);
+  }
 }
 .hermesv2-composer-area .hermesv2-send:hover:not(:disabled) {
   background: color-mix(in oklab, var(--color-accent) 88%, var(--color-accent-contrast));

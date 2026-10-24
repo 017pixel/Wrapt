@@ -42,10 +42,14 @@
   min-width: 0;
   color: var(--color-muted);
   padding-left: var(--space-2);
-  border-radius: var(--radius);
+  border-bottom: 1px solid transparent;
+  border-radius: 0;
+  transition: border-color var(--duration-fast) var(--ease-standard);
 }
+/* Die Suche bekommt keine Box: nur eine ruhige Fokuslinie unter der Zeile. */
 .hermesv2-search-field:focus-within {
-  background: var(--color-ink-800);
+  background: transparent;
+  border-bottom-color: var(--color-accent-line);
 }
 .hermesv2-search-field > svg {
   width: 16px;
@@ -60,10 +64,13 @@
   min-height: calc(44px / var(--hermesv2-ui-scale, 1));
   padding: var(--space-2) var(--space-3);
   border: 0;
-  border-radius: var(--radius);
+  border-radius: 0;
   background: transparent;
   color: var(--color-text);
   font-size: 1rem; /* >= 16px, damit mobile Browser nicht zoomen */
+}
+.hermesv2-search-field .hermesv2-session-search:focus-visible {
+  outline: 0;
 }
 .hermesv2-session-search::placeholder {
   color: var(--color-faint);
@@ -125,7 +132,6 @@
   max-height: 50%;
   overflow-y: auto;
   padding-top: var(--space-2);
-  border-top: 1px solid var(--color-line);
   scrollbar-width: none;
 }
 .hermesv2-shelf-dock::-webkit-scrollbar {
@@ -202,6 +208,7 @@
   width: 14px;
   height: 14px;
   color: var(--color-faint);
+  transition: transform var(--duration-fast) var(--ease-standard);
 }
 .hermesv2-shelf-chevron[data-collapsed="true"] {
   transform: rotate(180deg);
@@ -286,6 +293,30 @@
   border-radius: var(--radius);
   background: var(--color-ink-850);
   box-shadow: var(--shadow-raised);
+  scrollbar-width: none;
+  transform-origin: top left;
+  opacity: 0;
+  transform: translateY(-4px) scale(.98);
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard),
+    visibility 0s linear var(--duration-fast);
+}
+.hermesv2-sidebar-menu-list[data-open="true"] {
+  opacity: 1;
+  transform: none;
+  visibility: visible;
+  pointer-events: auto;
+  transition:
+    opacity var(--duration-base) var(--ease-standard),
+    transform var(--duration-base) var(--ease-standard),
+    visibility 0s;
+}
+.hermesv2-sidebar-menu-list::-webkit-scrollbar {
+  width: 0;
+  height: 0;
 }
 .hermesv2-sidebar-menu-list button {
   width: 100%;
@@ -305,6 +336,12 @@
 }
 .hermesv2-sidebar-menu-list button[data-selected="true"] {
   color: var(--color-accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hermesv2-sidebar-menu-list {
+    transition: none;
+  }
 }
 
 /* --- Ladezustand und Leertext --------------------------------------------- */

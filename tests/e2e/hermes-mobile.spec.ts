@@ -1,7 +1,10 @@
 import { expect, test } from "@playwright/test";
+import { setHermesV2 } from "./helpers/hermes-v2-settings";
 
 const e2eUser = process.env.WRAPT_E2E_USER ?? "user@example.com";
 test.use({ extraHTTPHeaders: { "tailscale-user-login": e2eUser }, viewport: { width: 390, height: 844 }, hasTouch: true });
+
+test.beforeEach(async ({ context }) => { await setHermesV2(context, false); });
 
 test("rendert Hermes mobil ausschließlich als offizielle SPA", async ({ page }) => {
   await page.goto("/wrapt/hermes-agent");

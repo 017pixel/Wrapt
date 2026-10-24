@@ -118,19 +118,26 @@ describe("HermesV2Surface – Sitzungsspalte in jeder Variante", () => {
 
   it("verweist Toolbar und Fußzeile auf die verbleibenden Rückwege", () => {
     const panel = renderSurface("panel");
-    expect(panel.getByRole("link", { name: "Klassisch" })).toBeTruthy();
-    expect(panel.getByRole("link", { name: "Fenster" })).toBeTruthy();
+    fireEvent.click(panel.getByRole("button", { name: "Hermes-Optionen" }));
+    expect(
+      panel.getByRole("menuitem", { name: "Klassische Oberfläche" }),
+    ).toBeTruthy();
+    expect(
+      panel.getByRole("menuitem", { name: "In eigenem Fenster öffnen" }),
+    ).toBeTruthy();
     cleanup();
     const standalone = renderSurface("route", { standalone: true });
     // Standalone zeigt kein zusätzliches Fenster in Fenster-Logik.
-    expect(standalone.queryByRole("link", { name: "Fenster" })).toBeNull();
+    fireEvent.click(standalone.getByRole("button", { name: "Hermes-Optionen" }));
+    expect(
+      standalone.queryByRole("menuitem", { name: "In eigenem Fenster öffnen" }),
+    ).toBeNull();
     // Rückwege liegen im Fuß der gemeinsamen Sidebar, mobil hinter dem Öffner.
     fireEvent.click(standalone.getByRole("button", { name: "Sitzungen" }));
     // Die Einstellungen liegen in den Wrapt-Einstellungen, nicht in der Sidebar.
     expect(standalone.queryByRole("link", { name: "Einstellungen" })).toBeNull();
     expect(standalone.getByRole("link", { name: "Zur Workbench" })).toBeTruthy();
     fireEvent.click(standalone.getByRole("button", { name: "Sitzungsspalte schließen" }));
-    expect(standalone.getByRole("link", { name: "Klassisch" })).toBeTruthy();
   });
 });
 

@@ -1,14 +1,7 @@
 import { Link } from "react-router";
-import {
-  CloseIcon,
-  ExternalLinkIcon,
-  LayoutPanelIcon,
-} from "../../icons";
-import {
-  hermesV2ClassicHref,
-  hermesV2StandaloneHref,
-} from "../../../lib/hermesV2Routes";
+import { CloseIcon, LayoutPanelIcon } from "../../icons";
 import { AREA_META, type SelectableArea } from "./resource-areas";
+import { HermesV2HeaderMenu } from "./HermesV2HeaderMenu";
 
 /**
  * Die Marke der Sitzungsspalte ist entfallen: die Spalte beginnt mit der
@@ -77,25 +70,7 @@ export function HermesV2ChatHeader({
           : AREA_META.find((entry) => entry.id === area)?.label}
       </h1>
       <div className="hermesv2-toolbar-links">
-        <Link
-          className="quiet-button hermesv2-classic-link"
-          to={hermesV2ClassicHref(sessionId)}
-          title="Klassische Hermes-Oberfläche öffnen"
-        >
-          Klassisch
-        </Link>
-        {standalone ? null : (
-          <a
-            className="icon-button"
-            aria-label="Fenster"
-            title="In eigenem Fenster öffnen"
-            href={hermesV2StandaloneHref(sessionId)}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <ExternalLinkIcon aria-hidden style={{ color: "currentColor" }} />
-          </a>
-        )}
+        <HermesV2HeaderMenu sessionId={sessionId} standalone={standalone} />
       </div>
     </header>
   );

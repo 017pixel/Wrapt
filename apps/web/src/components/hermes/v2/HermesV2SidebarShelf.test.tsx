@@ -14,7 +14,7 @@ import {
 describe("HermesV2SidebarShelf", () => {
   afterEach(cleanup);
 
-  it("zeigt höchstens fünf Zeilen und blendet geladene über „Mehr anzeigen“ ein", () => {
+  it("zeigt die ganze geladene Hauptliste für Scroll-Paginierung", () => {
     const rows = Array.from({ length: 7 }, (_, index) =>
       makeRow({ id: `r${index}`, title: `Zeile ${index}` }),
     );
@@ -28,11 +28,8 @@ describe("HermesV2SidebarShelf", () => {
       />,
     );
     expect(screen.getByText("Zeile 4")).toBeTruthy();
-    expect(screen.queryByText("Zeile 5")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Mehr anzeigen" }));
     expect(screen.getByText("Zeile 5")).toBeTruthy();
     expect(screen.getByText("Zeile 6")).toBeTruthy();
-    // Nach dem Einblenden entfällt der Knopf: alles geladene ist sichtbar.
     expect(screen.queryByRole("button", { name: "Mehr anzeigen" })).toBeNull();
   });
 

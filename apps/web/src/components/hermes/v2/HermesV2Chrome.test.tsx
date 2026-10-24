@@ -2,7 +2,7 @@
 // ausschließlich über die Seitenleiste, die Einstellungen liegen in den
 // Wrapt-Einstellungen.
 // @vitest-environment jsdom
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HermesV2ChatHeader, HermesV2SidebarBrand, HermesV2SidebarFooter } from "./HermesV2Chrome";
@@ -27,6 +27,36 @@ describe("HermesV2Chrome", () => {
     expect(screen.getByRole("heading", { name: "Sitzung", level: 1 })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Neuer Chat" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Neue Sitzung" })).toBeNull();
+  });
+
+  it("bündelt Klassisch und Fenster im Drei-Punkte-Menü", async () => {
+    render(
+      <MemoryRouter>
+        <HermesV2ChatHeader
+          title="Sitzung"
+          area="chat"
+          sessionId="s1"
+          standalone={false}
+          drawerId="drawer-1"
+          sidebarExpanded
+          onToggleSidebar={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+    const trigger = screen.getByRole("button", { name: "Hermes-Optionen" });
+    fireEvent.click(trigger);
+    expect(screen.getByRole("menu", { name: "Hermes-Oberfläche" })).toBeTruthy();
+    const items = screen.getAllByRole("menuitem");
+    expect(items.map((item) => item.textContent)).toEqual([
+      "Klassische Oberfläche",
+      "In eigenem Fenster öffnen",
+    ]);
+    await waitFor(() => expect(document.activeElement).toBe(items[0]));
+    fireEvent.keyDown(items[0]!, { key: "ArrowDown" });
+    expect(document.activeElement).toBe(items[1]);
+    fireEvent.keyDown(items[1]!, { key: "Escape" });
+    expect(screen.queryByRole("menu")).toBeNull();
+    await waitFor(() => expect(document.activeElement).toBe(trigger));
   });
 
   it("verlinkt im Standalone-Fall zurück zur Workbench", () => {

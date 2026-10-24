@@ -96,12 +96,11 @@ test("sucht Titel und CWD über explizit weitere native Summaryseiten", async ({
   expect(gateway.organization.calls.filter((call) => call.path === "/sessions").length).toBeGreaterThanOrEqual(3);
 });
 
-test("lädt weitere normale Inbox-Sitzungen auch ohne Suchtext", async ({ page, gateway }) => {
+test("lädt weitere normale Inbox-Sitzungen beim Scrollen ans Ende nach", async ({ page, gateway }) => {
   for (let index = 0; index < 130; index++) gateway.seed(`sidebar-page-${index}`, `Weitere Aufgabe ${index}`, Date.now() - 60_000);
   await openSidebar(page);
-  const more = shelf(page, "active").getByRole("button", { name: "Mehr laden", exact: true });
-  await expect(more).toBeVisible();
-  await more.click();
+  const list = page.locator(".hermesv2-shelves");
+  await list.evaluate((element) => element.scrollTo(0, element.scrollHeight));
   await expect.poll(() => gateway.organization.calls.filter((call) => call.path === "/sessions").length).toBeGreaterThanOrEqual(2);
 });
 
@@ -306,6 +305,8 @@ test("behält Collapse nach Reload und macht mobile Aktionen per Tastatur erreic
   await page.keyboard.press("Shift+F10");
   await page.getByRole("menuitem", { name: "Anheften", exact: true }).focus();
   await page.keyboard.press("Enter");
+  await expect.poll(() => actionCalls(gateway).length).toBe(1);
+  expect(gateway.organization.item(firstId).pinRank).not.toBeNull();
   await expect(shelf(page, "pinned").getByText(firstTitle, { exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(toggle).toHaveAttribute("aria-expanded", "false");

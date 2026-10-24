@@ -183,8 +183,8 @@ describe("HermesV2SidebarMenu", () => {
     fireEvent.keyDown(entries[0]!, { key: "ArrowDown" });
     expect(entries[1]).toBe(document.activeElement);
     fireEvent.keyDown(entries[1]!, { key: "Escape" });
-    expect(
-      document.querySelector(".hermesv2-sidebar-menu-panel"),
-    ).toBeNull();
+    const panel = document.querySelector(".hermesv2-sidebar-menu-panel");
+    expect(panel?.getAttribute("data-open")).toBe("false");
+    expect(panel?.getAttribute("aria-hidden")).toBe("true");
   });
 });

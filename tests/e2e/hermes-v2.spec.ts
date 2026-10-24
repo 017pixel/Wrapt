@@ -92,8 +92,8 @@ test("hält den Chat auf allen Abnahmebreiten zugänglich und den mobilen Drawer
     await page.setViewportSize({ width: width!, height: height! });
     await page.goto("/wrapt/hermes-v2/standalone?session=stored-id");
     await expect(page.locator(nativeRoot)).toHaveCount(1);
-    const classic = page.getByRole("link", { name: "Klassisch", exact: true });
-    await expect(classic).toBeInViewport();
+    const options = page.getByRole("button", { name: "Hermes-Optionen" });
+    await expect(options).toBeInViewport();
     const input = page.getByRole("textbox", { name: "Nachricht an Hermes" });
     await expect(input).toBeInViewport();
     expect(await input.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(16);
@@ -120,7 +120,8 @@ test("hält den Chat auf allen Abnahmebreiten zugänglich und den mobilen Drawer
 test("übernimmt die Session beim Öffnen des eigenen Fensters", async ({ page }) => {
   await page.goto("/wrapt/hermes-v2?session=stored-id");
   await page.getByRole("switch", { name: /Hermes V2 aktivieren/ }).click();
-  const link = page.getByRole("link", { name: "Fenster", exact: true });
+  await page.getByRole("button", { name: "Hermes-Optionen" }).click();
+  const link = page.getByRole("menuitem", { name: "In eigenem Fenster öffnen" });
   await expect(link).toHaveAttribute("href", /\/wrapt\/hermes-v2\/standalone\?session=stored-id$/);
   await expect(link).toHaveAttribute("target", "_blank");
   await expect(link).toHaveAttribute("rel", /noopener/);

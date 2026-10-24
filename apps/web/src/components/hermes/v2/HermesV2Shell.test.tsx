@@ -148,7 +148,10 @@ describe("HermesV2Shell", () => {
     // Die Chatfläche startet keinen neuen Chat mehr selbst, das gehört in
     // die Seitenleiste.
     expect(screen.queryByRole("button", { name: /neuen chat starten/i })).toBeNull();
-    expect(screen.getByRole("link", { name: /Klassisch/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Hermes-Optionen" }));
+    expect(
+      screen.getByRole("menuitem", { name: "Klassische Oberfläche" }),
+    ).toBeTruthy();
   });
 
   it("übergibt stabile Owner-, Auswahl- und Rückrufverträge an den Hook", () => {
@@ -165,11 +168,14 @@ describe("HermesV2Shell", () => {
     useAppPreferences.setState({ hermesV2Enabled: true });
     const { container } = renderShell("/hermes-v2?session=ordner/id", false);
     expect(countV2Markers(container)).toBe(1);
-    const link = screen.getByRole("link", { name: "Klassisch" });
+    fireEvent.click(screen.getByRole("button", { name: "Hermes-Optionen" }));
+    const link = screen.getByRole("menuitem", { name: "Klassische Oberfläche" });
     expect(link.getAttribute("href")).toBe(
       "/hermes-agent?ui=classic&session=ordner%2Fid",
     );
-    const windowLink = screen.getByRole("link", { name: "Fenster" });
+    const windowLink = screen.getByRole("menuitem", {
+      name: "In eigenem Fenster öffnen",
+    });
     expect(windowLink.getAttribute("href")).toContain(
       "/hermes-v2/standalone?session=ordner%2Fid",
     );
@@ -232,6 +238,36 @@ describe("HermesV2Shell", () => {
     ).toBe("false");
   });
 
+  it("klappt die breite Sitzungsspalte ein und nimmt sie aus der Bedienung", () => {
+    useAppPreferences.setState({ hermesV2Enabled: true });
+    stubHermesViewport(1280, 900);
+    const { container } = renderShell(undefined, false);
+    const toggle = screen.getByRole("button", { name: "Sitzungen" });
+    const layer = container.querySelector(".hermesv2-drawer-layer");
+    const sidebar = container.querySelector(".hermesv2-sidebar");
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
+    expect(layer?.hasAttribute("inert")).toBe(false);
+
+    fireEvent.click(toggle);
+    expect(
+      container.querySelector(".hermesv2")?.classList.contains(
+        "is-sidebar-collapsed",
+      ),
+    ).toBe(true);
+    expect(sidebar?.getAttribute("aria-hidden")).toBe("true");
+    expect(layer?.hasAttribute("inert")).toBe(true);
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+
+    fireEvent.click(toggle);
+    expect(
+      container.querySelector(".hermesv2")?.classList.contains(
+        "is-sidebar-collapsed",
+      ),
+    ).toBe(false);
+    expect(sidebar?.getAttribute("aria-hidden")).toBeNull();
+    expect(layer?.hasAttribute("inert")).toBe(false);
+  });
+
   it("hält die kompakte Standalone-Toolbar und den Workbench-Rücklink bereit", () => {
     useAppPreferences.setState({ hermesV2Enabled: true });
     const { container } = renderShell(
@@ -243,7 +279,6 @@ describe("HermesV2Shell", () => {
     expect(screen.getByRole("heading", { name: "Hermes", level: 1 })).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Sitzungen" }));
     expect(screen.getByRole("link", { name: /Zur Workbench/ })).toBeTruthy();
-    expect(screen.queryByRole("link", { name: "Fenster" })).toBeNull();
   });
 
   it("liest bei aktivem Chat, aber nicht bei offenem Neue-Sitzung-Dialog", () => {
