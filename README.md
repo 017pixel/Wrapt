@@ -4,7 +4,7 @@ Die selbst gehostete Remote-Development-Workbench für den privaten Arbeitsplatz
 Wrapt verbindet Projekte, Terminals, Editoren, Coding-Agenten, Previews, Dateien,
 Automatisierungen und Systemdiagnose in einer Oberfläche.
 
-**Aktuelle Version 2.19.0 · MIT · Node.js 22+ · pnpm 10 · [Changelog](CHANGELOG.md)**
+**Aktuelle Version 2.19.1 · MIT · Node.js 22+ · pnpm 10 · [Changelog](CHANGELOG.md)**
 
 ![Wrapt-Dashboard mit anonymisiertem Beispielserver](docs-webseite/assets/01-dashboard.png)
 
@@ -212,11 +212,23 @@ pnpm architecture:file-lines
 WRAPT_E2E_PORT=13100 pnpm test:e2e
 ```
 
-Wähle für `WRAPT_E2E_PORT` einen freien Port und prüfe, dass auch die folgenden 130 Ports frei
-sind. Der Lauf baut `apps/server/dist` im aktuellen Checkout neu; führe ihn deshalb vorzugsweise
-aus einer separaten Arbeitskopie aus. E2E-Tests gehören auf ihre eigene Instanz und dürfen weder
-eine Nutzer-Preview als `WRAPT_E2E_URL` verwenden noch gegen Preview-Ports laufen. Details stehen
-in [Hardening und Prüfungen](docs/hardening.md).
+`pnpm test:e2e` baut einmal und startet danach mehrere isolierte Shards parallel. Jeder
+Shard bekommt einen eigenen Portblock von 500 Ports; prüfe deshalb den Bereich von
+`WRAPT_E2E_PORT` bis `WRAPT_E2E_PORT + (Shards × 500)`. Die Zahl der Shards und Worker
+lässt sich über `WRAPT_E2E_SHARDS`, `WRAPT_E2E_WORKERS` und
+`WRAPT_E2E_PERSONA_WORKERS` steuern. Eine Übersicht der Aufteilung zeigt:
+
+```bash
+node scripts/run-e2e-shards.mjs --shards 6 --plan
+```
+
+Auch ein externer Lauf mit `WRAPT_E2E_URL` baut einmal lokal, weil Persona- und
+Workspace-Specs eigene Server starten. `WRAPT_E2E_WEB_OUT_DIR` kann einen fertigen
+Build vorgeben. Der Lauf schreibt das Server-Dist im aktuellen Checkout neu; führe ihn
+deshalb vorzugsweise aus einer separaten Arbeitskopie aus. E2E-Tests gehören auf ihre
+eigene Instanz und dürfen weder eine Nutzer-Preview als `WRAPT_E2E_URL` verwenden noch
+gegen Preview-Ports laufen. Details stehen in
+[Hardening und Prüfungen](docs/hardening.md).
 
 Die [Persona-Testinventur](docs/e2e-persona-report.md) beschreibt die vier Nutzertypen,
 Einstellungskreuzwirkungen, Fehlerfälle und Abdeckungsgrenzen. Der lokale HTML-Bericht

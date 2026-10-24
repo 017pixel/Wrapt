@@ -2,6 +2,24 @@
 
 Alle relevanten Änderungen werden in kurzen Stichpunkten dokumentiert.
 
+## [2.19.1] - 2026-10-24
+
+### Verändert
+- E2E-Tests laufen in getrennten Shards mit eigenem Server, eigener Datenbank und eigenem Portblock. Lokal starten bis zu sechs Shards parallel, die CI sechs Matrix-Jobs; lokal entsteht der Web-Build nur einmal, in der CI baut jeder Shard seinen eigenen.
+- Die Einstellungs-Kreuzwirkungstests laufen innerhalb ihres Worker-Servers parallel statt seriell. `WRAPT_E2E_SHARDS`, `WRAPT_E2E_WORKERS` und `WRAPT_E2E_PERSONA_WORKERS` steuern die Aufteilung.
+- Der E2E-Build überspringt die doppelte Web-Typprüfung (`build:e2e`). `pnpm typecheck` prüft sie weiterhin separat.
+- Die CI trennt statische Prüfungen, Unit-/Coverage-Tests, Security und E2E in parallele Jobs. Die Unit-Tests laufen mit zwei Workspaces gleichzeitig; Coverage ersetzt den zweiten vollständigen Testlauf.
+- Der Audit-Reporter schreibt pro Shard eigene Ergebnisse und fasst sie lokal zu einem Gesamtbericht zusammen.
+- Hermes V2 bündelt seltene Kopfaktionen in einem Drei-Punkte-Menü. Die Sitzungssuche zeigt nur eine Fokuslinie, der Projektfilter ist kürzer, breiter und ohne sichtbare Scrollleiste. Die normale Chatliste lädt beim Scrollen unsichtbar nach; die Suche behält „Weitere Treffer laden“.
+- Hermes V2 zeigt während laufender Arbeit bei leerem Feld nur Stoppen; der Senden-Knopf erscheint animiert beim Tippen. Modellleiste, Nachrichtenmetadaten und Gedankenbereich sind luftiger und ohne eigene Scrollleiste.
+- Hermes V2 fährt die Seitenleiste beim Ein- und Ausklappen animiert und merkt sich den zuletzt geöffneten Chat über Werkzeugwechsel hinweg. Kopf- und Projektmenü öffnen und schließen weich aus ihrem Auslöser; Press-Feedback und reduzierte Bewegung sind vereinheitlicht.
+
+### Behoben
+- Kritische und hohe Schwachstellen in DOMPurify, Zod und Undici geschlossen. Fastify sowie die transitiven URI- und IP-Abhängigkeiten verwenden korrigierte Versionen.
+
+### Gelöscht
+- Der wirkungslose „Mehr laden“-Knopf unter der normalen Hermes-Chatliste, die Anzeige-Auswahl der Sitzungen und die doppelte Trennlinie über „Erledigt“.
+
 ## [2.19.0] - 2026-10-22
 
 ### Verändert
