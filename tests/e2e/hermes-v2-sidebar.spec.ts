@@ -276,8 +276,12 @@ test("beendet auch Organisationstraffic beim Abschalten des Flags", async ({ pag
   await page.clock.install();
   await openSidebar(page);
   const settings = await context.newPage();
+  await settings.bringToFront();
   await settings.goto("/wrapt/settings#einstellungen:experimente");
-  await settings.getByRole("switch", { name: /Hermes V2 aktivieren/ }).click();
+  const toggle = settings.getByRole("switch", { name: /Hermes V2 aktivieren/ });
+  await expect(toggle).toBeChecked();
+  await toggle.click();
+  await expect(toggle).not.toBeChecked();
   await waitForHermesV2(settings, false);
   await expect(page.locator('[data-hermes-ui="v2"]')).toHaveCount(0);
   await expect.poll(() => gateway.viewers.size).toBe(0);
