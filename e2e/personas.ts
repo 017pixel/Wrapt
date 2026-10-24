@@ -24,6 +24,14 @@ const settingPaths = {
   "/notifications/settings": "preferences", "/system/t3-channel": "configuredChannel",
 } as const;
 
+function clearUiSettings(databasePath: string) {
+  const database = new DatabaseSync(databasePath);
+  try {
+    database.exec("PRAGMA busy_timeout = 5000");
+    database.exec("DELETE FROM ui_settings");
+  } finally { database.close(); }
+}
+
 export const test = base.extend<Fixtures, WorkerFixtures>({
   personaName: ["normal", { option: true, scope: "worker" }],
   workerState: [async ({ personaName }, use, workerInfo) => {
@@ -58,6 +66,9 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     await testInfo.attach("browser-errors", { body: JSON.stringify(errors, null, 2), contentType: "application/json" });
   }, { auto: true }],
   restoreServer: [async ({ workerState, context }, use) => {
+    // Ein verspäteter Settings-PUT aus dem vorherigen Kontext darf den neuen
+    // Test nicht mehr erreichen.
+    clearUiSettings(workerState.databasePath);
     await use();
     // Erst alle Tabs schließen, damit Autosave keine Rücksetzung überschreibt.
     await context.close();
@@ -67,6 +78,10 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
     const database = new DatabaseSync(workerState.databasePath);
     try {
       database.exec("PRAGMA busy_timeout = 5000");
+      // Serverweite UI-Einstellungen (Start-App, Seitenleiste, Layout) gehören
+      // zum Testzustand. Die Tabelle ist beim Worker-Start leer; ein Test darf
+      // seinen geänderten Stand nicht in den nächsten tragen.
+      database.exec("DELETE FROM ui_settings");
       const remove = database.prepare("DELETE FROM notes WHERE id = ?");
       for (const note of current.notes) if (!seedIds.has(note.id)) remove.run(note.id);
     } finally { database.close(); }

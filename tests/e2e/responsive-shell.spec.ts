@@ -147,8 +147,8 @@ test("keeps all main routes inside the viewport", async ({ page }) => {
 
 test("uses a reversible touch dialog for destructive settings", async ({ page }) => {
   await page.goto("/wrapt/settings");
-  // Der lokale Layout-Reset liegt im gleichnamigen Tab.
-  await page.getByRole("button", { name: "Layout", exact: true }).click();
+  // Auf kompakten Breiten ersetzt eine Bereichsauswahl die Tab-Leiste.
+  await page.getByRole("combobox", { name: "Bereich" }).selectOption("layout");
   const trigger = page.getByRole("button", { name: "Layout zurücksetzen" });
   await trigger.click();
   const dialog = page.getByRole("dialog", { name: "Layout zurücksetzen?" });

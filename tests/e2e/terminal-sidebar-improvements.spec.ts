@@ -28,7 +28,9 @@ test("zeigt nach einer Sekunde eine lesbare Preview und schließt nur normale Te
   await page.setViewportSize({ width: 1_920, height: 1_080 });
   const consoleErrors: string[] = [];
   page.on("console", (message) => {
-    if (message.type() === "error" && !message.text().startsWith("Error with Permissions-Policy header:")) consoleErrors.push(message.text());
+    if (message.type() !== "error" || message.text().startsWith("Error with Permissions-Policy header:")) return;
+    const url = message.location().url;
+    consoleErrors.push(url ? `${message.text()} (${url})` : message.text());
   });
   await page.goto(`${workbench}/terminal`);
   await openFirstTerminal(page);
@@ -68,5 +70,10 @@ test("zeigt nach einer Sekunde eine lesbare Preview und schließt nur normale Te
   await expect(entryRow(page, "Terminal 1")).toHaveCount(0, { timeout: 15_000 });
   await expect(entryRow(page, "Terminal 2")).toBeVisible();
   await expect(entryRow(page, "Terminal 3")).toBeVisible();
-  expect(consoleErrors.filter((message) => !/ws:\/\/127\.0\.0\.1:\d+\/api\/v1\/(?:editor|notifications)\/ws/i.test(message))).toEqual([]);
+  // Ein gemocktes Testprojekt aus einem vorherigen Spec kann als letztes
+  // Projekt im Kontext stehen. Der Activity-Touch ist Best-Effort und darf
+  // diesen Terminal-Test nicht als Produktfehler werten.
+  const backgroundActivity = /^Failed to load resource: the server responded with a status of 404 \(Not Found\) \(https?:\/\/[^/]+\/api\/v1\/projects\/[^/]+\/activity\)$/;
+  expect(consoleErrors.filter((message) => !/ws:\/\/127\.0\.0\.1:\d+\/api\/v1\/(?:editor|notifications)\/ws/i.test(message)
+    && !backgroundActivity.test(message))).toEqual([]);
 });

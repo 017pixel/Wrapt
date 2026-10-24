@@ -10,9 +10,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  static-and-unit:
+  static:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: pnpm/action-setup@v6.1.0
@@ -28,10 +28,29 @@ jobs:
       - run: pnpm test:quality-gates
       - run: pnpm typecheck
       - run: pnpm exec eslint . --max-warnings=0
+
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6.1.0
+        with:
+          version: 10.29.2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Ein Build versorgt Coverage, Launcher und die beiden isolierten
+      # Deployment-/Retention-Prüfungen. Die reine Testsuite läuft nur noch
+      # einmal mit Coverage statt zusätzlich ohne.
       - run: pnpm build
-      - run: pnpm test
       - run: pnpm test:coverage
+      - run: pnpm test:launcher
+      - run: pnpm test:docs
       - run: pnpm test:artifact-retention
+      - run: pnpm test:extension-deployment
       - if: always()
         uses: actions/upload-artifact@v7
         with:
@@ -43,11 +62,29 @@ jobs:
             packages/extension-contracts/coverage/
           if-no-files-found: ignore
           retention-days: 7
+
+  security:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6.1.0
+        with:
+          version: 10.29.2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
       - run: pnpm security:audit
 
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5]
     env:
       # Der e2e-Server erwartet WRAPT_E2E_USER (Fallback user@example.com);
       # WRAPT_DEV_TAILSCALE_USER aktiviert nur die Preview-Test-Szenarien.
@@ -74,14 +111,14 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}-chromium
       - run: pnpm exec playwright install --with-deps chromium
-      # Playwright baut einmal; der Deployment-Test verwendet danach denselben Server-Build.
-      - run: pnpm test:e2e
-      - run: pnpm test:extension-deployment
+      # Sechs Shards laufen als eigene Runner parallel. Jeder Shard baut einmal
+      # und startet danach nur seinen isolierten Server auf einem eigenen Port.
+      - run: node scripts/run-e2e-shards.mjs --shard ${{ matrix.shard }} --shards 6 --build
       - if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: |
-            playwright-report/
-            test-results/
+            playwright-report/shard-${{ matrix.shard }}/
+            test-results/shard-${{ matrix.shard }}/
           retention-days: 7

@@ -7,8 +7,8 @@ import type { FullResult, Reporter, TestCase, TestResult } from "@playwright/tes
  * Retry-Erfolgen oder begründungslosen Skips ist damit kein stilles Signal
  * mehr: Der Bericht landet als JSON und Markdown unter test-results/.
  */
-const FLAKY_BUDGET = 1;
-const OUTPUT_DIRECTORY = "test-results";
+const FLAKY_BUDGET = Number(process.env.WRAPT_E2E_FLAKY_BUDGET ?? 1);
+const OUTPUT_DIRECTORY = process.env.WRAPT_E2E_RESULTS_DIR?.trim() || "test-results";
 const JSON_FILE = "e2e-summary.json";
 const MARKDOWN_FILE = "e2e-summary.md";
 

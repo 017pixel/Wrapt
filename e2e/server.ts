@@ -7,11 +7,19 @@ import { join, resolve } from "node:path";
 import { expect, request, type APIRequestContext } from "@playwright/test";
 
 export const identity = { "tailscale-user-login": "user@example.com" };
+const reservedPortStart = Number(process.env.WRAPT_E2E_RESERVED_PORT_START ?? NaN);
+const reservedPortEnd = Number(process.env.WRAPT_E2E_RESERVED_PORT_END ?? NaN);
+
+function overlapsReservedPorts(port: number) {
+  return Number.isFinite(reservedPortStart) && Number.isFinite(reservedPortEnd)
+    && port < reservedPortEnd && port + 200 > reservedPortStart;
+}
 
 async function freePortBlock() {
   for (let attempt = 0; attempt < 20; attempt++) {
     // Blöcke atomar reservieren, damit parallele Starts nicht überlappen.
     const port = 20_000 + Math.floor(Math.random() * 150) * 200;
+    if (overlapsReservedPorts(port)) continue;
     const lock = join(tmpdir(), `wrapt-persona-port-${port}`);
     try { await mkdir(lock); }
     catch (error) {
@@ -45,7 +53,8 @@ export async function startWorkerServer(workerIndex: number) {
   const root = await mkdtemp(join(tmpdir(), "wrapt-persona-"));
   const { port, release } = await freePortBlock();
   const origin = `http://127.0.0.1:${port}`;
-  const logs = resolve("test-results", "servers");
+  const resultsDirectory = process.env.WRAPT_E2E_RESULTS_DIR?.trim();
+  const logs = resultsDirectory ? resolve(resultsDirectory, "servers") : resolve("test-results", "servers");
   await mkdir(logs, { recursive: true });
   const logPath = join(logs, `worker-${workerIndex}.log`);
   const log = createWriteStream(logPath);

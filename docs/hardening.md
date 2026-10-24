@@ -142,17 +142,28 @@ Bearbeiten und Veröffentlichen sind getrennte Fähigkeiten.
 ## E2E-Isolation und Flake-Budget
 
 - Playwright startet ohne `WRAPT_E2E_PORT` auf dem separaten Testport 19310. Für einen isolierten Lauf einen freien
-  Port setzen und vorher den gesamten Bereich von `WRAPT_E2E_PORT` bis `WRAPT_E2E_PORT + 130`
+  Port setzen und vorher den Bereich von `WRAPT_E2E_PORT` bis `WRAPT_E2E_PORT + (Shards × 500)`
   prüfen, zum Beispiel `WRAPT_E2E_PORT=13100 pnpm test:e2e`.
+- `pnpm test:e2e` baut einmal und verteilt die Spec-Dateien auf mehrere isolierte Shards.
+  Jeder Shard hat einen eigenen Server, eine eigene Datenbank und einen eigenen Portblock.
+  `WRAPT_E2E_SHARDS`, `WRAPT_E2E_WORKERS` und `WRAPT_E2E_PERSONA_WORKERS` steuern die
+  Parallelität; `node scripts/run-e2e-shards.mjs --shards 6 --plan` zeigt die Aufteilung.
+  Die CI startet sechs Shards als eigene Matrix-Jobs.
+- Der E2E-Web-Build läuft über `pnpm build:e2e` und überspringt die separate Web-Typprüfung.
+  `pnpm typecheck` prüft sie unabhängig davon.
 - Der Testserver verwendet temporäre Daten-, Konfigurations- und Web-Build-Verzeichnisse, einen
-  eigenen tmux-Socket und deaktivierte Host-Integrationen. `pnpm build` schreibt jedoch
+  eigenen tmux-Socket und deaktivierte Host-Integrationen. `pnpm build:e2e` schreibt jedoch
   `apps/server/dist` im aktuellen Checkout. E2E-Läufe deshalb vorzugsweise aus einer separaten
   Arbeitskopie starten, damit ein aktiver Server-Build im normalen Checkout unverändert bleibt.
 - `WRAPT_E2E_URL` ist nur für eine eigens eingerichtete Testinstanz gedacht. Nutzer-Previews
-  dürfen weder als E2E-URL noch als Testziel verwendet werden.
-- Der Audit-Reporter schreibt `test-results/e2e-summary.json` und `-summary.md` mit
-  Skip-Gründen, Retry-Erfolgen und Projektmatrix. Das Flake-Budget beträgt 1 pro Lauf;
-  darüber schlägt der Lauf sichtbar fehl.
+  dürfen weder als E2E-URL noch als Testziel verwendet werden. Ein externer Server
+  (`WRAPT_E2E_EXTERNAL=true` oder `WRAPT_E2E_URL`) läuft bewusst ohne Sharding.
+  Persona- und Workspace-Specs starten trotzdem eigene lokale Server; dafür baut
+  `pnpm test:e2e` einmal lokal oder übernimmt `WRAPT_E2E_WEB_OUT_DIR`.
+- Der Audit-Reporter schreibt pro Shard `test-results/shard-<n>/e2e-summary.json` und
+  `-summary.md`. Der lokale Orchestrator fasst sie zu `test-results/e2e-summary.json` und
+  `-summary.md` zusammen; die HTML-Berichte liegen unter `playwright-report/shard-<n>/`.
+  In der CI gilt das Flake-Budget von 1 pro Shard, lokal summiert der Orchestrator alle Shards.
 
 ## Rollback
 

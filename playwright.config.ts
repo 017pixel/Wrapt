@@ -7,15 +7,41 @@ import { defineConfig, devices } from "@playwright/test";
 const e2ePort = Number(process.env.WRAPT_E2E_PORT ?? 19310);
 process.env.WRAPT_E2E_PORT = String(e2ePort);
 const e2eBaseURL = e2eOrigin;
+const e2eExternal = process.env.WRAPT_E2E_EXTERNAL === "true" || Boolean(process.env.WRAPT_E2E_URL?.trim());
+const configuredWebDist = process.env.WRAPT_E2E_WEB_OUT_DIR?.trim();
+if (e2eExternal && !configuredWebDist) {
+  throw new Error(
+    "Ein externer E2E-Server benötigt WRAPT_E2E_WEB_OUT_DIR mit einem fertigen Web-Build. " +
+    "`pnpm test:e2e` baut ihn automatisch.",
+  );
+}
+// Ein Shard baut einmal zentral vor und startet danach nur noch Server. So
+// zahlen parallele Shards den Build nicht mehrfach.
+const e2ePrebuilt = process.env.WRAPT_E2E_PREBUILT === "true";
+if (e2ePrebuilt && !configuredWebDist) {
+  throw new Error("WRAPT_E2E_PREBUILT=true benötigt WRAPT_E2E_WEB_OUT_DIR mit einem fertigen Web-Build.");
+}
 // Das Web-Dist-Verzeichnis wird einmal pro Lauf angelegt und danach über die
 // Umgebung weitergegeben: Worker laden diese Datei erneut aus und müssen das
 // bereits gebaute Verzeichnis übernehmen, statt ein leeres anzulegen. Sonst
 // liefern von Specs gestartete Zusatzserver (z. B. der zweite Workspace) nur
 // „Frontend-Build ist noch nicht vorhanden" (503) aus.
-const e2eWebDist = process.env.WRAPT_E2E_EXTERNAL === "true"
-  ? undefined
-  : process.env.WRAPT_E2E_WEB_OUT_DIR?.trim() || mkdtempSync(join(tmpdir(), "wrapt-e2e-web-"));
+const e2eWebDist = e2eExternal ? configuredWebDist : configuredWebDist || mkdtempSync(join(tmpdir(), "wrapt-e2e-web-"));
 if (e2eWebDist) process.env.WRAPT_E2E_WEB_OUT_DIR = e2eWebDist;
+const configuredWorkers = process.env.WRAPT_E2E_WORKERS?.trim();
+const e2eWorkers = configuredWorkers
+  ? Math.max(1, Number(configuredWorkers))
+  : process.env.CI ? 4 : "75%";
+const personaWorkers = Math.max(1, Number(process.env.WRAPT_E2E_PERSONA_WORKERS ?? (process.env.CI ? 3 : 6)));
+if (!Number.isInteger(personaWorkers)) {
+  throw new Error(`WRAPT_E2E_PERSONA_WORKERS ist ungültig: ${process.env.WRAPT_E2E_PERSONA_WORKERS}`);
+}
+// Ergebnisse und HTML-Berichte getrennter Shards dürfen sich nicht
+// überschreiben; der Orchestrator setzt beide Pfade pro Shard.
+const e2eResultsDir = process.env.WRAPT_E2E_RESULTS_DIR?.trim() || "test-results";
+if (!Number.isFinite(Number(e2eWorkers)) && e2eWorkers !== "75%") {
+  throw new Error(`WRAPT_E2E_WORKERS ist ungültig: ${configuredWorkers}`);
+}
 
 if (process.env.WRAPT_E2E_URL && process.env.WRAPT_E2E_ISOLATED !== "true") {
   throw new Error(
@@ -43,7 +69,8 @@ export default defineConfig<object, { personaName: "frisch" | "normal" | "heavy"
   // wieder ins selbe Limit.
   timeout: 60_000,
   fullyParallel: true,
-  workers: "50%",
+  workers: e2eWorkers,
+  outputDir: e2eResultsDir,
   // Der isolierte Launcher besitzt ein eigenes Dist-Verzeichnis; kein E2E-Lauf
   // überschreibt die Assets oder Sitzungen der aktiven Workbench.
   retries: process.env.CI ? 2 : 0,
@@ -53,18 +80,17 @@ export default defineConfig<object, { personaName: "frisch" | "normal" | "heavy"
       name: `personas-${personaName}`, testDir: "./e2e", testMatch: /journeys\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], personaName: personaName as "frisch" | "normal" | "heavy" | "konfiguriert" },
     })),
-    // Die Personas-Specs verstellen globale Einstellungen (Theme, Start-App,
-    // Navigation, Palette, Registry, Plugins). Jeder Worker startet zwar einen
-    // eigenen Server, doch der parallele Stapel wurde unter CI-Last flaky —
-    // darum laufen sie serialisiert wie die historischen Specs.
-    { name: "personas", testDir: "./e2e", testIgnore: /journeys\.spec\.ts/, fullyParallel: false, workers: 1,
+    // Die Einstellungs-Kreuzwirkungen laufen ebenfalls gegen je einen eigenen
+    // Worker-Server. Seitdem Seeds und Reset pro Worker gekapselt sind, können
+    // sie parallel laufen; nur der gemeinsame Build bleibt geteilt.
+    { name: "personas", testDir: "./e2e", testIgnore: /journeys\.spec\.ts/, fullyParallel: true, workers: personaWorkers,
       use: { ...devices["Desktop Chrome"], personaName: "normal" } },
     // Historische Specs teilen sich Identitäten, Konfiguration und Orbit-Dokument.
     // Ihre Serialisierung bleibt erhalten, die neuen Personas sind workerisoliert.
     { name: "chromium", testDir: "./tests/e2e", fullyParallel: false, workers: 1,
       testIgnore: desktopTestIgnore, use: { ...devices["Desktop Chrome"] } },
     { name: "phone-touch", testDir: "./tests/e2e", fullyParallel: false, workers: 1,
-      testMatch: /responsive-shell\.spec\.ts/, dependencies: ["chromium"],
+      testMatch: /responsive-shell\.spec\.ts/, dependencies: process.env.WRAPT_E2E_SHARDED === "true" ? [] : ["chromium"],
       use: { ...devices["iPhone 13"], browserName: "chromium" } },
   ],
   use: {
@@ -72,15 +98,18 @@ export default defineConfig<object, { personaName: "frisch" | "normal" | "heavy"
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
-  webServer: process.env.WRAPT_E2E_EXTERNAL === "true" ? [] : {
+  webServer: e2eExternal ? [] : {
     // Der Build läuft bewusst im Produktionsmodus: Die CI setzt
     // NODE_ENV=development (der Server braucht es für die
     // Entwicklungsidentität), doch die E2E-Suite soll das ausgelieferte
     // Bundle prüfen — kein Development-React mit StrictMode-Doppeleffekten.
-    // Der Server selbst erbt weiterhin die Umgebung und bleibt in Entwicklung.
-    command: "NODE_ENV=production pnpm build && node scripts/start-e2e-server.mjs",
+    // `build:e2e` überspringt die separate Web-Typprüfung; die läuft in der
+    // statischen CI-Stufe und bei `pnpm typecheck`.
+    command: e2ePrebuilt
+      ? "node scripts/start-e2e-server.mjs"
+      : "NODE_ENV=production pnpm build:e2e && node scripts/start-e2e-server.mjs",
     url: `${e2eBaseURL}/api/v1/health`,
     reuseExistingServer: false,
-    timeout: 120_000,
+    timeout: 180_000,
   },
 });

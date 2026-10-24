@@ -9,19 +9,26 @@ Web-Ausgabe in einem temporären Verzeichnis. Produktive Assets, Datenbanken,
 Nutzer-Previews, Tailscale-Einstellungen und tmux-Sitzungen werden nicht verändert.
 Alle Projekte verwenden Chromium, auch die bestehende iPhone-Suite.
 
-Die neue Suite ist vollständig parallel mit 50 % der verfügbaren CPUs. Notizen,
-Themes und weitere Einstellungen sind serverweit gespeichert. Deshalb hat jeder
-Persona-Worker zusätzlich ein eigenes Backend, temporäre Config, SQLite-Datei
-und einen zuvor geprüften freien Portbereich. Der Build wird geteilt, Seeds werden
-je Worker einmal angelegt, `storageState` wird für frische Browserkontexte verwendet.
-Teardown schließt die Tabs, entfernt ausschließlich eigene Testnotizen aus der
-Worker-Datenbank und setzt die veränderten Servereinstellungen zurück.
+Die Persona-Suite nutzt die konfigurierte Worker-Zahl (lokal 75 % der CPUs, in
+der CI vier Worker). Notizen, Themes und weitere Einstellungen sind serverweit
+gespeichert. Deshalb hat jeder Persona-Worker zusätzlich ein eigenes Backend,
+temporäre Config, SQLite-Datei und einen zuvor geprüften freien Portbereich.
+Der Build wird geteilt, Seeds werden je Worker einmal angelegt, `storageState`
+wird für frische Browserkontexte verwendet. Teardown schließt die Tabs,
+entfernt ausschließlich eigene Testnotizen aus der Worker-Datenbank und setzt
+die veränderten Servereinstellungen zurück.
 
-Die historischen Fachtests teilen Identitäten und globale Orbit-Dokumente. Ihr
-Chromium-Projekt bleibt mit einem Worker seriell. Das mobile Bestandsprojekt läuft
-anschließend. Es gibt keine festen Sleeps oder neuen Skips. Bestehende Zeitprüfungen
-nutzen die virtuelle Playwright-Uhr, übrige Pausen wurden durch Zustandsprüfungen ersetzt. Wartebedingungen
-verwenden sichtbare Zustände, konkrete HTTP-Antworten und `expect.poll`.
+Die historischen Fachtests teilen Identitäten und globale Orbit-Dokumente.
+Ihr Chromium-Projekt bleibt deshalb innerhalb eines Shards mit einem Worker
+seriell. `pnpm test:e2e` verteilt die Spec-Dateien jedoch auf mehrere
+vollständig getrennte Shards (lokal standardmäßig bis zu sechs, in der CI sechs
+Matrix-Jobs). Jeder Shard hat eigenen Server, eigene Datenbank und einen
+eigenen Portblock; Dateien bleiben innerhalb eines Shards zusammen. Das mobile
+Bestandsprojekt läuft in einem eigenen Shard ohne die Chromium-Abhängigkeit. Es gibt keine festen
+Sleeps oder neuen Skips. Bestehende Zeitprüfungen nutzen die virtuelle
+Playwright-Uhr, übrige Pausen wurden durch Zustandsprüfungen ersetzt.
+Wartebedingungen verwenden sichtbare Zustände, konkrete HTTP-Antworten und
+`expect.poll`.
 
 Lokal gibt es keine Retries, in CI zwei. Traces entstehen beim ersten Retry,
 Fehlerscreenshots nur bei Fehlern. Die Suite liefert HTML, List-Ausgabe und den
@@ -234,10 +241,12 @@ Performance-Harness bleibt außerhalb des Standardlaufs. Diese Grenzen sind
 zusätzlich zu den oben genannten echten Fremddiensten zu berücksichtigen.
 
 Automatisches Detailprotokoll: `test-results/e2e-summary.json`
-und `test-results/e2e-summary.md`. HTML: `playwright-report/index.html`.
-Traces: `test-results/<testname>/trace.zip`, nur beim ersten Retry;
+und `test-results/e2e-summary.md`; pro Shard liegen sie unter
+`test-results/shard-<n>/`. HTML: `playwright-report/index.html` mit Links auf
+`playwright-report/shard-<n>/index.html`.
+Traces: `test-results/shard-<n>/<testname>/trace.zip`, nur beim ersten Retry;
 lokal bei einem vollständig grünen Lauf gibt es daher keine Trace-Dateien.
-Worker-Logs: `test-results/servers/worker-*.log`. Screenshots des mobilen
+Worker-Logs: `test-results/shard-<n>/servers/worker-*.log`. Screenshots des mobilen
 Durchlaufs hängen im HTML-Report. Über Playwright-MCP wurden separat die
 300-Zeichen-Grenze, gespeicherter Titel/Inhalt nach Reload und die 390-px-Ansicht
 ohne horizontalen Überlauf geprüft. Temporärer Screenshot:
