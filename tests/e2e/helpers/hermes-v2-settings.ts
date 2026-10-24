@@ -45,6 +45,19 @@ export function enableHermesV2(context: BrowserContext): Promise<void> {
   return setHermesV2(context, true);
 }
 
+/** Wartet vor Änderungen auf den ersten serverweiten Einstellungsabgleich. */
+export async function openHermesV2Settings(page: Page): Promise<void> {
+  const initialSync = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return url.pathname === "/api/v1/settings/ui" &&
+      response.request().method() === "GET" && response.ok();
+  });
+  await page.goto("/wrapt/settings#einstellungen:experimente");
+  const response = await initialSync;
+  await response.finished();
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+}
+
 /** Wartet, bis die debouncte Einstellung den Server erreicht hat. */
 export async function waitForHermesV2(page: Page, enabled: boolean): Promise<void> {
   await expect.poll(async () => {

@@ -1,6 +1,6 @@
 import { expect, test as base, type Page } from "@playwright/test";
 import { HermesV2BrowserGateway } from "./hermes-v2-gateway";
-import { enableHermesV2, waitForHermesV2 } from "./helpers/hermes-v2-settings";
+import { enableHermesV2, openHermesV2Settings, waitForHermesV2 } from "./helpers/hermes-v2-settings";
 
 const sessionId = "stored-browser";
 const root = '[data-hermes-ui="v2"]';
@@ -236,7 +236,7 @@ test("Flag-off während eines Turns schließt V2-Traffic ohne Stop und stellt na
   gateway.delta(sessionId, "Bereits eingetroffener Teil");
   const settings = await context.newPage();
   await settings.bringToFront();
-  await settings.goto("/wrapt/settings#einstellungen:experimente");
+  await openHermesV2Settings(settings);
   const toggle = settings.getByRole("switch", { name: /Hermes V2 aktivieren/ });
   await expect(toggle).toBeChecked();
   await toggle.click();
