@@ -246,6 +246,10 @@ const child = spawn(process.execPath, ["apps/server/dist/index.js"], {
     WRAPT_DEV_TAILSCALE_USER: e2eIdentity,
     PREVIEW_PUBLIC_ORIGIN_MODE: "loopback-http",
     PORT: String(e2ePort),
+    // Der offizielle VS-Code-Editor ist der getestete Editor; er erhält die
+    // Shortcut-Brücke über die Workbench-Antwort. Die CI hat keine .env und
+    // würde sonst auf code-server zurückfallen.
+    EDITOR_BACKEND: process.env.EDITOR_BACKEND ?? "vscode",
     CODE_SERVER_PORT: String(editorPort),
     CODE_SERVER_LEGACY_PORT: String(editorPort),
     VSCODE_WEB_DATA_DIR: process.env.WRAPT_E2E_EDITOR_DATA_DIR || join(temporaryRoot, "vscode"),
