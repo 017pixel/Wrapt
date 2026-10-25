@@ -2,6 +2,48 @@
 
 Alle relevanten Änderungen werden in kurzen Stichpunkten dokumentiert.
 
+## [2.22.2] - 2026-10-25
+
+### Behoben
+- Die Zahlenwahl bleibt auf Allgemein und Werkzeuge begrenzt. Account und System zeigt ausschließlich die Direktkürzel für Plugins, Nutzung und Einstellungen.
+
+## [2.22.1] - 2026-10-25
+
+### Behoben
+- Tastenkürzel-Hinweise erscheinen ohne Verschieben der Sidebar-Icons oder Texte. Nutzung, Einstellungen und Plugins zeigen auch ihre passenden Direktkürzel.
+
+## [2.22.0] - 2026-10-25
+
+### Erstellt
+- Globale Wrapt-Tastenkürzel: Ctrl und Shift halten, um die ersten zehn Seiten mit 1 bis 9 und 0 zu wählen. Die Nummern folgen der Sidebar-Reihenfolge und erscheinen auch bei schmaler Sidebar oder eingeklappten Gruppen.
+- Einstellbare Direktkürzel für Einstellungen, Nutzung, Plugins, Serverauswahl und das Limits-Popup. Kürzel lassen sich aufnehmen, deaktivieren und zurücksetzen; doppelte Belegungen werden erkannt.
+
+### Verändert
+- Behandelte Wrapt-Kürzel funktionieren auch in eingebettetem T3 Code, VS Code, Hermes und OpenCode sowie im Terminal, ohne ihre Auswahl-Tasten an das Werkzeug weiterzugeben. Die Einstellungen werden zwischen Clients abgeglichen.
+
+## [2.21.0] - 2026-10-25
+
+### Erstellt
+- Auswählbares Wrapt-Dark-Theme und ein freiwilliges Leistungsprofil für den offiziellen VS-Code-Web-Editor.
+- Wrapt-Editor-Erweiterung für präzises Dateiöffnen einschließlich Zeile und Spalte sowie automatische Wiederverbindung.
+
+### Verändert
+- Editor-Aufrufe aus T3 verwenden interne Navigation. Bereits geöffnete Workspaces und Dateien bleiben beim Ansichtswechsel erhalten.
+- Ladefehler und Verbindungsunterbrechungen werden im Editor erkennbar, ohne laufende Bearbeitungen automatisch neu zu laden.
+
+### Behoben
+- Große einzelne Editor-Nachrichten lösen keinen unnötigen Verbindungsabbruch mehr aus. Warteschlangen und Nachrichtengrößen bleiben begrenzt.
+
+## [2.20.1] - 2026-10-25
+
+### Behoben
+- Die Notes-Seitenleiste bleibt scrollbar, zeigt aber keine Scrollleiste mehr und reserviert dafür keinen Platz.
+
+## [2.20.0] - 2026-10-25
+
+### Verändert
+- Sidebar-Links lassen sich direkt innerhalb ihrer Gruppe per Drag-and-drop umsortieren. Einträge rücken sanft nach, die Reihenfolge bleibt gespeichert. Abgebrochene Maus-Drags setzen sie zurück; Alt und Pfeiltasten verschieben fokussierte Links.
+
 ## [2.19.2] - 2026-10-24
 
 ### Behoben
