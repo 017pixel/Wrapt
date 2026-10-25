@@ -37,7 +37,7 @@ beforeAll(async () => {
   });
   const { registerEditorProxy } = await import("./editorProxy.js");
   app = Fastify({ trustProxy: ["127.0.0.1", "::1"] });
-  await app.register(websocket);
+  await app.register(websocket, { options: { maxPayload: 16 * 1024 * 1024 } });
   await registerEditorProxy(app);
   await app.ready();
   proxyOrigin = await app.listen({ host: "127.0.0.1", port: 0 });
@@ -134,6 +134,13 @@ describe("Editor-Proxy und Anmeldung", () => {
       const [binaryData, binaryFlag] = await binaryReply;
       expect(binaryData).toEqual(Buffer.from([0, 1, 255]));
       expect(binaryFlag).toBe(true);
+      // Große Editor-Synchronisation darf allein senden, ohne durch das
+      // 2-MiB-Warteschlangenlimit einen Reconnect auszulösen.
+      const large = Buffer.alloc(3 * 1024 * 1024, 7);
+      const largeReply = once(socket, "message");
+      socket.send(large);
+      const [largeData] = await largeReply;
+      expect(Buffer.isBuffer(largeData) && largeData.equals(large)).toBe(true);
     } finally {
       configuration.editorBackend = "code-server";
       if (socket.readyState === WebSocket.OPEN) {

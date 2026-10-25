@@ -1,0 +1,21 @@
+{
+  "name": "wrapt-editor",
+  "displayName": "Wrapt Editor",
+  "description": "Wrapt-Theme, Dateiöffnen und sparsames Leistungsprofil.",
+  "version": "1.0.0",
+  "publisher": "wrapt",
+  "engines": { "vscode": "^1.95.0" },
+  "categories": ["Themes", "Other"],
+  "main": "./extension.cjs",
+  "extensionKind": ["workspace"],
+  "activationEvents": ["onStartupFinished"],
+  "capabilities": { "untrustedWorkspaces": { "supported": true } },
+  "contributes": {
+    "themes": [{ "label": "Wrapt Dark", "uiTheme": "vs-dark", "path": "./wrapt-dark.json" }],
+    "commands": [
+      { "command": "wrapt.applyTheme", "title": "Wrapt: Dark-Theme anwenden" },
+      { "command": "wrapt.applyPerformance", "title": "Wrapt: Leistungsprofil anwenden" },
+      { "command": "wrapt.runningExtensions", "title": "Wrapt: Laufende Erweiterungen prüfen" }
+    ]
+  }
+}

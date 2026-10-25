@@ -6,6 +6,11 @@ export function CodeServerSignIn({ editorUrl, open, onClose }: { editorUrl: stri
       {(requestClose) => <div className="space-y-4 p-4 text-sm text-text">
         <p className="text-muted">Im offiziellen Editor unter Konten bei GitHub anmelden. Danach Copilot aktivieren bzw. unter Verwalten die Einstellungssynchronisierung einschalten. Die Anmeldung öffnet ein separates Browserfenster, der Editor bleibt geöffnet.</p>
         <details>
+          <summary className="cursor-pointer py-3">Wrapt-Theme und Leistung</summary>
+          <p className="text-muted">In der Befehlspalette „Wrapt: Dark-Theme anwenden“ auswählen. „Wrapt: Leistungsprofil anwenden“ nimmt erzeugte Build-Verzeichnisse aus der Dateiüberwachung. „Wrapt: Laufende Erweiterungen prüfen“ zeigt die aktiven Erweiterungen. Bestehende Einstellungen und Anmeldungen bleiben erhalten.</p>
+          <p className="text-muted">Fehlen die Wrapt-Befehle, muss die mitgelieferte Erweiterung installiert und der Editor einmal bewusst neu geladen werden. Eine unterbrochene Wrapt-Verbindung wird automatisch wiederhergestellt, ohne deine geöffneten Dateien neu zu laden.</p>
+        </details>
+        <details>
           <summary className="cursor-pointer py-3">Unterschied zu code-server</summary>
           <p className="text-muted">Copilot und natives Settings Sync sind im offiziellen VS-Code-Editor verfügbar. code-server verwendet Open VSX und bietet keinen nativen Microsoft-Sync-Dienst. Copilot Chat fehlt im verwendeten Open-VSX-Katalog.</p>
         </details>

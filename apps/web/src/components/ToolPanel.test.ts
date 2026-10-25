@@ -258,21 +258,28 @@ describe("eingebettete Werkzeug-Eingaben", () => {  it("lässt Pointer-Gesten im
 });
 
 describe("T3 Open-in-Brücke", () => {
-  const locationAssign = vi.fn();
+  const navigation = vi.fn();
+  const receive = (event: Event) => navigation((event as CustomEvent).detail.folder);
+  const originalLocation = window.location;
 
   beforeEach(() => {
     // Der Layout-Store wird pro Test ersetzt, damit der persistierte Store
     // keinen Storage braucht (im Test-Setup ist window.localStorage nicht
     // zuverlässig vorhanden).
     vi.spyOn(useLayoutStore.getState(), "selectProject").mockImplementation(() => undefined);
-    locationAssign.mockClear();
+    navigation.mockClear();
+    window.addEventListener("wrapt:editor-navigate", receive);
     Object.defineProperty(window, "location", {
       configurable: true,
-      value: { origin: "http://localhost:3000", href: "http://localhost:3000/t3-code", assign: locationAssign },
+      value: { origin: "http://localhost:3000", href: "http://localhost:3000/t3-code" },
     });
   });
 
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    window.removeEventListener("wrapt:editor-navigate", receive);
+    Object.defineProperty(window, "location", { configurable: true, value: originalLocation });
+  });
 
   function sendEditorMessage(folder: string | null) {
     // jsdom setzt bei window.postMessage kein event.origin; der Handler
@@ -280,6 +287,7 @@ describe("T3 Open-in-Brücke", () => {
     window.dispatchEvent(new MessageEvent("message", {
       data: { type: "wrapt:open-editor", ...(folder ? { folder } : {}) },
       origin: window.location.origin,
+      source: (screen.getByTitle("T3 Code") as HTMLIFrameElement).contentWindow,
     }));
   }
 
@@ -299,7 +307,7 @@ describe("T3 Open-in-Brücke", () => {
 
     sendEditorMessage("/home/user/projects/foo");
 
-    await waitFor(() => expect(locationAssign).toHaveBeenCalledWith("/wrapt/code-editor/?folder=%2Fhome%2Fuser%2Fprojects%2Ffoo"));
+    await waitFor(() => expect(navigation).toHaveBeenCalledWith("/home/user/projects/foo"));
     expect(useLayoutStore.getState().selectProject).toHaveBeenCalledWith(project.id);
   });
 
@@ -311,7 +319,7 @@ describe("T3 Open-in-Brücke", () => {
 
     sendEditorMessage("/home/user/projects/foo");
 
-    await waitFor(() => expect(locationAssign).toHaveBeenCalledWith("/wrapt/code-editor/?folder=%2Fhome%2Fuser%2Fprojects%2Ffoo"));
+    await waitFor(() => expect(navigation).toHaveBeenCalledWith("/home/user/projects/foo"));
   });
 
   it("öffnet ohne Ordner die Code-Editor-Seite mit dem Panel-Projekt", async () => {
@@ -322,7 +330,7 @@ describe("T3 Open-in-Brücke", () => {
 
     sendEditorMessage(null);
 
-    await waitFor(() => expect(locationAssign).toHaveBeenCalledWith("/wrapt/code-editor/"));
+    await waitFor(() => expect(navigation).toHaveBeenCalledWith(null));
     expect(useLayoutStore.getState().selectProject).toHaveBeenCalledWith(project.id);
   });
 
@@ -333,7 +341,7 @@ describe("T3 Open-in-Brücke", () => {
 
     sendEditorMessage("/home/user/projects/foo");
 
-    await waitFor(() => expect(locationAssign).toHaveBeenCalledWith("/wrapt/code-editor/?folder=%2Fhome%2Fuser%2Fprojects%2Ffoo"));
+    await waitFor(() => expect(navigation).toHaveBeenCalledWith("/home/user/projects/foo"));
     expect(useLayoutStore.getState().selectProject).not.toHaveBeenCalled();
   });
 
@@ -346,7 +354,7 @@ describe("T3 Open-in-Brücke", () => {
     window.dispatchEvent(new MessageEvent("message", { data: { type: "unrelated" }, origin: window.location.origin }));
 
     await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(locationAssign).not.toHaveBeenCalled();
+    expect(navigation).not.toHaveBeenCalled();
     expect(useLayoutStore.getState().selectProject).not.toHaveBeenCalled();
   });
 });

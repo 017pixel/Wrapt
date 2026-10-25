@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // Optionaler offizieller Editor. Verändert weder code-server noch Wrapt-Dienste.
 import { spawn } from "node:child_process";
-import { chmod, mkdir, mkdtemp, rename, rm, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { prepareEditorExtension } from "./prepare-editor-extension.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 try { process.loadEnvFile(join(repositoryRoot, ".env")); } catch (error) {
@@ -14,6 +15,20 @@ const cliPath = resolve(process.env.VSCODE_WEB_CLI || join(homedir(), ".local/sh
 const dataDirectory = resolve(process.env.VSCODE_WEB_DATA_DIR || join(homedir(), ".local/share/wrapt/vscode-web/data"));
 const port = Number(process.env.CODE_SERVER_PORT || 8080);
 if (!Number.isInteger(port) || port < 1 || port > 65_535) throw new Error("CODE_SERVER_PORT ist ungültig.");
+async function prepareExtension() {
+  const configDirectory = resolve(repositoryRoot, process.env.CONFIG_DIR || "config");
+  let configuration;
+  for (const file of ["wrapt.local.json", "wrapt.example.json"]) {
+    try { configuration = JSON.parse(await readFile(join(configDirectory, file), "utf8")); break; }
+    catch (error) { if (error.code !== "ENOENT") throw error; }
+  }
+  const backendPort = Number(process.env.PORT || 3010);
+  if (!Number.isInteger(backendPort) || backendPort < 1 || backendPort > 65_535) throw new Error("PORT ist ungültig.");
+  await prepareEditorExtension({ dataDirectory,
+    tokenFile: join(resolve(repositoryRoot, process.env.DATA_DIR || configuration?.paths?.dataDir || join(homedir(), ".local/share/wrapt")), "editor-open-capability"),
+    port: backendPort,
+  });
+}
 const args = [
   "--cli-data-dir", join(dataDirectory, "cli"),
   "serve-web",
@@ -38,7 +53,10 @@ function run(binary, argumentsList) {
   });
 }
 
-if (process.argv.includes("--print-command")) {
+if (process.argv.includes("--prepare-extension")) {
+  await prepareExtension();
+  console.log("Wrapt-Editor-Erweiterung vorbereitet. Kein Dienst wurde neu gestartet.");
+} else if (process.argv.includes("--print-command")) {
   console.log(JSON.stringify({ binary: cliPath, args, backend: "EDITOR_BACKEND=vscode" }, null, 2));
 } else if (process.argv.includes("--prepare")) {
   const platform = { linux: "linux", darwin: "darwin" }[process.platform];
@@ -63,7 +81,8 @@ if (process.argv.includes("--print-command")) {
     throw new Error("Vor dem Start die VS-Code-Server-Lizenz prüfen: https://code.visualstudio.com/license/server. Zustimmung explizit über --accept-server-license-terms angeben.");
   }
   await mkdir(dataDirectory, { recursive: true, mode: 0o700 });
+  await prepareExtension();
   await run(cliPath, [...args, "--accept-server-license-terms"]);
 } else {
-  console.log("vscode-editor.mjs --prepare | --print-command | --start --accept-server-license-terms");
+  console.log("vscode-editor.mjs --prepare | --prepare-extension | --print-command | --start --accept-server-license-terms");
 }

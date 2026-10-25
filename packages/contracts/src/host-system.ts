@@ -88,12 +88,18 @@ export const readinessResponseSchema = z.object({
 // ihn per WebSocket an den Browser, der den code-server mit dem Ordner öffnet.
 // Der Pfad bleibt dabei ein Serverwert — er wird nie vom Browser gesetzt.
 export const editorOpenRequestSchema = z.object({
-  path: z.string().trim().min(1).max(4_096).startsWith("/"),
+  path: z.string().trim().min(1).max(4_096).startsWith("/").refine((path) => !path.includes("\0")),
+  line: z.number().int().min(1).max(10_000_000).optional(),
+  column: z.number().int().min(1).max(10_000_000).optional(),
 });
 
 export const editorOpenEventSchema = z.object({
   type: z.literal("editor.open"),
   path: z.string().startsWith("/").max(4_096),
+  file: z.string().startsWith("/").max(4_096).optional(),
+  line: z.number().int().positive().optional(),
+  column: z.number().int().positive().optional(),
+  requestId: z.string().optional(),
 });
 
 export type EditorOpenEvent = z.infer<typeof editorOpenEventSchema>;

@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { get } from "node:http";
 import Fastify from "fastify";
 import websocket from "@fastify/websocket";
 import WebSocket from "ws";
@@ -109,5 +110,53 @@ describe("Open-in-Editor-API", () => {
     expect(messages.some((message) => message.includes("editor.open"))).toBe(true);
 
     ws.close();
+  });
+
+  it("erhält Datei und Cursorposition und schützt die Runtime mit Loopback und Token", async () => {
+    const { app, secrets, directory } = await fixture();
+    const file = join(directory, "datei mit #.ts");
+    writeFileSync(file, "test");
+    const response = await app.inject({ method: "POST", url: "/api/v1/editor/open", headers: { authorization: `Bearer ${secrets.token()}` }, payload: { path: file, line: 3, column: 5 } });
+    expect(response.statusCode).toBe(202);
+    for (const path of ["/tmp/x\0", "relativ"]) {
+      expect((await app.inject({ method: "POST", url: "/api/v1/editor/open", headers: { authorization: `Bearer ${secrets.token()}` }, payload: { path } })).statusCode).toBe(400);
+    }
+    expect((await app.inject("/api/v1/editor/runtime?folder=%2Ftmp")).statusCode).toBe(403);
+    expect((await app.inject({ url: "/api/v1/editor/runtime?folder=%2Ftmp", remoteAddress: "10.0.0.1", headers: { authorization: `Bearer ${secrets.token()}` } })).statusCode).toBe(403);
+    expect((await app.inject({ url: "/api/v1/editor/runtime?folder=relativ", headers: { authorization: `Bearer ${secrets.token()}` } })).statusCode).toBe(400);
+  });
+
+  it("stellt Dateiziele beim echten HTTP-Verbindungsaufbau zu und meldet deren Abbruch", async () => {
+    const { app, secrets, directory, port } = await fixture(true);
+    const file = join(directory, "datei.ts");
+    writeFileSync(file, "test");
+    await app.inject({ method: "POST", url: "/api/v1/editor/open", headers: { authorization: `Bearer ${secrets.token()}` }, payload: { path: file, line: 3, column: 5 } });
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/api/v1/editor/ws`, { headers: { origin: `http://127.0.0.1:${port}` } });
+    const messages: string[] = [];
+    ws.on("message", (data) => messages.push(String(data)));
+    await new Promise<void>((resolve, reject) => { ws.once("open", resolve); ws.once("error", reject); });
+    let request: ReturnType<typeof get> | undefined;
+    try {
+      const event = await new Promise<unknown>((resolve, reject) => {
+        const timer = setTimeout(() => reject(new Error("Runtime-Event fehlt")), 2_000);
+        request = get(`http://127.0.0.1:${port}/api/v1/editor/runtime?folder=${encodeURIComponent(directory)}`, { headers: { authorization: `Bearer ${secrets.token()}` } }, (response) => {
+          let pending = "";
+          response.on("data", (data) => {
+            pending += String(data);
+            const lines = pending.split("\n"); pending = lines.pop()!;
+            for (const line of lines) {
+              const value = JSON.parse(line);
+              if (value.type === "editor.open") { clearTimeout(timer); resolve(value); }
+            }
+          });
+        });
+        request.on("error", (error) => { clearTimeout(timer); reject(error); });
+      });
+      expect(event).toMatchObject({ type: "editor.open", path: directory, file, line: 3, column: 5 });
+      expect(messages.some((message) => message.includes('"ready":true'))).toBe(true);
+      request!.destroy();
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      expect(messages.some((message) => message.includes('"ready":false'))).toBe(true);
+    } finally { request?.destroy(); ws.close(); }
   });
 });

@@ -5,7 +5,8 @@ import { createPortal } from "react-dom";
 import { ExternalLinkIcon, WarningIcon } from "./icons";
 import type { Panel, Project, ServiceMode } from "@wrapt/contracts";
 import { useLayoutStore } from "../stores/layout";
-import { codeEditorUrl } from "../lib/appUrl";
+import { requestEditor } from "./editor/runtime";
+import { EditorFrame } from "./editor/EditorFrame";
 import { DevicePreviewFrame } from "./DevicePreviewFrame";
 import type { DeviceOrientation, DevicePresetId } from "../config/devicePresets";
 import { TerminalArea } from "./terminal/TerminalArea";
@@ -116,12 +117,12 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
     // zum passenden Projekt gehört. Ohne ablesbaren Ordner öffnet die Seite
     // ihr Standardprojekt.
     const handleT3EditorRequest = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
+      if (event.origin !== window.location.origin || event.source !== iframeRef.current?.contentWindow) return;
       const data = event.data as { type?: unknown; folder?: unknown } | null;
       if (data?.type !== "wrapt:open-editor") return;
       const folder = typeof data.folder === "string" && data.folder.length > 0 ? data.folder : null;
       if (panel.projectId) selectProject(panel.projectId);
-      window.location.assign(codeEditorUrl(folder));
+      requestEditor(folder);
     };
     window.addEventListener("message", handleT3EditorRequest);
     return () => window.removeEventListener("message", handleT3EditorRequest);
@@ -342,6 +343,8 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
             <WarningIcon className="h-6 w-6 text-warn" />
             <p className="text-sm text-muted">{resolved.reason}</p>
           </div>
+        ) : panel.type === "code-server" && resolved.embed && panelSource ? (
+          <EditorFrame key={`${effectiveReloadKey}:${panelSource}`} source={panelSource} folder={panel.codeServerFolder ?? project?.path ?? ""} />
         ) : resolved.embed && (resolved.url || resolved.proxyUrl) ? (
           <>
             {!loaded ? (
@@ -366,7 +369,6 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
                 className="h-full w-full border-0 bg-white"
                 allowFullScreen
                 referrerPolicy="same-origin"
-                {...(panel.type === "code-server" ? { allow: "clipboard-read 'self'; clipboard-write 'self'" } : {})}
                 {...(panel.type === "t3-code" ? { allow: "local-network-access; local-network; loopback-network" } : {})}
               />
             </DevicePreviewFrame>

@@ -172,6 +172,15 @@ try {
   await cp(join(repositoryRoot, "tests/fixtures/extension-catalog"), extensionCatalogDirectory, { recursive: true });
 }
 const services = JSON.parse(await readFile(join(repositoryRoot, "config/services.example.json"), "utf8"));
+// Editor-Tests bekommen einen eigenen Upstream. Nie den echten Editor auf
+// 8080/8082 als Fixture verwenden oder dessen Profile öffnen.
+const editorPort = Number(process.env.WRAPT_E2E_EDITOR_PORT ?? e2ePort + 4);
+if (!Number.isInteger(editorPort) || editorPort < 1 || editorPort > 65_535) throw new Error("Ungültiger E2E-Editor-Port.");
+const editorService = services.services.find((service) => service.id === "code-server");
+if (editorService) {
+  editorService.publicUrl = "https://editor.example.test/editor/";
+  editorService.check = { type: "http", url: `http://127.0.0.1:${editorPort}/editor/` };
+}
 // Die Hosted-App-Prüfung soll nicht die produktionelle Tailnet-URL aus der
 // Beispielkonfiguration übernehmen. Ein eigener URL-Wert bleibt für lokale
 // Tests überschreibbar.
@@ -237,6 +246,9 @@ const child = spawn(process.execPath, ["apps/server/dist/index.js"], {
     WRAPT_DEV_TAILSCALE_USER: e2eIdentity,
     PREVIEW_PUBLIC_ORIGIN_MODE: "loopback-http",
     PORT: String(e2ePort),
+    CODE_SERVER_PORT: String(editorPort),
+    CODE_SERVER_LEGACY_PORT: String(editorPort),
+    VSCODE_WEB_DATA_DIR: process.env.WRAPT_E2E_EDITOR_DATA_DIR || join(temporaryRoot, "vscode"),
     ...(webDistDirectory ? { WEB_DIST_DIR: webDistDirectory } : {}),
   },
 });

@@ -5,12 +5,13 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import WebSocket from "ws";
 import { editorOpenEventSchema, editorOpenRequestSchema } from "@wrapt/contracts";
 import { isSameOriginRequest } from "../security/same-origin.js";
+import { EditorRuntime } from "./editorRuntime.js";
 
 /**
  * „Open in Editor" aus T3 Code: T3 sucht auf dem Server ein `code`-Binary im
  * PATH (Command O, Diff-Panel). Das Shim-Skript `code` meldet den angefragten
  * Pfad per HTTP an die Workbench. Diese leitet ihn per WebSocket an die
- * Browser-Sitzungen weiter, die den code-server mit dem Zielordner öffnen.
+ * Browser-Sitzungen und die lokale Editor-Erweiterung weiter.
  *
  * Der Weg ist bewusst schmal: Loopback plus Capability-Token, kein Browser-
  * Zustand auf dem Server. Der Endpunkt setzt nie Dateisystemoperationen um —
@@ -19,7 +20,6 @@ import { isSameOriginRequest } from "../security/same-origin.js";
 
 const editorTokenFile = "editor-open-capability";
 const maxClients = 64;
-const connected = new Set<WebSocket>();
 
 function isLoopback(request: FastifyRequest): boolean {
   // Echte Transportschicht statt request.ip: Der Proxy-Header (X-Forwarded-For)
@@ -85,8 +85,8 @@ export class EditorOpenSecrets {
 
 /**
  * Normalisiert einen Zielpfad: Auf eine Datei wird deren Ordner verstanden
- * (der code-server öffnet Ordner, keine Dateien). Relative Pfade werden vom
- * Shim nicht gesendet und hier abgelehnt.
+ * Dateiziele werden zusätzlich unverändert an die Erweiterung übergeben.
+ * Relative Pfade werden vom Shim nicht gesendet und hier abgelehnt.
  */
 export function normalizeEditorTarget(path: string): string {
   if (!path.startsWith("/")) return path;
@@ -104,6 +104,16 @@ export async function registerEditorOpenRoutes(app: FastifyInstance, options: {
   secrets: EditorOpenSecrets;
 }) {
   const secrets = options.secrets;
+  const connected = new Set<WebSocket>();
+  const broadcast = (event: unknown) => {
+    const payload = JSON.stringify(event);
+    for (const socket of connected) if (socket.readyState === WebSocket.OPEN) socket.send(payload);
+  };
+  const runtime = new EditorRuntime(broadcast);
+  app.addHook("preClose", async () => {
+    runtime.close();
+    for (const socket of connected) socket.close(1001);
+  });
   // Token beim Start anlegen, damit das Shim sofort arbeiten kann.
   secrets.token();
 
@@ -121,12 +131,28 @@ export async function registerEditorOpenRoutes(app: FastifyInstance, options: {
       return reply.status(400).send({ error: { code: "EDITOR_OPEN_INVALID", message: "Der Pfad muss absolut sein.", details: null, requestId: request.id, retryable: false } });
     }
     const path = normalizeEditorTarget(parsed.data.path);
-    const event = editorOpenEventSchema.parse({ type: "editor.open", path });
-    const payload = JSON.stringify(event);
-    for (const socket of connected) {
-      if (socket.readyState === WebSocket.OPEN) socket.send(payload);
-    }
+    const event = runtime.open(editorOpenEventSchema.parse({
+      type: "editor.open", path,
+      ...(path !== normalize(parsed.data.path) ? { file: normalize(parsed.data.path) } : {}),
+      line: parsed.data.line, column: parsed.data.column,
+    }));
+    broadcast(event);
     return reply.status(202).send({ accepted: true });
+  });
+
+  app.get<{ Querystring: { folder?: string } }>("/editor/runtime", async (request, reply) => {
+    const authorization = request.headers.authorization;
+    if (!isLoopback(request) || typeof authorization !== "string" || !secrets.matchesToken(authorization.replace(/^Bearer\s+/i, ""))) {
+      return reply.status(403).send({ error: "EDITOR_RUNTIME_FORBIDDEN" });
+    }
+    const folder = request.query.folder;
+    if (!folder?.startsWith("/") || folder.length > 4096 || folder.includes("\0")) {
+      return reply.status(400).send({ error: "EDITOR_RUNTIME_FOLDER" });
+    }
+    if (runtime.full) return reply.status(429).send({ error: "EDITOR_RUNTIME_LIMIT" });
+    reply.hijack();
+    reply.raw.writeHead(200, { "content-type": "application/x-ndjson", "cache-control": "no-store", "x-content-type-options": "nosniff" });
+    runtime.attach(folder, reply.raw);
   });
 
   app.get("/editor/ws", { websocket: true }, (socket, request) => {
@@ -142,5 +168,6 @@ export async function registerEditorOpenRoutes(app: FastifyInstance, options: {
     socket.on("close", () => connected.delete(socket));
     socket.on("error", () => connected.delete(socket));
     socket.send(JSON.stringify({ type: "editor.ready" }));
+    for (const event of runtime.snapshot()) socket.send(JSON.stringify(event));
   });
 }

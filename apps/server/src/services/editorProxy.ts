@@ -86,9 +86,10 @@ function proxyWebSocket(source: WebSocket, request: FastifyRequest, observer?: W
       // erreichen kleine Eingabe-, Hover- und Dateisystemnachrichten den
       // code-server ohne zusätzlichen Deflate-Durchlauf.
       perMessageDeflate: false,
+      maxPayload: settings.webSocketMaxPayloadBytes,
     },
   );
-  bridgeWebSockets(source, target, { label: "Editor", ...(observer === undefined ? {} : { observer }) });
+  bridgeWebSockets(source, target, { label: "Editor", allowSingleOversizedFrame: true, ...(observer === undefined ? {} : { observer }) });
 }
 
 export async function registerEditorProxy(app: FastifyInstance, observer?: WebSocketBridgeObserver) {

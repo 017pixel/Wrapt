@@ -9,6 +9,7 @@ import type { Panel, Project } from "@wrapt/contracts";
 import { useRouteActivity } from "../lib/routeActivity";
 import { PreviewHub } from "./PreviewHub";
 import { codeServerState } from "../lib/codeServerAvailability";
+import { useEditorRuntime } from "../components/editor/runtime";
 import heroKonfigurierenBackground from "../assets/dashboard-artwork/hero-konfigurieren-surface.webp";
 
 type ProjectPanelType = "t3-code" | "code-server" | "preview" | "opencode";
@@ -50,7 +51,14 @@ function SingleTool({ type }: { type: ProjectPanelType }) {
   }, [t3Env, t3Thread, type]);
   // Zielordner für die eigenständige Code-Server-Seite, gesetzt vom T3-„Open"-
   // Button: `/code-editor/?folder=…` öffnet genau diesen Ordner.
-  const codeServerFolder = type === "code-server" ? searchParams.get("folder") : null;
+  const rememberedFolder = useEditorRuntime((state) => project ? state.folders[project.id] : undefined);
+  const requestedFolder = type === "code-server" ? searchParams.get("folder") : null;
+  const codeServerFolder = type === "code-server" ? requestedFolder ?? rememberedFolder ?? null : null;
+  useEffect(() => {
+    if (type === "code-server" && project && requestedFolder) {
+      useEditorRuntime.getState().rememberFolder(project.id, requestedFolder);
+    }
+  }, [project, requestedFolder, type]);
 
   useEffect(() => {
     if (!routeActive || type !== "t3-code" || !t3Path) return;

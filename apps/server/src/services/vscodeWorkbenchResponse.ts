@@ -2,6 +2,7 @@ import type { IncomingHttpHeaders } from "node:http";
 import type { Readable } from "node:stream";
 import type { FastifyReply, RawServerBase, RouteGenericInterface } from "fastify";
 import { settings } from "../config/settings.js";
+import { injectShortcutBridge } from "./shortcutBridge.js";
 import { createVSCodeWorkbenchConfigurator } from "./vscodeWorkbench.js";
 
 const configureWorkbench = createVSCodeWorkbenchConfigurator(settings.vscodeWebDataDirectory);
@@ -26,7 +27,11 @@ export async function sendVSCodeWorkbenchResponse(reply: FastifyReply<RouteGener
       chunks.push(buffer);
     }
     const html = Buffer.concat(chunks).toString("utf8");
-    const configured = await configureWorkbench(html);
+    const workbench = await configureWorkbench(html);
+    const csp = upstream.headers["content-security-policy"];
+    const nonce = typeof csp === "string" ? /'nonce-([^']+)'/.exec(csp)?.[1] : undefined;
+    const configured = workbench.includes("vscode-workbench-web-configuration") || workbench.includes("code-server")
+      ? injectShortcutBridge(workbench, nonce) : workbench;
     if (configured !== html) {
       for (const header of ["content-length", "etag", "last-modified"]) reply.removeHeader(header);
       reply.header("cache-control", "no-store");

@@ -83,3 +83,54 @@ die Service-Prüfung wieder auf `http://127.0.0.1:8080/` richten und den
 freigegebenen Backend-Neustart ausführen. Einstellungen, Erweiterungen und
 Anmeldungen der bisherigen code-server-Installation bleiben erhalten. Der
 optionale offizielle Dienst kann danach getrennt deaktiviert werden.
+
+## Wrapt-Theme, Dateiöffnen und Leistung
+
+Der offizielle Launcher installiert die kleine Erweiterung `wrapt.wrapt-editor`
+beim Start. Sie verwendet die öffentliche VS-Code-API. Bestehende Profile,
+Anmeldungen, Themes und Erweiterungen werden nicht ersetzt. Ein bereits laufender
+Editor lässt sich mit `node scripts/vscode-editor.mjs --prepare-extension`
+vorbereiten, ohne einen Dienst neu zu starten. Neue Erweiterungen werden
+gegebenenfalls erst nach einem bewussten Neuladen des Editors aktiv.
+
+In der Befehlspalette stehen drei Befehle:
+
+- „Wrapt: Dark-Theme anwenden“ aktiviert das aus den zentralen Wrapt-Farben
+  erzeugte Theme. Über die normale Theme-Auswahl lässt es sich zurückwechseln.
+- „Wrapt: Leistungsprofil anwenden“ ergänzt `dist`, `coverage`, `.next` und
+  `.turbo` als Ausnahmen der Dateiüberwachung. Explizite vorhandene Einstellungen,
+  auch `false`, bleiben erhalten. Quelldateien werden weiter überwacht. Die
+  Einträge lassen sich in den Benutzereinstellungen wieder entfernen.
+- „Wrapt: Laufende Erweiterungen prüfen“ öffnet die native Laufzeitübersicht.
+  Auffällige Erweiterungen anschließend gezielt mit Extension Bisect vergleichen;
+  die Installation allein beweist keine Performance-Ursache.
+
+Die Erweiterung hält eine lokale NDJSON-Verbindung zur Workbench. Der Endpunkt
+verlangt Loopback und dasselbe Capability-Token wie der T3-Editor-Shim. Der Token
+wird bei jeder Wiederverbindung aus der geschützten Datei gelesen und gelangt
+nicht in Browserzustand, Erweiterungsmanifest oder URL. Die Verbindung überträgt
+nur Bereitschaft, Dateipfade und Cursorpositionen, keine Dokumentinhalte.
+
+Dateiaufrufe verwenden den am tiefsten passenden bereits geöffneten Workspace.
+Die öffentliche Editor-API erhält ungespeicherte Dokumente. Neue Workspaces
+bekommen ausstehende Dateiziele beim Verbindungsaufbau; bis zu 64 Aufrufe bleiben
+60 Sekunden erhalten, weitere Aufrufe werden mit HTTP 429 abgelehnt. Zusätzlich
+enthält die Start-URL den nativen VS-Code-Dateipayload. Der Shim versteht
+`--goto datei:zeile:spalte`. Ordneraufrufe bleiben kompatibel.
+
+Wrapt erhält den Editor bei interner Navigation und merkt sich den zuletzt
+geöffneten Ordner je Projekt für die laufende Browser-Sitzung. Eine unterbrochene
+Wrapt-Verbindung wird ohne Editor-Reload wiederhergestellt. Ein fehlendes
+Bereitschaftssignal blockiert den Editor nicht; nach acht Sekunden erscheint
+ein Hinweis. Ein nicht geladenes Dokument bietet nach 30 Sekunden einen manuellen
+Retry. Nachrichten bleiben größenbegrenzt, ein einzelnes großes Frame darf aber
+die normale Warteschlangengrenze überschreiten, ohne einen Reconnect auszulösen.
+
+Falls Beschriftungen durcheinandergeraten, die Anzeigesprache über die native
+Befehlspalette vorübergehend auf Englisch umstellen. Im isolierten Test mit
+VS Code 1.141.1 lieferte das externe deutsche NLS-Paket 24.941 statt der 22.963
+Originalnachrichten und mehrere Übersetzungsressourcen antworteten mit 403.
+Englisch hatte diese Fehler nicht. Wrapt verändert die persönliche Sprache nicht
+automatisch und ersetzt keine Übersetzungsdateien.
+
+Messverfahren und geprüfte Abläufe stehen in [Editor-Performance](editor-performance.md).
