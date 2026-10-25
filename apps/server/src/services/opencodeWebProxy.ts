@@ -4,6 +4,7 @@ import type { FastifyInstance, FastifyReply, FastifyRequest, RawServerBase, Rout
 import WebSocket from "ws";
 import { settings } from "../config/settings.js";
 import { isWebSocketOriginAllowed } from "../security/same-origin.js";
+import { injectShortcutBridge } from "./shortcutBridge.js";
 import { bridgeWebSockets, type WebSocketBridgeObserver } from "../utils/websocketBridge.js";
 
 const opencodePrefix = "/opencode";
@@ -156,9 +157,10 @@ export function injectOpenCodeHtmlBridge(html: string): string {
     /((?:src|href)=['"])\/(?!opencode(?:\/|['"]))/gi,
     "$1/opencode/",
   );
-  return scopedHtml.includes("</head>")
-    ? scopedHtml.replace("</head>", `${opencodeRouteBridgeScript}</head>`)
-    : `${opencodeRouteBridgeScript}${scopedHtml}`;
+  const shortcutHtml = injectShortcutBridge(scopedHtml);
+  return shortcutHtml.includes("</head>")
+    ? shortcutHtml.replace("</head>", `${opencodeRouteBridgeScript}</head>`)
+    : `${opencodeRouteBridgeScript}${shortcutHtml}`;
 }
 
 function rewriteResponseHeaders(headers: IncomingHttpHeaders): IncomingHttpHeaders {

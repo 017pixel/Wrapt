@@ -12,7 +12,7 @@ clientweite Einstellungen, das geteilte Layout und verbundene Wrapt-Instanzen:
 - **Design** verwaltet Theme-Vorlagen und eigene Farbrollen. Änderungen werden sofort auf der
   Workbench angewendet und über den Server an alle Clients verteilt; ein heller Modus gehört
   nicht zum Produktvertrag.
-- **Navigation** bündelt Dashboard-Bereiche, Orbit-Sidebar und globale Seiten-Sichtbarkeit.
+- **Navigation** bündelt Tastenkürzel, Dashboard-Bereiche, Orbit-Sidebar und globale Seiten-Sichtbarkeit.
 - **Layout** verwaltet geöffnete Panels, bis zu acht Arbeitsflächen und das Zurücksetzen des
   geteilten Zustands. Ein Zurücksetzen gilt für alle Clients.
 - **Workspaces** verwaltet verbundene lokale und entfernte Wrapt-Instanzen, prüft ihren
@@ -52,6 +52,28 @@ Ein Treffer öffnet den passenden Tab, springt direkt zum Einstellungsbereich un
 kurz. `Enter` öffnet den besten Treffer, `Escape` leert die Suche. Alte Links auf
 `#einstellungen:oberflaeche` bleiben gültig und öffnen den Tab **Navigation**. Alte Links auf
 `#einstellungen:workspace` öffnen weiter den Bereich **Layout**.
+
+## Tastenkürzel
+
+Unter **Navigation → Tastenkürzel** werden die Zusatztasten für die Seitenwahl und die
+Direktkürzel geändert. Standardmäßig zeigt gehaltenes **Ctrl + Shift** an den ersten zehn
+sichtbaren Seiten unter **Allgemein** und **Werkzeuge** die Nummern **1–9 und 0**.
+**Account und System** verwendet ausschließlich die Direktkürzel **P**, **N** und **E**. Eine Zahl wechselt direkt zur Seite. Die Nummern
+folgen der aktuellen Reihenfolge; ausgeblendete Seiten zählen nicht mit. Eingeklappte Gruppen
+öffnen sich für die Anzeige vorübergehend und behalten ihren gespeicherten Zustand.
+
+Die Direktkürzel verwenden standardmäßig **Ctrl + Shift** mit **E** für Einstellungen,
+**N** für Nutzung und Limits, **P** für Plugins, **S** für die Serverauswahl und **L** für das
+Limits-Popup. Die Serverauswahl ist verfügbar, wenn mindestens zwei Server hinterlegt sind.
+Jede Belegung lässt sich durch Drücken einer neuen Kombination ändern oder separat abschalten.
+Für die Zahlenwahl werden nur die gewünschten Zusatztasten gehalten und wieder losgelassen.
+Escape bricht die Aufnahme ab; doppelte Wrapt-Belegungen werden abgelehnt.
+
+Aktive Wrapt-Kürzel haben Vorrang vor den kontrollierten eingebetteten Werkzeugen und dem
+Terminal. Normale Werkzeug-Eingaben bleiben erhalten. Browser- und Systemkürzel können Vorrang
+haben, insbesondere unter Windows/Linux bei Ctrl + Shift + N, P oder S. In fremden Preview-Seiten
+und separaten Werkzeugfenstern übernimmt Wrapt keine Tastatureingaben. Die Kürzel sind Teil der
+synchronisierten App-Einstellungen; alte Speicherstände erhalten die Vorgaben automatisch.
 
 ## Speicherung und Synchronisierung
 

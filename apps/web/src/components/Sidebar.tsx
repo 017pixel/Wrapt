@@ -18,6 +18,7 @@ import { requestOrbitNode, type OrbitPalettePayload } from "../lib/orbitPalette"
 import { openGlobalContextMenu } from "./context-menu/contextMenuEvents";
 import { hostContextMenuId } from "../extensions/hostContextMenus";
 import { WorkspaceSwitcher } from "./workspaces/WorkspaceSwitcher";
+import { useShortcutState } from "./shortcuts/shortcutState";
 import { SidebarNavLink } from "./sidebar/SidebarNavLink";
 import { orderNavigation } from "./sidebar/navigationOrdering";
 import "./sidebar/sidebar-layout.css";
@@ -187,6 +188,7 @@ interface SidebarProps {
 
 export function Sidebar({ collapsed, width, onToggle, onResize }: SidebarProps) {
   const location = useLocation();
+  const showingNumbers = useShortcutState((state) => state.showingNumbers);
   const projects = useQuery(wraptQueries.projects());
   const orbitMode = location.pathname === "/orbit";
   // Das Set abonnieren, nicht die (stabile) Methode: sonst rechnen die Memos unten
@@ -265,7 +267,7 @@ export function Sidebar({ collapsed, width, onToggle, onResize }: SidebarProps) 
         <nav className={`sidebar-scroll sidebar-primary-navigation ${orbitMode ? "is-orbit" : ""}`} aria-label="Seiten und Werkzeuge">
           <div className="sidebar-section">
             <SectionHeader label="Allgemein" sectionKey="workspace" />
-            <SectionBody collapsed={workspaceSectionCollapsed}>
+            <SectionBody collapsed={workspaceSectionCollapsed && !showingNumbers}>
               {visiblePrimaryNavItems.map((item) => (
                 <SidebarNavLink key={item.contributionId} item={item} />
               ))}
@@ -273,7 +275,7 @@ export function Sidebar({ collapsed, width, onToggle, onResize }: SidebarProps) 
           </div>
           <div className="sidebar-section">
             <SectionHeader label="Werkzeuge" sectionKey="tools" />
-            <SectionBody collapsed={toolsSectionCollapsed}>
+            <SectionBody collapsed={toolsSectionCollapsed && !showingNumbers}>
               {visibleToolRouteItems.map((item) => (
                 <SidebarNavLink key={item.contributionId} item={item} />
               ))}
@@ -325,7 +327,7 @@ export function Sidebar({ collapsed, width, onToggle, onResize }: SidebarProps) 
         </div> : null}
         <nav className="sidebar-footer sidebar-section" aria-label="Account und System">
           <SectionHeader label="Account und System" sectionKey="footer" />
-          <SectionBody collapsed={footerSectionCollapsed}>
+          <SectionBody collapsed={footerSectionCollapsed && !showingNumbers}>
             {visibleFooterNavItems.map((item) => (
               <SidebarNavLink key={item.contributionId} item={item} />
             ))}

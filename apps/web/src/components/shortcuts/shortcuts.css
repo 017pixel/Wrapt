@@ -1,0 +1,42 @@
+.sidebar-shortcut-hints {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 4px;
+  pointer-events: none;
+}
+.sidebar-shortcut-badge {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--color-ink-600);
+  border-radius: var(--radius-sm);
+  background: var(--color-ink-850);
+  color: var(--color-text);
+  font: 12px var(--font-mono);
+  pointer-events: none;
+}
+/* Der Platz bleibt reserviert, damit Hinweise weder Text noch Icons verschieben. */
+.sidebar-shell .sidebar-item:has(.sidebar-shortcut-hints) .sidebar-item-text { padding-right: 28px; }
+.sidebar-shell.is-collapsed .sidebar-item:has(.sidebar-shortcut-hints) .sidebar-item-text { padding-right: 0; }
+.sidebar-shell.is-collapsed .sidebar-shortcut-hints { right: -2px; top: -2px; transform: none; gap: 2px; }
+.sidebar-shell.is-collapsed .sidebar-shortcut-badge { width: 16px; height: 16px; font-size: 10px; }
+.shortcut-settings-list { display: grid; gap: 4px; }
+.shortcut-settings-row { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(160px, auto) 44px; gap: 12px; align-items: center; min-height: 52px; font-size: 14px; }
+.shortcut-record-button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--color-ink-600); border-radius: var(--radius-sm); background: var(--color-ink-800); text-align: center; }
+.shortcut-record-button kbd { font: 12px var(--font-mono); }
+.shortcut-record-button:hover { background: var(--color-ink-700); }
+.shortcut-record-button.is-recording { border-color: var(--color-accent); color: var(--color-accent); }
+.shortcut-record-button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.shortcut-enable-button { display: grid; place-items: center; width: 44px; min-height: 44px; justify-self: end; }
+.shortcut-enable-button:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: var(--radius-sm); }
+.shortcut-settings-error { color: var(--color-bad); font-size: 13px; margin-top: 12px; }
+@media (max-width: 560px) {
+  .shortcut-settings-row { grid-template-columns: minmax(0, 1fr) 44px; gap: 4px 12px; padding: 8px 0; }
+  .shortcut-settings-row > span { grid-column: 1; }
+  .shortcut-record-button { grid-column: 1; grid-row: auto; text-align: left; }
+  .shortcut-settings-row > [role="switch"] { grid-column: 2; grid-row: span 2; align-self: center; }
+}

@@ -14,6 +14,7 @@ import { CodePluginSync } from "./extensions/CodePluginSync";
 import { CodePluginNotifications } from "./extensions/CodePluginNotifications";
 import { useCodeUiRevision } from "./extensions/code-surface";
 import { resolveCodePageRoutes } from "./extensions/code-routes";
+import { WorkbenchShortcuts } from "./components/shortcuts/WorkbenchShortcuts";
 import { SettingsSync } from "./components/SettingsSync";
 import { ContextMenuProvider } from "./components/context-menu/ContextMenuProvider";
 import { DashboardMetricsRuntime } from "./views/DashboardMetricsRuntime";
@@ -44,6 +45,7 @@ export function App() {
       <BrowserRouter basename={basename}>
         {/* Global, außerhalb der Routen: gilt auch auf Standalone-Werkzeugseiten. */}
         <ContextMenuProvider>
+          <WorkbenchShortcuts />
           <EditorOpenBridge />
           <ThemeRuntimeSync />
           <SettingsSync />

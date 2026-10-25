@@ -10,6 +10,7 @@ import { statusBarRegistry } from "../extensions/statusBarRegistry";
 import { openGlobalContextMenu } from "./context-menu/contextMenuEvents";
 import { hostContextMenuId } from "../extensions/hostContextMenus";
 import { StatusMascot } from "./mascot/StatusMascot";
+import { shortcutEvents } from "./shortcuts/shortcutEvents";
 import { useStatusHoverCard } from "./status/useStatusHoverCard";
 import { ChangelogHoverCard } from "./status/ChangelogHoverCard";
 import { limitsCardProviders } from "./usage/usageLimitsCard";
@@ -123,6 +124,15 @@ export function StatusBar() {
   const statusBarStyle = { "--status-limit-font-size": `${menuConfig.statusBar.fontSizePx}px` } as CSSProperties;
   const limitsHover = useStatusHoverCard();
   const versionHover = useStatusHoverCard();
+  useEffect(() => {
+    const handleShortcut = (event: Event) => {
+      if (event.defaultPrevented || !limitsHover.anchor?.getClientRects().length) return;
+      event.preventDefault();
+      limitsHover.anchor.click();
+    };
+    window.addEventListener(shortcutEvents.limits, handleShortcut);
+    return () => window.removeEventListener(shortcutEvents.limits, handleShortcut);
+  }, [limitsHover.anchor]);
   // Zwei kleine Kopf-Motive früh dekodieren, damit auch direktes Öffnen aus
   // dem Cache zeichnet. Datensparmodus und Fehler behandelt der Preloader.
   useEffect(() => {
@@ -160,7 +170,7 @@ export function StatusBar() {
         </span>
       </button>
       <StatusMascot />
-      {visibleProviders.length > 0 ? (
+      {(
         <Link
           to="/usage"
           ref={limitsHover.triggerRef}
@@ -204,6 +214,7 @@ export function StatusBar() {
             ],
           })}
         >
+          {visibleProviders.length === 0 ? <span>Limits</span> : null}
           {visibleProviders.flatMap((provider, index) => [
             ...(index > 0 ? [<span key={`${provider.providerId}-divider`} className="status-bar-divider" aria-hidden="true" />] : []),
             <span key={provider.providerId}><strong>{menuConfig.statusBar.alwaysShowLimits ? provider.title : provider.label}</strong>{menuConfig.statusBar.alwaysShowLimits ? ":" : ""} {usage.isLoading ? "lädt…" : providerLimit(providerById[provider.providerId], true, !menuConfig.statusBar.alwaysShowLimits)}</span>,
@@ -214,8 +225,8 @@ export function StatusBar() {
             </svg>
           </span>
         </Link>
-      ) : null}
-      {limitsHover.open && limitsHover.anchor && cardProviders.length > 0 ? (
+      )}
+      {limitsHover.open && limitsHover.anchor ? (
         <UsageLimitsHoverCard
           anchor={limitsHover.anchor}
           providers={cardProviders}

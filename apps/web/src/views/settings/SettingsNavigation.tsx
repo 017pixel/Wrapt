@@ -1,3 +1,4 @@
+import { SettingsShortcuts } from "./SettingsShortcuts";
 import { useMemo } from "react";
 import type { DashboardConfig } from "@wrapt/contracts";
 import { EyeIcon, LayersIcon } from "../../components/icons";
@@ -75,6 +76,7 @@ const orbitSections: readonly { label: string; items: readonly OrbitPaletteItem[
 export function SettingsNavigation({ config }: { config: DashboardConfig | undefined }) {
   return (
     <div id="settings-navigation">
+      <SettingsShortcuts />
       <div id="settings-navigation-dashboard">
         <Card
           title="Dashboard"

@@ -1,3 +1,4 @@
+import { shortcutEvents } from "../shortcuts/shortcutEvents";
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import serverArtwork from "../../assets/dashboard-artwork/hero-arbeitsbereich-surface.webp";
@@ -68,6 +69,16 @@ export function WorkspaceSwitcher({ compact = false, mobile = false }: Workspace
       document.removeEventListener("keydown", closeFromEscape);
     };
   }, [open]);
+
+  useEffect(() => {
+    const handleShortcut = (event: Event) => {
+      if (event.defaultPrevented || entries.length < 2 || !triggerRef.current?.getClientRects().length) return;
+      event.preventDefault();
+      triggerRef.current.click();
+    };
+    window.addEventListener(shortcutEvents.server, handleShortcut);
+    return () => window.removeEventListener(shortcutEvents.server, handleShortcut);
+  }, [entries.length]);
 
   if (entries.length < 2) return null;
 

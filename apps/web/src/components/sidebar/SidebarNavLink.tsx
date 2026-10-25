@@ -10,6 +10,7 @@ import { openGlobalContextMenu } from "../context-menu/contextMenuEvents";
 import { hostContextMenuId } from "../../extensions/hostContextMenus";
 import { useSidebarNavigationReorder } from "./useSidebarNavigationReorder";
 import { orderNavigation } from "./navigationOrdering";
+import { ShortcutBadge } from "../shortcuts/ShortcutBadge";
 import { useNavigationDrag } from "./useNavigationDrag";
 
 export function SidebarNavLink({ item }: { item: OwnedNavigationItem }) {
@@ -72,6 +73,7 @@ export function SidebarNavLink({ item }: { item: OwnedNavigationItem }) {
     >
       {NavigationIcon ? <NavigationIcon className="sidebar-item-icon h-4 w-4 shrink-0" style={{ color: "inherit" }} /> : null}
       <span className="sidebar-item-text">{label}</span>
+      <ShortcutBadge itemId={item.contributionId} />
     </NavLink>
   );
 }

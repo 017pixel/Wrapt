@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { beforeEach, describe, expect, it } from "vitest";
+import { defaultShortcuts, normalizeShortcuts } from "../../config/shortcuts";
 import { uiSettingsKeys } from "@wrapt/contracts";
 import { useAppPreferences } from "../../stores/appPreferences";
 import { useUsagePreferences } from "../../stores/usagePreferences";
@@ -7,7 +8,7 @@ import { settingsAdapters, settingsAdaptersByKey } from "./adapters";
 
 beforeEach(() => {
   window.localStorage.clear();
-  useAppPreferences.setState({ defaultPage: "dashboard", hermesV2Enabled: false });
+  useAppPreferences.setState({ defaultPage: "dashboard", hermesV2Enabled: false, shortcuts: normalizeShortcuts(defaultShortcuts) });
   useUsagePreferences.setState({ limitsView: "both", density: "compact" });
 });
 
@@ -20,8 +21,8 @@ describe("Einstellungs-Adapter", () => {
   it("liest Zustand-Stores als versioniertes Serverformat", () => {
     useAppPreferences.setState({ defaultPage: "usage", hermesV2Enabled: true });
     expect(settingsAdaptersByKey.get("appPreferences")?.read()).toEqual({
-      state: { defaultPage: "usage", hermesV2Enabled: true },
-      version: 2,
+      state: { defaultPage: "usage", hermesV2Enabled: true, shortcuts: defaultShortcuts },
+      version: 3,
     });
   });
 
@@ -32,6 +33,15 @@ describe("Einstellungs-Adapter", () => {
     });
     expect(useAppPreferences.getState().defaultPage).toBe("settings");
     expect(useAppPreferences.getState().hermesV2Enabled).toBe(true);
+  });
+
+  it("gleicht eigene und deaktivierte Kürzel zwischen Clients ab", async () => {
+    const shortcuts = normalizeShortcuts(defaultShortcuts);
+    shortcuts.bindings.plugins = null;
+    shortcuts.bindings.settings = { ctrl: true, alt: true, shift: false, meta: false, code: "KeyJ" };
+    await settingsAdaptersByKey.get("appPreferences")?.apply({ state: { shortcuts }, version: 3 });
+    expect(useAppPreferences.getState().shortcuts).toEqual(shortcuts);
+    expect(settingsAdaptersByKey.get("appPreferences")?.read()).toMatchObject({ state: { shortcuts }, version: 3 });
   });
 
   it("gleicht die Darstellungspräferenzen der Nutzung ab", async () => {

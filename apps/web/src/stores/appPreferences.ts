@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { defaultShortcuts, normalizeShortcuts, type ShortcutPreferences } from "../config/shortcuts";
 import { allPageRoutes, type PageRouteId } from "./sidebarPreferences";
 
 /**
@@ -18,12 +19,14 @@ function isPageRouteId(value: unknown): value is PageRouteId {
 interface AppPreferencesState {
   defaultPage: PageRouteId;
   hermesV2Enabled: boolean;
+  shortcuts: ShortcutPreferences;
+  setShortcuts: (shortcuts: ShortcutPreferences) => void;
   setDefaultPage: (page: PageRouteId) => void;
   setHermesV2Enabled: (enabled: boolean) => void;
 }
 
 const STORAGE_KEY = "wrapt.app-preferences.v1";
-const PERSIST_VERSION = 2;
+const PERSIST_VERSION = 3;
 let readingStorageEvent = false;
 
 function readPreferences(key: string): string | null {
@@ -38,11 +41,12 @@ function readPreferences(key: string): string | null {
   }
 }
 
-function preferences(value: unknown): Pick<AppPreferencesState, "defaultPage" | "hermesV2Enabled"> {
+function preferences(value: unknown): Pick<AppPreferencesState, "defaultPage" | "hermesV2Enabled" | "shortcuts"> {
   const raw = value && typeof value === "object" ? value as Record<string, unknown> : {};
   return {
     defaultPage: isPageRouteId(raw.defaultPage) ? raw.defaultPage : DEFAULT_PAGE,
     hermesV2Enabled: raw.hermesV2Enabled === true,
+    shortcuts: normalizeShortcuts(raw.shortcuts),
   };
 }
 
@@ -51,6 +55,8 @@ export const useAppPreferences = create<AppPreferencesState>()(
     (set) => ({
       defaultPage: DEFAULT_PAGE,
       hermesV2Enabled: false,
+      shortcuts: normalizeShortcuts(defaultShortcuts),
+      setShortcuts: (shortcuts) => set({ shortcuts: normalizeShortcuts(shortcuts) }),
       setDefaultPage: (page) => set({ defaultPage: page }),
       setHermesV2Enabled: (enabled) => set({ hermesV2Enabled: enabled }),
     }),
@@ -61,7 +67,7 @@ export const useAppPreferences = create<AppPreferencesState>()(
         setItem: (key, value) => { if (!readingStorageEvent) localStorage.setItem(key, value); },
         removeItem: (key) => localStorage.removeItem(key),
       })),
-      partialize: (state) => ({ defaultPage: state.defaultPage, hermesV2Enabled: state.hermesV2Enabled }),
+      partialize: (state) => ({ defaultPage: state.defaultPage, hermesV2Enabled: state.hermesV2Enabled, shortcuts: state.shortcuts }),
       version: PERSIST_VERSION,
       // Der Speicherschlüssel bleibt stabil, damit die bisherige Startseite erhalten bleibt.
       migrate: (persisted) => preferences(persisted),

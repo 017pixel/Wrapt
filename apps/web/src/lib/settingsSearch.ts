@@ -18,6 +18,7 @@ export interface SettingsSearchResult {
 }
 
 export const settingsSearchCatalog: readonly SettingsSearchEntry[] = [
+  { id: "shortcuts", title: "Tastenkürzel", description: "Seitenwahl und Direktkürzel ändern", category: "Navigation", tab: "navigation", anchor: "settings-shortcuts", aliases: ["Shortcuts", "Tastatur", "Ctrl", "Shift", "Hotkeys", "Zahlen"] },
   {
     id: "general-restart",
     title: "Neustart",

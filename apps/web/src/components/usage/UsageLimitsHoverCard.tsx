@@ -82,6 +82,7 @@ export function UsageLimitsHoverCard({
       onPointerLeave={onPointerLeave}
       onBlur={onBlur}
     >
+      {providers.length === 0 ? <p className="text-muted">Keine Limits verfügbar.</p> : null}
       {providers.map((provider) => (
         <section
           className="ulc-provider"

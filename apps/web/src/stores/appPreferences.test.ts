@@ -76,7 +76,7 @@ describe("app preferences", () => {
     storage.setItem(STORAGE_KEY, JSON.stringify({ state: { defaultPage: "workbench" }, version: 1 }));
     appPreferences.useAppPreferences.persist.rehydrate();
     expect(appPreferences.useAppPreferences.getState()).toMatchObject({ defaultPage: "workbench", hermesV2Enabled: false });
-    expect(JSON.parse(storage.getItem(STORAGE_KEY)!).version).toBe(2);
+    expect(JSON.parse(storage.getItem(STORAGE_KEY)!).version).toBe(3);
   });
 
   it("persistiert die V2-Auswahl und lädt sie nach einem Refresh", () => {

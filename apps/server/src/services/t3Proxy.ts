@@ -7,6 +7,7 @@ import { settings } from "../config/settings.js";
 import { isWebSocketOriginAllowed } from "../security/same-origin.js";
 import { RateBudget } from "../utils/rate-budget.js";
 import { bridgeWebSockets, type WebSocketBridgeObserver } from "../utils/websocketBridge.js";
+import { injectShortcutBridge } from "./shortcutBridge.js";
 import { t3RouteBridgeScript } from "./t3RouteBridge.js";
 import { mergeProxyContentSecurityPolicy } from "./proxy-csp.js";
 
@@ -214,7 +215,7 @@ function isHtml(headers: IncomingHttpHeaders): boolean {
 
 export function injectT3HtmlBridge(html: string): string {
   const bridge = `${t3RouteBridgeScript}${remoteEditorFallbackScript}`;
-  return html.includes("</head>") ? html.replace("</head>", `${bridge}</head>`) : `${bridge}${html}`;
+  return injectShortcutBridge(html.includes("</head>") ? html.replace("</head>", `${bridge}</head>`) : `${bridge}${html}`);
 }
 
 function rewriteResponseHeaders(headers: IncomingHttpHeaders): IncomingHttpHeaders {

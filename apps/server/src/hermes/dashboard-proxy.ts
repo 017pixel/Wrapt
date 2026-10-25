@@ -7,6 +7,7 @@ import { settings } from "../config/settings.js";
 import { isSameOriginRequest } from "../security/same-origin.js";
 import { RateBudget } from "../utils/rate-budget.js";
 import { mergeProxyContentSecurityPolicy } from "../services/proxy-csp.js";
+import { injectShortcutBridge } from "../services/shortcutBridge.js";
 import { routeBridgeScript } from "./route-bridge.js";
 import { hermesAuthority } from "./token.js";
 import { bridgeWebSockets, type WebSocketBridgeObserver } from "../utils/websocketBridge.js";
@@ -272,7 +273,7 @@ function proxyHttp(request: FastifyRequest, reply: FastifyReply) {
         const body = isHtml
           ? (() => {
             const rewritten = rewriteHtmlAssetUrls(html);
-            return rewritten.includes("</head>") ? rewritten.replace("</head>", `${routeBridgeScript()}</head>`) : rewritten;
+            return injectShortcutBridge(rewritten.includes("</head>") ? rewritten.replace("</head>", `${routeBridgeScript()}</head>`) : rewritten);
           })()
           : rewriteJavascriptAssetReferences(html);
         response.removeHeader("content-length");
