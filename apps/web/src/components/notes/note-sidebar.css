@@ -70,9 +70,12 @@
   min-height: 0;
   flex: 1;
   overflow-y: auto;
+  scrollbar-width: none;
   overscroll-behavior: contain;
   padding: var(--space-2) var(--space-2) var(--space-4);
 }
+
+.notes-sidebar-scroll::-webkit-scrollbar { display: none; }
 
 /* --- Gruppen -------------------------------------------------------------- */
 
