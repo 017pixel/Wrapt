@@ -31,3 +31,23 @@ describe("Sidebar-Präferenzen", () => {
     useSidebarPreferences.getState().togglePage("workbench");
   });
 });
+
+describe("Reihenfolge der Sidebar", () => {
+  it("aktiviert direktes Ziehen beim Upgrade und erhält die Reihenfolge", () => {
+    expect(migrateSidebarPreferences({ navigationOrder: ["b", "a"], navigationReorderEnabled: false }, 5))
+      .toMatchObject({ navigationOrder: ["b", "a"], navigationReorderEnabled: true });
+    expect(migrateSidebarPreferences({ navigationReorderEnabled: false }, 6).navigationReorderEnabled).toBe(false);
+  });
+
+  it("verschiebt vor und nach dem Ziel und erhält andere Gruppen und Plugins", () => {
+    useSidebarPreferences.setState({ navigationOrder: ["settings", "plugin", "a", "b", "c"] });
+    const move = useSidebarPreferences.getState().moveNavigationBefore;
+    move("a", "c", ["a", "b", "c"], true);
+    expect(useSidebarPreferences.getState().navigationOrder).toEqual(["settings", "plugin", "b", "c", "a"]);
+    move("a", "b", ["a", "b", "c"]);
+    expect(useSidebarPreferences.getState().navigationOrder).toEqual(["settings", "plugin", "a", "b", "c"]);
+    move("foreign", "a", ["a", "b", "c"]);
+    expect(useSidebarPreferences.getState().navigationOrder).toEqual(["settings", "plugin", "a", "b", "c"]);
+    useSidebarPreferences.setState({ navigationOrder: [] });
+  });
+});

@@ -41,13 +41,13 @@ interface SidebarPreferencesState {
   toggleOrbitItem: (item: OrbitPaletteItem) => void;
   togglePage: (page: PageRouteId) => void;
   toggleNavigationReorder: () => void;
-  moveNavigationBefore: (dragId: string, targetId: string, availableIds: string[]) => void;
+  moveNavigationBefore: (dragId: string, targetId: string, availableIds: string[], after?: boolean) => void;
   isOrbitItemVisible: (item: OrbitPaletteItem) => boolean;
   isPageVisible: (page: PageRouteId) => boolean;
 }
 
 const STORAGE_KEY = "wrapt.sidebar-preferences.v1";
-const PERSIST_VERSION = 5;
+const PERSIST_VERSION = 6;
 const DEFAULT_COLLAPSED_SECTIONS: Record<SidebarSectionKey, boolean> = {
   workspace: false,
   "orbit-projects": false,
@@ -74,7 +74,7 @@ export function migrateSidebarPreferences(persisted: unknown, version = 3) {
     hiddenPages: raw?.hiddenPages ?? [],
     explicitlyVisibleDefaultPages: raw?.explicitlyVisibleDefaultPages ?? [],
     navigationOrder: raw?.navigationOrder ?? [],
-    navigationReorderEnabled: raw?.navigationReorderEnabled ?? false,
+    navigationReorderEnabled: version < 6 ? true : (raw?.navigationReorderEnabled ?? true),
   };
 }
 
@@ -115,7 +115,7 @@ export const useSidebarPreferences = create<SidebarPreferencesState>()(
       hiddenPages: defaultHiddenPages(),
       explicitlyVisibleDefaultPages: new Set<string>(),
       navigationOrder: [],
-      navigationReorderEnabled: false,
+      navigationReorderEnabled: true,
       toggleSection: (section) => set((state) => ({
         collapsedSections: { ...state.collapsedSections, [section]: !state.collapsedSections[section] },
       })),
@@ -138,13 +138,13 @@ export const useSidebarPreferences = create<SidebarPreferencesState>()(
         return { hiddenPages: next, explicitlyVisibleDefaultPages: explicitlyVisible };
       }),
       toggleNavigationReorder: () => set((state) => ({ navigationReorderEnabled: !state.navigationReorderEnabled })),
-      moveNavigationBefore: (dragId, targetId, availableIds) => set((state) => {
-        if (dragId === targetId) return state;
-        const available = new Set(availableIds);
-        const ordered = [...state.navigationOrder.filter((id) => available.has(id)), ...availableIds.filter((id) => !state.navigationOrder.includes(id))];
+      moveNavigationBefore: (dragId, targetId, availableIds, after = false) => set((state) => {
+        if (dragId === targetId || !availableIds.includes(dragId) || !availableIds.includes(targetId)) return state;
+        const ordered = [...state.navigationOrder, ...availableIds.filter((id) => !state.navigationOrder.includes(id))];
         const withoutDrag = ordered.filter((id) => id !== dragId);
         const targetIndex = withoutDrag.indexOf(targetId);
-        withoutDrag.splice(targetIndex < 0 ? withoutDrag.length : targetIndex, 0, dragId);
+        withoutDrag.splice(targetIndex < 0 ? withoutDrag.length : targetIndex + Number(after), 0, dragId);
+        if (withoutDrag.every((id, index) => id === state.navigationOrder[index]) && withoutDrag.length === state.navigationOrder.length) return state;
         return { navigationOrder: withoutDrag };
       }),
       isOrbitItemVisible: (item) => !get().hiddenOrbitItems.has(item),
@@ -171,7 +171,7 @@ export const useSidebarPreferences = create<SidebarPreferencesState>()(
           hiddenPages: mergedHiddenPages(raw),
           explicitlyVisibleDefaultPages: new Set(raw?.explicitlyVisibleDefaultPages ?? []),
           navigationOrder: raw?.navigationOrder ?? [],
-          navigationReorderEnabled: raw?.navigationReorderEnabled ?? false,
+          navigationReorderEnabled: raw?.navigationReorderEnabled ?? true,
         };
       },
     },

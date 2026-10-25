@@ -336,3 +336,16 @@
     animation: none;
   }
 }
+
+/* Links lassen sich direkt greifen; Klick und Textauswahl bleiben getrennt. */
+.sidebar-shell [data-navigation-id][draggable="true"] {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-drag: element;
+}
+
+.sidebar-shell [data-navigation-id].is-touch-reordering {
+  cursor: grabbing;
+  z-index: 1;
+  opacity: .65;
+}

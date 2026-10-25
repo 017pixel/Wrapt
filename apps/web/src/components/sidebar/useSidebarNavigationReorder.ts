@@ -4,7 +4,7 @@ interface NavigationReorderOptions {
   enabled: boolean;
   itemId: string;
   availableIds: readonly string[];
-  moveBefore: (dragId: string, targetId: string, availableIds: string[]) => void;
+  moveBefore: (dragId: string, targetId: string, availableIds: string[], after?: boolean) => void;
 }
 
 export function useSidebarNavigationReorder({ enabled, itemId, availableIds, moveBefore }: NavigationReorderOptions) {
@@ -42,7 +42,10 @@ export function useSidebarNavigationReorder({ enabled, itemId, availableIds, mov
     event.preventDefault();
     const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-navigation-id]");
     const targetId = target?.dataset.navigationId;
-    if (targetId && targetId !== itemId) moveBefore(itemId, targetId, [...availableIds]);
+    if (targetId && targetId !== itemId && availableIds.includes(targetId)) {
+      const bounds = target.getBoundingClientRect();
+      moveBefore(itemId, targetId, [...availableIds], event.clientY > bounds.top + bounds.height / 2);
+    }
   };
 
   const finish = () => {

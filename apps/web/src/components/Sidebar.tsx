@@ -1,10 +1,9 @@
-import { NavLink, useLocation, useNavigate } from "react-router";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "react-router";
+import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState, useSyncExternalStore } from "react";
-import type { ComponentType, CSSProperties, DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import type { CSSProperties, DragEvent as ReactDragEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import type { OrbitNode } from "@wrapt/contracts";
 import { ChevronLeftIcon, ChevronRightIcon, EyeIcon, FolderCodeIcon, FolderSearchIcon, WraptIcon } from "./icons";
-import { prefetchRouteTarget } from "../lib/routePrefetch";
 import { wraptQueries } from "../lib/queryOptions";
 import { useNavigationRegistry } from "../extensions/useNavigationRegistry";
 import type { OwnedNavigationItem } from "../extensions/navigationRegistry";
@@ -16,11 +15,10 @@ import { PromptDialog } from "./ModalDialog";
 import { previewSessionKeysWithNode, previewSlotsReleasedWithNode, releasePreviewSessions, releasePreviewSlots } from "../lib/previewSlotLifecycle";
 import { openPreviewGroupWindow } from "../lib/previewWindow";
 import { requestOrbitNode, type OrbitPalettePayload } from "../lib/orbitPalette";
-import { navigationUsesExactMatch } from "./sidebarNavigation";
 import { openGlobalContextMenu } from "./context-menu/contextMenuEvents";
 import { hostContextMenuId } from "../extensions/hostContextMenus";
-import { useSidebarNavigationReorder } from "./sidebar/useSidebarNavigationReorder";
 import { WorkspaceSwitcher } from "./workspaces/WorkspaceSwitcher";
+import { SidebarNavLink } from "./sidebar/SidebarNavLink";
 import { orderNavigation } from "./sidebar/navigationOrdering";
 import "./sidebar/sidebar-layout.css";
 
@@ -77,63 +75,6 @@ function SectionBody({ collapsed, children }: { collapsed: boolean; children: Re
 // Ein Eintrag für beide Sidebar-Breiten. Das Label bleibt immer eingehängt und
 // wird im eingeklappten Zustand per CSS ausgeblendet (Fade + Slide), damit die
 // Breiten-Animation nicht springt. Der Text steckt zusätzlich in aria-label/title.
-function SidebarNavLink({ item }: { item: OwnedNavigationItem }) {
-  const client = useQueryClient();
-  const navigate = useNavigate();
-  const togglePage = useSidebarPreferences((state) => state.togglePage);
-  const reorderEnabled = useSidebarPreferences((state) => state.navigationReorderEnabled);
-  const toggleReorder = useSidebarPreferences((state) => state.toggleNavigationReorder);
-  const moveBefore = useSidebarPreferences((state) => state.moveNavigationBefore);
-  const navigation = useNavigationRegistry();
-  const { label, icon: Icon } = { label: item.value.contribution.label, icon: item.value.runtime.icon };
-  const NavigationIcon = Icon as ComponentType<{ className?: string; style?: CSSProperties }> | undefined;
-  const to = item.value.route.path;
-  const visibilityKey = item.value.runtime.legacyVisibilityKey as PageRouteId | undefined;
-  const prefetch = () => prefetchRouteTarget(client, to);
-  const availableIds = navigation.items.map((entry) => entry.contributionId);
-  const touchReorder = useSidebarNavigationReorder({ enabled: reorderEnabled, itemId: item.contributionId, availableIds, moveBefore });
-  return (
-    <NavLink
-      to={to}
-      end={navigationUsesExactMatch(to)}
-      className={`sidebar-item ${touchReorder.active ? "is-touch-reordering" : ""}`}
-      data-navigation-id={item.contributionId}
-      onPointerEnter={prefetch}
-      // Touch kennt kein Überfahren: `pointerdown` feuert vor dem Klick und
-      // verschafft Bündel und Daten den entscheidenden Vorsprung.
-      onPointerDown={(event) => { prefetch(); touchReorder.onPointerDown(event); }}
-      onPointerMove={touchReorder.onPointerMove}
-      onPointerUp={touchReorder.onPointerUp}
-      onPointerCancel={touchReorder.onPointerCancel}
-      onClick={touchReorder.onClick}
-      onFocus={prefetch}
-      onContextMenu={(event) => {
-        if (touchReorder.suppressContextMenu()) { event.preventDefault(); event.stopPropagation(); return; }
-        openGlobalContextMenu(event, {
-        surface: "host.context-menu.tool",
-        title: label,
-        quickActionToolId: item.contributionId,
-        actions: [
-          { id: hostContextMenuId("tool.open"), icon: Icon ? <Icon className="h-4 w-4" /> : undefined, onSelect: () => navigate(to) },
-          { id: hostContextMenuId("tool.new-tab"), onSelect: () => window.open(to, "_blank", "noopener,noreferrer") },
-          ...(visibilityKey && visibilityKey !== "settings" ? [{ id: hostContextMenuId("tool.hide"), onSelect: () => togglePage(visibilityKey) }] : []),
-          { id: hostContextMenuId("tool.pin"), label: "An erste Stelle anheften", checked: useSidebarPreferences.getState().navigationOrder[0] === item.contributionId, onSelect: () => moveBefore(item.contributionId, navigation.items[0]?.contributionId ?? item.contributionId, availableIds) },
-          { id: hostContextMenuId("tool.reorder"), label: reorderEnabled ? "Reihenfolge sperren" : "Reihenfolge ändern", checked: reorderEnabled, onSelect: toggleReorder },
-          { id: hostContextMenuId("tool.settings"), onSelect: () => navigate("/settings#einstellungen:rechtsklick") },
-        ],
-      });}}
-      aria-label={label}
-      title={label}
-      draggable={reorderEnabled}
-      onDragStart={(event) => { event.dataTransfer.setData("application/x-wrapt-navigation", item.contributionId); event.dataTransfer.effectAllowed = "move"; }}
-      onDragOver={(event) => { if (reorderEnabled) event.preventDefault(); }}
-      onDrop={(event) => { const dragId = event.dataTransfer.getData("application/x-wrapt-navigation"); if (dragId) { event.preventDefault(); moveBefore(dragId, item.contributionId, availableIds); } }}
-    >
-      {NavigationIcon ? <NavigationIcon className="sidebar-item-icon h-4 w-4 shrink-0" style={{ color: "inherit" }} /> : null}
-      <span className="sidebar-item-text">{label}</span>
-    </NavLink>
-  );
-}
 function OrbitPaletteButton({ payload, Icon }: { payload: OrbitPalettePayload; Icon: React.ComponentType<{ className?: string }> }) {
   return (
     <button type="button" className="sidebar-item orbit-palette-item" draggable onDragStart={(event) => beginOrbitDrag(event, payload)} onClick={() => requestOrbitNode(payload)} aria-label={payload.title} title={payload.title}>
