@@ -121,9 +121,10 @@ async function build() {
   const themeCss = await readFile(themePath, "utf8").catch(() => fail("apps/web/src/index.css nicht lesbar"));
   const tokens = extractTheme(themeCss);
 
-  const [html, styles, docsStyles, script] = await Promise.all([
+  const [html, styles, entryStyles, docsStyles, script] = await Promise.all([
     readFile(join(here, "index.html"), "utf8"),
     readFile(join(here, "styles.css"), "utf8"),
+    readFile(join(here, "entry.css"), "utf8"),
     readFile(join(here, "docs.css"), "utf8"),
     readFile(join(here, "script.js"), "utf8"),
   ]);
@@ -133,6 +134,7 @@ async function build() {
   await cp(assetsDir, join(distDir, "assets"), { recursive: true });
   await writeFile(join(distDir, "index.html"), html);
   await writeFile(join(distDir, "styles.css"), injectTheme(styles, tokens));
+  await writeFile(join(distDir, "entry.css"), entryStyles);
   await writeFile(join(distDir, "docs.css"), docsStyles);
   await writeFile(join(distDir, "script.js"), script);
   await writeFile(join(distDir, ".nojekyll"), "");

@@ -1,0 +1,38 @@
+/* Einstieg unter dem Hero: Quellcode und Dokumentation. */
+.entry {
+  margin-top: clamp(54.4px, 6.8vw, 81.6px);
+  background: var(--color-ink-900);
+}
+.entry__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 34px;
+  max-width: var(--lp-max);
+  margin: 0 auto;
+  padding: clamp(47.6px, 6.8vw, 81.6px) var(--lp-gutter);
+}
+.entry__title {
+  font-size: clamp(20.4px, 1.02rem + 1.105vw, 28.9px);
+  line-height: 1.15;
+  font-weight: 600;
+  letter-spacing: -.01em;
+}
+.entry__text p {
+  max-width: 52ch;
+  margin-top: 10.2px;
+  color: var(--color-muted);
+  font-size: 14.45px;
+  line-height: 1.6;
+}
+.entry__actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 10.2px;
+}
+.entry__actions .hero__jump { margin-top: 0; }
+
+@media (max-width: 800px) {
+  .entry__inner { flex-direction: column; align-items: flex-start; gap: 22.1px; }
+}

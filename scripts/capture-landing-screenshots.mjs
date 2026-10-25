@@ -60,6 +60,17 @@ async function open(path) {
 }
 
 async function shoot(name, width, height) {
+  // Die Fixture startet keinen OpenCode-Dienst. Dessen „nicht verfügbar“
+  // gehört nicht als Fehlerzustand in öffentliche Produktaufnahmen.
+  await page.evaluate(() => {
+    const limits = globalThis.document.querySelector(".status-limits");
+    if (!limits) return;
+    for (const item of limits.querySelectorAll("span")) {
+      if (!item.textContent?.includes("OpenCode") || !item.textContent.includes("nicht verfügbar")) continue;
+      if (item.previousElementSibling?.classList.contains("status-bar-divider")) item.previousElementSibling.remove();
+      item.remove();
+    }
+  });
   const target = join(assetsDirectory, `${name}.png`);
   await page.screenshot({ path: target });
   await scaleImage(target, width, height);
@@ -183,8 +194,7 @@ async function capturePlugins(options = {}) {
   const viewport = options.viewport ?? desktopViewport;
   await page.setViewportSize(viewport);
   await open("/wrapt/plugins");
-  await page.waitForTimeout(1500);
-  await page.getByText("Installieren", { exact: true }).first().click().catch(() => undefined);
+  // Die Übersicht zeigt die aktuellen Plugin-Bereiche inklusive Code-Plugins.
   await page.waitForTimeout(1500);
   await shoot(options.output ?? "wrapt-plugins", viewport.width, viewport.height);
 }
@@ -192,22 +202,17 @@ async function capturePlugins(options = {}) {
 async function captureThemes(options = {}) {
   const viewport = options.viewport ?? desktopViewport;
   await page.setViewportSize(viewport);
-  await open("/wrapt/settings");
-  await page.waitForTimeout(1500);
-  await page.getByText("Design", { exact: true }).first().click().catch(() => undefined);
+  // Direkt auf den Design-Tab; die sichtbare Auswahl ist auf schmalen Geräten ein Select.
+  await open("/wrapt/settings#einstellungen:design");
   await page.waitForSelector("#settings-design-themes", { timeout: 10_000 }).catch(() => undefined);
   const card = page.locator('[data-theme-id="t3-code"]');
   if (await card.count() && (await card.getAttribute("aria-pressed")) !== "true") {
     await card.click().catch(() => undefined);
     await page.waitForTimeout(400);
   }
-  // Den Theme-Abschnitt zentrieren, damit das Raster den Hauptteil des Bildes füllt.
-  await page.locator("#settings-design-themes").evaluate((element) => element.scrollIntoView({ block: "center" })).catch(() => undefined);
-  await page.waitForTimeout(400);
-  // Etwas zurück, damit die Überschrift „Vorgefertigte Themes“ vollständig sichtbar bleibt.
-  await page.mouse.move(720, 500);
-  await page.mouse.wheel(0, -80);
-  await page.waitForTimeout(400);
+  // Abschnittskopf oben halten, damit Überschrift und Raster vollständig im Bild liegen.
+  await page.locator("#settings-design-themes").evaluate((element) => element.scrollIntoView({ block: "start" })).catch(() => undefined);
+  await page.waitForTimeout(500);
   await shoot(options.output ?? "wrapt-themes", viewport.width, viewport.height);
 }
 

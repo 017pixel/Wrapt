@@ -11,6 +11,7 @@ fertige Ausgabe, alle Quellen liegen daneben.
 | --- | --- |
 | `index.html` | Semantische Seitenstruktur und deutsche Texte |
 | `styles.css` | Layout, Theme-Variablen, Randraster und Responsive Styles |
+| `entry.css` | Einstiegsfläche unter dem Hero mit Quellcode und Dokumentation |
 | `docs.css` | Layout der Doku-Einstiegsfläche auf der Landingpage |
 | `script.js` | Sprunglinks mit weichem Scrollen und Fokusübergabe |
 | `build.mjs` | Erzeugt die Landingpage und bündelt die Doku unter `dist/doku/` |
@@ -30,7 +31,7 @@ node build.mjs
 
 Das Skript legt `dist/` neu an, kopiert `assets/` (inklusive der
 mitgelieferten Fonts unter `assets/fonts/`) und schreibt `index.html`,
-`styles.css`, `docs.css`, `script.js` sowie `.nojekyll`. Danach baut es `docs-webseite/`
+`styles.css`, `entry.css`, `docs.css`, `script.js` sowie `.nojekyll`. Danach baut es `docs-webseite/`
 und kopiert die Ausgabe nach `dist/doku/`. So liegt die Dokumentation unter
 `https://017pixel.github.io/Wrapt/doku/`. Fehlt eine lokale Font-Datei,
 greift der Landingpage-Build auf `apps/web/node_modules/` zurück

@@ -9,6 +9,7 @@
   <link rel="icon" href="./doku/assets/wrapt-icon.png" type="image/png" />
   <link rel="preload" href="./assets/fonts/dm-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin />
   <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./entry.css" />
   <link rel="stylesheet" href="./docs.css" />
   <meta property="og:type" content="website" />
   <meta property="og:locale" content="de_DE" />
@@ -37,18 +38,7 @@
   <main id="main" tabindex="-1">
     <section class="hero" id="top" tabindex="-1">
       <div class="hero__text">
-        <div>
-          <p class="hero__eyebrow">Self-hosted. Open Source.</p>
-          <h1 class="hero__title">Dein Dev-Workspace.<br />Auf jedem Gerät.</h1>
-        </div>
-        <div class="hero__intro">
-          <p class="hero__lead">Agenten, Terminals und Previews auf deinem Server. Starte am PC, prüfe den Stand am Handy und arbeite im selben Thread weiter.</p>
-          <div class="hero__actions">
-            <a class="cta" href="https://github.com/017pixel/Wrapt">Code auf GitHub</a>
-            <a class="hero__jump" href="./doku/">Dokumentation</a>
-          </div>
-          <p class="hero__note">T3 Code · Hermes · Terminal · Previews</p>
-        </div>
+        <h1 class="hero__title">Dein Dev-Workspace.<br />Auf jedem Gerät.</h1>
       </div>
 
       <div class="stage">
@@ -61,6 +51,19 @@
           </figure>
         </div>
         <p class="stage__caption">PC und Handy greifen auf denselben Server zu. Projekte, Threads und der aktuelle Stand liegen dort, nicht auf einem einzelnen Gerät.</p>
+      </div>
+    </section>
+
+    <section class="entry" aria-labelledby="entry-title">
+      <div class="entry__inner">
+        <div class="entry__text">
+          <h2 class="entry__title" id="entry-title">Code und Dokumentation</h2>
+          <p>Der Quellcode liegt auf GitHub. Die Dokumentation erklärt Einrichtung, Betrieb und Erweiterungen.</p>
+        </div>
+        <div class="entry__actions">
+          <a class="cta" href="https://github.com/017pixel/Wrapt">Code auf GitHub</a>
+          <a class="hero__jump" href="./doku/">Dokumentation</a>
+        </div>
       </div>
     </section>
 
@@ -78,7 +81,7 @@
         <h2>Werkzeuge</h2>
       </div>
       <div class="section__body">
-        <p>T3 Code, Hermes Agent und die Terminals liegen in derselben Oberfläche. Du öffnest einen Agent-Thread, schreibst eine Nachricht oder arbeitest direkt im Terminal, ohne zwischen Programmen zu wechseln. Was auf dem Server läuft, siehst du im Browser und greifst mit denselben Flächen darauf zu, egal an welchem Gerät du sitzt.</p>
+        <p>T3 Code, OpenCode, Hermes Agent, code-server und die Terminals liegen in derselben Oberfläche. Du öffnest einen Agent-Thread, schreibst eine Nachricht, bearbeitest Dateien im Editor oder arbeitest direkt im Terminal, ohne zwischen Programmen zu wechseln. Was auf dem Server läuft, siehst du im Browser und greifst mit denselben Flächen darauf zu, egal an welchem Gerät du sitzt.</p>
       </div>
       <figure class="shot">
         <img src="./assets/wrapt-terminal.png" alt="Wrapt-Terminalbereich mit zwei geöffneten Sitzungen und sichtbarer Befehlsausgabe." width="1440" height="900" loading="lazy" decoding="async" />
@@ -90,7 +93,7 @@
         <h2>Previews und Server</h2>
       </div>
       <div class="section__body">
-        <p>Für Frontend-Arbeit startet Wrapt den Dev-Server und bindet die Vorschau in die Oberfläche ein. Du öffnest die laufende Seite im Panel oder kopierst die Adresse und lädst sie in einem eigenen Browser. Über Tailscale erreichst du Oberfläche und Vorschau auch von außerhalb deines Netzes. Das Dashboard zeigt dazu Ressourcen und aktive Prozesse des Servers.</p>
+        <p>Für Frontend-Arbeit startet Wrapt den Dev-Server und bindet die Vorschau in die Oberfläche ein. Du öffnest die laufende Seite im Preview-Hub oder kopierst die Adresse und lädst sie in einem eigenen Browser. Über Tailscale erreichst du Oberfläche und Vorschau auch von außerhalb deines Netzes. Das Dashboard zeigt dazu Ressourcen und aktive Prozesse des Servers.</p>
       </div>
       <figure class="shot">
         <img src="./assets/wrapt-previews.png" alt="Wrapt-Previewbereich mit laufendem Dev-Server, Log-Ansicht und Adressfeld für das Beispielprojekt Nordlicht." width="1440" height="900" loading="lazy" decoding="async" />
@@ -102,7 +105,7 @@
         <h2>Themes</h2>
       </div>
       <div class="section__body">
-        <p>Zehn vorgefertigte Themes stehen bereit: die dunklen T3-Code-Paletten, Dark Modern und Monokai sowie Carbon und Signal aus eigener Hand. Einzelne Farbrollen wie Akzent, Flächen und Text lassen sich unabhängig anpassen. Ich wähle das Theme in den Einstellungen und speichere es in der Projektkonfiguration.</p>
+        <p>Zehn vorgefertigte Themes stehen bereit: die dunklen T3-Code-Paletten, Dark Modern und Monokai sowie Carbon und Signal aus eigener Hand. Einzelne Farbrollen wie Akzent, Flächen und Text lassen sich unabhängig anpassen. Die Auswahl liegt auf dem Server und gilt auf allen Geräten.</p>
       </div>
       <figure class="shot">
         <img src="./assets/wrapt-themes.png" alt="Wrapt-Einstellungen mit der Themenauswahl aus vorgefertigten Paletten und eigenen Farben." width="1440" height="900" loading="lazy" decoding="async" />
@@ -114,7 +117,7 @@
         <h2>Nutzung und Limits</h2>
       </div>
       <div class="section__body">
-        <p>Wrapt liest Limits, Verbrauch und Verlauf von Codex und OpenCode aus und wertet sie auf dem eigenen Server aus. Die Konten verwalte ich je Werkzeug, Limits und Reset-Zeitpunkte laufen über den lokalen CodexBar-Abruf zusammen. Der Verlauf zeigt Tokens nach Tag, Projekt und Modell.</p>
+        <p>Wrapt liest Limits, Verbrauch und Verlauf von Codex, Claude Code und OpenCode aus und wertet sie auf dem eigenen Server aus. Die Konten verwalte ich je Werkzeug, Limits und Reset-Zeitpunkte laufen über den lokalen CodexBar-Abruf zusammen. Der Verlauf zeigt Tokens nach Tag, Projekt und Modell.</p>
       </div>
       <figure class="shot">
         <img src="./assets/wrapt-usage.png" alt="Wrapt-Nutzungsübersicht mit Limits, Tokenverlauf und Aufschlüsselung nach Projekt und Modell." width="1440" height="900" loading="lazy" decoding="async" />
@@ -126,10 +129,10 @@
         <h2>Notizen</h2>
       </div>
       <div class="section__body">
-        <p>Notizen liegen in Ordnern, lassen sich durchsuchen und im Markdown-Editor schreiben. Der Editor kennt Blöcke wie Callouts und aufklappbare Toggles. Jede Notiz lässt sich als Knoten in Orbit verwenden.</p>
+        <p>Notizen liegen in einem Seitenbaum mit Favoriten, Privatbereich und Papierkorb, lassen sich durchsuchen und im Blockeditor schreiben. Der Editor kennt Absätze, Listen, Tabellen, Callouts, Formeln, Seitenverweise und aufklappbare Toggles. Jede Notiz lässt sich als Knoten in Orbit verwenden.</p>
       </div>
       <figure class="shot">
-        <img src="./assets/wrapt-notes.png" alt="Wrapt-Notizen mit Ordnerleiste, Suche und Markdown-Editor inklusive Callout." width="1440" height="900" loading="lazy" decoding="async" />
+        <img src="./assets/wrapt-notes.png" alt="Wrapt-Notizen mit Seitenbaum, Suche und Blockeditor inklusive Callout." width="1440" height="900" loading="lazy" decoding="async" />
       </figure>
     </section>
 
@@ -167,10 +170,11 @@
         <h2>Erweiterungen</h2>
       </div>
       <div class="section__body">
-        <p>Wrapt lässt sich um eigene Plugins ergänzen. Der Codex-Account-Switcher ist ein Beispiel: Er ergänzt die Oberfläche um eine Aktionsleiste zum Wechseln zwischen verwalteten Konten. Eigene Erweiterungen bringen neue Flächen und Werkzeuge mit, ohne den Kern zu verändern.</p>
+        <p>Wrapt lässt sich um lokale Plugins ergänzen. Code-Plugins schreibst du in TypeScript und React: eigene Seiten, Daten, Hooks, Dienste und Hintergrundjobs, dazu Beiträge für Navigation, Dashboard, Einstellungen, Panels, Kontextmenüs und Orbit. Bestehende Flächen lassen sich verändern oder ersetzen; beim Deaktivieren kommt der ursprüngliche Zustand zurück.</p>
+        <p>Quellen und Builds bleiben lokal. Nach ausdrücklicher Freigabe läuft der Servercode in einem eigenen Prozess; ein fehlerhafter Build lässt den letzten Release aktiv, ein Rollback stellt dessen Datenstand wieder her. Einfache Entwürfe ohne Code bleiben im visuellen Editor.</p>
       </div>
       <figure class="shot">
-        <img src="./assets/wrapt-plugins.png" alt="Wrapt-Pluginverwaltung mit dem Katalog installierbarer Beispiel-Plugins und der Schaltfläche „Neues Plugin erstellen“." width="1440" height="900" loading="lazy" decoding="async" />
+        <img src="./assets/wrapt-plugins.png" alt="Wrapt-Pluginverwaltung mit den Bereichen Eigene Plugins, Code-Plugins, Installieren und Installierte Plugins sowie der Schaltfläche „Neues Plugin erstellen“." width="1440" height="900" loading="lazy" decoding="async" />
       </figure>
     </section>
 

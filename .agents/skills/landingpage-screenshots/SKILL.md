@@ -121,7 +121,7 @@ Der Ablauf passt gut zu zwei Subagenten, der Hauptagent prüft selbst:
 | `wrapt-mobil-notizen.png` | `/wrapt/notizen` bei 390×844, Notiz „Onboarding-Checkliste“ geöffnet | 390×844 | Notizbaum mit Checkliste und Callout |
 | `wrapt-terminal.png` | `/wrapt/terminal`, genau zwei Sitzungen „Nordlicht“ und „Feldnotiz“, cwd-Zeile ausgeblendet | 1440×900 | Demo-Git-Repos, Prompt `demo-server:nordlicht demo$` |
 | `wrapt-previews.png` | `/wrapt/previews`, Dev-Server „Nordlicht“ läuft, Logs sichtbar | 1440×900 | Projekt Nordlicht, Port 3440 |
-| `wrapt-plugins.png` | `/wrapt/plugins`, Tab „Installieren“ | 1440×900 | Katalog aus `tests/fixtures/extension-catalog` |
+| `wrapt-plugins.png` | `/wrapt/plugins`, Übersicht mit Tab „Allgemein“ | 1440×900 | Status, eigene Plugins, Code-Plugins und Katalog aus `tests/fixtures/extension-catalog` |
 | `wrapt-themes.png` | `/wrapt/settings` → Design, Theme-Raster zentriert, „T3 Code“ aktiv | 1440×900 | zehn Presets aus `appearance-palettes.ts` |
 | `wrapt-usage.png` | `/wrapt/usage`, Limits und Banked Resets gefüllt | 1440×900 | Accounts arbeit, privat, opencode-demo; Limits aus dem CodexBar-Ersatz |
 | `wrapt-notes.png` | `/wrapt/notizen`, Notiz „Release 1.23 vorbereiten“ geöffnet | 1440×900 | Notizbaum mit Onboarding, Tastenkürzeln, Ideen |
