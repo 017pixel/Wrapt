@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import type { NoteSummary } from "@wrapt/contracts";
+import { useRouteActivity } from "../../lib/routeActivity";
 import { useNotesPreferences } from "../../stores/notesPreferences";
 
 interface LastOpenedNoteInput {
@@ -11,17 +12,18 @@ interface LastOpenedNoteInput {
 
 /** Merkt sich die geöffnete Seite und stellt sie ohne Auswahl wieder her. */
 export function useLastOpenedNote({ noteId, notes, windowMode, onSelectNote }: LastOpenedNoteInput): void {
+  const routeActive = useRouteActivity();
   const lastOpenedNoteId = useNotesPreferences((state) => state.lastOpenedNoteId);
   const setLastOpenedNoteId = useNotesPreferences((state) => state.setLastOpenedNoteId);
 
   useEffect(() => {
-    if (!windowMode && noteId !== null) setLastOpenedNoteId(noteId);
-  }, [windowMode, noteId, setLastOpenedNoteId]);
+    if (routeActive && !windowMode && noteId !== null) setLastOpenedNoteId(noteId);
+  }, [routeActive, windowMode, noteId, setLastOpenedNoteId]);
 
   useEffect(() => {
-    if (windowMode || noteId !== null || notes.length === 0) return;
+    if (!routeActive || windowMode || noteId !== null || notes.length === 0) return;
     const stored = lastOpenedNoteId !== null ? notes.find((note) => note.id === lastOpenedNoteId && !note.archived) : undefined;
     const fallback = stored ?? notes.find((note) => !note.archived) ?? notes[0];
     if (fallback) onSelectNote(fallback.id);
-  }, [windowMode, noteId, notes, lastOpenedNoteId, onSelectNote]);
+  }, [routeActive, windowMode, noteId, notes, lastOpenedNoteId, onSelectNote]);
 }

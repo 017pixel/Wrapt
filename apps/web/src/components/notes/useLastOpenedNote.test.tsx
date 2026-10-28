@@ -2,6 +2,8 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, expect, it, vi } from "vitest";
 import type { NoteSummary } from "@wrapt/contracts";
+import type { ReactNode } from "react";
+import { RouteActivityProvider } from "../../lib/routeActivity";
 import { useNotesPreferences } from "../../stores/notesPreferences";
 import { useLastOpenedNote } from "./useLastOpenedNote";
 
@@ -71,4 +73,25 @@ it("stellt im Fenstermodus nichts wieder her", () => {
     useLastOpenedNote({ noteId: null, notes: [note("oben"), note("unten")], windowMode: true, onSelectNote }),
   );
   expect(onSelectNote).not.toHaveBeenCalled();
+});
+
+it("ändert im Hintergrund weder die Route noch die letzte Auswahl und stellt erst bei Rückkehr wieder her", () => {
+  useNotesPreferences.setState({ lastOpenedNoteId: "unten" });
+  const onSelectNote = vi.fn();
+  let active = false;
+  const { rerender } = renderHook(
+    ({ noteId }: { noteId: string | null }) => useLastOpenedNote({
+      noteId, notes: [note("oben"), note("unten")], windowMode: false, onSelectNote,
+    }),
+    {
+      initialProps: { noteId: "oben" as string | null },
+      wrapper: ({ children }: { children: ReactNode }) => <RouteActivityProvider active={active}>{children}</RouteActivityProvider>,
+    },
+  );
+  expect(useNotesPreferences.getState().lastOpenedNoteId).toBe("unten");
+  rerender({ noteId: null });
+  expect(onSelectNote).not.toHaveBeenCalled();
+  active = true;
+  rerender({ noteId: null });
+  expect(onSelectNote).toHaveBeenCalledExactlyOnceWith("unten");
 });
