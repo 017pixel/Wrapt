@@ -1,6 +1,6 @@
 ---
 name: landingpage-screenshots
-description: Aktualisiert die Screenshots der Wrapt-Landingpage aus einer isolierten Demo-Instanz mit reinen Dummy-Daten. Verwendet diesen Skill, wenn die Landingpage-Screenshots erneuert werden sollen ("Screenshots aktualisieren", "Bilder neu aufnehmen", "Aufnahmen der Landingpage", "Landingpage-Assets erneuern") oder wenn sich UI, Inhalte oder Demo-Daten geändert haben und die zehn PNGs unter "Landing Page/assets/" neu entstehen sollen.
+description: Aktualisiert die Screenshots der Wrapt-Landingpage aus einer isolierten Demo-Instanz mit reinen Dummy-Daten. Verwendet diesen Skill, wenn die Landingpage-Screenshots erneuert werden sollen ("Screenshots aktualisieren", "Bilder neu aufnehmen", "Aufnahmen der Landingpage", "Landingpage-Assets erneuern") oder wenn sich UI, Inhalte oder Demo-Daten geändert haben und die neun PNGs unter "Landing Page/assets/" neu entstehen sollen.
 ---
 
 # Landingpage-Screenshots aktualisieren
@@ -46,7 +46,7 @@ curl -s http://127.0.0.1:3410/api/v1/health
 ```
 
 `--reset` löscht den Temp-Root (`$TMPDIR/wrapt-screenshots`) und legt Config,
-SQLite, Dummy-Projekte, Dummy-Accounts, Notizen und das Orbit-Board neu an.
+SQLite, Dummy-Projekte, Dummy-Accounts und Notizen neu an.
 Ohne `--reset` werden vorhandene Dummy-Daten weiterverwendet (schneller).
 Der Starter prüft alle Ports selbst und bricht bei Belegung ab.
 
@@ -112,7 +112,7 @@ Der Ablauf passt gut zu zwei Subagenten, der Hauptagent prüft selbst:
   Dashboard-Box bei 360/390/430 px), prüft die Fixture-API auf Dummy-Daten und
   baut die Landingpage selbst.
 
-## Die zehn Motive
+## Die neun Motive
 
 | Datei | Route/Zustand | Format | Dummy-Daten |
 | --- | --- | --- | --- |
@@ -125,12 +125,11 @@ Der Ablauf passt gut zu zwei Subagenten, der Hauptagent prüft selbst:
 | `wrapt-themes.png` | `/wrapt/settings` → Design, Theme-Raster zentriert, „T3 Code“ aktiv | 1440×900 | zehn Presets aus `appearance-palettes.ts` |
 | `wrapt-usage.png` | `/wrapt/usage`, Limits und Banked Resets gefüllt | 1440×900 | Accounts arbeit, privat, opencode-demo; Limits aus dem CodexBar-Ersatz |
 | `wrapt-notes.png` | `/wrapt/notizen`, Notiz „Release 1.23 vorbereiten“ geöffnet | 1440×900 | Notizbaum mit Onboarding, Tastenkürzeln, Ideen |
-| `wrapt-orbit.png` | `/wrapt/orbit`, Board „Arbeitsfläche“ mit 6 Knoten und 5 Kanten | 1440×900 | zwei Projektknoten, Notiz, Terminal, Codex-Limits |
 
 Verwendung auf der Seite: `wrapt-dashboard` und `wrapt-mobil` im Hero,
 `wrapt-terminal` in `#werkzeuge`, `wrapt-previews` in `#previews`,
 `wrapt-themes` in `#themes`, `wrapt-usage` in `#nutzung`, `wrapt-notes` in
-`#notizen`, `wrapt-orbit` in `#orbit`, `wrapt-plugins` in `#erweiterungen`.
+`#notizen`, `wrapt-plugins` in `#erweiterungen`.
 Im Abschnitt `#mobile` stehen `wrapt-mobil` und `wrapt-mobil-notizen` als Paar
 nebeneinander (`.shots`); das Handy im Hero ist bewusst unten rechts versetzt
 und ragt ein paar Pixel über die Desktopfläche hinaus.
@@ -141,10 +140,10 @@ und ragt ein paar Pixel über die Desktopfläche hinaus.
 | --- | --- |
 | `scripts/start-screenshot-server.mjs` | Isolierte Instanz: Ports, Config, Env, tmux-Socket `wrapt-screenshots`, Root, PID, Log |
 | `scripts/lib/screenshot-fixtures.mjs` | Drei Beispielprojekte mit Git-Historie, `projects.local.json`, Extension-Katalog, Dummy-Auth-Dateien, neutraler Shell-Prompt |
-| `scripts/lib/screenshot-seed.mjs` | Seed über die HTTP-API: Theme `t3-code`, Accounts, CodexBar-Sync, Notizen, Orbit-Board, Projektaktivität, Preview-Devserver |
+| `scripts/lib/screenshot-seed.mjs` | Seed über die HTTP-API: Theme `t3-code`, Accounts, CodexBar-Sync, Notizen, Projektaktivität, Preview-Devserver |
 | `scripts/lib/screenshot-codexbar-fixture.mjs` | CodexBar-Ersatz auf Port Basis+120 mit erfundenen Limits und Kosten |
 | `scripts/lib/screenshot-metrics-warmup.mjs` | Füllt den In-Memory-Messverlauf vor der Aufnahme, damit die CPU-Kurve nicht fast leer ist |
-| `scripts/capture-landing-screenshots.mjs` | Playwright-Aufnahme aller zehn Motive inklusive Route-Interception und Nachskalierung; einzelne Motive per Argument, z. B. `mobil-notizen` |
+| `scripts/capture-landing-screenshots.mjs` | Playwright-Aufnahme aller neun Motive inklusive Route-Interception und Nachskalierung; einzelne Motive per Argument, z. B. `mobil-notizen` |
 
 ## Fallstricke
 

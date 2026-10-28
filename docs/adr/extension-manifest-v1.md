@@ -128,7 +128,6 @@ onCommand:<contribution-id>
 onRoute:<contribution-id>
 onProject
 onGitRepository
-onOrbitNode:<contribution-id>
 onAgent
 onEvent:<event-id>
 onSchedule:<job-id>
@@ -145,7 +144,7 @@ normalisiert und sortiert sie deterministisch für Vergleich und Persistenz.
 `contributes` besitzt in V1 bekannte, strikt validierte Bereiche für:
 
 ```text
-pages, routes, navigation, orbit, dashboard, settings,
+pages, routes, navigation, dashboard, settings,
 commands, keyboardShortcuts, contextMenus, topbar, statusbar, files,
 terminal, previews, browser, agentTools, agentSkills, backgroundServices,
 scheduledJobs, http, rpc, realtime, notifications, themes
@@ -226,7 +225,7 @@ lokalen Workbench-URLs bereit:
 - Pfade sind absolute lokale URLs ohne Query, Fragment, Encoding, Wildcard oder Traversal.
   Statische Segmente sind kleingeschrieben; dynamische Segmente sind benannte Pflichtparameter.
 - Optionale Parameter werden als eigener Alias modelliert. So bleiben Matcher und Bookmarks
-  eindeutig, etwa `/orbit` als Alias zu `/orbit/:boardId`.
+  eindeutig, etwa `/journal` als Alias zu `/journal/:entryId`.
 - Parameternamen besitzen für Kollisionen keine Semantik. `/projects/:id` kollidiert deshalb mit
   `/projects/:projectId`. Das Manifest prüft eigene Routes und Aliases; der Manager prüft später
   Kollisionen über alle installierten Extensions und reservierte Hostpfade.
@@ -290,58 +289,6 @@ Die heutigen 18 geschlossenen `PageRouteId`-Werte und die duplizierten Pfadzuord
 erst in Phase 2 und 3 über Legacy Built-in Contributions adaptiert. Dieser Contract ändert noch
 keine Sidebar-Präferenz und keine bestehende Mobile-Navigation.
 
-#### Orbit Contributions
-
-Orbit Contributions beschreiben einen versionierten, persistenten Node-Typ, ohne Renderer oder
-Migrationscode in das Manifest zu legen:
-
-```json
-{
-  "contributes": {
-    "orbit": [
-      {
-        "id": "workbench.agent-tasks.orbit.task-board",
-        "title": "Agent Tasks",
-        "description": "Aufgaben eines Projekts im Orbit verwalten.",
-        "category": "Productivity",
-        "icon": "workbench.agent-tasks.icon.task-board",
-        "stateVersion": 3,
-        "stateSchema": "./schemas/task-board-state.schema.json",
-        "defaultSize": { "width": 720, "height": 480 },
-        "resizable": true,
-        "projectContext": true,
-        "inspector": true,
-        "connections": "bidirectional",
-        "visibleByDefault": true
-      }
-    ]
-  }
-}
-```
-
-- Orbit IDs sind manifestweit eindeutig und gehören zum Namespace der Extension.
-- `stateSchema` ist ein lokales JSON-Dokument im Paket. Installer und Runtime prüfen später
-  Paketgrenze, JSON-Schema-Syntax, Größe und verbotene Remote-Referenzen.
-- `stateVersion` liegt zwischen 1 und 1.000.000. Erhöhungen benötigen vor Aktivierung eine
-  lückenlose, validierte Runtime-Migrationskette.
-- Default-Größen entsprechen den bestehenden Hostgrenzen von 160 x 96 bis 20.000 x 20.000
-  Pixeln. Gespeicherte individuelle Größen werden dadurch nicht verändert.
-- Ohne explizite Werte sind Nodes veränderbar, ohne Projektkontext und Inspector, in beide
-  Richtungen verbindbar und in der Palette sichtbar.
-- Connection-Modi sind `none`, `incoming`, `outgoing` und `bidirectional`.
-- Orbit Contributions benötigen einen UI-Entrypoint. Dieser registriert Renderer und den
-  optional angekündigten Inspector über dieselbe öffentliche Runtime Registry.
-- `onOrbitNode:<id>` muss auf eine tatsächlich deklarierte Orbit Contribution derselben
-  Extension zeigen.
-- Icons verwenden den kontrollierten lokalen oder namespaced Vertrag. Fehlende Runtime-Icons
-  fallen auf die generische Hostdarstellung zurück.
-
-State Schema, Default State, Migration, Renderer, Inspector, Context-/Toolbar-Aktionen,
-Connections und Serialize/Deserialize bilden zusammen den späteren Runtime-Vertrag. Das
-Manifest enthält davon nur statisch validierbare Discovery-Metadaten. Das persistierte
-Extension-Node-Modell, Missing-Extension-Verhalten und Legacy-Migration sind in
-[`extension-orbit-model.md`](extension-orbit-model.md) festgelegt.
-
 #### Dashboard Contributions
 
 Dashboard Contributions beschreiben kompakte, sortierbare Flächen. Der Host kennt dabei keine
@@ -384,7 +331,7 @@ Produktnamen und erhält weder ausführbaren Code noch beliebige Komponenten aus
   ebenfalls im Extension-Namespace liegen; `icon: "extension"` verwendet das lokale
   Manifest-Icon.
 - Quick Actions referenzieren ein tatsächlich deklariertes Command. Dadurch bleibt dieselbe
-  Business Logic aus Command Palette, Button, Orbit, Agent Tool oder API aufrufbar.
+  Business Logic aus Command Palette, Button, Agent Tool oder API aufrufbar.
 - Alle übrigen Typen referenzieren einen Provider, der später über die öffentliche UI- oder
   Server-Runtime registriert wird. Der Manifestvertrag enthält keine Abfrage, Komponente oder
   ausführbare Funktion.
@@ -533,7 +480,6 @@ erhalten. Das Manifest enthält nur Defaults und Context-Metadaten, keine zweite
   stabile Shortcut-ID, werden geräteübergreifend synchronisiert und bleiben bei einer fehlenden
   oder deaktivierten Extension erhalten.
 
-Der bestehende Orbit-Handler für `/` und `Ctrl/Cmd+K` bleibt in diesem Subgoal unverändert.
 Die beschriebenen Runtime-Regeln sind das vorgesehene Verhalten einer späteren Implementierung.
 Sie sind keine Aussage über aktuell aktive Tastaturbelegungen des Extension-Hosts.
 
@@ -569,7 +515,7 @@ dieselbe Registry:
 }
 ```
 
-- V1 definiert Host-Surfaces für Project, File, Directory, Orbit Node, Orbit Pane, Preview,
+- V1 definiert Host-Surfaces für Project, File, Directory, Preview,
   Terminal, Git, Agent Session, Browser, generische Tool-Flächen und freie Host-Flächen ohne
   eigene Rechtsklick-Funktion. Ihre stabilen IDs beginnen mit `host.context-menu.`. Unbekannte
   Host-Surfaces werden fail-closed abgewiesen.
@@ -596,7 +542,7 @@ dieselbe Registry:
   `hostOnly`-Items bestehen bleiben. Extensions dürfen bestehende Host-Items weder entfernen
   noch durch identische IDs oder Registrierungsreihenfolge überschreiben.
 
-Die heutigen Menüs in `ProjectCard`, `FileManagerPanel`, `OrbitWorkbench`, `Sidebar`,
+Die heutigen Menüs in `ProjectCard`, `FileManagerPanel`, `Sidebar`,
 `TerminalArea`, `ChromiumBrowser` und `ToolActionMenu` werden in diesem Subgoal nicht verändert.
 Phase 2 adaptiert sie schrittweise als Legacy Built-in Contributions und bewahrt dabei
 Fokusführung, Touch-Bottom-Sheets, Bestätigungsdialoge und laufende Runtime-Sitzungen.
@@ -660,7 +606,7 @@ Manifest enthält weder beliebiges Markup noch eine eigene Komponente:
   Handlungsbedarfe benötigen zusätzlich Health-, Notification- oder zugängliche Seitenzustände
   und dürfen nicht ausschließlich über Farbe oder die Desktop-Statusleiste vermittelt werden.
 
-Die heutige `StatusBar.tsx` mit Workbench Health, Orbit-Kontext, Projekt und Usage-Anzeigen
+Die heutige `StatusBar.tsx` mit Workbench Health, Projekt und Usage-Anzeigen
 bleibt in diesem Subgoal unverändert. Phase 2 registriert diese Bereiche zunächst als Legacy
 Built-in Contributions und führt dabei eine gemeinsame Aktualisierungs- und Overflow-Policy ein.
 
@@ -1479,7 +1425,7 @@ Stylesheet-Baum:
   sind keine Theme-Eingaben.
 - Geöffnet werden vier Surface-Rollen, drei Textrollen, Akzent plus Kontrastinhalt und vier
   Statusrollen. Typografie, Spacing, Radien, Schatten, Motion, Z-Index, Safe Areas, Touchziele,
-  Terminal-ANSI-, Syntax-, Orbit- und geschützte Recovery-Farben bleiben Host-Tokens. Ein Theme
+  Terminal-ANSI-, Syntax- und geschützte Recovery-Farben bleiben Host-Tokens. Ein Theme
   kann damit weder Layout noch Bedienbarkeit oder sicherheitsrelevante Zustände verändern.
 - Die Contract-Validierung berechnet relative Luminanz und WCAG-Kontrast deterministisch. Normaler
   und sekundärer Text sowie Akzentinhalt benötigen mindestens 4,5:1, schwacher Text, Akzent gegen

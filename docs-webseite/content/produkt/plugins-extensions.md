@@ -29,7 +29,7 @@ und hält bei Build- oder Setup-Fehlern die bisherige funktionierende Version ak
 ## Was Code-Plugins verändern können
 
 Du kannst Seiten, Dashboard-Bereiche, Navigation, Kopfleiste, Statusleiste,
-Einstellungen, Kontextmenüs, Werkzeugflächen und Orbit-Inhalte ergänzen.
+Einstellungen, Kontextmenüs, Werkzeugflächen ergänzen.
 UI-Transformationen ändern vorhandene Beiträge oder blenden sie aus. Beim
 Deaktivieren kehrt deren ursprünglicher Zustand zurück.
 

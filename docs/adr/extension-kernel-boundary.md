@@ -50,7 +50,7 @@ und Developer Extensions.
 #### Workspace Substrate
 
 - Project Identity und sichere Project-Path-Auflösung
-- Orbit Engine, Persistenz, Revisionen, Backups und generischer Panel-/Window-Host
+- Persistenz, Revisionen, Backups und generischer Panel-/Window-Host
 - Command Registry und Notification Infrastructure
 
 #### Low-Level Runtime Broker
@@ -67,7 +67,6 @@ und Developer Extensions.
 Nahezu jede sichtbare Produktfläche liegt außerhalb des Kernels. Dazu gehören insbesondere:
 
 - Pages, Navigation, Mobile Navigation, Dashboard Cards und Settings Sections
-- Orbit Renderer, Inspektoren, Toolbars und Context Actions
 - Commands, Shortcuts, Context Menus, Topbar und Statusbar
 - sichtbare Terminal-, Files-, Preview-, Browser-, T3-, code-server- und Agentenoberflächen
 - Tech TLDRs, Usage, Skills UI, Inbox-Adapter und andere Featurelogik

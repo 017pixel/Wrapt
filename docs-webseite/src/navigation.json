@@ -17,11 +17,6 @@
         "heroImage": "hero-arbeitsbereich.webp"
       },
       {
-        "id": "produkt/orbit",
-        "source": "produkt/orbit.md",
-        "heroImage": "hero-orbit.webp"
-      },
-      {
         "id": "produkt/werkzeuge",
         "source": "produkt/werkzeuge.md",
         "heroImage": "hero-werkzeuge.webp"

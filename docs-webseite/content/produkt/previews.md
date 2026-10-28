@@ -1,6 +1,6 @@
 # Previews und Slots
 
-Previews zeigen eine laufende lokale Entwicklungsanwendung in Wrapt. Der Preview-Hub sammelt die Laufzeiten der Projekte; in Orbit legst du einzelne Anwendungen als Fläche direkt neben Projekt, Werkzeuge und Notizen.
+Previews zeigen eine laufende lokale Entwicklungsanwendung in Wrapt. Der Preview-Hub sammelt die Laufzeiten der Projekte.
 
 ## Vorschau öffnen
 
@@ -12,10 +12,6 @@ Previews zeigen eine laufende lokale Entwicklungsanwendung in Wrapt. Der Preview
 4. Öffne es eingebettet, in einem neuen Browser-Tab oder in einem separaten Preview-Werkzeugfenster.
 
 Der Hub kann mehrere Projekte als Tabs halten. Einen Hub-Tab zu schließen schließt nur diesen Tab; die Projektlaufzeit läuft weiter. Starten, Stoppen und Neustarten der Laufzeit sind getrennte Aktionen.
-
-### Über Orbit
-
-Füge eine Preview-Fläche hinzu und wähle einen lokalen Port oder eine externe URL. Für lokale Dienste richtet Wrapt eine Slot-Origin ein und lädt das Ziel durch den Preview-Gateway. Gerätegröße und Ausrichtung kannst du anpassen. Für mehrere zusammengehörige Dienste gibt es die Preview-Gruppe.
 
 ## Was ein Slot isoliert
 
@@ -41,7 +37,6 @@ Prüfe zuerst, ob die Projektlaufzeit als **Läuft** angezeigt wird. Ist sie ges
 
 ## Weiterlesen
 
-- [Orbit-Arbeitsflächen](./orbit.md)
 - [Coding-Werkzeuge](./werkzeuge.md)
 - [Preview-Diagnose und Grenzen](https://github.com/017pixel/Wrapt/blob/master/docs/previews-for-agents.md)
 - [Konfigurationsreferenz](https://github.com/017pixel/Wrapt/blob/master/docs/configuration.md)

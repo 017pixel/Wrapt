@@ -126,7 +126,7 @@ wenn du gerade am entwickeln bist und alles restartest, restart skripte nutzt us
 ## T3 Code: Stable oder Nightly
 
 T3 Code läuft als **eine** Instanz (`t3-code.service`, User-Unit) auf `127.0.0.1:3773`. Alle
-Flächen (Panel, Orbit, Projekt-Detail, Seite „T3 Code") hängen am selben Proxy `/t3` — es gibt
+Flächen (Panel, Projekt-Detail, Seite „T3 Code") hängen am selben Proxy `/t3` — es gibt
 keinen Parallelbetrieb beider Kanäle.
 
 - **Umschalten:** Einstellungen → „T3 Code Kanal" (Stable = `t3@latest`, Nightly = `t3@nightly`).
@@ -148,7 +148,7 @@ keinen Parallelbetrieb beider Kanäle.
 ## Keine Daten verlieren
 
 - **Layout-Zustand** (geöffnete Panels, Arbeitsflächen) liegt im Browser-`localStorage` → von Neustarts unberührt.
-- **Orbit-Daten, Galerie, Accounts** liegen in SQLite unter `~/.local/share/wrapt/wrapt.sqlite`
+- **Galerie, Accounts** liegen in SQLite unter `~/.local/share/wrapt/wrapt.sqlite`
   (eine alte Kopie `data/workbench.sqlite` im Repo wurde entfernt) → unberührt.
 - **Laufende Terminals** überleben einen **Backend-**Neustart: Sie laufen in einem dedizierten
   tmux-Supervisor (`wrapt-terminal-supervisor.service`, eigene User-Unit) mit eigenem Socket
@@ -187,7 +187,7 @@ scripts/ki-account.sh use claude privat  # bei mehrdeutigen Namen das Werkzeug v
 ## Preview-Slots und Browser
 
 - Development-Previews verwenden standardmäßig direkte iframes über getrennte HTTPS-Slot-Origins. Die internen Ports stehen in `previews.slotPorts`, die Tailscale-Ports in `previews.publicPorts`.
-- Slot-Zuordnungen liegen in derselben externen SQLite-Datenbank wie Orbit und überleben Neustarts. HTTP und WebSocket werden am Root weitergeleitet; Vite braucht keinen besonderen `base`.
+- Slot-Zuordnungen liegen in der externen SQLite-Datenbank und überleben Neustarts. HTTP und WebSocket werden am Root weitergeleitet; Vite braucht keinen besonderen `base`.
 - localStorage und IndexedDB sind pro Slot getrennt, Cookies jedoch nicht. Für echte Cookie-Isolation oder blockiertes Embedding einen eigenen Browser außerhalb der Workbench verwenden.
 - **Externe URLs erreichen den lokalen Preview-Gateway nie.** Sie werden im echten Client-Browser geöffnet.
 - Alle Preview-Endpunkte verlangen eine erlaubte Tailscale-Identität, mutierende zusätzlich Same-Origin. Benutzer sehen nur eigene Sessions, Snapshots und Storage-Profile; fremde Slots erscheinen nur als „belegt".

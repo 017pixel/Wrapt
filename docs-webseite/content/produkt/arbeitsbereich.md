@@ -4,13 +4,12 @@ Wrapt zeigt Projekte und Werkzeuge in einer Browseroberfläche. Du wechselst zwi
 
 ![Wrapt-Dashboard mit anonymisierten Beispieldaten](../assets/01-dashboard.png)
 
-## Instanz, Projekt und Orbit
+## Instanz und Projekt
 
 | Begriff | Bedeutung |
 | --- | --- |
 | **Wrapt-Instanz / Workspace** | Ein erreichbarer Wrapt-Server. Der Wechsler in der Seitenleiste schaltet zwischen verbundenen Instanzen um. |
 | **Projekt** | Ein im Server bekanntes Projektverzeichnis. Projektbezogene Werkzeuge verwenden es als gemeinsamen Kontext. |
-| **Orbit-Arbeitsfläche** | Ein frei gestaltbares Board mit Projekt-, Werkzeug-, Preview- und Notizflächen. Die Bedienung steht unter [Orbit](./orbit.md). |
 
 ## Seitenleiste und Projektwahl
 
@@ -32,7 +31,7 @@ Wrapt erkennt die direkten Projektordner unter dem konfigurierten Projektstamm. 
 
 ## Auf unterschiedlichen Geräten
 
-Die Oberfläche passt Navigation und Werkzeuge an den verfügbaren Platz an. Auf Tablets kann die Seitenleiste je nach Ausrichtung sichtbar bleiben; auf schmalen Displays ersetzt eine kompakte Navigation sie. Orbit, Terminal und Notizen haben eigene Touch-Bedienungen: [Orbit](./orbit.md), [Terminal](./terminal.md) und [Notizen und Nutzung](./notizen-nutzung.md).
+Die Oberfläche passt Navigation und Werkzeuge an den verfügbaren Platz an. Auf Tablets kann die Seitenleiste je nach Ausrichtung sichtbar bleiben; auf schmalen Displays ersetzt eine kompakte Navigation sie. Terminal und Notizen haben eigene Touch-Bedienungen: [Terminal](./terminal.md) und [Notizen und Nutzung](./notizen-nutzung.md).
 
 ## Grenzen und Daten
 
@@ -43,7 +42,6 @@ Die Oberfläche passt Navigation und Werkzeuge an den verfügbaren Platz an. Auf
 
 ## Weiterlesen
 
-- [Orbit-Arbeitsflächen](./orbit.md)
 - [Coding-Werkzeuge](./werkzeuge.md)
 - [Installation und erste Einrichtung](https://github.com/017pixel/Wrapt/blob/master/docs/installation.md)
 - [Einstellungen](https://github.com/017pixel/Wrapt/blob/master/docs/settings.md)

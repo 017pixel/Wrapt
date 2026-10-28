@@ -29,7 +29,7 @@ serverseitig aus dem Dashboard-HTML gelesen und nie an den Browser oder in Logs 
 Telegram, Cron und Web schreiben weiterhin in denselben Hermes-Sessionbestand.
 
 Der native [Hermes-V2-Chat](hermes-v2.md) hängt hinter einem standardmäßig
-abgeschalteten Browserflag. Route, Panels, Orbit und Standalone verwenden denselben
+abgeschalteten Browserflag. Route, Panels und Standalone verwenden denselben
 Dispatcher. Featuremodule liegen unter `components/hermes/v2`, Serveradapter unter
 `hermes/v2`, Zod-Verträge im Package-Subpath `@wrapt/contracts/hermes-v2`.
 Die gemeinsame Browserlaufzeit verwaltet Ownerauswahl, flüchtige Drafts und
@@ -49,10 +49,8 @@ Tokenstreaming ruhig; deren eigene Zustandsänderungen bleiben sichtbar. Große
 Toolausgaben scrollen innerhalb einer fokussierbaren, begrenzten Kartenregion.
 
 Die Darstellungsauswahl bleibt beim jeweiligen Host: Route und Standalone nutzen
-ihre Sessionquery, normale Panels den vorhandenen Layoutpfad. Orbit speichert den
-geprüften internen Pfad unter `node.state.hermesAdminPath` am genauen Knoten;
-andere Statefelder bleiben erhalten. Das bestehende erweiterbare Stateformat
-bleibt gleich. Ein optionaler Hostcallback verbindet Classic und V2 mit dieser
+ihre Sessionquery, normale Panels den vorhandenen Layoutpfad.
+Ein optionaler Hostcallback verbindet Classic und V2 mit dieser
 Auswahl, ohne weitere Persistenz, Sessionkopie oder Transportverbindung.
 
 Strukturierte Aufgaben verwenden dieselbe Chatverbindung mit ausdrücklichem
@@ -144,25 +142,13 @@ besitzt, übernimmt ein neuer Backendprozess dieselbe Sitzung, statt den Dev-Ser
 Das Standardziel ist ein eigenes Browserfenster; ein persistierter Tab-Modus ist optional. Die
 Route `/previews/live` zeigt dieselbe lokale Preview als Xcode-artige Gerätefläche ohne App-Shell.
 
-Slot-Zuordnungen liegen in SQLite und überleben Backend-Neustarts. Die API `/api/v1/previews/slots` weist freie Slots atomar zu, kann ein Ziel bewusst teilen und gibt Slots wieder frei. Orbit-Preview-Gruppen verwenden dasselbe System für Layouts mit einem, zwei, drei oder sechs Slots. Neue Slots starten mit iPhone-13-Maßen; ein Layoutwechsel behält die Slot-Größe bei und lässt die Gruppe zur freien Seite wachsen. Ziel, Label, Gerätewahl, Isolation und Laufzeit liegen im Orbit-Dokument. Die Route `/previews/gruppe/:id` rendert dieselbe Gruppe ohne Canvas, `/previews/fenster/:id` zusätzlich ohne Wrapt-Navigation für ein eigenes Browserfenster; beide folgen dem Orbit-Dokument und übernehmen Gerät, Ausrichtung und Laufzeit jedes Slots.
+Slot-Zuordnungen liegen in SQLite und überleben Backend-Neustarts. Die API `/api/v1/previews/slots` weist freie Slots atomar zu, kann ein Ziel bewusst teilen und gibt Slots wieder frei.
 
-In Orbit erscheint bei fokussierten Preview-Gruppen eine kontextuelle Aktionsinsel. Sie bietet
-nur die zur Anzahl aktiver Panels passenden Raster, gemeinsamen Reload, externes Öffnen und den
-Sprung in den Preview Hub; bei anderen Werkzeugen bleibt sie vollständig verborgen.
-
-## Projekte und Orbit
+## Projekte
 
 Alle direkten, nicht versteckten Verzeichnisse unter `PROJECTS_ROOT` werden bei der Abfrage erkannt. `projects.local.json` überschreibt diese Erkennung nicht, sondern ergänzt explizite Metadaten und Preview-URLs. Eine gecachte Aktivitätsanalyse kombiniert den letzten Wrapt-Zugriff, die jüngste relevante Dateiänderung und den letzten Git-Commit. Die Sidebar zeigt daraus nur die neuesten Projekte; eine Suche stellt weiterhin sämtliche verfügbaren Verzeichnisse bereit. Projektpfade werden nur serverseitig erzeugt; der Browser übermittelt Projekt-IDs.
 
-Der Orbit-Serverbrowser ergänzt diese flache Erkennung durch einen lazy geladenen Dateibaum unter einer separaten Allowlist-Root. Die API liefert nur Metadaten direkter Kinder, paginiert große Ordner und folgt keinen symbolischen Verweisen. Ein ausgewählter Unterordner wird nach kanonischer Pfadprüfung mit einer stabilen, pfadgebundenen ID in SQLite registriert. Danach verhält er sich für Orbit, Terminal, Agenten und Code-Server wie jedes konfigurierte Projekt. Der Root-Ordner selbst bleibt ausgeschlossen.
-
-Das aktive Orbit-Dokument enthält Boards mit Knoten, Kanten, Viewport und Arbeitsgebietsgrenzen. Projekt-Hubs stellen den gemeinsamen Kontext her; Werkzeuge, Preview-Gruppen und ihre Slot-Kinder, Notizen, Snippets, Dateien, Bereiche und Nutzungsanzeigen bleiben frei beweglich und skalierbar. Preview-Slots verwenden `parentId`, folgen dadurch einer Gruppe ohne iframe-Neuladen und können aus ihr herausgelöst oder wieder angedockt werden.
-
-Die kanonische Orbit-Datei liegt revisioniert in derselben lokalen SQLite-Datenbank wie die Nutzungsdaten. Der Browser speichert Änderungen nach kurzer Ruhezeit und fragt in einem konfigurierbaren Intervall nach neueren Revisionen. Bei einem Revisionskonflikt wird die aktuelle Serverrevision geladen und die noch nicht gespeicherte lokale Änderung erneut darauf geschrieben. Hermes-Status, Aufgaben, Cron und Ergebnisse sind additive Knotentypen; alte Dokumente der Versionen 6 und 7 bleiben lesbar, geschrieben wird Version 8. Da die Wrapt für eine Person ausgelegt ist, genügt dieses deterministische Last-Edit-Verfahren ohne Mehrbenutzer-CRDT.
-
-Ein gespeichertes Layout in `localStorage` wird nur dann in Orbit-Boards migriert, wenn auf dem Server noch kein Orbit-Dokument existiert. Gruppen und Tabs werden als Live-Werkzeugknoten übernommen, Projekt-Hubs und Verbindungen ergänzt. Anschließend ist SQLite die geräteübergreifende Quelle; der lokale Layout-Zustand bleibt als Rückfallkopie erhalten.
-
-Besuchte React-Routen bleiben für die Dauer der Browser-Session in einem persistenten Outlet gemountet. Orbit-Live-Knoten besitzen stabile Laufzeit-IDs, sodass xterm sich nach einem Canvas- oder Routenwechsel wieder an dieselbe PTY-Sitzung hängt. Iframes bleiben innerhalb ihres Knotens gemountet und werden bei Verschieben, Skalieren oder Maximieren nicht neu geladen.
+Besuchte React-Routen bleiben im persistenten Outlet gemountet, solange sie im Routen-Cache liegen. Eingebettete Werkzeuge behalten dadurch ihren Zustand bei Seitenwechseln.
 
 T3 Code, OpenCode Web und code-server bleiben bewusst in Iframes: Sie sind eigenständige Webanwendungen mit eigenen Routern, CSP-Regeln, Cookies und WebSocket-Verbindungen. Entwicklungs-Previews sind davon getrennt und verwenden Slot-iframes.
 
@@ -176,16 +162,12 @@ releasegebundenen Snapshot; HTTP-/Event-Loop-Daten bleiben frisch. Die volle
 Auditkette läuft in einem einzelnen Readonly-Worker mit konsistentem Snapshot
 und bestehender TTL-/Mutationsinvalidierung.
 
-Orbit schreibt Dokument und Backup-Outbox weiterhin atomar in SQLite. Ein
-geordneter Worker bestätigt Sicherungen erst nach Datei-/Directory-fsync und
-Rename. Ungesicherte Revisionen bleiben erhalten und werden beim Start
-nachgeholt. tmux-Steuerung wartet asynchron und ordnet Mutationen je Session.
+tmux-Steuerung wartet asynchron und ordnet Mutationen je Session.
 Terminalnachrichten bleiben je Runtime in Reihenfolge.
 
 Notizlisten lesen vorbereitete Excerpts. Geschlossene Bäume mounten Kinder
 erst bei Bedarf, Markdown entsteht nach Schreibbursts aus einem immutable
-Editorsnapshot. Entfernte Orbit-Terminals pausieren Browser-Abos mit Overscan;
-DOM, Iframes, Scrollback und Serverprozesse bleiben erhalten.
+Editorsnapshot.
 
 ## Dateimanager
 
@@ -198,7 +180,7 @@ und kennen eine MIME-Tabelle; die Suche ist auf Tiefe, Trefferzahl und Zeit begr
 überspringt Knoten- und Build-Ordner. Upload und Download streamen direkt über die Festplatte,
 alle Operationen (Umbenennen, Verschieben, Löschen, Ordner anlegen) laufen atomar über das
 Dateisystem. Aus dem Dateimanager lassen sich Ordner im Terminal oder Editor öffnen, als
-Projekt registrieren oder als Orbit-Knoten einbetten.
+Projekt registrieren.
 
 ## Benachrichtigungen
 

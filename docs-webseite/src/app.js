@@ -162,7 +162,7 @@ function updateSearch() {
   }).sort((left, right) => resultScore(right, normalizedQuery, terms) - resultScore(left, normalizedQuery, terms)).slice(0, 12);
 
   if (!query) {
-    searchResults.innerHTML = `<p class="search-empty">Gib einen Begriff ein. Beispiele: Orbit, Terminal, Sicherung, Changelog.</p>`;
+    searchResults.innerHTML = `<p class="search-empty">Gib einen Begriff ein. Beispiele: Terminal, Sicherung, Changelog.</p>`;
     return;
   }
   if (!matches.length) {

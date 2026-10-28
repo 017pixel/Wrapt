@@ -7,14 +7,14 @@ Wrapt-Code und Nutzerdaten liegen getrennt. Ein Git-Update oder Build aktualisie
 Prüfe die tatsächlich verwendeten Einträge in **config/wrapt.local.json** und **.env**. Sichere mindestens:
 
 - die Wrapt-SQLite-Datei aus **paths.databasePath** sowie den Inhalt von **paths.dataDir**;
-- **paths.orbitBackupDir**, **paths.orbitAssetDir** und **paths.fileGalleryDir**, sofern sie nicht bereits in **dataDir** enthalten sind;
+- **paths.fileGalleryDir**, sofern sie nicht bereits in **dataDir** enthalten sind;
 - **paths.wraptProfilesRoot**, wenn angelegte Profile erhalten bleiben sollen;
 - Projektdateien unter **paths.projectsRoot**, falls diese nicht an anderer Stelle gesichert werden;
 - **config/wrapt.local.json** und **.env** in einem privaten, verschlüsselten Sicherungsspeicher.
 
 Die Pfade können außerhalb des Git-Repositories liegen. Prüfe deshalb vor jeder Sicherung, ob die konfigurierten Verzeichnisse wirklich im Backup enthalten sind. Hermes-Daten, Tailscale-Konfiguration und Konten der CLI-Werkzeuge liegen in ihren eigenen Homes und brauchen eigene Sicherungsregeln.
 
-Die Orbit-Revisionsdateien und Extension-Registry-Snapshots helfen bei lokalen Wiederherstellungen. Sie ersetzen kein externes Backup: Ein Defekt oder Verlust des Datenträgers kann Datenbank und lokale Snapshots zugleich treffen.
+Extension-Registry-Snapshots helfen bei lokalen Wiederherstellungen. Sie ersetzen kein externes Backup: Ein Defekt oder Verlust des Datenträgers kann Datenbank und lokale Snapshots zugleich treffen.
 
 ## Konsistente Sicherung erstellen
 
@@ -43,9 +43,7 @@ Das Einspielen einer älteren Sicherung ersetzt den aktiven Datenstand. Prüfe z
 2. Kopiere den aktuellen Stand vollständig an einen separaten Quarantäne-Ort. Lösche ihn nicht.
 3. Vergleiche Sicherung und Ziel anhand ihrer Konfigurationspfade. Spiele nur die benötigten Verzeichnisse und Datenbankdateien zurück.
 4. Stelle Dateieigentümer und private Zugriffsrechte wieder her.
-5. Starte Wrapt und prüfe Health, Projekte, Orbit-Daten und die benötigten Integrationen.
-
-Fehlt die SQLite-Datei, kann Wrapt die Orbit-Arbeitsfläche aus einer geprüften lokalen Revision wiederherstellen. Das rekonstruiert nicht die übrigen Tabellen und Nutzerdaten der Datenbank. Ist die Sicherung beschädigt, schlägt der Start absichtlich fehl, statt eine leere Arbeitsfläche anzulegen. Lösche in diesem Fall keine Revisionsdateien und lege keine leere Datenbank an. Bewahre die Dateien und nutze eine bekannte gute externe Sicherung.
+5. Starte Wrapt und prüfe Health, Projekte und die benötigten Integrationen.
 
 Wiederhergestellte Daten können älter sein als der Stand vor dem Ausfall. Lass den bisherigen Stand bis zur fachlichen Prüfung unangetastet, damit du verlorene neuere Daten bei Bedarf noch vergleichen kannst.
 

@@ -1,5 +1,7 @@
 # Design-Audit der Wrapt-Oberfläche
 
+Historischer Prüfbericht. Die damaligen Orbit-Befunde und Messwerte dokumentieren den früheren Stand; sie beschreiben keine aktuelle Funktion oder Testabdeckung.
+
 Stand: 28.08.2026 · Methode: Code-Review + Live-Prüfung der laufenden Instanz (Desktop 1440px und Mobile 390px, Accessibility-Snapshots)
 
 Nachtrag: Die damalige Settings-Priorität ist umgesetzt. Einstellungen besitzen jetzt fachliche

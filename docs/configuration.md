@@ -10,7 +10,7 @@ Konfigurationsquelle für alles Umgebungsspezifische:
 - `system` — Instanzname (`instanceName`, standardmäßig der Hostname), Dienstbenutzer und Home-Verzeichnis. Der Name erscheint öffentlich in Health und sollte keine persönlichen Angaben enthalten.
 - `tailscale` — Hostname, IP, erlaubte Login-E-Mails (`allowedUsers`) und optionale Administratoren (`adminUsers`). Fehlt `adminUsers`, wird aus Kompatibilitätsgründen der erste Eintrag aus `allowedUsers` als Administrator verwendet.
 - `security` — optionaler lokaler Zugriff über Loopback und dessen Benutzername.
-- `paths` — Projekt-Root, Orbit-Browser-Root, Terminal-Roots, Datenverzeichnis, Datenbank,
+- `paths` — Projekt-Root, Terminal-Roots, Datenverzeichnis, Datenbank,
   Backups, Assets und Profile.
 - `cli` — Pfade zu `codexbar`, `codex`, `opencode`, `claude`, `tmux`.
 - `codexbar` — Pfad zur CodexBar-`config.json` und optionale OAuth-Profil-Homes.
@@ -242,7 +242,7 @@ sichtbar. Die Community-Historie ist keine Bestätigung für den persönlichen C
 separat deaktiviert werden; fehlende Einträge sind aktiviert. `quickActions.mode` wählt zwischen
 der ausschließlich im Browser gezählten automatischen Top 3 und bis zu drei manuellen
 Navigation-IDs. Die Surface `host.context-menu.empty` steht für freie Host-Flächen ohne eigene Rechtsklick-Funktion, zum Beispiel in Sidebar, Topbar, Statusleiste oder Seiteninhalt.
-`statusBar.fontSizePx` erlaubt 10 bis 20 Pixel, `alwaysShowLimits` blendet die Limitdetails dauerhaft ein. Änderungen über Einstellungen → Rechtsklick werden atomar in
+`statusBar.fontSizePx` erlaubt 10 bis 20 Pixel. Das frühere Feld `alwaysShowLimits` bleibt für vorhandene Konfigurationen lesbar, beeinflusst die kompakte Anzeige aber nicht mehr. Änderungen über Einstellungen → Rechtsklick werden atomar in
 `config/wrapt.local.json` gespeichert und wirken ohne Neustart.
 
 Eingebettete Anwendungen wie T3 Code, Hermes, Code-Server, Preview-Runtime und Plugin-Frames
@@ -275,13 +275,8 @@ WEBSOCKET_MAX_PAYLOAD_BYTES=16777216
 
 Alle direkten Unterordner aus `paths.projectsRoot` in `config/wrapt.local.json` werden automatisch als Projekte erkannt. Die Projekte-Seite fragt diese Liste live über die API ab und benötigt keine hardcodierten Projektnamen. `config/projects.local.json` wird von Git ignoriert und kann für ausgewählte Projekte ergänzend feste IDs, Anzeigenamen, Beschreibungen, Reihenfolge und Previews liefern. Jede explizite Projekt-ID muss lowercase kebab-case und eindeutig sein; Pfade müssen absolut sein. Mit `PROJECT_DISCOVERY_ENABLED=false` kann die automatische Erkennung abgeschaltet werden.
 
-Der Orbit-Projektbrowser kann zusätzlich alle Dateien und Ordner unter einer eigenen, read-only durchsuchten Root anzeigen. Nur echte lesbare Unterordner dürfen als Projekt registriert werden; die Root selbst, Dateien und symbolische Verweise sind ausgeschlossen. Verzeichnisantworten werden für große Ordner paginiert und liefern ausschließlich Namen sowie Metadaten, niemals Dateiinhalte.
-
 ```dotenv
 PROJECT_DISCOVERY_ENABLED=true
-ORBIT_PROJECT_BROWSER_ROOT=/home/your-user
-ORBIT_PROJECT_BROWSER_PAGE_SIZE=300
-ORBIT_RECENT_PROJECT_LIMIT=8
 ```
 
 Der Projektpfad wird zentral konfiguriert:
@@ -461,21 +456,7 @@ akzeptiert. Snapshots werden mit AES-256-GCM verschlüsselt; der Schlüssel lieg
 `<paths.dataDir>/preview-storage.key`, das Log-Pseudonym nutzt
 `<paths.dataDir>/preview-log-hmac.key`. Beide Dateien werden nie über eine API ausgegeben.
 
-## Orbit-Dokument
-
-Das Orbit-Dokument verwendet dieselbe `DATABASE_PATH`-Datei und legt darin den aktuellen Stand sowie eine unveränderliche Revisionshistorie an. Die Datenbank liegt in Produktion außerhalb des Repositorys, damit Builds, Codewechsel und Deployments sie nicht berühren. Zusätzlich wird jede erfolgreiche Revision als prüfsummengesicherte JSON-Datei im lokalen Backup-Verzeichnis abgelegt. Fehlt der Datenbankstand, stellt der Server automatisch die letzte intakte Sicherung wieder her.
-
-```dotenv
-ORBIT_SYNC_INTERVAL_MS=5000
-ORBIT_DOCUMENT_MAX_BYTES=4194304
-ORBIT_BACKUP_DIR=/home/your-user/.local/share/wrapt/orbit-backups
-ORBIT_ASSET_DIR=/home/your-user/.local/share/wrapt/orbit-assets
-ORBIT_ASSET_MAX_FILE_BYTES=104857600
-ORBIT_ASSET_MAX_TOTAL_BYTES=53687091200
-ORBIT_DESTRUCTIVE_DROP_PERCENT=50
-```
-
-`ORBIT_SYNC_INTERVAL_MS` darf zwischen einer und 60 Sekunden liegen. `ORBIT_DESTRUCTIVE_DROP_PERCENT` blockiert große automatische Rückgänge ab mindestens drei Knoten; der abgewiesene Entwurf wird trotzdem als Wiederherstellungsstand gesichert. Revisionskonflikte überschreiben niemals den neueren Serverstand. Die Vertragsgrenzen erlauben höchstens acht Boards, 600 Knoten, 1.200 Kanten und 96 Live-Werkzeuge pro Board. Projektdateien werden nur relativ zu einer bekannten Projekt-ID erstellt; absolute Pfade, Traversal und Symlink-Ausbrüche werden serverseitig abgewiesen.
+## Accounts
 
 Für mehrere Codex-Accounts wird pro Account ein separates Codex-Home mit eigener Anmeldung verwendet. Die absoluten Pfade liegen ausschließlich in der privaten CodexBar-Konfiguration (`~/.config/codexbar/config.json`) im Feld `codexProfileHomePaths`; Authentifizierungsdateien und diese Konfiguration gehören nicht ins Repository.
 

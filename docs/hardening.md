@@ -7,7 +7,7 @@ umgesetzt wurden, ihre Konfiguration und ihren Rückbau. Es ergänzt die
 ## Single-User-Betrieb ohne Mandantentrennung (S-004)
 
 - Die Workbench ist für genau einen vertrauenswürdigen Benutzer ausgelegt.
-- `allowedUsers` mit mehr als einem Eintrag teilt alles: Orbit, Notizen,
+- `allowedUsers` mit mehr als einem Eintrag teilt alles: Notizen,
   Dateisystem, Projekte, Skills und Benachrichtigungen sind global sichtbar und
   überschreibbar — es gibt keine `userId`-Trennung.
 - Bei mehr als einem erlaubten Benutzer schreibt der Server beim Start eine

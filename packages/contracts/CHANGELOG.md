@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.26.1] - 2026-10-26
+
+### Verändert
+- Cronjobs können ohne Projektordner verwaltet werden.
+
+## [0.26.0] - 2026-10-25
+
+### Gelöscht
+- Verträge und Erweiterungsbeiträge für Orbit und den Infinite Canvas entfernt.
+
 ## [0.24.0] - 2026-10-22
 
 ### Erstellt

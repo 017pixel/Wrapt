@@ -39,7 +39,6 @@ ctx.ui.register({
 | `settings` | Inhalt der aktiven Einstellungskategorie, optional `target` gleich Tab-ID |
 | `context-menu` | Aktionen, optional `target` gleich Kontextmenü-Fläche |
 | `panel` | Werkzeugfläche, optional `target` gleich Panel-Typ |
-| `orbit` | Orbit-Inhalte, siehe Kontext und gespeicherte Extension-Knoten |
 
 Fehler einer React-Komponente werden an der Flächengrenze abgefangen. Verwende
 für asynchrone Actions eigene Fehlerzustände. Ein Promise aus einem Click-Handler

@@ -21,7 +21,6 @@ In **paths** sind vor allem diese Einträge wichtig:
 | **terminalAllowedRoots** | Erlaubte Start- und Arbeitsverzeichnisse für Terminals. |
 | **terminalDefaultCwd** | Startverzeichnis, wenn kein anderes zulässiges Verzeichnis ausgewählt wird. |
 | **dataDir**, **databasePath** | Persistente Wrapt-Daten und SQLite-Datenbank. |
-| **orbitBackupDir**, **orbitAssetDir** | Revisionssicherungen und Orbit-Dateien. |
 | **fileGalleryDir**, **wraptProfilesRoot** | Galerieinhalte und optionale Werkzeugprofile. |
 
 Verwende absolute Pfade, die im Dienstkontext existieren und beschreibbar sind. Begrenze Projekt- und Terminal-Wurzeln auf den nötigen Bereich. Ein erlaubter Terminal-Root gibt einem Terminal Zugriff auf alle Dateien darunter.

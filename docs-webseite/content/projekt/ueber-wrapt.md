@@ -9,17 +9,17 @@ Wrapt ist eine selbst gehostete Workbench für Entwicklungsprojekte, die im Brow
 Wrapt verbindet Werkzeuge, die sonst in getrennten Fenstern und Sitzungen liegen. Ein üblicher Ablauf:
 
 1. Ein Projekt aus einem freigegebenen Projektordner öffnen.
-2. Im Orbit eine Arbeitsfläche mit Projekt, Terminal, Agent oder Preview zusammenstellen.
+2. Das passende Terminal, einen Agenten oder eine Preview öffnen.
 3. Code im Browser bearbeiten oder einen Coding-Agenten in einem eigenen Werkzeug starten.
 4. Den lokalen Entwicklungsserver in einer Preview ansehen und Dateien bei Bedarf verwalten.
 
-Orbit ist dabei die visuelle Arbeitsfläche. Die Projektdateien und die Entwicklungsprozesse bleiben auf dem Wrapt-Server. Die Oberfläche stellt Werkzeuge zusammen und vermittelt zwischen ihnen; sie ersetzt weder Git noch die angebundenen Editoren oder Coding-Agenten.
+Die Projektdateien und die Entwicklungsprozesse bleiben auf dem Wrapt-Server. Die Oberfläche stellt Werkzeuge zusammen und vermittelt zwischen ihnen; sie ersetzt weder Git noch die angebundenen Editoren oder Coding-Agenten.
 
 ## Was in Wrapt zusammenkommt
 
 | Bereich | Wofür er da ist |
 | --- | --- |
-| Projekte und Orbit | Projekte finden und Werkzeuge in einer gemeinsamen Arbeitsfläche anordnen. |
+| Projekte | Projekte finden und passende Werkzeuge öffnen. |
 | Terminals | Shells und Coding-Agenten in dauerhaften Sitzungen ausführen. |
 | Editoren und Agenten | T3 Code, code-server, OpenCode und weitere installierte Werkzeuge öffnen. |
 | Previews | Lokale Entwicklungsserver im Browser oder in einer Geräteansicht prüfen. |
@@ -44,7 +44,6 @@ Die Installation und ihre Zugriffswege sind unter [Installation und erster Start
 ## Weiterführende Seiten
 
 - [Die Oberfläche und der Arbeitsbereich](../produkt/arbeitsbereich.md)
-- [Orbit](../produkt/orbit.md)
 - [Werkzeuge und Integrationen](../produkt/werkzeuge.md)
 - [Installation und erster Start](../betrieb/installation-erster-start.md)
 - [Architektur auf einen Blick](architektur.md)

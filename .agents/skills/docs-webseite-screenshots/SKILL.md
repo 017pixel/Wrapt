@@ -23,7 +23,6 @@ Dieser Skill pflegt die einzige Bildquelle für Dokumentationsseite **und** READ
    | Datei | Motiv | README | Doku |
    | --- | --- | --- | --- |
    | `01-dashboard.png` | Dashboard mit `demo-server` | ja | ja |
-   | `02-workbench.png` | Orbit mit Beispielprojekten | ja | ja |
    | `04-t3-code.png` | T3 Code im Dark Mode, nicht angemeldet | ja | ja |
    | `05-code-server.png` | code-server ohne persönliche Dateien | ja | ja |
    | `06-gallery.png` | Dateimanager | ja | nein |
@@ -54,7 +53,7 @@ Dieser Skill pflegt die einzige Bildquelle für Dokumentationsseite **und** READ
   curl -s http://127.0.0.1:3410/api/v1/health
   ```
 
-- Nimm nur die angefragten oder nachweislich veralteten Motive auf. Für Wrapt-Ansichten führt die Fixture zur App unter `http://127.0.0.1:3410/wrapt/`; übliche Routen sind `/wrapt/orbit`, `/wrapt/files`, `/wrapt/terminal`, `/wrapt/usage`, `/wrapt/settings`, `/wrapt/plugins`, `/wrapt/plugins/maker`, `/wrapt/t3-code` und `/wrapt/code-editor`.
+- Nimm nur die angefragten oder nachweislich veralteten Motive auf. Für Wrapt-Ansichten führt die Fixture zur App unter `http://127.0.0.1:3410/wrapt/`; übliche Routen sind `/wrapt/files`, `/wrapt/terminal`, `/wrapt/usage`, `/wrapt/settings`, `/wrapt/plugins`, `/wrapt/plugins/maker`, `/wrapt/t3-code` und `/wrapt/code-editor`.
 - Nutze Playwright aus dem Repository für lokale Aufnahmen und speichere sie direkt unter `docs-webseite/assets/`. Prüfe vor dem Bild die passende Route und ihren fertigen Zustand, statt Lade- oder Fehlerzustände aufzunehmen.
 - Die Doku-Gruppe des Aufnahmeskripts erledigt das:
 

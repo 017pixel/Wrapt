@@ -14,7 +14,7 @@ erhalten. Die zuvor parallelen Built-in-Listen für Commands und Navigation wurd
 weiterhin genutzte Legacy-Registries bleiben bestehen.
 
 Manifest V1 beschreibt Pages, Routes, Navigation, Commands, Shortcuts, Context Menus,
-Statusleiste, Topbar, Dashboard, Settings und Orbit. Das aktuelle Frontend rendert dieselben
+Statusleiste, Topbar, Dashboard und Settings. Das aktuelle Frontend rendert dieselben
 Informationen aber aus mehreren statischen Listen. Alle 18 sichtbaren Seiten stehen in der
 Navigation, zwei Path-to-Page-ID-Maps, den Sidebar-Präferenzen, den Settings-Labels und den
 Shell-Titeln. Routen, Lazy Loader und 21 Prefetch-Präfixe liegen nochmals getrennt.
@@ -69,7 +69,6 @@ zwei geschützte Host-Definitionen für App Shell und 404.
 | Status Bar/Topbar | hostgerenderte Legacy-Items und Provider registrieren | geschützte Hostzustände öffnen |
 | Dashboard | neun bestehende Bereiche mit stabilen IDs abbilden | Dashboard visuell umbauen |
 | Settings | bestehende Feature-Cards und Feldmetadaten registrieren | Core Security und Recovery auslagern |
-| Orbit | Legacy-Palette und Renderer-Metadaten registrieren | Dokumentformat oder Node-Migration ändern |
 
 ### Legacy Built-ins
 

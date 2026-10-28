@@ -28,7 +28,7 @@ Als First-Party-Extension beginnen oder dorthin migrieren sollen dagegen provide
 
 1. Extension first. Eine neue optionale Funktion verändert den Core standardmäßig nicht.
 2. Least privilege. Nur Permissions deklarieren, die die konkrete Funktion benötigt.
-3. Contribution first. Bestehende Contributions für Pages, Routes, Navigation, Dashboard, Orbit, Commands, Settings, Terminal, Browser, Agents und Background Services verwenden, bevor neue APIs eingeführt werden.
+3. Contribution first. Bestehende Contributions für Pages, Routes, Navigation, Dashboard, Commands, Settings, Terminal, Browser, Agents und Background Services verwenden, bevor neue APIs eingeführt werden.
 4. Host UI. Navigation und Produktchrome verwenden Host-Primitives und die kontrollierte Icon Registry. Vendor Branding gehört auf Integrations- oder Detailseiten, nicht in die primäre Navigation.
 5. Kein verstecktes Coupling. Eine Extension darf keine internen React-Komponenten oder Servermodule aus dem Core importieren, wenn dafür kein öffentlicher Extension Contract existiert.
 6. API-Lücken dokumentieren. Wenn eine Funktion ohne Core-Änderung unmöglich ist, zuerst die fehlende generische Capability beschreiben. Die Core-Erweiterung muss mindestens zwei realistische Extension-Anwendungsfälle unterstützen oder eine zwingende Plattform-/Sicherheitsfunktion sein.
@@ -70,7 +70,7 @@ Für persönliche Plugins ist der Bereich Plugins der zentrale Einstieg. „Neue
 
 Persönliche Drafts liegen unter `<dataDirectory>/plugin-drafts`, aktivierte Pakete unter `<dataDirectory>/extension-catalog`. Beide Orte befinden sich standardmäßig außerhalb des Repositorys. Auch bei einer abweichenden lokalen Konfiguration schützen `.gitignore`-Regeln die entsprechenden Root-Ordner. `extensions/plugins` enthält ausschließlich bewusst versionierte Beispiele und darf nicht als Ablage für persönliche Plugins verwendet werden.
 
-Der KI-Prompt beschreibt Ziel, Host-Flächen, Contributions, Permissions, Orbit, Theme-Tokens, Tests und Neustart-Verhalten. Kleine Erweiterungen gehören in kontrollierte Slots wie Topbar, Bottom-Bar, Dashboard, Orbit, Kontextmenü, Overlay, Bottom Sheet oder rechte Seitenleiste. Freie Änderungen am Host-DOM sind nicht erlaubt.
+Der KI-Prompt beschreibt Ziel, Host-Flächen, Contributions, Permissions, Theme-Tokens, Tests und Neustart-Verhalten. Kleine Erweiterungen gehören in kontrollierte Slots wie Topbar, Bottom-Bar, Dashboard, Kontextmenü, Overlay, Bottom Sheet oder rechte Seitenleiste. Freie Änderungen am Host-DOM sind nicht erlaubt.
 
 Alternativ kann ein Coding-Agent den lokalen Skill `$wrapt-plugins` verwenden. Ein grober Ein-Satz-Auftrag genügt. Der Skill prüft vorhandene Drafts und Slugs vor dem Schreiben und aktualisiert persönliche Plugins über die Authoring-API. Für ein vorhandenes Plugin muss der Agent dessen Draft-ID und Revision weiterverwenden, statt ein gleichnamiges Duplikat anzulegen. Unter Plugins → Allgemein lässt sich die verwendete Skill-Anleitung direkt lesen oder als `wrapt-plugins-SKILL.md` herunterladen. Die Quelle wird über `plugins.wraptPluginsSkillPath` konfiguriert; `plugins.creatorSkillPath` bleibt als alter Schlüssel kompatibel.
 

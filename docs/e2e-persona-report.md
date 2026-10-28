@@ -1,5 +1,7 @@
 # Playwright-Funktionstests mit Personas
 
+Historischer Prüfbericht. Die damaligen Orbit-Befunde und Messwerte dokumentieren den früheren Stand; sie beschreiben keine aktuelle Funktion oder Testabdeckung.
+
 Stand: 8. Oktober 2026, Version 2.2.9. Befehle verwenden den Paketmanager des Projekts, pnpm 10.
 
 ## Testaufbau

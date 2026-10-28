@@ -31,9 +31,8 @@ Sitzungs-IDs müssen URL-kodiert sein. Bei abweichendem Basispfad erzeugen die
 Oberflächenlinks die passende URL. Standalone verwendet dieselbe Tailscale-
 Anmeldung und dieselben Serverprüfungen. Die Fläche umgeht keine Anmeldung.
 
-In schmalen Panels öffnet „Sitzungen“ die Auswahl über dem Chat. Jedes Orbitpanel
-behält seine eigene ausgewählte Sitzung im bestehenden Orbitdokument, auch nach
-dem Neuladen. „In eigenem Fenster öffnen“ im Drei-Punkte-Menü startet genau diese
+In schmalen Panels öffnet „Sitzungen“ die Auswahl über dem Chat.
+„In eigenem Fenster öffnen“ im Drei-Punkte-Menü startet genau diese
 Sitzung in Standalone. Die bestehende Sitzung wird dabei weder kopiert noch neu
 erstellt. Standalone bietet einen direkten Rückweg zu Workbench, Einstellungen und
 klassischer Oberfläche. Kehrt die Workbench ohne Sitzungsparameter zu Hermes

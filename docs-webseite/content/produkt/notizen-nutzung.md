@@ -12,10 +12,6 @@ Tippe `/`, um einen Inhaltsblock einzufügen. Zur Auswahl stehen unter anderem A
 
 Eine Seite kannst du in einem eigenen Fenster öffnen und über einen kopierten Wrapt-Link wieder aufrufen. Auf schmalen Bildschirmen blendet sich die Seitenleiste als Schublade ein und aus.
 
-### Notiz im Orbit verwenden
-
-Im Orbit ist eine Notizfläche ein freier Textblock oder ein Verweis auf eine Seite aus der Notizenübersicht. So bleiben langfristige Seiten und kleine Canvas-Notizen nebeneinander nutzbar. Siehe [Orbit](./orbit.md).
-
 ## Nutzungslimits
 
 Die Seite **Nutzung** zeigt eine Tabelle der verfügbaren Codex-, Claude-Code- und OpenCode-Go-Konten. Aufklappbare Accountzeilen zeigen unterstützte Limitfenster, verbleibende Nutzung und den nächsten bekannten Reset. Filter grenzen die Konten nach ihrem Datenstatus ein.
@@ -41,7 +37,6 @@ Auf iPadOS lässt sich Web-Push nur über eine installierte PWA vom Home-Bildsch
 
 ## Weiterlesen
 
-- [Orbit und Notizflächen](./orbit.md)
 - [Coding-Werkzeuge](./werkzeuge.md)
 - [Einstellungen und Konfiguration](https://github.com/017pixel/Wrapt/blob/master/docs/settings.md)
 - [Web-Push-Abnahme und Plattformgrenzen](https://github.com/017pixel/Wrapt/blob/master/docs/web-push-acceptance.md)

@@ -87,19 +87,6 @@ curl -f http://127.0.0.1:3774/
 
 Die eingebettete Weboberfläche muss über **/opencode** geöffnet werden, damit API-, Asset- und WebSocket-Pfade korrekt durch die Wrapt-Bridge laufen.
 
-## Datenbank oder Orbit-Sicherung auffällig
-
-Bei einer fehlenden oder beschädigten Datenbank:
-
-1. Stoppe Wrapt, bevor du Dateien untersuchst oder änderst.
-2. Kopiere Datenbank und vollständigen zugehörigen Backup-Ordner an einen separaten Ort.
-3. Lass vorhandene Orbit-Revisionen unangetastet. Eine beschädigte Sicherung führt absichtlich zu einem Startfehler statt zu leeren Daten.
-4. Stelle nur eine bekannte, prüfbare Sicherung wieder her.
-
-Fehler wie **ORBIT_REVISION_CONFLICT** oder **ORBIT_DESTRUCTIVE_SAVE_BLOCKED** bedeuten, dass Wrapt den abweichenden Stand nicht still überschrieben hat. Bewahre Browserentwurf und Serverdaten auf und löse den Konflikt über die Oberfläche.
-
-Die Schritte zur Wiederherstellung stehen unter [Sichern, wiederherstellen und aktualisieren](../betrieb/sichern-wiederherstellen-update.md).
-
 ## Vorschau meldet „nicht erreichbar“
 
 Prüfe den Status des zugehörigen Devservers und lies die Vorschau-Diagnose. Der Preview Doctor kann einen Status oder Vorschläge neu ermitteln:

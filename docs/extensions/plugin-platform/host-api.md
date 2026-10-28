@@ -26,8 +26,6 @@ verwendet `ctx.host.call(name, input)`. Für HTTP gilt
 | `noteFolders.create` | `{ name }` |
 | `noteFolders.update` | `{ folderId, changes }` |
 | `noteFolders.remove` | `{ folderId }` |
-| `orbit.get` | keine, liefert Dokument und Revision |
-| `orbit.save` | `saveOrbitDocumentRequestSchema` |
 | `filesystem.tree` | `{ path?, cursor?, limit? }` |
 | `filesystem.read` | `{ path }`, Textvorschau mit Größenlimit |
 | `filesystem.search` | `{ q }` |
@@ -62,9 +60,8 @@ const created = await ctx.host.call<{ note: { id: string } }>("notes.create", {
 ctx.log.info("Journal erstellt", { noteId: created.note.id });
 ```
 
-Die REST-Oberfläche für Projekte, Dateiverwaltung und Notizen sowie die aktuelle Orbit-Speicherung
-durchlaufen dieselben Operationen. Legacy-Orbit-Clients behalten ihren bisherigen
-Konfliktpfad. Binäre Downloads und Upload-Streams bleiben in der vorhandenen
+Die REST-Oberflächen für Projekte, Dateiverwaltung und Notizen durchlaufen dieselben
+Operationen. Binäre Downloads und Upload-Streams bleiben in der vorhandenen
 Datei-API. Terminal- und Preview-Operationen nutzen die besitzerprüfenden Broker;
 sie übernehmen die echte Aufrufidentität. Hintergrundjobs arbeiten unter der
 Identität ihres Plugins und bekommen damit keine fremden Nutzersitzungen.

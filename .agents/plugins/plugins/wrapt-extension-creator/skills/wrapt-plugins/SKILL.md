@@ -145,7 +145,7 @@ Forme den Auftrag in diesen Produktvertrag um:
 
 1. Name, stabile kleingeschriebene `slug`-ID und verständliche Beschreibung.
 2. Primäre Flächen aus `page`, `sidebar`, `topbar`, `bottom-bar`, `dashboard`,
-   `orbit`, `right-rail`, `overlay`, `bottom-sheet`, `context-menu` oder `preview`.
+   `right-rail`, `overlay`, `bottom-sheet`, `context-menu` oder `preview`.
 3. `blocks`, bereinigtes `html` oder sandboxed `iframe`, genau eine Inhaltsart.
 4. Deklarierte Funktionen, zugehörige Buttons und das erwartete Ergebnis.
 5. Least-Privilege-Permissions, Datenquellen, Datenschutz und Fehlerzustände.
@@ -202,8 +202,7 @@ Bei „ändere mein Plugin …“ gilt immer der vorhandene Draft als Quelle:
     "html": "",
     "blocks": [],
     "functions": [],
-    "orbit": { "enabled": false, "title": "Projektstatus", "description": "", "placement": "both", "nodeType": "note", "accent": "accent" },
-    "wizard": { "goal": "", "audience": "", "design": "klar", "layout": "dashboard", "tone": "direkt", "includeHtml": false, "includeIframe": false, "includeOrbit": false, "additionalDescription": "", "wishes": "", "editRequest": "", "additionalRequirements": "", "iconDescription": "", "restartBehavior": "ask", "agent": "codex", "permissions": [], "surfaces": ["page"], "dataNeeds": [], "interactions": [], "mobileBehavior": "responsive" },
+    "wizard": { "goal": "", "audience": "", "design": "klar", "layout": "dashboard", "tone": "direkt", "includeHtml": false, "includeIframe": false, "additionalDescription": "", "wishes": "", "editRequest": "", "additionalRequirements": "", "iconDescription": "", "restartBehavior": "ask", "agent": "codex", "permissions": [], "surfaces": ["page"], "dataNeeds": [], "interactions": [], "mobileBehavior": "responsive" },
     "sourceExampleId": null,
     "status": "draft",
     "capabilities": [],

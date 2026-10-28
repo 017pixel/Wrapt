@@ -23,7 +23,7 @@ Die vier integrierten Anwendungen sind optionale Dienste auf dem Server. Eine Se
 
 ## T3 Code
 
-T3 Code wird als eigenständige Webanwendung in die Wrapt-Oberfläche eingebettet. Du kannst die Seite direkt öffnen oder eine T3-Fläche in Orbit verwenden. Wenn code-server verfügbar ist, öffnet T3 den Editor zum Projektordner.
+T3 Code wird als eigenständige Webanwendung in die Wrapt-Oberfläche eingebettet. Du kannst die Seite direkt öffnen. Wenn code-server verfügbar ist, öffnet T3 den Editor zum Projektordner.
 
 Die Instanz verwaltet den Stable- oder Nightly-Kanal. Ein Kanalwechsel wirkt beim nächsten Backend-Neustart. Anmeldung und T3-Sitzungen gehören zu T3; von Wrapt kommen Einbettung und Projektverknüpfung.
 
@@ -62,6 +62,5 @@ T3 Code, Hermes Agent, OpenCode und code-server sind eigenständige Open-Source-
 ## Weiterlesen
 
 - [Terminal und CLI-Sitzungen](./terminal.md)
-- [Orbit](./orbit.md)
 - [Installation und optionale Dienste](https://github.com/017pixel/Wrapt/blob/master/docs/installation.md)
 - [Integrationskonfiguration](https://github.com/017pixel/Wrapt/blob/master/docs/configuration.md)

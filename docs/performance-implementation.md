@@ -1,5 +1,7 @@
 # Umsetzung des Performanceplans
 
+Historischer Prüfbericht. Die damaligen Orbit-Befunde und Messwerte dokumentieren den früheren Stand; sie beschreiben keine aktuelle Funktion oder Testabdeckung.
+
 Der [Auditplan](../Performance%20Audits/PERFORMANCE_AUDIT_AND_IMPROVEMENT_PLAN.md)
 enthält Nutzen, Risiken, Abhängigkeiten, Akzeptanzkriterien und den laufenden Stand
 aller 23 Maßnahmen. Die Auditmessungen sind Vorherwerte, keine Nachherwerte.

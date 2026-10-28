@@ -1,5 +1,7 @@
 # Abschließende Abnahme des Performanceplans
 
+Historischer Prüfbericht. Die damaligen Orbit-Befunde und Messwerte dokumentieren den früheren Stand; sie beschreiben keine aktuelle Funktion oder Testabdeckung.
+
 Ergänzt den [Umsetzungsbericht](performance-implementation.md) und den
 [Auditplan](../Performance%20Audits/PERFORMANCE_AUDIT_AND_IMPROVEMENT_PLAN.md).
 Alle Zahlen stammen aus eigenen Dummy-Fixtures, nicht aus Nutzer-Previews oder

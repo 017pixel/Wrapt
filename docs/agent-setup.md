@@ -196,7 +196,7 @@ werden dabei nie gelöscht, sondern verschoben und gesichert.
    aktiviert ist; sonst über den konfigurierten Tailscale-Host und HTTPS-Port.
    Bei laufender Entwicklung (`pnpm dev`) ist die Oberfläche unter
    `http://127.0.0.1:5173/wrapt/` erreichbar.
-3. **Projekte sichtbar:** Im Orbit erscheinen die Projekte aus `paths.projectsRoot`.
+3. **Projekte sichtbar:** Die Projektübersicht zeigt die Projekte aus `paths.projectsRoot`.
 4. **Terminal/Previews/Usage** laden ohne Fehler; ein Terminal lässt sich unter einer
    erlaubten Root öffnen.
 5. **Optionale Dienste:** `systemctl --user is-active wrapt-terminal-supervisor.service`

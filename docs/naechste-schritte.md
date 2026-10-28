@@ -15,8 +15,7 @@ ist ein historischer Stand und keine aktuelle Fehlerliste.
 - Die aktuellen Einstellungen und ihre Bedienwege stehen in [settings.md](settings.md).
   Der Hermes-Dispatcher verwendet Classic als Standard und V2 als optionale Oberfläche.
 - Gemeinsame Verträge sind nach Fachgebiet aufgeteilt; `packages/contracts/src/index.ts`
-  exportiert die bisherigen Namen weiterhin. Orbit-Geometrie und Dashboard-Styles liegen
-  in eigenen Modulen. Eingefrorene Dateigrößen sinken nach tatsächlicher Aufteilung.
+  exportiert die bisherigen Namen weiterhin. Dashboard-Styles liegen in eigenen Modulen. Eingefrorene Dateigrößen sinken nach tatsächlicher Aufteilung.
 
 ## Noch im Betrieb zu prüfen
 

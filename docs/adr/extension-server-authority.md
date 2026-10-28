@@ -13,8 +13,8 @@
 ## Kontext
 
 Remote Workplace ist ein persönlicher, selbst gehosteter Server mit Tailscale-Identity und
-mehreren Browsergeräten. Heute liegen einige Präferenzen und Drafts im Browser, während Orbit,
-Notifications, Usage, Preview- und Terminalmetadaten serverseitig persistiert werden. Für eine
+mehreren Browsergeräten. Präferenzen, Notifications, Usage, Preview- und Terminalmetadaten
+werden serverseitig persistiert; flüchtige Entwürfe bleiben im Browser. Für eine
 Extension-Plattform wären browserlokale Installations- oder Berechtigungsflags inkonsistent,
 nicht auditierbar und auf einem zweiten Gerät falsch.
 

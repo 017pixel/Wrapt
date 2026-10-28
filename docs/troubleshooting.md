@@ -34,14 +34,6 @@ Die aktuelle Gerätezahl in den Einstellungen gilt für die aktive Wrapt-Identit
 selbst ist global, deshalb wird ein wichtiges neues Ereignis an jedes registrierte Gerät aller
 erlaubten Identitäten geschickt. Das Deaktivieren eines Geräts löscht nur dessen Endpoint.
 
-## Orbit-Daten und Sicherungen
-
-Der produktive Datenbestand liegt unter `/home/your-user/.local/share/wrapt/wrapt.sqlite` und damit außerhalb des Repositorys. Builds, Quellcodewechsel und Deployments dürfen diese Datei nicht ersetzen. Jede bestätigte Orbit-Revision wird zusätzlich unter `/home/your-user/.local/share/wrapt/orbit-backups/` abgelegt; `current.json` enthält die letzte Revision mit SHA-256-Prüfsumme, die nummerierten Dateien bleiben unverändert erhalten.
-
-Wenn die SQLite-Datei fehlt, stellt der Server beim nächsten Start automatisch `current.json` wieder her. Eine beschädigte Sicherung führt absichtlich zu einem Startfehler statt zu einer leeren Arbeitsfläche. Vor manuellen Eingriffen immer den Wrapt-Dienst anhalten und sowohl die Datenbank als auch den vollständigen Backup-Ordner kopieren. Bei einer manuellen Reparatur konservierte Rohdaten sollten getrennt unter `/home/your-user/.local/share/wrapt/emergency-backups/` abgelegt werden.
-
-Ein `ORBIT_REVISION_CONFLICT` oder `ORBIT_DESTRUCTIVE_SAVE_BLOCKED` überschreibt den aktiven Serverstand nicht. Der abweichende Browserentwurf liegt in `orbit_conflict_backups`; die aktuelle Arbeitsfläche bleibt in `orbit_documents` und `orbit_document_revisions` erhalten.
-
 ## Extension-Registry und Release-Slots
 
 Die Registry liegt unter `<paths.dataDir>/extensions.sqlite`. Verifizierte Registry-Snapshots
@@ -182,7 +174,7 @@ stehen in [GitHub im Editor](editor-authentication.md).
 
 ### Offizieller Hermes-Chat getrennt oder Events Feed nicht verbunden
 
-Die sichtbare Hermes-Oberfläche verwendet die offiziellen PTY- und Events-WebSockets über den
+Die klassische Hermes-Oberfläche verwendet die offiziellen PTY- und Events-WebSockets über den
 Wrapt-Pfad `/hermes`. Der direkte Hermes-Port bleibt absichtlich nur auf Loopback erreichbar.
 Der Proxy setzt für den Upstream `Host: 127.0.0.1:9119` und übersetzt beim WebSocket-Handshake den
 äußeren Browser-Origin auf den Loopback-Origin. Die Wrapt prüft den ursprünglichen Origin vor
@@ -195,6 +187,26 @@ eine bestehende Session über `?resume=<id>` wieder aufnehmen.
 
 Die ACP-Bridge und die Fehlercodes `ACP_CRASHED`, `ACP_UNAVAILABLE` und `SESSION_NOT_FOUND`
 betreffen nur interne Wrapt-Hintergrundfunktionen, nicht die sichtbare Hermes-Weboberfläche.
+
+### Hermes V2: Chat oder Cron-Lauf fortsetzen
+
+Die native V2-Oberfläche verwendet einen eigenen Gateway. Nach einer unterbrochenen
+Verbindung werden ausgewählte Sitzungen erneut angemeldet. Bleibt eine Sitzung nach
+einem fehlgeschlagenen Abgleich gesperrt, „Erneut abgleichen“ verwenden. Ein erfolgreicher
+Abgleich entfernt die zugehörigen Fehlermeldungen. Tatsächlich inkompatible Protokolle
+bleiben gesperrt.
+
+Cronjobs und gespeicherte Sitzungen dürfen ohne eigenen Projektordner bestehen.
+Beim Fortsetzen eines Chats prüft Wrapt das von Hermes bestätigte Arbeitsverzeichnis.
+Unter Cron → Job → Cron-Läufe öffnet „Im Chat fortsetzen“ die Sitzung des gewählten
+Laufs. Der Job wird dabei nicht erneut ausgeführt. Reine Skriptausgaben besitzen
+keine Chatsitzung und bieten diese Aktion deshalb nicht an.
+
+HTTP 410 mit „Model … has been deprecated“ bedeutet, dass das im Job gebundene
+Modell abgeschaltet wurde. Das globale Hermes-Modell zu ändern aktualisiert solche
+Jobs nicht. Die Modellbindung muss in der Hermes-Verwaltung oder CLI angepasst werden.
+Zeigt eine Cron-Aktion einen unbekannten Ausgang, zuerst neu lesen und erst danach
+bewusst erneut versuchen, damit kein doppelter Job oder Lauf entsteht.
 
 ### Update fehlgeschlagen
 

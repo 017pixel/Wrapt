@@ -2,6 +2,79 @@
 
 Alle relevanten Änderungen werden in kurzen Stichpunkten dokumentiert.
 
+## [3.0.4] - 2026-10-28
+
+### Verändert
+- Die Hermes-Sitzungswahl bleibt auf schmalen Ansichten per Mausklick bedienbar. Die Detailvorschau fängt den Klick nicht mehr ab; Tastaturfokus und Hover-Vorschau bleiben verfügbar.
+
+## [3.0.3] - 2026-10-26
+
+### Verändert
+- Hermes V2 erstellt und verbindet Chats nach Verbindungsabbrüchen oder fehlgeschlagenen Abgleichen wieder korrekt. Geschlossene, inaktive Sitzungen blockieren keine neuen Chats mehr. Anhänge und Hintergrundarbeit behalten bei verzögert geladenen Chats ihre Profilzuordnung.
+- Cronjobs ohne eigenen Projektordner lassen sich verwalten. Echte Cron-Läufe können direkt im Chat fortgesetzt werden; Skriptausgaben bleiben als Ausgaben erkennbar.
+- Cron-Formulare und Bestätigungen halten bei Wiederholungsversuchen und Auswahlwechseln das richtige Ziel. Unklare Speicherergebnisse werden vor einem erneuten Versuch abgeglichen.
+- Cron-Verläufe zeigen Fehler bei Ausführung und Zustellung sowie gekürzte Laufhistorien verlässlicher an.
+- Die automatischen Prüfungen berücksichtigen die entfernten Einstellungen, gemeinsame Tastenkürzel und den aktuellen Hintergrundkatalog. Projektlaufzeiten verwenden im Testserver einen eigenen freigegebenen Projektpfad.
+
+## [3.0.2] - 2026-10-26
+
+### Verändert
+- Wrapt-Tastenkürzel verwenden unter macOS Control statt Command, einschließlich der Seitenwahl per Zahl. Gemeinsame Belegungen mit Windows bleiben erhalten.
+
+## [3.0.1] - 2026-10-26
+
+### Verändert
+- Hermes V2 bündelt Betriebsfehler in schließbaren Toasts oben rechts mit passenden Aktionen und entfernt doppelte Meldungen aus dem Chat.
+- Der blaue Senden-Button ist optisch 20 % kleiner, die Klickfläche bleibt erhalten.
+- Die Nachrichteneingabe bleibt beim Fokus ohne Umrandung. Thread-Details erscheinen und verschwinden animiert; erledigte Threads bewegen sich zum unteren Bereich. Reduzierte Bewegung und Tastaturbedienung bleiben berücksichtigt.
+
+## [3.0.0] - 2026-10-25
+
+### Gelöscht
+- Orbit und der Infinite Canvas vollständig aus der App, Seitenleiste, Einstellungen und Konfiguration entfernt. Die bisherigen Canvas-Adressen, APIs und Erweiterungsbeiträge entfallen.
+- Canvas-spezifische Bibliotheken, Bilder, Tests und Dokumentationsseiten entfernt.
+
+### Verändert
+- Projekte öffnen direkt in T3 Code, im Editor oder im Terminal. Notizen, Datei-Uploads, Nutzungsanzeigen und Previews funktionieren eigenständig weiter.
+- Gespeicherte Canvas-Startseiten wechseln zum Dashboard. Die übrigen Einstellungen, Notizen und bestehenden Daten bleiben erhalten.
+- Bestehende Projektbrowser-Grenzen und die übrigen Beiträge gemischter Erweiterungen werden übernommen.
+
+## [2.22.7] - 2026-10-25
+
+### Behoben
+- Die Capybara-Vorschau verwendet dieselbe Figur, Größe, Partybewegung und dieselben Effekte wie die Statusleiste.
+
+### Gelöscht
+- Bestätigungstexte nach Änderungen am Capybara entfernt. Fehler beim Speichern bleiben sichtbar.
+
+## [2.22.6] - 2026-10-25
+
+### Verändert
+- Die Pfeile am Hintergrundkarussell erscheinen als reine Icons ohne Rahmen oder Buttonfläche.
+
+## [2.22.5] - 2026-10-25
+
+### Verändert
+- Tastenkürzel werden einmal serverseitig gespeichert und auf allen Clients verwendet. Alt unter Windows entspricht Command auf macOS; geänderte Buchstaben, Zahlenwahl und deaktivierte Aktionen werden gemeinsam abgeglichen. Bisher getrennte Windows-Belegungen werden übernommen.
+
+## [2.22.4] - 2026-10-25
+
+### Behoben
+- Das Capybara bleibt in jeder Größe vollständig sichtbar. Konfetti erscheint in der Vorschau direkt über dem Maskottchen.
+- Einstellungsregler nutzen durchgehend die Akzentfarbe. Der Plugin-Link hat mehr Abstand zur Auswahl.
+
+### Verändert
+- Dashboard-Hintergründe werden in einem Karussell mit Wischgesten, Pfeiltasten und Vor-/Zurück-Buttons ausgewählt.
+
+### Gelöscht
+- Start-App und Layout aus den Einstellungen samt Suchtreffern entfernt. Wrapt öffnet wieder das Dashboard.
+- Den wirkungslosen Schalter „Limits immer anzeigen“, technische Bereichsnamen und überflüssige Footer-Texte entfernt.
+
+## [2.22.3] - 2026-10-25
+
+### Verändert
+- Windows verwendet für die Wrapt-Kürzel standardmäßig Alt und Shift, macOS weiterhin Ctrl und Shift. Windows-Anpassungen bleiben getrennt, damit die Mac-Belegung beim Abgleich erhalten bleibt.
+
 ## [2.22.2] - 2026-10-25
 
 ### Behoben

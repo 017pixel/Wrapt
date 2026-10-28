@@ -13,7 +13,6 @@ vorgesehen; öffentliche Freigaben per Funnel gehören bewusst nicht zum Betrieb
 
 ## Was Wrapt bietet
 
-- Orbit-Boards für Projekte, Terminals, Agenten, Previews und Notizen.
 - Browserbasierte Werkzeuge für T3 Code, den offiziellen VS-Code-Editor, code-server, Codex, OpenCode und Claude Code.
 - Globale Tastenkürzel für Seitenwahl und Direktziele, einstellbar und zwischen Clients abgeglichen.
 - Persistente PTY-Terminals mit tmux-Supervisor, Wiederaufnahme und Projektbindung.
@@ -182,9 +181,7 @@ Beispielkonten und neutrale Projektdaten sichtbar; T3 Code ist im Dark Mode darg
 Es sind dieselben Dateien wie auf der Dokumentationsseite unter `docs-webseite/assets/`;
 gepflegt werden sie über den Skill „docs/readme Screenshots updaten“.
 
-| Orbit | Dateimanager |
-| :--: | :--: |
-| ![Orbit mit Beispielprojekten](docs-webseite/assets/02-workbench.png) | ![Dateimanager](docs-webseite/assets/06-gallery.png) |
+![Dateimanager](docs-webseite/assets/06-gallery.png)
 
 | T3 Code im Dark Mode | code-server |
 | :--: | :--: |
@@ -248,7 +245,7 @@ Wichtige Regeln:
 - Eigene Dienste binden standardmäßig nur an Loopback.
 - Geschützte Routen verlangen eine erlaubte Tailscale-Identität; Mutationen zusätzlich Same-Origin.
 - Accounts, Tokens und Browserprofile bleiben auf dem Server und werden nicht im Browserzustand gespeichert.
-- Orbit, Plugins, Nutzung und weitere lokale Daten liegen außerhalb des Repositorys in SQLite
+- Plugins, Nutzung und weitere lokale Daten liegen außerhalb des Repositorys in SQLite
   beziehungsweise im konfigurierten `dataDir`.
 - Preview-, Terminal-, Datei- und Extension-Zugriffe sind auf serverseitig geprüfte Pfade und
   deklarierte Berechtigungen begrenzt.
