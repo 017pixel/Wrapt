@@ -1,6 +1,6 @@
 {
   "name": "@wrapt/server",
-  "version": "3.0.5",
+  "version": "3.1.4",
   "private": true,
   "type": "module",
   "scripts": {
@@ -21,20 +21,21 @@
     "@fastify/websocket": "^11.3.0",
     "@wrapt/contracts": "workspace:*",
     "@wrapt/extension-contracts": "workspace:*",
+    "@wrapt/plugin-sdk": "workspace:*",
     "@xterm/addon-serialize": "0.14.0",
     "@xterm/headless": "6.0.0",
     "dotenv": "18.0.0",
     "execa": "10.0.1",
     "fastify": "5.12.7",
+    "fuse.js": "^7.5.0",
     "node-pty": "^1.1.0",
     "parse5": "8.0.1",
     "systeminformation": "5.33.11",
+    "typescript": "6.0.3",
     "undici": "8.12.3",
     "web-push": "^3.6.7",
     "ws": "8.21.3",
-    "zod": "4.6.7",
-    "@wrapt/plugin-sdk": "workspace:*",
-    "typescript": "6.0.3"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/node": "26.6.2",

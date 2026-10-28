@@ -1,9 +1,8 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { NoteFolder, NoteSummary, UpdateNoteRequest } from "@wrapt/contracts";
 import { useNotesPreferences } from "../../../stores/notesPreferences.js";
 import { NotesTree } from "./NotesTree.js";
 import { NotesSidebarRow } from "./NotesSidebarRow.js";
-import { NotesRecentSection } from "./NotesRecentSection.js";
 import { NotesSection } from "./NotesSection.js";
 import { NotesFolderActions } from "./NotesFolderActions.js";
 import { NotesDragProvider, NOTE_DRAG_TYPE, useNotesDrag } from "./NotesDragContext.js";
@@ -31,6 +30,17 @@ function SidebarSections(props: NotesSidebarSectionsProps) {
   const drag = useNotesDrag();
   const index = useMemo(() => buildSidebarIndex(notes), [notes]);
   const { active } = index;
+  const revealedNote = useRef<string | null>(null);
+  const toggleSection = useNotesPreferences((state) => state.toggleSection);
+  useEffect(() => {
+    if (!activeId || revealedNote.current === activeId || !index.byId.has(activeId)) return;
+    revealedNote.current = activeId;
+    // Ein sichtbarer Favorit zeigt die Auswahl bereits, sein Ablageort bleibt eingeklappt.
+    if (index.byId.get(activeId)?.favorite && !useNotesPreferences.getState().collapsedSections.favorites) return;
+    const folder = [...index.byFolder].find(([, members]) => members.some((note) => note.id === activeId))?.[0];
+    const section = folder ? `folder:${folder}` : "all";
+    if (useNotesPreferences.getState().collapsedSections[section]) toggleSection(section);
+  }, [activeId, index, toggleSection]);
   const favorites = active.filter((note) => note.favorite).sort((a, b) => {
     const left = favoriteOrder.indexOf(a.id), right = favoriteOrder.indexOf(b.id);
     return (left < 0 ? favoriteOrder.length : left) - (right < 0 ? favoriteOrder.length : right) || a.sortOrder - b.sortOrder;
@@ -46,8 +56,8 @@ function SidebarSections(props: NotesSidebarSectionsProps) {
     onMove(id, { parentId: null, folderId, sortOrder: Math.max(0, ...active.map((note) => note.sortOrder)) + 1 });
   };
   const groups = new Map<string, React.ReactNode>();
-  groups.set("recent", <NotesRecentSection notes={notes} activeId={activeId} onSelect={onSelect} onOpenMenu={onOpenMenu} />);
-  groups.set("favorites", <NotesSection id="favorites" title="Favoriten" onCreate={() => onCreatePage(null, { favorite: true })}
+
+  if (favorites.length) groups.set("favorites", <NotesSection id="favorites" title="Favoriten" onCreate={() => onCreatePage(null, { favorite: true })}
     onDropNote={(id) => { if (active.some((note) => note.id === id)) onPatch(id, { favorite: true }); }}>
     {favorites.map((note) => <div key={note.id} draggable data-favorite-id={note.id}
       onDragStart={(event) => { event.stopPropagation(); event.dataTransfer.setData(NOTE_DRAG_TYPE, note.id); event.dataTransfer.effectAllowed = "move"; drag.setNoteId(note.id); }}
@@ -62,8 +72,8 @@ function SidebarSections(props: NotesSidebarSectionsProps) {
     </div>)}
     {!favorites.length ? <p className="notes-group-empty">Noch keine Favoriten.</p> : null}
   </NotesSection>);
-  groups.set("all", <NotesSection id="all" title="Alle Notizen" onCreate={() => onCreatePage(null)} onDropNote={(id) => dropInFolder(id, null)}>
-    <NotesTree notes={active} {...treeProps} />
+  groups.set("all", <NotesSection id="all" title="Eingang" onCreate={() => onCreatePage(null)} onDropNote={(id) => dropInFolder(id, null)}>
+    <NotesTree notes={index.byFolder.get(null) ?? []} {...treeProps} />
   </NotesSection>);
   for (const folder of folders) {
     const members = index.byFolder.get(folder.id) ?? [];

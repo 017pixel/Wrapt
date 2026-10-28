@@ -17,6 +17,7 @@ import { noteSaveStateLabels, type NoteSaveState } from "./editor/useNoteAutosav
 
 interface NoteHeaderProps {
   note: Note;
+  collectionTitle?: string;
   ancestors: NoteSummary[];
   saveState: NoteSaveState;
   /** Eigenständiges Fenster: statt Seitenleiste erscheint der Sprung in die Übersicht. */
@@ -36,6 +37,7 @@ interface NoteHeaderProps {
 /** Kopfzeile einer Seite: Seitenleiste, Pfad, Speicherstand und Aktionen. */
 export function NoteHeader({
   note,
+  collectionTitle,
   ancestors,
   saveState,
   windowMode = false,
@@ -92,6 +94,7 @@ export function NoteHeader({
       )}
 
       <nav className="notes-note-crumbs" aria-label="Pfad" data-has-ancestors={ancestors.length > 0}>
+        {collectionTitle ? <span className="notes-note-crumb">{collectionTitle}<span className="notes-note-crumb-sep" aria-hidden>/</span></span> : null}
         {[...ancestors].reverse().map((ancestor, index) => (
           <span
             key={ancestor.id}

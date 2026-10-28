@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from "react";
+import { NotesLibraryActions } from "../transfer/NotesLibraryActions";
+import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { NoteFolder, NoteSummary, UpdateNoteRequest } from "@wrapt/contracts";
 import {
@@ -10,13 +11,13 @@ import {
 import { useMediaQuery } from "../../../lib/useMediaQuery.js";
 import { ChevronLeftIcon, PlusIcon, SearchIcon } from "../../icons";
 import { NotesSidebarSections } from "./NotesSidebarSections.js";
-import { NotesFolderActions } from "./NotesFolderActions.js";
 import { NotesItemMenu } from "./NotesItemMenu.js";
 import { NotesMoveDialog } from "./NotesMoveDialog.js";
 import { PromptDialog } from "../../ModalDialog.js";
 import type { NotesDropResult } from "./treeDrop.js";
 
 interface NotesSidebarProps {
+  onOpenTasks?: () => void;
   collapsed: boolean;
   notes: readonly NoteSummary[];
   folders: readonly NoteFolder[];
@@ -42,6 +43,7 @@ interface MenuState {
  * Seitenbaum und Papierkorb. Breite ist ziehbar, die Leiste einklappbar.
  */
 export function NotesSidebar({
+  onOpenTasks,
   collapsed,
   notes,
   folders,
@@ -63,6 +65,10 @@ export function NotesSidebar({
   const [moveNote, setMoveNote] = useState<NoteSummary | null>(null);
   const [renameNote, setRenameNote] = useState<NoteSummary | null>(null);
   const resizingRef = useRef(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    try { if (scrollRef.current) scrollRef.current.scrollTop = Number(sessionStorage.getItem("wrapt.notes-sidebar-scroll.v1") ?? 0); } catch { /* Scrollposition ist optional. */ }
+  }, []);
   // Unter 900px liegt die Leiste als Schublade über dem Inhalt. Geschlossen
   // darf sie weder fokussierbar noch für Screenreader sichtbar sein.
   const isDrawer = useMediaQuery("(max-width: 900px)");
@@ -142,10 +148,11 @@ export function NotesSidebar({
             <ChevronLeftIcon aria-hidden />
           </button>
         </div>
-        <NotesFolderActions />
+        {onOpenTasks ? <button type="button" className="notes-sidebar-tool" onClick={onOpenTasks}>Aufgaben</button> : null}
+        <NotesLibraryActions />
       </div>
 
-      <div className="notes-sidebar-scroll">
+      <div className="notes-sidebar-scroll" ref={scrollRef} onScroll={(event) => { try { sessionStorage.setItem("wrapt.notes-sidebar-scroll.v1", String(event.currentTarget.scrollTop)); } catch { /* Ansicht bleibt bedienbar. */ } }}>
         <NotesSidebarSections notes={notes} folders={folders} activeId={activeId} onSelect={handleSelect}
           onCreatePage={onCreatePage} onPatch={onPatch} onMove={onMove} onOpenMenu={openMenu}
           renameRequestId={null} onRenameRequestHandled={clearRenameRequest} />

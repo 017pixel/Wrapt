@@ -22,7 +22,7 @@ export function NoteLinkPicker({ open, currentNoteId, onClose, onPick }: NoteLin
   const inputRef = useRef<HTMLInputElement>(null);
   const listQuery = useQuery({ ...wraptQueries.notesList(), enabled: open });
   const notes = useMemo(() => listQuery.data?.notes ?? [], [listQuery.data]);
-  const paths = useMemo(() => buildNotePathMap(notes), [notes]);
+  const paths = useMemo(() => buildNotePathMap(notes, listQuery.data?.folders), [notes, listQuery.data?.folders]);
   const results = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase("de");
     return notes

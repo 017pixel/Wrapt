@@ -1,3 +1,5 @@
+import { registerNoteTransferRoutes } from "./transferRoutes.js";
+import { registerNoteKnowledgeRoutes } from "./knowledgeRoutes.js";
 import {
   createNoteRequestSchema,
   noteFolderRequestSchema,
@@ -23,6 +25,8 @@ export async function registerNotesRoutes(
   app: FastifyInstance,
   services: { notes: NotesDatabase } & PluginRouteOperations,
 ) {
+  registerNoteKnowledgeRoutes(app, services.notes);
+  registerNoteTransferRoutes(app, services.notes);
   const notFound = () => new AppError(404, "NOTE_NOT_FOUND", "Diese Notiz wurde nicht gefunden.");
 
   app.get("/notes", async (request) => pluginRouteOperation(services, request, "notes.list", undefined, () => notesListResponseSchema.parse({ notes: services.notes.list(), folders: services.notes.folders.list() })));

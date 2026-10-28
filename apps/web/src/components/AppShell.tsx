@@ -1,3 +1,4 @@
+import { QuickNoteButton } from "./notes/quick-note/QuickNoteButton";
 import { CodePluginSurface } from "../extensions/code-surface";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
@@ -336,6 +337,7 @@ export function AppShell() {
             </span>
           </div>
           <div className="topbar-right-actions">
+            <QuickNoteButton />
             {!isStandaloneT3 && !isStandaloneOpenCode && location.pathname !== "/terminal" ? <ContextProjectPicker /> : null}
             <CodePluginSurface surface="topbar" builtins={[{ id: "wrapt.shell.topbar.plugins", surface: "topbar", title: "Plugin-Aktionen", children: <PluginTopbar /> }]} />
             {(isStandaloneT3 || isStandaloneOpenCode || location.pathname === "/code-editor") ? <div id="topbar-tool-actions" className="topbar-tool-actions" aria-label={`${title} Aktionen`} /> : hasStandaloneToolMenu ? <StandaloneRouteActions terminalFocus={terminalFocus} onTerminalFocusChange={setTerminalFocus} /> : null}

@@ -85,3 +85,22 @@
 .notes-sidebar-folder-new { display: flex; width: 100%; min-height: 44px; align-items: center; gap: var(--space-2); padding: var(--space-2); color: var(--color-muted); font-size: var(--text-sm); border-radius: var(--radius-sm); }
 .notes-sidebar-folder-new:hover { background: var(--color-ink-800); color: var(--color-text); }
 .notes-sidebar-folder-new svg { width: 16px; height: 16px; }
+/* Ruhiger Seitenbaum: konstante Zeilen und sichtbare Tastaturaktionen. */
+.notes-tree-row { min-height: 44px; }
+.notes-tree-toggle { width: 32px; height: 44px; }
+.notes-tree-main { min-height: 44px; }
+.notes-tree-label { font-size: var(--text-md); }
+.notes-tree-action { width: 32px; height: 44px; }
+.notes-tree-row:focus-within .notes-tree-actions { opacity: 1; pointer-events: auto; }
+.notes-sidebar-head { position: relative; }
+.notes-library-actions { position: static; }
+.notes-library-actions > button { position: absolute; top: 4px; right: 4px; width: 44px; justify-content: center; }
+.notes-sidebar-head .notes-search-row { margin-right: 44px; width: calc(100% - 44px); }
+.notes-library-menu { top: 48px; left: auto; right: 8px; }
+@media (pointer: coarse) { .notes-tree-toggle, .notes-tree-action { width: 44px; } }
+.notes-sidebar-tool, .notes-library-trigger { display: flex; min-height: 44px; align-items: center; gap: 8px; padding: 8px; color: var(--color-muted); }
+.notes-sidebar-tool:hover, .notes-library-trigger:hover { color: var(--color-text); background: var(--color-ink-700); }
+.notes-sidebar-head .notes-library-actions { position: static; }
+.notes-tree-row .notes-tree-actions { position: absolute; top: 0; right: 2px; }
+.notes-tree-row .notes-tree-main { padding-right: 4px; }
+.notes-tree-row:hover .notes-tree-main, .notes-tree-row.is-active .notes-tree-main, .notes-tree-row:focus-within .notes-tree-main { padding-right: 36px; }

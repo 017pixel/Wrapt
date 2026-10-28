@@ -74,6 +74,13 @@ const aliases: Record<string, readonly string[]> = {
 const canonical = new Map(Object.entries(aliases).flatMap(([name, values]) => values.map((alias) => [alias, name])));
 export const noteCodeLanguages = ["plaintext", ...Object.keys(loaders)].sort();
 export const lowlight = createLowlight({ plaintext });
+const highlight = lowlight.highlight;
+// Tiptap prüft auch seine globale Highlight.js-Instanz. Deren Registrierung
+// garantiert nicht, dass unsere separat geladene Grammatik schon verfügbar ist.
+// Bis zum Import bleibt der Code als Klartext sichtbar und editierbar.
+lowlight.highlight = (language, value, options) => highlight(
+  lowlight.registered(language) ? language : "plaintext", value, options,
+);
 const highlightAuto = lowlight.highlightAuto;
 // Gleiche Tie-Break-Reihenfolge wie Common, unabhängig von der Importreihenfolge.
 lowlight.highlightAuto = (value, options) => highlightAuto(value, {

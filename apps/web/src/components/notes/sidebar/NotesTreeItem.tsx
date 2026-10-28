@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { DragEvent } from "react";
 import type { NoteSummary } from "@wrapt/contracts";
-import { ChevronRightIcon, MoreIcon, PlusIcon } from "../../icons";
+import { ChevronRightIcon, MoreIcon } from "../../icons";
 import { NotePageIcon } from "../icons/NotePageIcon.js";
 import { NOTE_DRAG_TYPE } from "./NotesDragContext.js";
 import type { NotesDropZone } from "./treeDrop.js";
@@ -123,6 +123,7 @@ export function NotesTreeItem({
           <button
             type="button"
             className="notes-tree-main"
+            title={note.title}
             aria-current={active ? "page" : undefined}
             onClick={() => actions.onSelect(note.id)}
             onDoubleClick={() => actions.onStartRename(note.id)}
@@ -138,15 +139,6 @@ export function NotesTreeItem({
         )}
         {!renaming ? (
           <span className="notes-tree-actions">
-            <button
-              type="button"
-              className="notes-tree-action"
-              aria-label="Unterseite erstellen"
-              title="Unterseite erstellen"
-              onClick={() => actions.onCreateSubpage(note.id)}
-            >
-              <PlusIcon aria-hidden />
-            </button>
             <button
               type="button"
               className="notes-tree-action"

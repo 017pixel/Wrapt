@@ -1,3 +1,4 @@
+import { readNoteTitleDraft, removeNoteTitleDraft, writeNoteTitleDraft } from "./editor/noteDrafts";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Note, UpdateNoteRequest } from "@wrapt/contracts";
 import { NOTE_TITLE_MAX_LENGTH } from "@wrapt/contracts";
@@ -7,25 +8,45 @@ import { registerEditorReloadGuard } from "../../lib/reloadGuard";
 
 interface NoteTitleProps {
   note: Note;
+  draftScope?: string;
   onPatch: (patch: UpdateNoteRequest) => void;
   disabled?: boolean;
+  onEnterBody?: () => void;
 }
 
 const TITLE_SAVE_DELAY_MS = 500;
 
 /** Titelzeile mit Material-Symbol; speichert den Titel entprellt. */
-export function NoteTitle({ note, onPatch, disabled = false }: NoteTitleProps) {
+export function NoteTitle({ note, draftScope = "workspace", onPatch, disabled = false, onEnterBody }: NoteTitleProps) {
   const [title, setTitle] = useState(note.title);
+  const [recoveryTitle, setRecoveryTitle] = useState<string | null>(null);
+  const [localTitleError, setLocalTitleError] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const timerRef = useRef<number | null>(null);
   const pendingRef = useRef<{ value: string; originalTitle: string; onPatch: NoteTitleProps["onPatch"] } | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const iconButtonRef = useRef<HTMLButtonElement>(null);
   const activeNoteRef = useRef(note.id);
+  const recoveryCheckedRef = useRef<string | null>(null);
   const submittedTitleRef = useRef<string | null>(null);
   useEffect(() => registerEditorReloadGuard(() => title.trim() !== note.title.trim()), [note.title, title]);
 
   useEffect(() => {
+    const recovered = readNoteTitleDraft(`${note.id}:${draftScope}`);
+    if (recovered && recovered.value.trim() === note.title) { removeNoteTitleDraft(`${note.id}:${draftScope}`); setRecoveryTitle(null); }
+    else if (recovered && recoveryCheckedRef.current !== note.id) {
+      recoveryCheckedRef.current = note.id;
+      if (!recovered.value.trim()) {
+        removeNoteTitleDraft(`${note.id}:${draftScope}`);
+        setTitle(note.title);
+      } else if (recovered.originalTitle === note.title) {
+        setTitle(recovered.value);
+        submittedTitleRef.current = recovered.value.trim();
+        onPatch({ title: recovered.value.trim() });
+      } else setRecoveryTitle(recovered.value);
+      return;
+    }
+    recoveryCheckedRef.current = note.id;
     if (activeNoteRef.current !== note.id) {
       activeNoteRef.current = note.id;
       submittedTitleRef.current = null;
@@ -41,7 +62,8 @@ export function NoteTitle({ note, onPatch, disabled = false }: NoteTitleProps) {
     }
     submittedTitleRef.current = null;
     setTitle(note.title);
-  }, [note.id, note.title]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftScope, note.id, note.title]);
 
   useLayoutEffect(() => {
     const input = inputRef.current;
@@ -84,6 +106,8 @@ export function NoteTitle({ note, onPatch, disabled = false }: NoteTitleProps) {
 
   const changeTitle = (value: string) => {
     setTitle(value);
+    if (value.trim()) setLocalTitleError(!writeNoteTitleDraft(`${note.id}:${draftScope}`, note.title, value));
+    else { removeNoteTitleDraft(`${note.id}:${draftScope}`); setLocalTitleError(false); }
     pendingRef.current = { value, originalTitle: note.title, onPatch };
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(() => {
@@ -116,6 +140,8 @@ export function NoteTitle({ note, onPatch, disabled = false }: NoteTitleProps) {
           />
         ) : null}
       </div>
+      {recoveryTitle !== null ? <div className="note-action-error" role="alert">Ein lokaler Titelentwurf ist erhalten: „{recoveryTitle}“. <button type="button" onClick={() => { setTitle(recoveryTitle); onPatch({ title: recoveryTitle.trim() || note.title }); setRecoveryTitle(null); }}>Titel wiederherstellen</button></div> : null}
+      {localTitleError ? <span role="alert">Titel konnte nicht lokal gesichert werden.</span> : null}
       <textarea
         ref={inputRef}
         className="notes-title-input"
@@ -136,9 +162,10 @@ export function NoteTitle({ note, onPatch, disabled = false }: NoteTitleProps) {
           setTitle(pendingTitle ?? submittedTitleRef.current ?? note.title);
         }}
         onKeyDown={(event) => {
-          if (event.key === "Enter") {
+          if (event.key === "Enter" && !event.nativeEvent.isComposing) {
             event.preventDefault();
             (event.target as HTMLTextAreaElement).blur();
+            onEnterBody?.();
           }
         }}
       />

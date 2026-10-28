@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Range } from "@tiptap/core";
+import type { Editor, Range } from "@tiptap/core";
 import type { SlashCommandItem } from "./slashCommands.js";
 
 export interface SlashMenuRect {
@@ -9,6 +9,7 @@ export interface SlashMenuRect {
 }
 
 interface SlashMenuState {
+  owner: Editor | null;
   open: boolean;
   query: string;
   items: SlashCommandItem[];
@@ -23,6 +24,7 @@ interface SlashMenuState {
 
 /** Zustand des Slash-Menüs; der Vorschlags-Plugin schreibt, die React-UI liest. */
 export const useSlashMenuStore = create<SlashMenuState>((set, get) => ({
+  owner: null,
   open: false,
   query: "",
   items: [],

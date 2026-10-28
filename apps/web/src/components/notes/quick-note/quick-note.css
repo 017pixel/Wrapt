@@ -1,0 +1,24 @@
+.quick-note-trigger { display: grid; place-items: center; width: 44px; min-height: 44px; border: 1px solid transparent; border-radius: var(--radius); color: var(--color-muted); }
+.quick-note-trigger svg { width: 18px; height: 18px; }
+.quick-note-trigger:hover { background: var(--color-ink-700); color: var(--color-text); }
+.quick-note-trigger:focus-visible, .quick-note-window button:focus-visible, .quick-note-titlebar span:focus-visible { outline: 2px solid var(--color-accent); outline-offset: -2px; }
+.quick-note-layer { position: fixed; z-index: 85; inset: 0; pointer-events: none; }
+.quick-note-window { pointer-events: auto; background: var(--color-ink-850); border: 1px solid var(--color-line); border-radius: var(--radius); box-shadow: var(--shadow-raised); }
+.quick-note-content { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.quick-note-titlebar { display: flex; align-items: center; flex: none; min-height: 44px; cursor: move; touch-action: none; user-select: none; }
+.quick-note-titlebar span { flex: 1; min-height: 44px; }
+.quick-note-titlebar button { display: grid; place-items: center; min-width: 44px; min-height: 44px; }
+.quick-note-titlebar svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.5; stroke-linecap: round; stroke-linejoin: round; }
+.quick-note-titlebar button:hover { background: var(--color-ink-700); }
+.quick-note-scroll { padding: 16px 24px 32px; }
+.quick-note-scroll .notes-title-row { flex-direction: row; }
+.quick-note-scroll .notes-title-row .notes-title-icon { width: 44px; height: 44px; justify-items: center; }
+.quick-note-scroll .notes-title-row .notes-title-icon svg { width: 24px; height: 24px; }
+.quick-note-scroll .notes-title-input { flex: 1; padding: calc((44px - 1.25em) / 2) 0; font-size: var(--text-2xl); line-height: 1.25; }
+.quick-note-scroll .note-editor { min-height: 120px; }
+.quick-note-footer { flex: none; display: flex; align-items: center; min-height: 44px; padding: 0 12px; color: var(--color-muted); font-size: var(--text-sm); }
+.quick-note-window button:disabled { opacity: .5; cursor: default; }
+.is-moving-quick-note iframe { pointer-events: none !important; }
+.quick-note-loading { position: fixed; z-index: 85; right: 24px; top: 80px; padding: 16px; background: var(--color-ink-850); border: 1px solid var(--color-line); }
+/* Editor-Menüs werden im Body gerendert und liegen über dem Notizfenster. */
+.note-slash-menu, .note-block-menu, .note-link-dialog, .note-link-picker-backdrop { z-index: 95; }

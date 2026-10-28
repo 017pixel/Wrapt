@@ -9,7 +9,12 @@ export function insertNoteReferenceInEditor(
 ): boolean {
   const mention = { type: "noteMention", attrs: { noteId: target.id, label: target.title } };
   if (inline) return editor.chain().focus().insertContent(mention).run();
-  return editor.chain().focus().insertContentAt(editor.state.doc.content.size, {
+  const last = editor.state.doc.lastChild;
+  const end = editor.state.doc.content.size;
+  if (last?.type.name === "paragraph" && last.content.size === 0) {
+    return editor.chain().focus().insertContentAt(end - 1, mention).run();
+  }
+  return editor.chain().focus().insertContentAt(end, {
     type: "paragraph",
     content: [mention],
   }).run();

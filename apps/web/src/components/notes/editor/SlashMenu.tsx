@@ -1,11 +1,12 @@
+import type { Editor } from "@tiptap/core";
 import { useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useDismissible } from "../hooks/useDismissible.js";
 import { useSlashMenuStore } from "./slashMenuStore.js";
 
 /** Slash-Menü: öffnet an der Cursorposition und folgt der Eingabe. */
-export function SlashMenu() {
-  const open = useSlashMenuStore((state) => state.open);
+export function SlashMenu({ editor }: { editor?: Editor | null }) {
+  const open = useSlashMenuStore((state) => state.open && (!editor || state.owner === editor));
   const query = useSlashMenuStore((state) => state.query);
   const items = useSlashMenuStore((state) => state.items);
   const index = useSlashMenuStore((state) => state.index);

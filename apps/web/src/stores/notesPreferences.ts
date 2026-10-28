@@ -42,7 +42,7 @@ export const useNotesPreferences = create<NotesPreferencesState>()(
       expanded: {},
       collapsedSections: { trash: true },
       lastOpenedNoteId: null,
-      sectionOrder: ["recent", "favorites", "all", "trash"],
+      sectionOrder: ["all", "favorites", "trash"],
       favoriteOrder: [],
       moveSection: (id, target, available = []) => set((state) => ({ sectionOrder: moveBefore([...state.sectionOrder, ...available], id, target) })),
       moveFavorite: (id, target, available = []) => set((state) => ({ favoriteOrder: moveBefore([...state.favoriteOrder, ...available], id, target) })),
@@ -66,11 +66,12 @@ export const useNotesPreferences = create<NotesPreferencesState>()(
       setLastOpenedNoteId: (noteId) => set({ lastOpenedNoteId: noteId }),
     }),
     {
-      name: "wrapt.notes-preferences.v1", version: 2,
+      name: "wrapt.notes-preferences.v1", version: 3,
       migrate: (persisted) => {
         const state = persisted as Partial<NotesPreferencesState>;
-        return { ...state, sectionOrder: ["recent", "favorites", "all", "trash"], favoriteOrder: [],
-          collapsedSections: { ...state.collapsedSections, all: state.collapsedSections?.private ?? false } };
+        return { ...state, sectionOrder: ["all", ...new Set((state.sectionOrder ?? ["favorites", "trash"]).filter((id) => id !== "recent" && id !== "all"))],
+          favoriteOrder: state.favoriteOrder ?? [],
+          collapsedSections: { ...state.collapsedSections, all: false } };
       },
     },
   ),

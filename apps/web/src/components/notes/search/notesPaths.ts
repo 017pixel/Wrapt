@@ -1,10 +1,10 @@
-import type { NoteSummary } from "@wrapt/contracts";
+import type { NoteFolder, NoteSummary } from "@wrapt/contracts";
 
 /**
  * Pfad einer Seite als „Eltern / Kind“-Kette; die Seite selbst zählt nicht mit.
  * Kreise werden abgeschnitten, damit die Berechnung nie hängen bleibt.
  */
-export function buildNotePathMap(notes: readonly NoteSummary[]): Map<string, string> {
+export function buildNotePathMap(notes: readonly NoteSummary[], folders?: readonly NoteFolder[]): Map<string, string> {
   const byId = new Map(notes.map((note) => [note.id, note]));
   const paths = new Map<string, string>();
 
@@ -21,6 +21,7 @@ export function buildNotePathMap(notes: readonly NoteSummary[]): Map<string, str
       chain.unshift(parent.title);
       current = parent;
     }
+    if (folders) chain.unshift(folders.find((folder) => folder.id === current?.folderId)?.name ?? "Eingang");
     const value = chain.join(" / ");
     paths.set(noteId, value);
     return value;

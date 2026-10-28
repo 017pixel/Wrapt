@@ -1,3 +1,7 @@
+import { NOTES_EDITOR_EVENT } from "./quick-note/quickNoteState";
+import { NotesUndo, type NoteUndoAction } from "./NotesUndo";
+import { NoteKnowledgePanel } from "./NoteKnowledgePanel";
+import { NotesTasks } from "./NotesTasks";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Note, NoteSummary } from "@wrapt/contracts";
@@ -42,10 +46,19 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
     enabled: routeActive && noteId !== null,
   });
 
+  useEffect(() => {
+    const openEditor = () => setTasksOpen(false);
+    window.addEventListener(NOTES_EDITOR_EVENT, openEditor);
+    return () => window.removeEventListener(NOTES_EDITOR_EVENT, openEditor);
+  }, []);
+  const [undoAction, setUndoAction] = useState<NoteUndoAction | null>(null);
+  const [tasksOpen, setTasksOpen] = useState(false);
   const [saveState, setSaveState] = useState<NoteSaveState>("saved");
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const bodyFocusRef = useRef<(() => void) | null>(null);
+  const registerBodyFocus = useCallback((focus: (() => void) | null) => { bodyFocusRef.current = focus; }, []);
   const editorReferenceAppenderRef = useRef<{ parentId: string; append: NoteReferenceAppender } | null>(null);
   const sidebarCollapsed = useNotesPreferences((state) => state.sidebarCollapsed);
   const setSidebarCollapsed = useNotesPreferences((state) => state.setSidebarCollapsed);
@@ -81,6 +94,7 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
   const { createMutation, patchMutation, moveMutation } = useNotesMutations({
     appendParentReference, invalidateNotes, showActionError, onSelectNote,
     closeMobileSidebar: () => setMobileSidebarOpen(false),
+    onUndoAction: setUndoAction,
   });
 
   // Nach jedem eigenen Speichern den Detail-Cache frisch halten: Sonst würde
@@ -95,6 +109,7 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
 
   const handleSelect = useCallback(
     (id: string) => {
+      setTasksOpen(false);
       onSelectNote(id);
       setMobileSidebarOpen(false);
     },
@@ -175,6 +190,8 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
     const onKeyDown = (event: KeyboardEvent) => {
       const meta = event.metaKey || event.ctrlKey;
       if (meta && event.key.toLowerCase() === "k") {
+        const selection = window.getSelection();
+        if (selection && !selection.isCollapsed && selection.anchorNode?.parentElement?.closest(".note-editor-content")) return;
         event.preventDefault();
         event.stopPropagation();
         setPaletteOpen((value) => !value);
@@ -230,6 +247,7 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
     <div className="notes-workspace" data-testid="notes-workspace">
       {sidebarRendered ? (
         <NotesSidebar
+          onOpenTasks={() => { setTasksOpen(true); setMobileSidebarOpen(false); }}
           collapsed={sidebarCollapsed && !isDrawerSidebar}
           notes={notes}
           folders={listQuery.data?.folders ?? []}
@@ -260,7 +278,7 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
       ) : null}
 
       <div className="notes-main">
-        {noteId === null ? (
+        {tasksOpen ? <NotesTasks onSelect={handleSelect} /> : noteId === null ? (
           <NotesEmpty windowMode={windowMode} onCreate={() => handleCreate(null)} {...(!windowMode && (isDrawerSidebar || sidebarCollapsed) ? { onOpenSidebar: toggleSidebar } : {})} />
         ) : (
           <QueryBoundary
@@ -277,6 +295,7 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
                   <NoteHeader
                     note={data.note}
                     ancestors={ancestors}
+                    collectionTitle={listQuery.data?.folders.find((folder) => folder.id === (ancestors.at(-1)?.folderId ?? data.note.folderId))?.name ?? "Eingang"}
                     saveState={saveState}
                     windowMode={windowMode}
                     sidebarCollapsed={sidebarCollapsed}
@@ -310,12 +329,15 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
                         </div>
                       ) : null}
                       <NoteTitle
+                        onEnterBody={() => bodyFocusRef.current?.()}
                         note={data.note}
                         onPatch={(patch) => patchMutation.mutate({ noteId: data.note.id, patch })}
                       />
+                      <NoteKnowledgePanel key={`knowledge:${data.note.id}`} canRestore={saveState === "saved"} note={data.note} onSelect={handleSelect} />
                       <NoteEditor
                         key={data.note.id}
                         note={data.note}
+                        onRegisterBodyFocus={registerBodyFocus}
                         onSaved={handleEditorSaved}
                         onStateChange={setSaveState}
                         onSubpageCreated={() => void invalidateNotes()}
@@ -342,11 +364,13 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
             onCreate={() => handleCreate(null)}
           />
         ) : null}
+        {undoAction ? <NotesUndo key={undoAction.label} action={undoAction} onClose={() => setUndoAction(null)} /> : null}
         {actionError !== null ? <p className="note-action-error" role="alert">{actionError}</p> : null}
       </div>
 
       {!windowMode ? (
         <NotesCommandPalette
+          onCreate={(title) => createMutation.mutate({ title, parentId: null })}
           open={paletteOpen}
           notes={notes}
           onClose={() => setPaletteOpen(false)}

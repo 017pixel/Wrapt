@@ -1,3 +1,4 @@
+import { QUICK_NOTE_EVENT } from "../notes/quick-note/quickNoteState";
 import { resolveShortcuts } from "../../config/shortcuts";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { useNavigate } from "react-router";
@@ -37,7 +38,7 @@ export function WorkbenchShortcuts() {
     const controller = createShortcutController({
       preferences: () => resolveShortcuts(useAppPreferences.getState().shortcuts),
       recording: () => useShortcutState.getState().recording,
-      numbersAllowed: () => !Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"], [role="alertdialog"], [role="menu"]'))
+      numbersAllowed: () => !Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]:not([aria-modal="false"]), [role="alertdialog"], [role="menu"]'))
         .some((element) => !element.closest('[inert], [aria-hidden="true"]') && element.getClientRects().length > 0),
       showNumbers: (showingNumbers) => {
         if (useShortcutState.getState().showingNumbers !== showingNumbers) useShortcutState.setState({ showingNumbers });
@@ -47,6 +48,11 @@ export function WorkbenchShortcuts() {
         return target ? openRoute(target.value.route.path) : false;
       },
       execute: (action) => {
+        if (action === "quickNote") {
+          const event = new Event(QUICK_NOTE_EVENT, { cancelable: true });
+          window.dispatchEvent(event);
+          return event.defaultPrevented;
+        }
         if (action === "server" || action === "limits") {
           const event = new Event(shortcutEvents[action], { cancelable: true });
           window.dispatchEvent(event);

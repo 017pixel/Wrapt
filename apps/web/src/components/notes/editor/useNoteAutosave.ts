@@ -1,14 +1,16 @@
+import { readNoteDraft, removeNoteDraft, writeNoteDraft } from "./noteDrafts";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Note } from "@wrapt/contracts";
 import { apiClient } from "../../../lib/apiClient";
 import { registerEditorReloadGuard } from "../../../lib/reloadGuard";
 
-export type NoteSaveState = "saved" | "dirty" | "saving" | "conflict" | "error";
+export type NoteSaveState = "saved" | "local" | "dirty" | "saving" | "conflict" | "error";
 
 const AUTOSAVE_DELAY_MS = 800;
 
 export const noteSaveStateLabels: Record<NoteSaveState, string> = {
   saved: "Gespeichert",
+  local: "Lokal gesichert",
   dirty: "Ungespeichert",
   saving: "Speichert…",
   conflict: "Konflikt",
@@ -17,6 +19,7 @@ export const noteSaveStateLabels: Record<NoteSaveState, string> = {
 
 export interface NoteAutosaveOptions {
   noteId: string;
+  draftScope?: string;
   revision: number;
   /** Hält den aktuellen immutable Dokumentsnapshot ohne Serialisierung fest. */
   captureMarkdown: () => (() => string) | null;
@@ -37,16 +40,19 @@ function draftContent(draft: NoteDraft): string { return draft.content ??= draft
  * Autosave für Notizen: entprellt Änderungen, serialisiert Speichervorgänge und
  * macht Revisionskonflikte sichtbar, statt still zu überschreiben.
  */
-export function useNoteAutosave({ noteId, revision, captureMarkdown, onSaved }: NoteAutosaveOptions) {
+export function useNoteAutosave({ noteId, draftScope = "workspace", revision, captureMarkdown, onSaved }: NoteAutosaveOptions) {
+  const [restored] = useState(() => readNoteDraft(`${noteId}:${draftScope}`));
+  const [localSaveFailed, setLocalSaveFailed] = useState(false);
   const [state, setState] = useState<NoteSaveState>("saved");
   const [conflictNote, setConflictNote] = useState<Note | null>(null);
   const activeNoteIdRef = useRef(noteId);
   activeNoteIdRef.current = noteId;
-  const revisionsRef = useRef(new Map<string, number>([[noteId, revision]]));
-  const draftsRef = useRef(new Map<string, NoteDraft>());
+  const revisionsRef = useRef(new Map<string, number>([[noteId, restored?.revision ?? revision]]));
+  const draftsRef = useRef(new Map<string, NoteDraft>(restored ? [[noteId, { noteId, version: 0, content: restored.content, serialize: () => restored.content }]] : []));
   const conflictsRef = useRef(new Map<string, Note>());
   const nextVersionRef = useRef(0);
   const timerRef = useRef<number | null>(null);
+  const localTimerRef = useRef<number | null>(null);
   const stateRef = useRef<NoteSaveState>("saved");
   const chainRef = useRef<Promise<boolean>>(Promise.resolve(true));
   const queuedSavesRef = useRef(new Map<string, Promise<boolean>>());
@@ -88,6 +94,7 @@ export function useNoteAutosave({ noteId, revision, captureMarkdown, onSaved }: 
     const task = chainRef.current.then(async () => {
       if (draftsRef.current.get(draft.noteId)?.version !== draft.version) return false;
       if (conflictsRef.current.has(draft.noteId)) return false;
+      setLocalSaveFailed(!writeNoteDraft(`${draft.noteId}:${draftScope}`, revisionsRef.current.get(draft.noteId) ?? revision, draftContent(draft)));
       publishState(draft.noteId, "saving");
       try {
         const result = await apiClient.saveNoteContent(draft.noteId, {
@@ -112,6 +119,7 @@ export function useNoteAutosave({ noteId, revision, captureMarkdown, onSaved }: 
         }
         if (draftsRef.current.get(draft.noteId)?.version === draft.version) {
           draftsRef.current.delete(draft.noteId);
+          removeNoteDraft(`${draft.noteId}:${draftScope}`);
           publishState(draft.noteId, "saved");
         } else {
           // Ein neuerer Tastendruck kam während des Requests an. Der alte
@@ -133,7 +141,7 @@ export function useNoteAutosave({ noteId, revision, captureMarkdown, onSaved }: 
     queuedSavesRef.current.set(key, trackedTask);
     chainRef.current = trackedTask;
     return trackedTask;
-  }, [publishState]);
+  }, [draftScope, publishState, revision]);
 
   useEffect(() => {
     const draft = draftsRef.current.get(noteId);
@@ -150,23 +158,30 @@ export function useNoteAutosave({ noteId, revision, captureMarkdown, onSaved }: 
     if (serialize === null) return null;
     const draft = { noteId, version: ++nextVersionRef.current, serialize };
     draftsRef.current.set(noteId, draft);
+
     return draft;
   }, [captureMarkdown, noteId]);
 
   const schedule = useCallback(() => {
-    if (conflictsRef.current.has(noteId)) {
-      captureDraft();
-      return;
-    }
     const draft = captureDraft();
     if (!draft) return;
+    if (localTimerRef.current !== null) window.clearTimeout(localTimerRef.current);
+    localTimerRef.current = window.setTimeout(() => {
+      localTimerRef.current = null;
+      if (draftsRef.current.get(noteId)?.version === draft.version) {
+        const stored = writeNoteDraft(`${noteId}:${draftScope}`, revisionsRef.current.get(noteId) ?? revision, draftContent(draft));
+        setLocalSaveFailed(!stored);
+        if (stored && !conflictsRef.current.has(noteId) && stateRef.current === "dirty") publishState(noteId, "local");
+      }
+    }, 200);
+    if (conflictsRef.current.has(noteId)) return;
     publishState(noteId, "dirty");
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
     timerRef.current = window.setTimeout(() => {
       timerRef.current = null;
       void run(draft);
     }, AUTOSAVE_DELAY_MS);
-  }, [captureDraft, noteId, publishState, run]);
+  }, [captureDraft, draftScope, noteId, publishState, revision, run]);
 
   /** Speichert sofort und wartet, bis der Serverstand bestätigt ist. */
   const saveNow = useCallback((): Promise<boolean> => {
@@ -184,10 +199,11 @@ export function useNoteAutosave({ noteId, revision, captureMarkdown, onSaved }: 
       timerRef.current = null;
     }
     const draft = draftsRef.current.get(noteId);
-    if (draft && (stateRef.current === "dirty" || stateRef.current === "error" || stateRef.current === "saving")) {
+    if (draft) writeNoteDraft(`${noteId}:${draftScope}`, revisionsRef.current.get(noteId) ?? revision, draftContent(draft));
+    if (draft && (stateRef.current === "dirty" || stateRef.current === "local" || stateRef.current === "error" || stateRef.current === "saving")) {
       void run(draft);
     }
-  }, [noteId, run]);
+  }, [draftScope, noteId, revision, run]);
 
   /** Serverfassung übernehmen: Revision nachziehen, Konflikt auflösen. */
   const acceptServerNote = useCallback((note: Note) => {
@@ -197,13 +213,14 @@ export function useNoteAutosave({ noteId, revision, captureMarkdown, onSaved }: 
     }
     revisionsRef.current.set(note.id, note.revision);
     draftsRef.current.delete(note.id);
+    removeNoteDraft(`${note.id}:${draftScope}`);
     conflictsRef.current.delete(note.id);
     if (activeNoteIdRef.current === note.id) {
       stateRef.current = "saved";
       setConflictNote(null);
       setState("saved");
     }
-  }, []);
+  }, [draftScope]);
 
   /** Eigene Fassung durchsetzen: mit der Serverrevision erneut speichern. */
   const resolveKeepMine = useCallback(() => {
@@ -223,6 +240,7 @@ export function useNoteAutosave({ noteId, revision, captureMarkdown, onSaved }: 
     if (timerRef.current !== null) window.clearTimeout(timerRef.current);
     return () => {
       if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+      if (localTimerRef.current !== null) window.clearTimeout(localTimerRef.current);
     };
   }, []);
 
@@ -236,6 +254,7 @@ export function useNoteAutosave({ noteId, revision, captureMarkdown, onSaved }: 
   }, [state]);
 
   return {
+    localSaveFailed,
     state,
     conflictNote,
     schedule,

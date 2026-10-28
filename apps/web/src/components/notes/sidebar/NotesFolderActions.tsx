@@ -8,7 +8,7 @@ import { useDismissible } from "../hooks/useDismissible.js";
 import { invalidateNoteFolder } from "../noteQueryUpdates.js";
 
 /** Erstellen und Bearbeiten von Ordnern verändern keine Notizinhalte. */
-export function NotesFolderActions({ folder }: { folder?: NoteFolder }) {
+export function NotesFolderActions({ folder, menuItem = false }: { folder?: NoteFolder; menuItem?: boolean }) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -26,10 +26,11 @@ export function NotesFolderActions({ folder }: { folder?: NoteFolder }) {
   });
   return <div className="notes-folder-actions" ref={rootRef}>
     <button type="button" className={folder ? "notes-group-action" : "notes-sidebar-folder-new"}
-      aria-label={folder ? `${folder.name}: Ordneraktionen` : "Neuer Ordner"}
+      role={menuItem ? "menuitem" : undefined}
+      aria-label={folder ? `${folder.name}: Ordneraktionen` : "Neue Sammlung"}
       aria-expanded={folder ? menuOpen : undefined}
       onClick={() => folder ? setMenuOpen((value) => !value) : setDialogOpen(true)}>
-      {folder ? <MoreIcon aria-hidden /> : <><FolderIcon aria-hidden /> Neuer Ordner</>}
+      {folder ? <MoreIcon aria-hidden /> : <><FolderIcon aria-hidden /> Neue Sammlung</>}
     </button>
     {menuOpen ? <div className="notes-folder-menu" role="menu">
       <button type="button" role="menuitem" onClick={() => { setMenuOpen(false); setDialogOpen(true); }}>Umbenennen</button>
@@ -37,7 +38,7 @@ export function NotesFolderActions({ folder }: { folder?: NoteFolder }) {
       <button type="button" role="menuitem" onClick={() => setMenuOpen(false)}>Schließen</button>
     </div> : null}
     {mutation.isError ? <p className="notes-folder-error" role="alert">Ordner konnte nicht gespeichert werden.</p> : null}
-    <PromptDialog open={dialogOpen} title={folder ? "Ordner umbenennen" : "Neuer Ordner"} label="Ordnername"
+    <PromptDialog open={dialogOpen} title={folder ? "Ordner umbenennen" : "Neue Sammlung"} label="Ordnername"
       initialValue={folder?.name ?? ""} confirmLabel={folder ? "Umbenennen" : "Erstellen"}
       onConfirm={(name) => mutation.mutate({ name })} onClose={() => setDialogOpen(false)} />
   </div>;

@@ -1,6 +1,6 @@
 {
   "name": "@wrapt/web",
-  "version": "3.0.5",
+  "version": "3.1.4",
   "private": true,
   "type": "module",
   "scripts": {
@@ -42,9 +42,11 @@
     "@tiptap/suggestion": "^3.31.3",
     "@wrapt/contracts": "workspace:*",
     "@wrapt/extension-contracts": "workspace:*",
+    "@wrapt/plugin-sdk": "workspace:*",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
     "dompurify": "^3.4.17",
+    "fflate": "^0.8.3",
     "highlight.js": "^11.12.0",
     "highlight.js-notes": "npm:highlight.js@11.11.2",
     "katex": "^0.18.7",
@@ -53,10 +55,10 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-resizable-panels": "4.12.4",
+    "react-rnd": "^10.5.3",
     "react-router": "8.4.0",
     "zod": "4.6.7",
-    "zustand": "5.0.15",
-    "@wrapt/plugin-sdk": "workspace:*"
+    "zustand": "5.0.15"
   },
   "devDependencies": {
     "@tailwindcss/vite": "4.3.3",

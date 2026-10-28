@@ -1,3 +1,4 @@
+import { QuickNoteHost } from "./components/notes/quick-note/QuickNoteHost";
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { BrowserRouter, Navigate, Routes, useLocation } from "react-router";
 import { PwaInstallProvider } from "./lib/usePwaInstall";
@@ -43,6 +44,7 @@ export function App() {
         {/* Global, außerhalb der Routen: gilt auch auf Standalone-Werkzeugseiten. */}
         <ContextMenuProvider>
           <WorkbenchShortcuts />
+          <QuickNoteHost />
           <EditorOpenBridge />
           <ThemeRuntimeSync />
           <SettingsSync />

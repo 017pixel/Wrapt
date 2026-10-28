@@ -1,3 +1,6 @@
+import { useNotePosition } from "./editor/useNotePosition";
+import { MobileNoteToolbar } from "./editor/MobileNoteToolbar";
+import { rememberNotePosition, restoreNotePosition } from "./editor/editorBookmarks";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import type { Editor, JSONContent } from "@tiptap/core";
@@ -18,8 +21,11 @@ import { insertNoteReferenceInEditor } from "./editor/noteReferences.js";
 
 interface NoteEditorProps {
   note: Note;
+  draftScope?: string;
+  onRegisterSave?: (save: (() => Promise<boolean>) | null) => void;
   editable?: boolean;
   autoFocus?: boolean;
+  showMobileToolbar?: boolean;
   onSaved?: (note: Note) => void;
   onStateChange?: (state: NoteSaveState) => void;
   /** Nach dem Anlegen einer Unterseite (Liste neu laden). */
@@ -31,6 +37,7 @@ interface NoteEditorProps {
   /** Öffnet eine Notiz, etwa die frisch angelegte Unterseite. */
   onOpenNote?: (noteId: string) => void;
   ariaLabel?: string;
+  onRegisterBodyFocus?: (focus: (() => void) | null) => void;
 }
 
 export type NoteReferenceAppender = (parentId: string, target: Pick<Note, "id" | "title">, inline?: boolean) => Promise<boolean>;
@@ -53,8 +60,11 @@ function fileContent(file: File, url: string): JSONContent {
  */
 export function NoteEditor({
   note,
+  draftScope = "workspace",
+  onRegisterSave,
   editable = true,
   autoFocus = false,
+  showMobileToolbar = true,
   onSaved,
   onStateChange,
   onSubpageCreated,
@@ -62,18 +72,24 @@ export function NoteEditor({
   onRegisterNoteReferenceAppender,
   onOpenNote,
   ariaLabel,
+  onRegisterBodyFocus,
 }: NoteEditorProps) {
   const editorRef = useRef<Editor | null>(null);
   const noteIdRef = useRef(note.id);
   noteIdRef.current = note.id;
   const saveNowRef = useRef<() => Promise<boolean>>(async () => false);
 
+  const [failedUpload, setFailedUpload] = useState<{ file: File; position: number } | null>(null);
   const [linkOpen, setLinkOpen] = useState(false);
   const [noteLinkOpen, setNoteLinkOpen] = useState(false);
 
   const uploadFile = useCallback(async (file: File) => {
-    const asset = await apiClient.uploadMedia(file);
-    return apiClient.mediaUrl(asset.id);
+    const position = editorRef.current?.state.selection.from ?? 0;
+    try {
+      const asset = await apiClient.uploadMedia(file);
+      setFailedUpload(null);
+      return apiClient.mediaUrl(asset.id);
+    } catch (error) { setFailedUpload({ file, position }); throw error; }
   }, []);
 
   const requestLink = useCallback(() => setLinkOpen(true), []);
@@ -169,6 +185,13 @@ export function NoteEditor({
   );
 
   editorRef.current = editor;
+  useNotePosition(note.id, editor);
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed) return;
+    onRegisterBodyFocus?.(() => { if (!editor.isDestroyed) editor.commands.focus(); });
+    return () => onRegisterBodyFocus?.(null);
+  }, [editor, onRegisterBodyFocus]);
 
   useEffect(() => {
     editor?.setEditable(editable);
@@ -176,7 +199,7 @@ export function NoteEditor({
 
 
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || editor.isDestroyed) return;
     const scroll = editor.view.dom.closest(".notes-editor-scroll");
     if (!scroll) return;
     const focusBlank = (event: Event) => {
@@ -210,10 +233,15 @@ export function NoteEditor({
   }, [onSaved]);
   const autosave = useNoteAutosave({
     noteId: note.id,
+    draftScope,
     revision: note.revision,
     captureMarkdown,
     onSaved: handleSaved,
   });
+  useEffect(() => {
+    onRegisterSave?.(autosave.saveNow);
+    return () => onRegisterSave?.(null);
+  }, [autosave.saveNow, onRegisterSave]);
   const { schedule, flush, acceptServerNote, getDraftContent, conflictNote, state } = autosave;
   saveNowRef.current = autosave.saveNow;
 
@@ -229,7 +257,7 @@ export function NoteEditor({
 
   // Beim Notizwechsel zuerst die alte Notiz sichern, dann neuen Inhalt laden.
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || editor.isDestroyed) return;
     const manager = editor.storage.markdown?.manager;
     if (!manager) return;
     if (loadedNoteIdRef.current !== note.id) {
@@ -237,7 +265,8 @@ export function NoteEditor({
       loadedRevisionRef.current = note.revision;
       const content = getDraftContent(note.id) ?? note.content;
       editor.commands.setContent(parseNoteMarkdown(manager, content), { emitUpdate: false });
-      if (autoFocus) editor.commands.focus("start");
+      restoreNotePosition(note.id, editor);
+      if (autoFocus) editor.commands.focus();
       return;
     }
     if (note.revision <= (loadedRevisionRef.current ?? 0) || state !== "saved" || getDraftContent(note.id) !== null) return;
@@ -247,7 +276,7 @@ export function NoteEditor({
   }, [acceptServerNote, autoFocus, editor, getDraftContent, note, state]);
 
   useEffect(() => {
-    if (!editor) return;
+    if (!editor || editor.isDestroyed) return;
     const update = () => schedule();
     editor.on("update", update);
     return () => {
@@ -264,6 +293,7 @@ export function NoteEditor({
   }, [flush]);
   useEffect(
     () => () => {
+      if (editorRef.current) rememberNotePosition(note.id, editorRef.current);
       flushRef.current();
     },
     [note.id],
@@ -284,6 +314,8 @@ export function NoteEditor({
       event.preventDefault();
       focusLastNoteLine(editor);
     }}>
+      {autosave.localSaveFailed && state !== "saved" ? <p className="note-action-error" role="alert">Lokale Sicherung nicht möglich. Lass diese Seite bis zur Serverbestätigung geöffnet.</p> : null}
+      {state === "error" ? <p className="note-action-error" role="alert">Nicht auf dem Server gespeichert. <button type="button" onClick={() => void autosave.saveNow()}>Erneut versuchen</button></p> : null}
       {conflictNote ? (
         <div className="note-conflict" role="alert">
           <div>
@@ -300,10 +332,17 @@ export function NoteEditor({
           </div>
         </div>
       ) : null}
+      {failedUpload ? <p className="note-action-error" role="alert">„{failedUpload.file.name}“ konnte nicht hochgeladen werden. <button type="button" onClick={() => {
+        const pending = failedUpload;
+        void uploadFile(pending.file).then((url) => {
+          if (editor && !editor.isDestroyed) editor.chain().focus().insertContentAt(Math.min(pending.position, editor.state.doc.content.size), fileContent(pending.file, url)).run();
+        }).catch(() => undefined);
+      }}>Upload wiederholen</button></p> : null}
       <EditorContent className="note-editor-body" editor={editor} />
+      {editor && showMobileToolbar ? <MobileNoteToolbar editor={editor} onLink={requestLink} /> : null}
       {editor ? <FormatToolbar editor={editor} onRequestLink={requestLink} /> : null}
       {editor ? <BlockMenu editor={editor} /> : null}
-      <SlashMenu />
+      <SlashMenu editor={editor} />
       {editor ? <LinkDialog editor={editor} open={linkOpen} onClose={() => setLinkOpen(false)} /> : null}
       <NoteLinkPicker
         open={noteLinkOpen}

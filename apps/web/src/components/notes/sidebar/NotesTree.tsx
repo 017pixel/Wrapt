@@ -191,8 +191,27 @@ export function NotesTree({
   }
 
   return (
-    <>
+    <div className="notes-tree" onKeyDown={(event) => {
+      if (!(event.target instanceof HTMLElement) || !event.target.closest(".notes-tree-main")) return;
+      const main = event.target.closest<HTMLButtonElement>(".notes-tree-main")!;
+      const visible = [...event.currentTarget.querySelectorAll<HTMLButtonElement>(".notes-tree-main")].filter((button) => !button.closest("[inert]"));
+      const position = visible.indexOf(main);
+      const toggle = main.closest(".notes-tree-row")?.querySelector<HTMLButtonElement>(".notes-tree-toggle:not(.is-placeholder)");
+      if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) {
+        event.preventDefault();
+        const target = event.key === "Home" ? 0 : event.key === "End" ? visible.length - 1 : Math.max(0, Math.min(visible.length - 1, position + (event.key === "ArrowDown" ? 1 : -1)));
+        visible[target]?.focus();
+      } else if (event.key === "ArrowRight") {
+        event.preventDefault();
+        if (toggle?.getAttribute("aria-expanded") === "false") toggle.click();
+        else if (toggle) visible[position + 1]?.focus();
+      } else if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        if (toggle?.getAttribute("aria-expanded") === "true") toggle.click();
+        else main.closest(".notes-tree-node")?.parentElement?.closest(".notes-tree-node")?.querySelector<HTMLButtonElement>(".notes-tree-main")?.focus();
+      }
+    }}>
       {tree.map((node) => renderNode(node, 0))}
-    </>
+    </div>
   );
 }

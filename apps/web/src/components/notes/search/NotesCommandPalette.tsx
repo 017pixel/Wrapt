@@ -19,6 +19,7 @@ import {
 interface NotesCommandPaletteProps {
   open: boolean;
   notes: readonly NoteSummary[];
+  onCreate?: (title: string) => void;
   onClose: () => void;
   onSelect: (noteId: string) => void;
   onOpenWindow: (noteId: string) => void;
@@ -31,9 +32,11 @@ export function NotesCommandPalette({
   open,
   notes,
   onClose,
+  onCreate,
   onSelect,
   onOpenWindow,
 }: NotesCommandPaletteProps) {
+  const library = useQuery({ ...wraptQueries.notesList(), enabled: open });
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
   const [filters, setFilters] = useState<NotesPaletteFilters>(defaultPaletteFilters);
@@ -77,10 +80,10 @@ export function NotesCommandPalette({
       .slice(0, RECENT_LIMIT);
   }, [open, searching, searchQuery.data, notes, filters]);
 
-  const groups = useMemo(() => groupNotesByDate(results), [results]);
+  const groups = useMemo(() => searching ? [{ id: "results", label: "Treffer", notes: results }] : groupNotesByDate(results), [results, searching]);
   const flat = useMemo(() => groups.flatMap((group) => group.notes), [groups]);
   const selected = flat.length === 0 ? null : (flat[Math.min(index, flat.length - 1)] ?? null);
-  const paths = useMemo(() => buildNotePathMap(notes), [notes]);
+  const paths = useMemo(() => buildNotePathMap(notes, library.data?.folders), [notes, library.data?.folders]);
 
   useEffect(() => {
     setIndex(0);
@@ -123,7 +126,8 @@ export function NotesCommandPalette({
             setIndex((value) => Math.max(0, value - 1));
           } else if (event.key === "Enter") {
             event.preventDefault();
-            openNote(selected, event.metaKey || event.ctrlKey);
+            if (selected) openNote(selected, event.metaKey || event.ctrlKey);
+            else if (onCreate && debounced && !searchQuery.isPending && !searchQuery.isError) { onClose(); onCreate(debounced); }
           }
         }}
       >
@@ -139,15 +143,16 @@ export function NotesCommandPalette({
           <kbd>Esc</kbd>
         </div>
 
-        <NotesSearchFilters notes={notes} filters={filters} onChange={setFilters} />
+        <details className="notes-search-advanced"><summary>Filter</summary><NotesSearchFilters notes={notes} filters={filters} onChange={setFilters} /></details>
 
         <div className="notes-palette-body">
           <div className="notes-palette-results" ref={listRef} role="listbox" aria-label="Treffer">
-            {searching && searchQuery.isPending ? (
+            {searching && searchQuery.isError ? <p role="alert" className="notes-palette-note">Suche fehlgeschlagen. <button onClick={() => void searchQuery.refetch()}>Erneut versuchen</button></p> : searching && searchQuery.isPending ? (
               <p className="notes-palette-note">Suche läuft…</p>
             ) : flat.length === 0 ? (
               <p className="notes-palette-note">
                 {searching ? `Keine Treffer für „${debounced}“.` : "Keine Seiten gefunden."}
+                {searching && onCreate ? <button type="button" className="notes-palette-create" onClick={() => { onClose(); onCreate(debounced); }}>Neue Seite „{debounced}“</button> : null}
               </p>
             ) : (
               groups.map((group) => (
@@ -175,7 +180,7 @@ export function NotesCommandPalette({
                             <span className="notes-palette-item-excerpt">{note.excerpt}</span>
                           ) : (
                             <span className="notes-palette-item-excerpt">
-                              {paths.get(note.id) === "" ? "Alle Notizen" : paths.get(note.id)}
+                              {paths.get(note.id) === "" ? "Eingang" : paths.get(note.id)}
                             </span>
                           )}
                         </span>
@@ -199,7 +204,7 @@ export function NotesCommandPalette({
                   <div className="notes-palette-preview-titles">
                     <p className="notes-palette-preview-title">{selected.title}</p>
                     <p className="notes-palette-preview-path">
-                      {paths.get(selected.id) === "" ? "Alle Notizen" : paths.get(selected.id)}
+                      {paths.get(selected.id) === "" ? "Eingang" : paths.get(selected.id)}
                     </p>
                   </div>
                 </div>

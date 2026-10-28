@@ -2,6 +2,48 @@
 
 Alle relevanten Änderungen werden in kurzen Stichpunkten dokumentiert.
 
+## [3.1.4] - 2026-10-28
+
+### Verändert
+- Beim Öffnen sichtbarer Favoriten bleiben Eingang und Sammlungen eingeklappt. Auch nach Neuladen bleibt die gewählte Ansicht erhalten.
+
+## [3.1.3] - 2026-10-28
+
+### Verändert
+- Notizsymbol und Titel stehen im Quick-Note-Fenster auf einer Höhe, auch auf schmalen Bildschirmen und bei mehrzeiligen Titeln.
+
+## [3.1.2] - 2026-10-28
+
+### Verändert
+- Das Quick-Note-Fenster zeigt nur Notizinhalt und Speicherstatus, ohne Kopfzeilentext, zusätzliche Formatierungsleiste oder „Neue Notiz“-Knopf. Das Vollbildsymbol ist klarer erkennbar.
+
+## [3.1.1] - 2026-10-28
+
+### Verändert
+- Quick Note öffnet mit Alt + N unter Windows und Control + N unter macOS. Die bisherige Standardbelegung wird automatisch vereinfacht, eigene Kürzel bleiben erhalten.
+
+## [3.1.0] - 2026-10-28
+
+### Erstellt
+- Quick Note lässt sich überall über ein anpassbares Tastenkürzel öffnen, verschieben, skalieren und im Notizen-Werkzeug weiterbearbeiten.
+- Lokale Entwurfssicherung stellt ungespeicherte Inhalte nach Neuladen oder Verbindungsfehlern wieder her.
+- Aufgaben aus Notizen erscheinen in einer gemeinsamen Liste mit Projektfilter und optionaler Fälligkeit.
+- Notizen erhalten Projektzuordnung, Tags, Rückverweise und einen wiederherstellbaren Versionsverlauf.
+- Markdown- und ZIP-Import sowie ZIP-Export mit Seitenverweisen und lokalen Anhängen ergänzen die Notizablage.
+
+### Verändert
+- Der Seitenbaum zeigt Seiten in ihrer Sammlung oder im Eingang; die doppelte Übersicht und der permanente Verlauf entfallen.
+- Die Suche toleriert Tippfehler und priorisiert passende Titel vor Inhaltstreffern.
+- Tastaturbedienung, mobile Editoraktionen und das Einfügen von Seitenverweisen wurden verbessert.
+
+
+## [3.0.6] - 2026-10-28
+
+### Verändert
+- Enter im Notiztitel setzt den Cursor direkt in den Notiztext.
+- Beim Verschieben unter eine andere Seite entsteht dort automatisch ein anklickbarer Unterseiten-Verweis am Seitenende.
+- Codeblöcke bleiben beim Nachladen ihrer Sprachhervorhebung editierbar, statt etwa bei Bash die Notizen abstürzen zu lassen.
+
 ## [3.0.5] - 2026-10-28
 
 ### Verändert

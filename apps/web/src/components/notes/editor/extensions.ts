@@ -1,3 +1,5 @@
+import { TaskDueDate } from "./TaskDueDate";
+import { WikiLinkTrigger } from "./WikiLinkTrigger";
 import Color from "@tiptap/extension-color";
 import BulletList from "@tiptap/extension-bullet-list";
 import { Details, DetailsContent, DetailsSummary } from "@tiptap/extension-details";
@@ -168,7 +170,9 @@ export function createNotesExtensions(options: NotesExtensionOptions): Extension
     ColumnList,
     Column,
     NoteMentionWithView,
+    TaskDueDate,
     MarkdownPaste,
+    WikiLinkTrigger.configure({ open: () => options.slashContext().pickNoteLink?.() }),
     LinkSafety,
     SlashCommand.configure({ context: options.slashContext }),
     NotesShortcuts.configure({ onRequestLink: options.onRequestLink }),

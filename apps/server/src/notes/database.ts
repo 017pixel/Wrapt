@@ -1,3 +1,7 @@
+import { importNotesArchive } from "./transfer.js";
+import type { NotesArchive } from "@wrapt/contracts";
+import { NoteKnowledgeDatabase } from "./knowledge.js";
+import { rankNoteMatches } from "./fuzzySearch.js";
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
@@ -15,7 +19,7 @@ import { AppError } from "../utils/errors.js";
 import { normalizeLegacyMediaLinks } from "./legacyMediaLinks.js";
 import { noteSearchRangeStart } from "./searchRange.js";
 import { NoteFoldersDatabase } from "./folders.js";
-import { createNoteExcerpt, escapeLikePattern } from "./excerpt.js";
+import { createNoteExcerpt } from "./excerpt.js";
 import { migrateNoteExcerpts, rebuildNoteExcerpts } from "./excerptMigration.js";
 export { createNoteExcerpt, escapeLikePattern } from "./excerpt.js";
 import { moveNoteInOrder } from "./ordering.js";
@@ -80,6 +84,7 @@ function toSummary(row: SummaryRow, match?: string): NoteSummary {
 export class NotesDatabase {
   private readonly db: DatabaseSync;
   readonly folders: NoteFoldersDatabase;
+  readonly knowledge: NoteKnowledgeDatabase;
 
   constructor(path: string) {
     mkdirSync(dirname(path), { recursive: true });
@@ -116,7 +121,10 @@ export class NotesDatabase {
     `);
     this.folders = new NoteFoldersDatabase(this.db);
     migrateNoteExcerpts(this.db);
+    this.knowledge = new NoteKnowledgeDatabase(this.db);
   }
+
+  importArchive(archive: NotesArchive) { return importNotesArchive(this.db, this, archive); }
 
   close(): void {
     this.db.close();
@@ -133,16 +141,8 @@ export class NotesDatabase {
   }
 
   search(input: NoteSearchQuery): NoteSummary[] {
-    const pattern = escapeLikePattern(input.q);
     const conditions = ["archived = 0"];
     const params: Array<string> = [];
-    if (input.titleOnly) {
-      conditions.push("title LIKE ? ESCAPE '\\'");
-      params.push(pattern);
-    } else {
-      conditions.push("(title LIKE ? ESCAPE '\\' OR content LIKE ? ESCAPE '\\')");
-      params.push(pattern, pattern);
-    }
     if (input.scopeId !== undefined) {
       conditions.push(`id IN (
         WITH RECURSIVE subtree(id) AS (
@@ -170,7 +170,7 @@ export class NotesDatabase {
         WHERE ${conditions.join(" AND ")}
         ORDER BY updated_at DESC`)
       .all(...params) as unknown as SummaryRow[];
-    return rows.map((row) => toSummary(row, input.q));
+    return rankNoteMatches(rows, input.q, input.titleOnly).map((row) => toSummary(row, input.q));
   }
 
   get(noteId: string): Note | null {

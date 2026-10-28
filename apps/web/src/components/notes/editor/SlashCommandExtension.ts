@@ -45,6 +45,7 @@ export const SlashCommand = Extension.create<SlashCommandOptions>({
         render: () => ({
           onStart: (props: SuggestionProps<SlashCommandItem>) => {
             useSlashMenuStore.getState().set({
+              owner: props.editor,
               open: true,
               query: props.query,
               items: props.items,
@@ -86,7 +87,7 @@ export const SlashCommand = Extension.create<SlashCommandOptions>({
             return false;
           },
           onExit: () => {
-            useSlashMenuStore.getState().close();
+            if (useSlashMenuStore.getState().owner === this.editor) useSlashMenuStore.getState().close();
           },
         }),
       }),

@@ -1,4 +1,4 @@
-export const shortcutActions = ["settings", "usage", "plugins", "server", "limits"] as const;
+export const shortcutActions = ["settings", "usage", "plugins", "server", "limits", "quickNote"] as const;
 export type ShortcutAction = typeof shortcutActions[number];
 export type ShortcutModifiers = { ctrl: boolean; shift: boolean; alt: boolean; meta: boolean };
 export type ShortcutBinding = ShortcutModifiers & { code: string };
@@ -8,13 +8,13 @@ export interface ShortcutPreferences {
 }
 export const shortcutLabels: Record<ShortcutAction, string> = {
   settings: "Einstellungen", usage: "Nutzung und Limits", plugins: "Plugins",
-  server: "Server wechseln", limits: "Limits-Popup",
+  server: "Server wechseln", limits: "Limits-Popup", quickNote: "Quick Note öffnen",
 };
 const modifiers: ShortcutModifiers = { ctrl: true, shift: true, alt: false, meta: false };
 export const defaultShortcuts: ShortcutPreferences = {
   numbers: modifiers,
   bindings: Object.fromEntries(shortcutActions.map((action, index) => [action,
-    { ...modifiers, code: ["KeyE", "KeyN", "KeyP", "KeyS", "KeyL"][index] },
+    action === "quickNote" ? { ...modifiers, shift: false, code: "KeyN" } : { ...modifiers, code: ["KeyE", "KeyN", "KeyP", "KeyS", "KeyL"][index] },
   ])) as ShortcutPreferences["bindings"],
 };
 
@@ -45,6 +45,11 @@ export function normalizeShortcuts(value: unknown): ShortcutPreferences {
     const binding = raw.bindings?.[action];
     if (binding === null) bindings[action] = null;
     else if (validModifiers(binding) && typeof binding.code === "string" && /^(Key[A-Z]|Digit[0-9]|F([1-9]|1[0-9])|Space|Arrow(Up|Down|Left|Right))$/.test(binding.code)) bindings[action] = { ...binding };
+  }
+  // Die bisherige Vier-Tasten-Vorgabe vereinfachen, eigene Belegungen behalten.
+  const quickNote = bindings.quickNote;
+  if (quickNote?.code === "KeyN" && quickNote.ctrl && quickNote.alt && quickNote.shift && !quickNote.meta) {
+    bindings.quickNote = { ...defaultShortcuts.bindings.quickNote! };
   }
   const numbers = raw.numbers === null ? null : validModifiers(raw.numbers) ? { ...raw.numbers } : { ...defaultShortcuts.numbers! };
   // Auch ältere oder fremde Synchronisationswerte müssen eindeutig bedienbar bleiben.

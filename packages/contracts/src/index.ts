@@ -27,3 +27,5 @@ export * from "./account-contracts.js";
 export * from "./layout-contracts.js";
 export * from "./hermes-contracts.js";
 export * from "./notification-contracts.js";
+
+export * from "./notes-knowledge.js";
