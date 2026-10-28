@@ -1,8 +1,12 @@
-import { expect, request, test } from "@playwright/test";
+import { expect, request, test, type Page } from "@playwright/test";
 import { resetTerminalTestWorkspace } from "./helpers/terminal";
 import { apiIdentityHeaders, e2eOrigin } from "./helpers/environment";
 import type { Server } from "node:http";
 import { startShortcutFixtures, stopShortcutFixtures } from "./helpers/shortcutFixtures";
+
+// Fremde Plugin-Tests teilen denselben Shard-Server; diese Suite prüft die Built-ins.
+const isolatePluginNavigation = (page: Page) => page.route("**/api/v1/extensions/runtime",
+  (route) => route.fulfill({ json: { runtimes: [] } }));
 
 const port = Number(process.env.WRAPT_E2E_PORT ?? 19310);
 let servers: Server[] = [];
@@ -35,6 +39,7 @@ test.afterEach(async ({ page }) => {
 });
 test.beforeEach(async ({ request, page }) => {
   consoleErrors = [];
+  await isolatePluginNavigation(page);
   page.on("pageerror", (error) => consoleErrors.push(error.message));
   page.on("console", (message) => { if (message.type() === "error") consoleErrors.push(`${message.text()} (${message.location().url})`); });
   const response = await request.put("/api/v1/settings/ui", {
@@ -227,6 +232,7 @@ test("verwendet unter Windows Alt und Shift für Zahlen, Direktkürzel und Einst
     && response.request().method() === "PUT" && response.ok());
   await page.keyboard.press("Control+Shift+KeyE");
   await saved;
+  await expect(page).toHaveURL(/settings#einstellungen:navigation$/);
   await expect(record).toContainText("Ctrl + Shift + E");
   await page.reload();
   await expect(record).toContainText("Ctrl + Shift + E");
@@ -242,6 +248,7 @@ test("synchronisiert Windows- und Mac-Kürzel über den Server in beide Richtung
     const winPage = await windows.newPage();
     const macPage = await mac.newPage();
     for (const client of [winPage, macPage]) {
+      await isolatePluginNavigation(client);
       client.on("pageerror", (error) => consoleErrors.push(error.message));
       client.on("console", (message) => {
         // Gleichzeitige Registry-Schreibzugriffe werden nach einem 409 neu abgeglichen.
