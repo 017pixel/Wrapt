@@ -249,7 +249,7 @@ export function HermesV2Surface({
       data-hermes-area={areaMarker(area, deleteActive)}
     >
       {/* Sitzungsspalte in jeder Variante: breit inline, schmal als Drawer;
-          Route, Panel, Orbit und Standalone teilen dieselbe Spalte. */}
+          Route, Panel und Standalone teilen dieselbe Spalte. */}
       <div
         ref={layerRef}
         className="hermesv2-drawer-layer"
@@ -326,6 +326,7 @@ export function HermesV2Surface({
                 area={resourceArea}
                 deleteSessionId={null}
                 onDeleteClosed={closeDelete}
+                onOpenSession={selectFromPanel}
               />
             )}
           </div>

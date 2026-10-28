@@ -1,3 +1,4 @@
+import { HermesV2Toast } from "./HermesV2Toast";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SearchIcon } from "../../icons";
 import { projectsApi } from "../../../lib/apiClient/projects";
@@ -258,18 +259,7 @@ export function HermesV2SidebarPanel({
             : `${search.loadedCount} Treffer${search.partial ? " — Suche deckt nur geladene Seiten ab" : ""}${search.limitReached ? " — Suchtiefe erreicht" : ""}`}
         </p>
       ) : null}
-      {sidebar.error ? (
-        <div className="hermesv2-action-error" role="alert">
-          <p>{sidebar.error.message}</p>
-          <button
-            type="button"
-            className="quiet-button"
-            onClick={sidebar.clearError}
-          >
-            Schließen
-          </button>
-        </div>
-      ) : null}
+      {sidebar.error ? <HermesV2Toast key={sidebar.error.message} message={sidebar.error.message} onDismiss={sidebar.clearError} /> : null}
       <div
         ref={shelvesRef}
         className="hermesv2-shelves"

@@ -9,7 +9,7 @@ export function resourceText(secrets: SecretRedactor, value: unknown, maximum = 
 export function resourceJson(secrets: SecretRedactor, value: unknown, maximum = 16_384) {
   return resourceText(secrets, JSON.stringify(value), maximum);
 }
-const routing = new Set(["scope", "id", "jobId", "requestedSessionId", "confirmedAbsentSessionIds", "sessionIds", "subsystem", "action", "origin",
+const routing = new Set(["scope", "id", "jobId", "sessionId", "requestedSessionId", "confirmedAbsentSessionIds", "sessionIds", "subsystem", "action", "origin",
   "operation", "outcome", "slashCommand", "effect", "adminPath", "editorPath", "provenance", "mode", "coverage"]);
 const limits: Record<string, number> = { name: 200, active: 100, phase: 100, state: 100, status: 500, title: 200, prompt: 20_000, schedule: 1000, workdir: 4096,
   key: 200, value: 4000, description: 2000, summary: 4000, lastError: 4000, lastStatus: 200, nextRunAt: 200, lastRunAt: 200,

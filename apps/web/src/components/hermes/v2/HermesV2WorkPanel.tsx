@@ -1,3 +1,4 @@
+import { HermesV2Toast } from "./HermesV2Toast";
 // Aufgabenansicht: belegte Rosterzeilen, ehrliche Aktionsergebnisse, ein Queuekopf.
 // Region über Button auf- und zuklappen; Inhalt per hidden entfernt, keine Kartenwand.
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
@@ -71,10 +72,12 @@ export interface HermesV2WorkPanelProps {
   queuedShown?: boolean;
   /** Sichtbare aktive Fläche: Wechsel entwertet offene lokale Region- und Zeilenzustände. */
   active?: boolean;
+  /** Gleiche Fehlerursache wird bereits von der Chatfläche gemeldet. */
+  errorVisible?: boolean;
 }
 
 /** Aufgabenansicht der aktiven Sitzung: Status, belegte Zeilen, Queuekopf, Aktionen. */
-export function HermesV2WorkPanel({ chat, queuedShown = false, active = true }: HermesV2WorkPanelProps) {
+export function HermesV2WorkPanel({ chat, queuedShown = false, active = true, errorVisible = true }: HermesV2WorkPanelProps) {
   const work = chat.work;
   const [open, setOpen] = useState(false);
   const [openRows, setOpenRows] = useState<readonly string[]>([]);
@@ -118,13 +121,12 @@ export function HermesV2WorkPanel({ chat, queuedShown = false, active = true }: 
   const hasRows = work.subagents.length > 0 || work.delegations.length > 0
     || work.processes.length > 0 || work.tasks.length > 0;
   // Ein eigener Lesefehler bleibt sichtbar, auch ohne Aufgabenzeile.
-  const errorNote = work.error ? (
-    <p className="hermesv2-work-note" role="alert">
-      {work.error.message}{" "}
+  const errorNote = active && errorVisible && work.error ? (
+    <HermesV2Toast key={`${sessionId}:${work.error.message}`} message={work.error.message}>
       <button type="button" className="quiet-button hermesv2-work-act" onClick={() => void chat.refreshWork()}>
         Erneut lesen
       </button>
-    </p>
+    </HermesV2Toast>
   ) : null;
   // Ohne Aufgabenzeilen verschwindet die Ansicht ganz: kein Knopf, kein
   // Zähler, kein Platzhaltertext und kein leerer Bereich. Nur ein eigener

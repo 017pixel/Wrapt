@@ -192,7 +192,11 @@ export class ChatRuntime {
         this.work.sync();
       }
     })().catch((error: unknown) => {
-      if (valid()) this.store.update(id, (state) => ({ ...state, loading: false, writable: false, error: errorInfo(error) }));
+      if (valid()) {
+        // Ein fehlgeschlagener Abgleich kann das serverseitige Abo entfernt haben.
+        lease.syncedCycle = -1;
+        this.store.update(id, (state) => ({ ...state, loading: false, writable: false, error: errorInfo(error) }));
+      }
       throw error;
     }).finally(() => { if (lease.syncing === syncing) lease.syncing = null; });
     lease.syncing = syncing;
@@ -200,11 +204,13 @@ export class ChatRuntime {
   }
   async resync(owner: OwnerRecord): Promise<void> {
     const capture = this.owners.capture(owner.id);
+    const previousError = capture.draft.error;
     if (!capture.sessionId) throw new ChatError("SESSION_NOT_FOUND", "Bitte zuerst eine Sitzung auswählen.");
     await this.ensureSubscribed(capture.sessionId, true);
     this.owners.assert(capture);
     await this.actions.history(capture, true);
     this.owners.assert(capture);
+    if (capture.draft.error === previousError) capture.draft.error = null;
     if (capture.draft.unknown) capture.draft.unknown.resynced = true;
     this.owners.emit(owner);
   }

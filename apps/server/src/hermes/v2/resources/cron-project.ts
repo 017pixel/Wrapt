@@ -27,11 +27,12 @@ export function cronJob(raw: unknown, secrets: SecretRedactor): HermesV2CronJob 
   });
   truncated ||= extra.length > 50 || additional.some((field) => field.truncated);
   const noAgent = typeof row.no_agent === "boolean" ? row.no_agent : null;
+  const nativeError = row.last_status === "delivery_failed" ? row.last_delivery_error || row.last_error : row.last_error || row.last_delivery_error;
   return { id: id.data, name: display(row.name, 200) ?? "", prompt: display(row.prompt, 20_000) ?? "",
     schedule: display(schedule, 1000),
     repeat: parsedRepeat.success ? parsedRepeat.data : null, completedRuns: typeof repeat.completed === "number" && Number.isInteger(repeat.completed) && repeat.completed >= 0 ? repeat.completed : null,
     paused: typeof row.enabled === "boolean" ? !row.enabled : null, state: display(row.state, 100), nextRunAt: display(row.next_run_at, 200), lastRunAt: display(row.last_run_at, 200),
-    lastStatus: display(row.last_status, 200), lastError: display(row.last_error, 4000), workdir: display(row.workdir, 4096),
+    lastStatus: display(row.last_status, 200), lastError: display(nativeError, 4000), workdir: display(row.workdir, 4096),
     execution: { mode: noAgent === true ? "script" : noAgent === false ? "agent" : "unknown", script: display(row.script, 4000), noAgent },
     additional, valid: typeof row.prompt === "string" && typeof row.enabled === "boolean" && parsedRepeat.success && schedule !== null, truncated };
 }

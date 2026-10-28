@@ -298,7 +298,7 @@ describe("HermesV2SidebarPanel", () => {
       />,
     );
     expect(screen.getByRole("alert")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { name: "Schließen" }));
+    fireEvent.click(screen.getByRole("button", { name: "Hermes-Meldung schließen" }));
     expect(sidebar.clearError).toHaveBeenCalled();
   });
 

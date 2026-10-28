@@ -8,17 +8,16 @@
   max-width: 800px;
   margin: var(--space-2) auto var(--space-6);
   padding: 0;
-  border: 1px solid var(--color-line);
+  border: calc(2px / var(--hermesv2-ui-scale, 1)) solid var(--color-line);
   border-radius: var(--radius);
   background: var(--color-ink-900);
   transition: border-color var(--duration-fast) var(--ease-standard);
 }
 .hermesv2-composer-area:focus-within {
-  border-color: var(--color-accent-line);
+  border-color: transparent;
 }
 .hermesv2-composer-area:has(.hermesv2-composer-input:focus-visible) {
-  outline: 2px solid var(--focus-ring-color);
-  outline-offset: 2px;
+  outline: none;
 }
 .hermesv2-composer-area .hermesv2-composer {
   display: flex;
@@ -79,10 +78,19 @@
   padding: 0;
   border: 0;
   border-radius: var(--radius);
-  background: var(--color-accent);
+  position: relative;
+  background: transparent;
   color: var(--color-accent-contrast);
   transform-origin: center;
   animation: hermesv2-send-in var(--duration-base) var(--ease-standard);
+}
+/* Die sichtbare Fläche ist 20 % kleiner; das Touch-Ziel bleibt erhalten. */
+.hermesv2-composer-area .hermesv2-send::before {
+  content: "";
+  position: absolute;
+  inset: 10%;
+  border-radius: inherit;
+  background: var(--hermesv2-send-fill, var(--color-accent));
 }
 @keyframes hermesv2-send-in {
   from {
@@ -91,15 +99,16 @@
   }
 }
 .hermesv2-composer-area .hermesv2-send:hover:not(:disabled) {
-  background: color-mix(in oklab, var(--color-accent) 88%, var(--color-accent-contrast));
+  --hermesv2-send-fill: color-mix(in oklab, var(--color-accent) 88%, var(--color-accent-contrast));
 }
 .hermesv2-composer-area .hermesv2-send:disabled {
-  background: var(--color-ink-700);
+  --hermesv2-send-fill: var(--color-ink-700);
   color: var(--color-faint);
 }
 .hermesv2-composer-area .hermesv2-send svg {
-  width: 18px;
-  height: 18px;
+  position: relative;
+  width: 14.4px;
+  height: 14.4px;
 }
 
 /* Stoppen als ruhiger eckiger Knopf neben dem Senden. */

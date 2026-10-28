@@ -1,3 +1,4 @@
+import { HermesV2Toast } from "./HermesV2Toast";
 import type { ChatConnectionView } from "./chat-types";
 
 const LABEL: Record<ChatConnectionView["state"], string> = {
@@ -12,26 +13,17 @@ const LABEL: Record<ChatConnectionView["state"], string> = {
 /** Ehrlicher Verbindungszustand; reconnect bleibt explizit als Aktion. */
 export function HermesV2ConnectionBanner({
   connection,
+  active = true,
   onReconnect,
 }: {
+  active?: boolean;
   connection: ChatConnectionView;
   onReconnect: () => void;
 }) {
-  if (connection.state === "online") return null;
+  if (!active || !["offline", "incompatible", "reconnecting"].includes(connection.state)) return null;
   const detail = connection.error?.message;
-  return (
-    <div
-      className="hermesv2-connection"
-      data-state={connection.state}
-      role="status"
-    >
-      <p>
-        {LABEL[connection.state]}
-        {detail ? ` – ${detail}` : ""}
-      </p>
-      <button type="button" className="quiet-button" onClick={onReconnect}>
-        Verbinden
-      </button>
-    </div>
-  );
+  const message = `${LABEL[connection.state]}${detail ? `: ${detail}` : ""}`;
+  return <HermesV2Toast key={message} message={message}>
+    <button type="button" className="quiet-button" onClick={onReconnect}>Verbinden</button>
+  </HermesV2Toast>;
 }

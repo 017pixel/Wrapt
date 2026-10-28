@@ -25,7 +25,10 @@ import "./hermes-v2-cron.css";
  * bleiben lesbar und werden beim Edit nicht angetastet. Missing, error und
  * empty bleiben ehrlich getrennt; kein Autoretry.
  */
-export function HermesV2CronArea({ resources }: { resources: HermesV2Resources }) {
+export function HermesV2CronArea({ resources, onOpenSession }: {
+  resources: HermesV2Resources;
+  onOpenSession?: ((sessionId: string) => void) | undefined;
+}) {
   const list = resources.cron.list;
   const jobs = list.data?.jobs ?? [];
   const selectedId = resources.cron.selectedId;
@@ -223,7 +226,7 @@ export function HermesV2CronArea({ resources }: { resources: HermesV2Resources }
           </button>
         }
       >
-        <RunsList resources={resources} />
+        <RunsList resources={resources} onOpenSession={onOpenSession} />
       </HermesV2SettingsSection>
       {targetActionViews(resources, selectedId).length > 0 ? (
         <HermesV2SettingsSection title="Aktionen">

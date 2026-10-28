@@ -101,8 +101,8 @@ describe("HermesV2Composer", () => {
       disabledReason: "Keine Verbindung zu Hermes.",
     });
     expect(screen.getByRole("button", { name: "Stoppen" })).toBeTruthy();
-    // Der Sperrgrund steht am Feld, nicht als eigene Zeile.
-    expect(input().getAttribute("placeholder")).toContain(
+    // Der Sperrgrund bleibt zugänglich, ohne die Meldung im Feld zu wiederholen.
+    expect(input().getAttribute("aria-description")).toContain(
       "Keine Verbindung zu Hermes.",
     );
     expect(screen.queryByRole("button", { name: "Senden" })).toBeNull();

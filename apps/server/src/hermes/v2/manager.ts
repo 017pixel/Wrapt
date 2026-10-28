@@ -54,7 +54,8 @@ export class GatewayManager {
     });
     this.sessions = new GatewaySessions(deps, this.upstream, policy, secrets, () => {
       if (!this.disposed && this.connections.size === 0) this.onUnused();
-    }, this.organization, (record, messages, profile, context) => this.attachments?.history(this.principal, record.canonicalId, profile, messages, context));
+    }, this.organization, (record, messages, profile, context) => this.attachments?.history(this.principal, record.canonicalId, profile, messages, context),
+    (record) => this.work.state.active(record));
     this.work = new WorkService(this, this.organization, (event, record) => this.broadcast(event, record));
     this.requests = new GatewayRequestLifecycle(this, deps.authority, (event, record) => this.broadcast(event, record),
       (record, event) => this.attention(record, "request", event, null), onUnused);

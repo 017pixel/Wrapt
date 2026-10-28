@@ -1,6 +1,6 @@
 // Zeilen der Aufgabenansicht: Unteraufgaben, Prozesse, Fehlerdelegationen, Nebenaufgaben, Aktionen.
 // Nur belegte Werte, fehlende bleiben unbestimmt; Status ist nie nur Farbe. Zeilenkörper-IDs
-// kommen aus dem Panel-vorhandenen idBase, damit Route, Panel und Orbit nicht kollidieren.
+// kommen aus dem Panel-vorhandenen idBase, damit Route und Panel nicht kollidieren.
 import { type CSSProperties, type ReactNode } from "react";
 import type { HermesV2WorkDelegation, HermesV2WorkProcess, HermesV2WorkTask } from "@wrapt/contracts/hermes-v2";
 import type { ChatWorkActionView, ChatWorkSubagentView } from "./chat-work-types";

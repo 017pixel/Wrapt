@@ -6,10 +6,12 @@ import { formatWorkDuration } from "./tool-group";
 import { useSidebarPopoverPosition } from "./useSidebarPopoverPosition";
 
 /** Ausschließlich vorhandene Metadaten; Hover lädt keine Sitzung nach. */
-export function HermesV2RowPreview({ row, anchorRef, id, onEnter, onLeave }: {
+export function HermesV2RowPreview({ row, anchorRef, id, visible = true, animated = true, onEnter, onLeave }: {
   row: SidebarRowView;
   anchorRef: RefObject<HTMLElement | null>;
   id: string;
+  visible?: boolean;
+  animated?: boolean;
   onEnter: () => void;
   onLeave: () => void;
 }) {
@@ -30,7 +32,7 @@ export function HermesV2RowPreview({ row, anchorRef, id, onEnter, onLeave }: {
   const portalRoot = anchorRef.current?.closest<HTMLElement>(".hermesv2-drawer-layer[role='dialog']") ?? document.body;
   return createPortal(
     <aside ref={popupRef} id={id} role="tooltip" aria-label={`Details zu ${row.title}`}
-      className="hermesv2-row-preview" style={style} onPointerEnter={onEnter} onPointerLeave={onLeave}>
+      className="hermesv2-row-preview" data-visible={visible} data-animated={animated} aria-hidden={!visible} style={style} onPointerEnter={onEnter} onPointerLeave={onLeave}>
       <strong>{row.title || row.id}</strong>
       <dl>{fields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
     </aside>, portalRoot,

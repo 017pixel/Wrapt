@@ -242,3 +242,11 @@
 .hermesv2-rowmenu-list button[data-destructive="true"] {
   color: var(--color-bad);
 }
+
+.hermesv2-settlement-ghost {
+  z-index: 299;
+  overflow: hidden;
+  pointer-events: none;
+  border-radius: var(--radius);
+  background: var(--color-ink-850);
+}

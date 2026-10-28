@@ -20,7 +20,7 @@ export const hermesV2CronListSchema = z.strictObject({ scope: hermesV2ResourceSc
 export const hermesV2CronDetailSchema = z.strictObject({ scope: hermesV2ResourceScopeSchema, job: hermesV2CronJobSchema });
 export const hermesV2CronRunsQuerySchema = z.strictObject({ limit: z.coerce.number().int().min(1).max(100).default(20) });
 export const hermesV2CronRunsSchema = z.strictObject({ scope: hermesV2ResourceScopeSchema, jobId: hermesV2CronIdSchema,
-  runs: z.array(z.strictObject({ id: z.string().max(200).nullable(), startedAt: z.number().nonnegative().nullable(),
+  runs: z.array(z.strictObject({ id: z.string().max(200).nullable(), sessionId: hermesV2IdSchema.nullable().optional(), startedAt: z.number().nonnegative().nullable(),
     status: z.string().max(100).nullable(), text: z.string().max(16_384), truncated: z.boolean() })).max(100), truncated: z.boolean() });
 export const hermesV2CronMutationSchema = z.strictObject({ scope: hermesV2ResourceScopeSchema, outcome: z.literal("confirmed"),
   operation: z.enum(["create", "update", "pause", "resume", "trigger", "delete"]), jobId: hermesV2CronIdSchema, job: hermesV2CronJobSchema.nullable() });

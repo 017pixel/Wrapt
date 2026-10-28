@@ -8,10 +8,7 @@ import type { HermesV2ClientMessage } from "@wrapt/contracts/hermes-v2";
 import { projectsApi } from "../../../lib/apiClient/projects";
 import { useAppPreferences } from "../../../stores/appPreferences";
 import { useLayoutStore } from "../../../stores/layout";
-import { freshOrbitWorkspace, useOrbitStore } from "../../../stores/orbit";
-import { nodeFromInput } from "../../../stores/orbitNodeFactory";
 import { stubHermesViewport } from "../../../test/hermesViewport";
-import { OrbitToolContent } from "../../orbit/OrbitToolContent";
 import { HermesV2Shell } from "./HermesV2Shell";
 import * as runtimes from "./chat-runtime";
 import { TestGateway, type TestSocket, settle, snapshot } from "./chat-test-fixtures";
@@ -25,19 +22,14 @@ vi.mock("./useHermesV2Sidebar", () => ({ useHermesV2Sidebar: () => makeSidebar({
 vi.mock("./HermesV2ChatSurface", () => ({ HermesV2ChatSurface: () => null }));
 vi.mock("../../terminal/TerminalArea", () => ({ TerminalArea: () => null }));
 
-type Kind = "route" | "standalone" | "orbit" | "panel";
+type Kind = "route" | "standalone" | "panel";
 let gateway: TestGateway;
 let runtime: runtimes.ChatRuntime;
 let client: QueryClient;
 let creation: Promise<string> | undefined;
-const current = () => useOrbitStore.getState().document.boards[0]!.nodes[0]!;
 const ownId = (kind: Kind) => kind === "route" ? "hermes-route" : kind === "standalone"
   ? "hermes-standalone" : "hermes-panel-host-node";
 
-function Orbit() {
-  const node = useOrbitStore((state) => state.document.boards[0]!.nodes[0]!);
-  return <OrbitToolContent node={node} project={undefined} services={[]} selected zoom={1} onFocus={() => undefined} />;
-}
 function Panel() {
   const panel = useLayoutStore((state) => state.panels[0]!);
   return <HermesV2Shell variant="panel" panel={panel} active />;
@@ -46,7 +38,7 @@ function Location() { return <output data-testid="selection-url">{useLocation().
 function Tree({ kind }: { kind: Kind }) {
   return <StrictMode><QueryClientProvider client={client}>
     <MemoryRouter initialEntries={["/hermes-v2?session=saved&keep=yes"]}>
-      {kind === "orbit" ? <Orbit /> : kind === "panel" ? <Panel /> : <HermesV2Shell variant="route" standalone={kind === "standalone"} />}
+      {kind === "panel" ? <Panel /> : <HermesV2Shell variant="route" standalone={kind === "standalone"} />}
       <Location />
     </MemoryRouter>
   </QueryClientProvider></StrictMode>;
@@ -55,12 +47,11 @@ function row(id: string) {
   return document.querySelector<HTMLButtonElement>(`[data-session-id="${id}"] .hermesv2-rowselect`)!;
 }
 function hostSelection(kind: Kind) {
-  if (kind === "orbit") return current().state.hermesAdminPath;
   if (kind === "panel") return useLayoutStore.getState().panels[0]!.hermesAdminPath;
   return new URLSearchParams(screen.getByTestId("selection-url").textContent!).get("session");
 }
 function expectedHost(kind: Kind, id: string) {
-  return kind === "orbit" || kind === "panel" ? `/chat?resume=${id}` : id;
+  return kind === "panel" ? `/chat?resume=${id}` : id;
 }
 function holdCreate() {
   let request: HermesV2ClientMessage;
@@ -93,10 +84,6 @@ beforeEach(async () => {
   });
   vi.spyOn(projectsApi, "projects").mockResolvedValue({ projects: [], projectsRoot: "/synthetic", recentLimit: 10 });
   client = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: Infinity } } });
-  const workspace = freshOrbitWorkspace();
-  const node = { ...nodeFromInput({ type: "tool", toolType: "hermes", title: "Host", position: { x: 0, y: 0 } }, 1),
-    id: "host-node", runtimeId: "terminal-runtime", state: { hermesAdminPath: "/chat?resume=saved", marker: "keep" } };
-  useOrbitStore.setState({ document: { ...workspace, boards: [{ ...workspace.boards[0]!, nodes: [node] }] }, hydrated: true });
   useLayoutStore.setState({ panels: [{ id: "host-node", type: "hermes", projectId: null, previewId: null,
     reloadKey: 0, hermesAdminPath: "/chat?resume=saved" }] });
   creation = undefined;
@@ -110,7 +97,6 @@ afterEach(async () => {
   expect(gateway.sockets.every((socket) => socket.readyState === 3)).toBe(true);
   expect(vi.getTimerCount()).toBe(0);
   useAppPreferences.setState({ hermesV2Enabled: false });
-  useOrbitStore.setState({ document: freshOrbitWorkspace() });
   useLayoutStore.getState().resetLayout();
   vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.useRealTimers();
 });
@@ -120,7 +106,7 @@ describe("Bewusste echte Zeilenauswahl vor passiven Effects", () => {
   // parallelen Gesamtlauf reicht die Standardfrist von fuenf Sekunden nicht.
   const CREATE_TIMEOUT = 30_000;
 
-  it.each(["route", "standalone", "orbit", "panel"] as const)("bewahrt %s bei unmittelbar folgender Createantwort und erlaubt aktuelle Erstellung", async (kind) => {
+  it.each(["route", "standalone", "panel"] as const)("bewahrt %s bei unmittelbar folgender Createantwort und erlaubt aktuelle Erstellung", async (kind) => {
     render(<Tree kind={kind} />); await act(settle);
     const id = ownId(kind);
     const foreign = vi.fn();
@@ -163,7 +149,7 @@ describe("Bewusste echte Zeilenauswahl vor passiven Effects", () => {
     expect(new URLSearchParams(screen.getByTestId("selection-url").textContent!).get("keep")).toBe("yes");
   }, CREATE_TIMEOUT);
 
-  it.each(["route", "standalone", "orbit", "panel"] as const)("behält gute aktuelle Erstellung in %s ohne Zeilenwechsel", async (kind) => {
+  it.each(["route", "standalone", "panel"] as const)("behält gute aktuelle Erstellung in %s ohne Zeilenwechsel", async (kind) => {
     render(<Tree kind={kind} />); await act(settle);
     const confirm = holdCreate();
     await createClick();

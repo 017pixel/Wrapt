@@ -50,6 +50,7 @@ export interface HermesV2ResourceRegionProps {
   area: ResourceArea | null;
   deleteSessionId: string | null;
   onDeleteClosed: () => void;
+  onOpenSession?: ((sessionId: string) => void) | undefined;
 }
 
 /**
@@ -65,6 +66,7 @@ export function HermesV2ResourceRegion({
   area,
   deleteSessionId,
   onDeleteClosed,
+  onOpenSession,
 }: HermesV2ResourceRegionProps) {
   const signal = useResourceSignal(ownerId);
   const resources = useHermesV2Resources({
@@ -78,7 +80,7 @@ export function HermesV2ResourceRegion({
   });
   return (
     <>
-      {area === "cron" ? <HermesV2CronArea resources={resources} /> : null}
+      {area === "cron" ? <HermesV2CronArea resources={resources} onOpenSession={onOpenSession} /> : null}
       {area === "skills" ? <HermesV2SkillsArea resources={resources} /> : null}
       {area === "memory" ? <HermesV2MemoryArea resources={resources} /> : null}
       {area === "diagnostics" ? (

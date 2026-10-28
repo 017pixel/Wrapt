@@ -1,4 +1,5 @@
 import type { HermesV2CronFields, HermesV2CronMutation, HermesV2CronRuns } from "@wrapt/contracts/hermes-v2";
+import { hermesV2IdSchema } from "@wrapt/contracts/hermes-v2";
 import { object } from "../normalize-values.js";
 import type { ResourceContext } from "./context.js";
 import type { ResourceHost, ResourceMutation } from "./host.js";
@@ -32,15 +33,19 @@ export async function cronDetail(host: ResourceHost, binding: ResourceContext, i
 }
 export async function cronRuns(host: ResourceHost, binding: ResourceContext, id: string, limit: number): Promise<HermesV2CronRuns> {
   await cronTarget(host, binding, id);
-  const raw = object(await host.read(binding, host.path(binding, `${base}/${encodeURIComponent(id)}/runs?limit=${limit}`)));
+  const raw = object(await host.read(binding, host.path(binding, `${base}/${encodeURIComponent(id)}/runs?limit=${Math.min(limit + 1, 100)}`)));
   if (!Array.isArray(raw.runs)) throw new ResourceError(503, "RESOURCE_UNAVAILABLE", "Die native Laufhistorie ist nicht bestätigt.");
-  const runs = raw.runs.slice(0, limit).map((entry) => {
-    const row = object(entry); const content = resourceText(host.secrets, row.content ?? row.output ?? row.text ?? row.preview ?? "", 16_384);
+  const ownRuns = raw.runs.filter((entry) => object(entry).profile === undefined || object(entry).profile === binding.scope.profile);
+  const runs = ownRuns.slice(0, limit).map((entry) => {
+    const row = object(entry); const content = resourceText(host.secrets, row.content ?? row.output ?? row.text ?? row.preview ?? row.title ?? "", 16_384);
     const status = typeof row.status === "string" ? resourceText(host.secrets, row.status, 100) : null;
-    return { id: typeof row.id === "string" && row.id.length <= 200 ? row.id : null, startedAt: resourceTime(row.started_at ?? row.created_at), status: status?.text ?? null,
+    const session = hermesV2IdSchema.safeParse(row.id);
+    const sessionId = row.source === "cron" && session.success && session.data.startsWith(`cron_${id}_`)
+      && (row.profile === undefined || row.profile === binding.scope.profile) ? session.data : null;
+    return { id: typeof row.id === "string" && row.id.length <= 200 ? row.id : null, sessionId, startedAt: resourceTime(row.started_at ?? row.created_at), status: status?.text ?? null,
       text: content.text, truncated: content.truncated || status?.truncated === true || row.truncated === true };
   });
-  return { scope: binding.token, jobId: id, runs, truncated: raw.truncated === true || raw.runs.length > limit || runs.some((row) => row.truncated) };
+  return { scope: binding.token, jobId: id, runs, truncated: raw.truncated === true || raw.runs.length > limit || raw.runs.length === 100 || ownRuns.length !== raw.runs.length || runs.some((row) => row.truncated) };
 }
 async function fields(host: ResourceHost, binding: ResourceContext, input: CronInput) {
   const output: Record<string, unknown> = {};
@@ -56,14 +61,18 @@ async function fields(host: ResourceHost, binding: ResourceContext, input: CronI
 export async function cronMutate(host: ResourceHost, binding: ResourceContext, mutation: ResourceMutation,
   operation: HermesV2CronMutation["operation"], id: string | null, input: CronInput = {}): Promise<HermesV2CronMutation> {
   const prepared = await fields(host, binding, input);
-  let expectedWorkdir: string | null = null;
+  let expectedWorkdir: unknown;
+  let checkWorkdir = false;
   let existing: Awaited<ReturnType<ResourceContext["cwd"]>> | null = null;
   if (id !== null) {
     const target = await cronTarget(host, binding, id);
     if (["update", "resume", "trigger"].includes(operation)) {
-      if (typeof target.workdir !== "string" || !target.workdir) throw new ResourceError(403, "PROJECT_FORBIDDEN", "Der native Arbeitsordner ist nicht bestätigt.");
-      existing = await binding.cwd(target.workdir);
+      if (target.workdir != null && typeof target.workdir !== "string") throw new ResourceError(403, "PROJECT_FORBIDDEN", "Der native Arbeitsordner ist nicht bestätigt.");
+      // Hermes unterstützt profilgebundene Jobs ohne projektspezifischen Arbeitsordner.
+      // Ein expliziter Ordner wird weiterhin geprüft; ein Projektwechsel darf ihn reparieren.
+      if (typeof target.workdir === "string" && target.workdir.trim() && !prepared.cwd) existing = await binding.cwd(target.workdir);
       expectedWorkdir = target.workdir;
+      checkWorkdir = true;
     }
   }
   await existing?.current(); await prepared.cwd?.current();
@@ -71,7 +80,7 @@ export async function cronMutate(host: ResourceHost, binding: ResourceContext, m
   const guard = async () => {
     if (id !== null) {
       const current = await cronTarget(host, binding, id);
-      if (existing && current.workdir !== expectedWorkdir) throw new ResourceError(409, "STALE_RESOURCE_CONTEXT", "Der native Arbeitsordner hat sich geändert.");
+      if (checkWorkdir && current.workdir !== expectedWorkdir) throw new ResourceError(409, "STALE_RESOURCE_CONTEXT", "Der native Arbeitsordner hat sich geändert.");
     }
     await existing?.current(); await prepared.cwd?.current(); binding.assert();
   };
@@ -101,6 +110,8 @@ export async function cronMutate(host: ResourceHost, binding: ResourceContext, m
     if (raw.ok !== true) throw new ResourceError(503, "UNKNOWN_OUTCOME", "Die native Löschquittung ist nicht bestätigt.");
     return { scope: binding.token, outcome: "confirmed", operation, jobId: id!, job: null };
   }
+  if (operation === "create" && prepared.cwd && raw.workdir !== prepared.cwd.canonical)
+    throw new ResourceError(503, "UNKNOWN_OUTCOME", "Der native Arbeitsordner des neuen Jobs ist nicht bestätigt.");
   const job = receipt(ack);
   return { scope: binding.token, outcome: "confirmed", operation, jobId: job.id, job };
 }

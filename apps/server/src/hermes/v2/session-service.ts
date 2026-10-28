@@ -27,7 +27,8 @@ export class GatewaySessions {
 
   constructor(private readonly deps: GatewayDependencies, private readonly upstream: GatewayUpstream, private readonly policy: HermesV2Policy, private readonly secrets: SecretRedactor, onProtectionChanged: () => void,
     private readonly organization: OrganizationService | undefined = deps.organization,
-    private readonly attachmentHistory?: (record: SessionRecord, messages: HermesV2Message[], profile: string | undefined, context: HistoryContext) => void | Promise<void>) {
+    private readonly attachmentHistory?: (record: SessionRecord, messages: HermesV2Message[], profile: string | undefined, context: HistoryContext) => void | Promise<void>,
+    private readonly hasActiveWork: (record: SessionRecord) => boolean = () => true) {
     this.cwd = new CwdPolicy(deps.allowedRoots, deps.deniedRoots);
     this.protection = new AttachmentProtection(upstream, policy.maxSessions, onProtectionChanged, (hold) => {
       for (const record of this.records.values()) {
@@ -91,14 +92,27 @@ export class GatewaySessions {
   async attach(id: string, beforeResume?: () => void, outcome = new MutationOutcome()): Promise<SessionRecord> {
     let record = this.records.get(id);
     if (record?.liveId && record.epoch === this.upstream.epoch) {
-      try { await this.cwd.validate(record.snapshot.session.cwd); }
-      catch (error) { this.block(record, error); }
+      try {
+        // Ein fehlgeschlagener Snapshot sperrt Schreiben bis zum erneuten Abgleich.
+        // Dafür das aktuelle Runtime-CWD prüfen, nicht den alten Fehlerzustand behalten.
+        if (!record.snapshot.writable) {
+          const reply = parse(sessionReplySchema, await this.upstream.call("session.activate", { session_id: record.liveId, omit_messages: true }));
+          record.snapshot.session.cwd = reply.info.cwd;
+        }
+        await this.cwd.validate(record.snapshot.session.cwd);
+        record.snapshot.writable = true;
+        record.snapshot.blockedReason = null;
+      }
+      catch (error) {
+        if (!(error instanceof GatewayError) || error.code !== "PROJECT_FORBIDDEN") throw error;
+        this.block(record, error);
+      }
       return record;
     }
     if (!record) this.checkCapacity();
     const detail = parse(detailSchema, await this.deps.dashboard.get(`/api/sessions/${encodeURIComponent(id)}`));
     if (detail.id !== id) throw new GatewayError("SESSION_NOT_FOUND", "Die genaue Hermes-Session wurde nicht gefunden.");
-    try { await this.cwd.validate(detail.cwd); }
+    try { if (detail.cwd != null) await this.cwd.validate(detail.cwd); }
     catch (error) {
       record ??= this.record(id, null, false);
       record.snapshot.session = normalizeSession(id, detail);
@@ -110,7 +124,9 @@ export class GatewaySessions {
     if (descendant.requested_session_id !== id || descendant.path[0] !== id || descendant.path.at(-1) !== descendant.session_id) throw protocolError();
     const target = parse(detailSchema, await this.deps.dashboard.get(`/api/sessions/${encodeURIComponent(descendant.session_id)}`));
     if (target.id !== descendant.session_id) throw protocolError();
-    await this.cwd.validate(target.cwd);
+    // Cron- und „No workspace“-Sitzungen speichern absichtlich cwd=null.
+    // Das konkrete Arbeitsverzeichnis liefert der lazy Resume und wird unten geprüft.
+    if (target.cwd != null) await this.cwd.validate(target.cwd);
     beforeResume?.();
     const protection = this.protection.reserve(target.id);
     try {
@@ -131,6 +147,8 @@ export class GatewaySessions {
       record.snapshot.session = normalizeSession(id, { ...target, ...reply.info }, record.snapshot.session);
       record.snapshot.running = typeof reply.running === "boolean" ? reply.running : typeof reply.info.running === "boolean" ? reply.info.running : null;
       record.snapshot.inflight = normalizeInflight(reply.inflight, this.secrets);
+      record.snapshot.writable = true;
+      record.snapshot.blockedReason = null;
       try { await this.cwd.validate(reply.info.cwd); }
       catch (error) { this.block(record, error); }
       if (record.snapshot.writable) this.protection.release(protection);
@@ -151,7 +169,7 @@ export class GatewaySessions {
         if (!record.snapshot.session.draft) {
           const detail = parse(detailSchema, await this.deps.dashboard.get(`/api/sessions/${encodeURIComponent(record.canonicalId)}`));
           if (detail.id !== record.canonicalId) throw protocolError();
-          await this.cwd.validate(detail.cwd);
+          if (detail.cwd != null) await this.cwd.validate(detail.cwd);
         }
       } catch (error) {
         if (error instanceof GatewayError && error.code === "PROTOCOL_MISMATCH") throw error;
@@ -232,18 +250,30 @@ export class GatewaySessions {
     }
     await this.cwd.validate(record.snapshot.session.cwd);
     if (!record.snapshot.session.draft) {
-      const detail = parse(detailSchema, await this.deps.dashboard.get(`/api/sessions/${encodeURIComponent(record.storedId)}`));
-      if (detail.id !== record.storedId) throw protocolError();
-      await this.cwd.validate(detail.cwd);
+      const detail = parse(detailSchema, await this.deps.dashboard.get(`/api/sessions/${encodeURIComponent(record.canonicalId)}`));
+      if (detail.id !== record.canonicalId) throw protocolError();
+      if (detail.cwd != null) await this.cwd.validate(detail.cwd);
     }
     const reply = parse(sessionReplySchema, await this.upstream.call("session.activate", { session_id: record.liveId, omit_messages: true }));
-    observeSessionContext(record, reply.info, true);
+    // Hermes lässt profile_name in der lazy Activate-Teilantwort weg. Die bestehende
+    // Live-Bindung behält ihr belegtes Profil; explizite Änderungen gelten weiterhin.
+    const partialLazyInfo = reply.info.lazy === true && !Object.hasOwn(reply.info, "profile_name");
+    observeSessionContext(record, reply.info, !partialLazyInfo);
     await this.cwd.validate(reply.info.cwd);
     record.snapshot.session.cwd = reply.info.cwd;
     return reply;
   }
 
   private checkCapacity(): void {
+    if (this.records.size >= this.policy.maxSessions) {
+      for (const [id, record] of this.records) {
+        if (record.subscribers.size || record.hydrating || record.snapshot.session.draft || record.snapshot.running !== false
+          || record.snapshot.queuedText !== null || record.snapshot.requests.length || record.backgroundActive !== false
+          || record.backgroundProtected || this.hasActiveWork(record)) continue;
+        this.records.delete(id);
+        if (this.records.size < this.policy.maxSessions) break;
+      }
+    }
     if (this.records.size >= this.policy.maxSessions) throw new GatewayError("RATE_LIMITED", "Zu viele offene Hermes-Sessions.");
   }
 

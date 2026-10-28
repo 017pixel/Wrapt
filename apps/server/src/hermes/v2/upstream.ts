@@ -190,8 +190,14 @@ export class GatewayUpstream {
                 this.startHeartbeat();
                 this.setState("online");
                 resolve();
-              }).catch(() => {
+              }).catch((error: unknown) => {
                 clearTimeout(timeout);
+                if (this.socket !== socket || this.disposed) { reject(error); return; }
+                if (error instanceof GatewayError && error.code === "GATEWAY_OFFLINE") {
+                  socket.terminate();
+                  reject(error);
+                  return;
+                }
                 this.protocolFault();
                 reject(protocolError());
               });
@@ -260,11 +266,20 @@ export class GatewayUpstream {
   private startHeartbeat(): void {
     clearInterval(this.heartbeat);
     this.heartbeat = setInterval(() => {
-      if (Date.now() - this.lastPong > this.options.policy.heartbeatTimeoutMs) this.protocolFault();
+      const socket = this.socket;
+      if (Date.now() - this.lastPong > this.options.policy.heartbeatTimeoutMs) {
+        socket?.terminate();
+        return;
+      }
       void this.call("gateway.ping", {}).then((result) => {
+        if (this.socket !== socket || this.disposed) return;
         parse(z.object({ ok: z.literal(true) }), result);
         this.lastPong = Date.now();
-      }).catch(() => { this.protocolFault(); });
+      }).catch((error: unknown) => {
+        if (this.socket !== socket || this.disposed) return;
+        if (error instanceof GatewayError && error.code === "PROTOCOL_MISMATCH") this.protocolFault();
+        else socket?.terminate();
+      });
     }, this.options.policy.heartbeatMs);
     this.heartbeat.unref();
   }

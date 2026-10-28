@@ -1,39 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ModalFrame } from "../../ModalDialog";
 import { projectsApi } from "../../../lib/apiClient/projects";
-import type { HermesV2CronFields, HermesV2CronJob } from "@wrapt/contracts/hermes-v2";
+import type { HermesV2CronJob } from "@wrapt/contracts/hermes-v2";
 import type { HermesV2Resources } from "./resource-types";
 import { SCHEDULE_HINT } from "./cron-format";
+import { cronUpdates, draftFromJob, NO_PROJECT, type CronFieldKey, type FormDraft } from "./cron-form-state";
 import "./hermes-v2-cron.css";
 
 export type CronFormMode =
   | { mode: "create" }
   | { mode: "edit"; jobId: string };
-
-type CronFieldKey = "name" | "prompt" | "schedule" | "repeat" | "paused" | "projectId";
-
-const NO_PROJECT = "";
-
-interface FormDraft {
-  name: string;
-  prompt: string;
-  schedule: string;
-  repeat: string;
-  paused: boolean;
-  /** null = in Bearbeiten noch nicht berührt; "" = ohne Projekt; sonst Projekt-ID. */
-  projectId: string | null;
-}
-
-function draftFromJob(job: HermesV2CronJob | null): FormDraft {
-  return {
-    name: job?.name ?? "",
-    prompt: job?.prompt ?? "",
-    schedule: job?.schedule ?? "",
-    repeat: job === null || job?.repeat === null ? "" : String(job.repeat),
-    paused: job?.paused ?? false,
-    projectId: job ? null : "",
-  };
-}
 
 function targetKey(target: CronFormMode): string {
   return target.mode === "edit" ? `edit:${target.jobId}` : "create";
@@ -50,7 +26,7 @@ function targetKey(target: CronFormMode): string {
 export function HermesV2CronForm({
   resources,
   target,
-  initial,
+  initial: suppliedInitial,
   open,
   onClose,
 }: {
@@ -61,6 +37,7 @@ export function HermesV2CronForm({
   onClose: () => void;
 }) {
   const key = targetKey(target);
+  const initial = target.mode === "edit" && suppliedInitial?.id === target.jobId ? suppliedInitial : null;
   const jobRef = useRef(initial);
   jobRef.current = initial;
   const [draft, setDraft] = useState<FormDraft>(() => draftFromJob(initial));
@@ -71,10 +48,11 @@ export function HermesV2CronForm({
     items: Array<{ id: string; name: string }>;
   }>({ state: "loading", items: [] });
   const [submitting, setSubmitting] = useState(false);
-  // Baseline der beim Öffnen vorhandenen Aktionskeys; nur eine neu erscheinende,
-  // konkrete Aktion dieser Formularöffnung darf das Formular schließen.
+  // Nur eine neue Quittung des tatsächlich gestarteten Versuchs schließt das Formular.
   const baselineKeys = useRef<Set<string>>(new Set());
   const boundActionKey = useRef<string | null>(null);
+  const submission = useRef<object | null>(null);
+  const attempted = useRef(false);
 
   // Pro Öffnung/Ziel: neue Bestätigungsbasis und leerer Berührungsstand;
   // Create füllt einmalig leer vor, Edit wartet auf die native Basis.
@@ -82,6 +60,9 @@ export function HermesV2CronForm({
     if (!open) return;
     baselineKeys.current = new Set(resources.actions.map((action) => action.key));
     boundActionKey.current = null;
+    submission.current = null;
+    attempted.current = false;
+    setSubmitting(false);
     setTouched(new Set());
     if (key === "create") {
       setDraft(draftFromJob(null));
@@ -119,13 +100,13 @@ export function HermesV2CronForm({
 
   // Nach dem Abschluss ehrlich an der konkreten Aktion ausrichten.
   useEffect(() => {
-    if (!open) return;
+    if (!open || !attempted.current) return;
     if (boundActionKey.current === null) {
       const fresh = resources.actions.find(
         (action) =>
           !baselineKeys.current.has(action.key) &&
-          (action.operation === "cron.create" ||
-            (action.operation === "cron.update" &&
+          ((key === "create" && action.operation === "cron.create") ||
+            (key !== "create" && action.operation === "cron.update" &&
               action.targetId === key.slice("edit:".length))),
       );
       if (fresh) boundActionKey.current = fresh.key;
@@ -138,7 +119,7 @@ export function HermesV2CronForm({
     if (bound.status === "confirmed") onClose();
   }, [open, resources.actions, key, onClose]);
 
-  // Prozentuale Projektliste über das bestehende Wrapt-Angebot; der Server
+  // Projektliste über das bestehende Wrapt-Angebot; der Server
   // löst die Projekt-ID gegenüber dem nativen CWD auf.
   useEffect(() => {
     if (!open) return;
@@ -163,32 +144,10 @@ export function HermesV2CronForm({
     resources.actions.some(
       (action) => action.targetId === target.jobId && action.status === "pending",
     );
-  const updates = useMemo(() => {
-    if (target.mode !== "edit" || !initial) return null;
-    const changes: Partial<HermesV2CronFields> = {};
-    if (touched.has("name") && draft.name !== initial.name) changes.name = draft.name;
-    if (touched.has("prompt") && draft.prompt !== initial.prompt)
-      changes.prompt = draft.prompt;
-    if (touched.has("schedule") && draft.schedule !== (initial.schedule ?? ""))
-      changes.schedule = draft.schedule;
-    if (touched.has("repeat")) {
-      const next = draft.repeat.trim() === "" ? null : draft.repeat.trim();
-      const normalized =
-        typeof initial.repeat === "number" &&
-        Number.isInteger(Number(next)) &&
-        String(initial.repeat) === next
-          ? initial.repeat
-          : next;
-      if (normalized !== initial.repeat) changes.repeat = normalized;
-    }
-    if (touched.has("paused") && draft.paused !== initial.paused)
-      changes.paused = draft.paused;
-    if (touched.has("projectId")) {
-      changes.projectId = draft.projectId === NO_PROJECT ? null : draft.projectId ?? null;
-    }
-    return changes;
-  }, [target, initial, draft, touched]);
+  const updates = useMemo(() => target.mode === "edit" && initial
+    ? cronUpdates(initial, draft, touched) : null, [target.mode, initial, draft, touched]);
   const submitDisabled =
+    !resources.available ||
     submitting ||
     busy ||
     (target.mode === "create" && draft.schedule.trim() === "") ||
@@ -204,6 +163,12 @@ export function HermesV2CronForm({
   };
 
   const submit = () => {
+    if (submission.current || submitDisabled) return;
+    const token = {};
+    submission.current = token;
+    attempted.current = true;
+    baselineKeys.current = new Set(resources.actions.map((action) => action.key));
+    boundActionKey.current = null;
     setSubmitting(true);
     const promise =
       target.mode === "edit"
@@ -216,7 +181,11 @@ export function HermesV2CronForm({
             paused: draft.paused,
             projectId: draft.projectId === NO_PROJECT ? null : draft.projectId ?? null,
           });
-    void promise.finally(() => setSubmitting(false));
+    void promise.catch(() => {}).finally(() => {
+      if (submission.current !== token) return;
+      submission.current = null;
+      setSubmitting(false);
+    });
   };
 
   return (

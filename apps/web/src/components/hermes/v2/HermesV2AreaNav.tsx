@@ -31,7 +31,7 @@ const AREA_ICON: Record<SelectableArea, ReactElement> = {
 /**
  * Bereichsauswahl der eigenen Fläche: eine schmale Iconreihe am unteren
  * Rand. Sie hängt nie allein an der Toolbar, damit sie auch in
- * `is-minimal` Panel- und Orbitflächen erreichbar bleibt. Jedes Ziel heißt
+ * `is-minimal` Panelflächen erreichbar bleibt. Jedes Ziel heißt
  * zugänglich `Bereich: <Name>`, sichtbar bleibt nur das Icon mit Tooltip,
  * und ist vollständig mit der Tastatur erreichbar (Roving Tabindex, Pfeile,
  * Home/End). Der aktive Bereich trägt keine Fläche und keinen Rahmen, nur

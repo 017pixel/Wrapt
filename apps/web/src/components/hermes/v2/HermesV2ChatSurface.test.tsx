@@ -166,6 +166,21 @@ describe("Verdeckte Aufgabenansicht", () => {
 describe("Sessionfehler (F1)", () => {
   afterEach(cleanup);
 
+  it("zeigt dieselbe Fehlerursache aus mehreren Quellen nur einmal", () => {
+    const error: ChatErrorInfo = { code: "not_writable", message: "Die Sitzung ist nur lesbar.", outcome: "not_sent" };
+    const chat = chatFixture({
+      activeSnapshot: snapshot({ writable: false, blockedReason: error.message, error,
+        catalog: { commands: [], models: null, loading: false, error } }),
+      actionError: error,
+      work: { ...emptyChatWork, error },
+    });
+    const { rerender } = render(<HermesV2ChatSurface chat={chat} active variant="route" onNewSession={vi.fn()} />);
+    expect(screen.getAllByRole("alert")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: "Erneut abgleichen" })).toBeTruthy();
+    rerender(<HermesV2ChatSurface chat={chat} active={false} variant="route" onNewSession={vi.fn()} />);
+    expect(document.querySelector(".hermesv2-toast")).toBeNull();
+  });
+
   it("zeigt snapshot.error nachvollziehbar als Meldung mit Abgleich-Aktion, ohne Rohpayload", () => {
     const error: ChatErrorInfo = {
       code: "event_buffer_overflow",
@@ -181,7 +196,9 @@ describe("Sessionfehler (F1)", () => {
         onNewSession={vi.fn()}
       />,
     );
-    const alert = container.querySelector('[role="alert"]');
+    const alert = screen.getByRole("alert");
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(alert.closest(".hermesv2-toasts")).toBeTruthy();
     expect(alert?.textContent).toContain(
       "Ereignisabgleich für diese Sitzung nötig.",
     );

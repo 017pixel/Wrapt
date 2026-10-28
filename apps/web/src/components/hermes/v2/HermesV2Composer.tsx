@@ -163,7 +163,9 @@ export function HermesV2Composer({
         className="hermesv2-composer-input"
         value={value}
         disabled={disabled}
-        placeholder={disabledReason ?? "Nachricht an Hermes…"}
+        placeholder="Nachricht an Hermes…"
+        title={disabledReason ?? undefined}
+        aria-description={disabledReason ?? undefined}
         aria-label="Nachricht an Hermes"
         aria-controls={listId ?? undefined}
         aria-activedescendant={activeOptionId ?? undefined}

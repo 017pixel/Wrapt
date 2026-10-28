@@ -115,7 +115,7 @@ describe("Tatsächlich gemeldeter Sitzungskontext", () => {
 });
 
 describe("Kontext in der tatsächlichen Chatfläche", () => {
-  it.each(["route", "standalone", "panel", "orbit"] as const)("rendert in %s ohne zusätzliche Aktionen und entfernt alte Auswahl", (variant) => {
+  it.each(["route", "standalone", "panel"] as const)("rendert in %s ohne zusätzliche Aktionen und entfernt alte Auswahl", (variant) => {
     const chat = requestChatFixture({ activeSnapshot: view() });
     const read = vi.spyOn(chat, "readCatalog");
     const create = vi.spyOn(chat, "createSession");

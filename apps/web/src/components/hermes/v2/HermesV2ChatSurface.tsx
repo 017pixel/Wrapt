@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { HermesV2Chat } from "./chat-types";
 import type { HermesV2ReadView } from "./sidebar-types";
+import { HermesV2Toast } from "./HermesV2Toast";
 import { HermesV2ConnectionBanner } from "./HermesV2ConnectionBanner";
 import { HermesV2ComposerArea } from "./HermesV2ComposerArea";
 import "./hermes-v2-dialogs.css";
@@ -118,7 +119,7 @@ export interface HermesV2ChatSurfaceProps {
   chat: HermesV2Chat;
   /** Geparkte Flächen behalten die Auswahl, verbinden aber ohne zusätzliche Arbeit. */
   active: boolean;
-  variant: "route" | "panel" | "orbit" | "standalone";
+  variant: "route" | "panel" | "standalone";
   /** Öffnet den Neuen-Sitzung-Dialog der Shell; der Composer nutzt ihn für /new. */
   onNewSession: () => void;
   /** Optionale /resume-Hilfe: Shell öffnet Drawer oder Fokus der Sitzungssuche. */
@@ -187,13 +188,13 @@ export function HermesV2ChatSurface({
   return (
     <div className="hermesv2-chat-body" data-variant={variant}>
       <HermesV2ConnectionBanner
+        active={active}
         connection={chat.connection}
         onReconnect={chat.reconnect}
       />
-      {snapshot && !snapshot.writable ? (
-        <p className="hermesv2-readonly" role="status">
-          {snapshot.blockedReason ?? "Nur lesender Zugriff auf diese Sitzung."}
-        </p>
+      {active && snapshot && !snapshot.writable && snapshot.blockedReason !== snapshot.error?.message ? (
+        <HermesV2Toast key={`${sessionId}:readonly:${snapshot.blockedReason}`} tone="warning"
+          message={snapshot.blockedReason ?? "Nur lesender Zugriff auf diese Sitzung."} />
       ) : null}
       {snapshot ? (
         <HermesV2RequestDeck
@@ -213,30 +214,16 @@ export function HermesV2ChatSurface({
           </details>
         </div>
       ) : null}
-      {snapshot?.error ? (
-        <div className="hermesv2-action-error" role="alert">
-          <p>{snapshot.error.message}</p>
-          <button
-            type="button"
-            className="quiet-button"
-            onClick={() => void chat.resync()}
-          >
-            Erneut abgleichen
-          </button>
-        </div>
+      {active && snapshot?.error ? (
+        <HermesV2Toast key={`${sessionId}:snapshot:${snapshot.error.message}`} message={snapshot.error.message}>
+          <button type="button" className="quiet-button" onClick={() => void chat.resync()}>Erneut abgleichen</button>
+        </HermesV2Toast>
       ) : null}
       {snapshot ? <UnknownSendCard chat={chat} /> : null}
-      {chat.actionError ? (
-        <div className="hermesv2-action-error" role="alert">
-          <p>{chat.actionError.message}</p>
-          <button
-            type="button"
-            className="quiet-button"
-            onClick={chat.clearError}
-          >
-            Schließen
-          </button>
-        </div>
+      {active && chat.actionError && chat.actionError.message !== snapshot?.error?.message
+        && chat.actionError.message !== snapshot?.blockedReason
+        && chat.actionError.message !== snapshot?.catalog.error?.message ? (
+        <HermesV2Toast key={`${sessionId}:action:${chat.actionError.message}`} message={chat.actionError.message} onDismiss={chat.clearError} />
       ) : null}
       {snapshot ? (
         <HermesV2MessageList
@@ -252,19 +239,14 @@ export function HermesV2ChatSurface({
         />
       )}
       {snapshot ? (
-        <HermesV2WorkPanel chat={chat} queuedShown={queuedShown} active={readEffective} />
+        <HermesV2WorkPanel chat={chat} queuedShown={queuedShown} active={readEffective}
+          errorVisible={![snapshot.error?.message, snapshot.blockedReason, snapshot.catalog.error?.message, chat.actionError?.message].includes(chat.work.error?.message)} />
       ) : null}
-      {snapshot?.catalog.error ? (
-        <p className="hermesv2-catalog-error" role="status">
-          {snapshot.catalog.error.message}{" "}
-          <button
-            type="button"
-            className="quiet-button hermesv2-catalog-reload"
-            onClick={() => void chat.readCatalog()}
-          >
-            Katalog aktualisieren
-          </button>
-        </p>
+      {active && snapshot?.catalog.error && snapshot.catalog.error.message !== snapshot.blockedReason
+        && snapshot.catalog.error.message !== snapshot.error?.message ? (
+        <HermesV2Toast key={`${sessionId}:catalog:${snapshot.catalog.error.message}`} message={snapshot.catalog.error.message}>
+          <button type="button" className="quiet-button" onClick={() => void chat.readCatalog()}>Katalog aktualisieren</button>
+        </HermesV2Toast>
       ) : null}
       {snapshot ? <HermesV2ComposerArea
         chat={chat}

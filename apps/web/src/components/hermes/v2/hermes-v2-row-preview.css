@@ -38,3 +38,25 @@
   outline: 2px solid var(--focus-ring-color);
   outline-offset: -2px;
 }
+
+.hermesv2-row-preview[data-animated="true"] {
+  opacity: 1;
+  transform: translateX(0);
+  transition: opacity var(--duration-base) var(--ease-standard), transform var(--duration-base) var(--ease-standard);
+  @starting-style {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+}
+.hermesv2-row-preview[data-visible="false"] {
+  opacity: 0;
+  transform: translateX(-6px);
+  pointer-events: none;
+  transition-duration: var(--duration-fast);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hermesv2-row-preview[data-animated], .hermesv2-row-preview[data-visible="false"] {
+    transform: none;
+    transition: none;
+  }
+}

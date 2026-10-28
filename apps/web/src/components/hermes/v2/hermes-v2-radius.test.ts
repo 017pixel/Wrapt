@@ -30,7 +30,7 @@ describe("Hermes-V2-Radien", () => {
     const card = block(areaCss, ".hermesv2-composer-area {");
     expect(card).toContain("border-radius: var(--radius);");
     // Die Haarlinie und der Trenner zur Leiste bleiben.
-    expect(card).toContain("border: 1px solid var(--color-line);");
+    expect(card).toContain("border: calc(2px / var(--hermesv2-ui-scale, 1)) solid var(--color-line);");
     expect(block(areaCss, ".hermesv2-composer-bar {")).toContain(
       "border-top: 1px solid var(--color-line);",
     );
@@ -39,7 +39,9 @@ describe("Hermes-V2-Radien", () => {
   it("der Senden-Knopf ist eckig, gefüllt und 44 Pixel gross", () => {
     const send = block(areaCss, ".hermesv2-composer-area .hermesv2-send {");
     expect(send).toContain("border-radius: var(--radius);");
-    expect(send).toContain("background: var(--color-accent);");
+    expect(block(areaCss, ".hermesv2-composer-area .hermesv2-send::before {")).toContain(
+      "background: var(--hermesv2-send-fill, var(--color-accent));",
+    );
     // Die Dichte skaliert die 44-Pixel-Trefffläche, nicht ihr Seitenverhältnis.
     expect(send).toContain("width: calc(44px / var(--hermesv2-ui-scale, 1));");
     expect(send).toContain("height: calc(44px / var(--hermesv2-ui-scale, 1));");

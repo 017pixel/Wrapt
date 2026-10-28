@@ -1,3 +1,4 @@
+import { animateThreadSettlement } from "./thread-settlement-motion";
 import { memo, useId, useRef } from "react";
 import { CheckIcon, PinIcon } from "../../icons";
 import type {
@@ -62,6 +63,14 @@ function SidebarRowBase({
   const status = statusLabel(row);
   const anchorRef = useRef<HTMLLIElement>(null);
   const previewId = useId();
+  const pointerAction = useRef(false);
+  const execute = (command: RowCommand) => {
+    if (pointerAction.current && command.type === "organize" && command.intent.action === "settle" && anchorRef.current) {
+      animateThreadSettlement(anchorRef.current);
+    }
+    preview.close();
+    onCommand(command);
+  };
   const preview = useHermesV2RowPreview();
   const items = buildRowMenuItems(row, neighbors, {
     deleteEnabled: deleteEnabled === true,
@@ -71,6 +80,8 @@ function SidebarRowBase({
   return (
     <li
       ref={anchorRef}
+      onPointerDownCapture={() => { pointerAction.current = true; }}
+      onKeyDownCapture={() => { pointerAction.current = false; }}
       className="hermesv2-rowitem"
       onPointerEnter={() => { if (!anchorRef.current?.querySelector("[aria-expanded='true']")) preview.start(); }}
       onPointerLeave={preview.end}
@@ -87,7 +98,7 @@ function SidebarRowBase({
       onDragEnd={() => setDraggingId(null)}
     >
       <HermesV2ThreadMenu
-        label={`Aktionen für ${title}`} items={items} disabled={busy} onCommand={onCommand}
+        label={`Aktionen für ${title}`} items={items} disabled={busy} onCommand={execute}
         onOpen={preview.close} onDetails={preview.show}
         onRename={active && onRenameSession ? () => onRenameSession(row.id) : undefined}
       >
@@ -97,7 +108,7 @@ function SidebarRowBase({
           aria-label={title}
           aria-haspopup="menu"
           aria-describedby={preview.open ? previewId : undefined}
-          onFocus={preview.start}
+          onFocus={() => { if (!pointerAction.current) preview.focus(); }}
           onBlur={(event) => { if (!event.currentTarget.parentElement?.contains(event.relatedTarget as Node)) preview.close(); }}
           aria-current={active ? "true" : undefined}
           data-active={active ? "true" : "false"}
@@ -123,7 +134,7 @@ function SidebarRowBase({
             className="icon-button hermesv2-rowaction hermesv2-rowsettle"
             aria-label="Sitzung erledigen"
             disabled={busy}
-            onClick={() => onCommand(settle)}
+            onClick={(event) => { pointerAction.current = event.detail > 0; execute(settle); }}
           >
             <CheckIcon
               className="h-4 w-4"
@@ -134,7 +145,7 @@ function SidebarRowBase({
         ) : null}
       </HermesV2ThreadMenu>
       {preview.open ? <HermesV2RowPreview row={row} anchorRef={anchorRef} id={previewId}
-        onEnter={preview.cancel} onLeave={preview.end} /> : null}
+        visible={preview.visible} animated={preview.animated} onEnter={preview.show} onLeave={preview.end} /> : null}
     </li>
   );
 }

@@ -18,43 +18,25 @@ interface ActionLike {
 }
 
 function useBoundOutcome(
-  enabled: boolean,
+  baseline: ReadonlySet<string> | null,
   operation: "cron.run" | "cron.delete",
   targetId: string,
   actions: readonly ActionLike[],
 ): { status: ActionLike["status"]; message: string | null } | null {
-  // Baseline gilt ab Aktivierung; spätere Renders überschreiben sie nicht.
-  const baseline = useRef<Set<string> | null>(null);
-  const actionsRef = useRef(actions);
-  actionsRef.current = actions;
   const [boundKey, setBoundKey] = useState<string | null>(null);
-
   useEffect(() => {
-    if (!enabled) {
-      baseline.current = null;
-      setBoundKey(null);
-      return;
-    }
-    baseline.current = new Set(
-      actionsRef.current
-        .filter((action) => action.operation === operation && action.targetId === targetId)
-        .map((action) => action.key),
-    );
-  }, [enabled, operation, targetId]);
-
-  useEffect(() => {
-    if (!enabled || boundKey !== null || baseline.current === null) return;
-    const fresh = actionsRef.current.find(
+    if (baseline === null) { setBoundKey(null); return; }
+    const fresh = actions.find(
       (action) =>
-        !baseline.current?.has(action.key) &&
+        !baseline.has(action.key) &&
         action.operation === operation &&
         action.targetId === targetId,
     );
-    if (fresh) setBoundKey(fresh.key);
-  }, [enabled, boundKey, actions, operation, targetId]);
+    setBoundKey(fresh?.key ?? null);
+  }, [baseline, actions, operation, targetId]);
 
-  if (!enabled || boundKey === null) return null;
-  const view = actions.find((action) => action.key === boundKey);
+  if (baseline === null || boundKey === null || baseline.has(boundKey)) return null;
+  const view = actions.find((action) => action.key === boundKey && action.operation === operation && action.targetId === targetId);
   if (!view) return null;
   return {
     status: view.status,
@@ -97,20 +79,27 @@ function CronConfirmDialog({
   const [confirmation, setConfirmation] = useState<ResourceConfirmation | null>(null);
   const [prepareError, setPrepareError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [baseline, setBaseline] = useState<ReadonlySet<string> | null>(null);
+  const pendingRef = useRef<object | null>(null);
   const prepareRef = useRef(resources.prepareCronConfirmation);
   prepareRef.current = resources.prepareCronConfirmation;
   useEffect(() => {
+    setBaseline(null);
+    setConfirmation(null);
+    setPrepareError(null);
+    setPending(false);
+    pendingRef.current = null;
     // Bestätigung einmalig je Dialog; das Detail muss dafür frisch geladen sein.
     const token = prepareRef.current(operation);
-    if (!token) {
+    if (!token || token.targetId !== job.id || token.generation !== resources.generation) {
       setPrepareError("Keine frische Bestätigung möglich. Job-Auswahl neu laden.");
       return;
     }
     setConfirmation(token);
-  }, [operation]);
+  }, [operation, job.id, resources.generation]);
   const operationAction = operation === "run" ? "cron.run" : "cron.delete";
   const outcome = useBoundOutcome(
-    confirmation !== null,
+    baseline,
     operationAction,
     job.id,
     resources.actions,
@@ -119,13 +108,26 @@ function CronConfirmDialog({
     if (outcome?.status === "confirmed") onClose();
   }, [outcome, onClose]);
   const confirm = () => {
-    if (!confirmation) return;
+    if (!confirmation || pendingRef.current || !resources.available) return;
+    const fresh = prepareRef.current(operation);
+    if (!fresh || fresh.targetId !== job.id || fresh.generation !== resources.generation || fresh.operation !== operationAction) {
+      setPrepareError("Keine frische Bestätigung möglich. Job-Auswahl neu laden.");
+      return;
+    }
+    const token = {};
+    pendingRef.current = token;
+    setBaseline(new Set(resources.actions.map((action) => action.key)));
+    setPrepareError(null);
     setPending(true);
     const promise =
       operation === "run"
-        ? resources.runCron(confirmation)
-        : resources.deleteCron(confirmation);
-    void promise.finally(() => setPending(false));
+        ? resources.runCron(fresh)
+        : resources.deleteCron(fresh);
+    void promise.catch(() => {}).finally(() => {
+      if (pendingRef.current !== token) return;
+      pendingRef.current = null;
+      setPending(false);
+    });
   };
   return (
     <ConfirmDialog

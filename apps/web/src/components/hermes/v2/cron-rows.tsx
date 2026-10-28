@@ -6,7 +6,10 @@ import "./hermes-v2-resources.css";
  * Reiner Listkörper ohne eigene Doppelüberschrift — die Überschrift liefert
  * die umschließende RunsSection. Zeitwerte sind Epochmillisekunden.
  */
-export function RunsList({ resources }: { resources: HermesV2Resources }) {
+export function RunsList({ resources, onOpenSession }: {
+  resources: HermesV2Resources;
+  onOpenSession?: ((sessionId: string) => void) | undefined;
+}) {
   const runs = resources.cron.runs;
   const list = runs.data?.runs ?? [];
   return (
@@ -65,6 +68,16 @@ export function RunsList({ resources }: { resources: HermesV2Resources }) {
                 >
                   {run.text}
                 </div>
+              ) : null}
+              {run.sessionId && onOpenSession ? (
+                <button
+                  type="button"
+                  className="quiet-button"
+                  disabled={!resources.available || runs.status !== "ready" || runs.stale}
+                  onClick={() => onOpenSession(run.sessionId!)}
+                >
+                  Im Chat fortsetzen
+                </button>
               ) : null}
             </li>
           ))}
