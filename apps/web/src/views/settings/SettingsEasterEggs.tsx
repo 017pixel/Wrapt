@@ -1,17 +1,15 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import type { MascotConfig, MascotConfigResponse } from "@wrapt/contracts";
+import { SettingsRange } from "../../components/SettingsRange";
 import { Card } from "../../components/Card";
 import { SparklesIcon } from "../../components/icons";
-import { CapybaraConfetti } from "../../components/mascot/CapybaraConfetti";
-import { CapybaraSprite } from "../../components/mascot/CapybaraSprite";
-import { CapybaraZzz } from "../../components/mascot/CapybaraZzz";
-import { useCapybaraBehavior, usePrefersReducedMotion } from "../../components/mascot/useCapybaraBehavior";
+import { CapybaraActor, CAPYBARA_SPRITE_SIZE } from "../../components/mascot/CapybaraActor";
+import { CAPYBARA_ITEM_WIDTH, WALK_STEP_MS, useCapybaraBehavior, usePrefersReducedMotion } from "../../components/mascot/useCapybaraBehavior";
 import { apiClient } from "../../lib/apiClient";
 import { wraptQueries } from "../../lib/queryOptions";
 import { DashboardArtworkSettings } from "./DashboardArtworkSettings";
 
-const PREVIEW_SIZE = 105;
 const PREVIEW_NAP_MS = 15_000;
 const SCALE_MIN = 50;
 const SCALE_MAX = 200;
@@ -21,7 +19,7 @@ export function SettingsEasterEggs() {
   const queryClient = useQueryClient();
   const mascot = useQuery(wraptQueries.mascot());
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const enabled = mascot.data?.mascot.enabled ?? false;
   const savedScale = mascot.data?.mascot.scale ?? 1;
   const [scalePercent, setScalePercent] = useState(Math.round(savedScale * 100));
@@ -31,33 +29,29 @@ export function SettingsEasterEggs() {
     setScalePercent(Math.round(savedScale * 100));
   }, [savedScale]);
 
-  const save = async (next: MascotConfig, note: string) => {
+  const save = async (next: MascotConfig) => {
     setSaving(true);
-    setMessage(null);
+    setError(null);
     try {
       const response = await apiClient.saveMascot(next);
       if (response) {
         queryClient.setQueryData<MascotConfigResponse>(wraptQueries.mascot().queryKey, response);
       }
-      setMessage(note);
     } catch {
-      setMessage("Die Einstellung konnte nicht gespeichert werden.");
+      setError("Die Einstellung konnte nicht gespeichert werden.");
     } finally {
       setSaving(false);
     }
   };
 
   const toggleEnabled = () => {
-    void save(
-      { enabled: !enabled, scale: savedScale },
-      enabled ? "Das Capybara macht Pause." : "Das Capybara ist unterwegs.",
-    );
+    void save({ enabled: !enabled, scale: savedScale });
   };
 
   const persistScale = () => {
     const nextScale = scalePercent / 100;
     if (Math.abs(nextScale - savedScale) < 0.001) return;
-    void save({ enabled, scale: nextScale }, `Das Capybara läuft jetzt mit ${scalePercent} % Größe.`);
+    void save({ enabled, scale: nextScale });
   };
 
   return (
@@ -105,9 +99,8 @@ export function SettingsEasterEggs() {
                 <label htmlFor="mascot-scale">Größe</label>
                 <span className="mascot-scale-value">{scalePercent} %</span>
               </div>
-              <input
+              <SettingsRange
                 id="mascot-scale"
-                type="range"
                 min={SCALE_MIN}
                 max={SCALE_MAX}
                 step={SCALE_STEP}
@@ -122,7 +115,7 @@ export function SettingsEasterEggs() {
             </div>
           </section>
         </div>
-        {message ? <p className="mascot-setting-message" role="status">{message}</p> : null}
+        {error ? <p className="mascot-setting-message" role="alert">{error}</p> : null}
       </Card>
       <DashboardArtworkSettings />
     </section>
@@ -131,30 +124,39 @@ export function SettingsEasterEggs() {
 
 function CapybaraPreview({ scale }: { readonly scale: number }) {
   const reducedMotion = usePrefersReducedMotion();
-  const behavior = useCapybaraBehavior("calm", reducedMotion, undefined, {
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [stageWidth, setStageWidth] = useState(0);
+  const spriteSize = Math.round(CAPYBARA_SPRITE_SIZE * scale);
+  const itemWidth = Math.round(CAPYBARA_ITEM_WIDTH * scale);
+  useEffect(() => {
+    const element = stageRef.current;
+    if (!element) return;
+    const update = () => setStageWidth(element.clientWidth);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+  const behavior = useCapybaraBehavior("calm", reducedMotion, { width: stageWidth, itemWidth }, {
     napDelayMs: PREVIEW_NAP_MS,
   });
-  const spriteSize = Math.round(PREVIEW_SIZE * scale);
   return (
     <div
       className="mascot-preview-frame"
-      style={{ "--mascot-preview-sprite": `${spriteSize}px` } as CSSProperties}
+      style={{
+        "--mascot-preview-sprite": `${spriteSize}px`,
+        "--capy-sprite-size": `${spriteSize}px`,
+        "--capy-item-width": `${itemWidth}px`,
+        "--capy-offset": `${behavior.offset}px`,
+        "--capy-step": `${WALK_STEP_MS}ms`,
+      } as CSSProperties}
     >
-      <button
-        type="button"
-        className="mascot-preview"
-        data-action={behavior.action}
-        data-facing={behavior.facing}
-        data-frame={behavior.frame}
-        data-sleeping={String(behavior.sleeping)}
-        data-scale={String(scale)}
-        onClick={behavior.poke}
-        aria-label="Capybara testen"
-      >
-        <CapybaraSprite frame={behavior.frame} size={spriteSize} label="Capybara-Vorschau" />
-        {behavior.sleeping ? <CapybaraZzz /> : null}
-        {behavior.frame === "party" ? <CapybaraConfetti /> : null}
-      </button>
+      <div className="mascot-preview" data-action={behavior.action} data-facing={behavior.facing}>
+        <div ref={stageRef} className="status-mascot-stage">
+          <CapybaraActor behavior={behavior} size={spriteSize} scale={scale}
+            label="Capybara testen" imageLabel="Capybara-Vorschau" onClick={behavior.poke} />
+        </div>
+      </div>
       <div className="mascot-preview-actions" role="group" aria-label="Capybara-Aktionen testen">
         <button type="button" onClick={() => behavior.play("yawn")}>Gähnen</button>
         <button type="button" onClick={() => behavior.play("party")}>Party</button>

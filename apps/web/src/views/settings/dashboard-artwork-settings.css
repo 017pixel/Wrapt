@@ -15,9 +15,24 @@
 
   .dashboard-artwork-picker { min-width: 0; margin: 0; border: 0; padding: 0; }
   .dashboard-artwork-picker legend { margin-bottom: var(--space-3); color: var(--color-muted); font-size: var(--text-sm); }
-  .dashboard-artwork-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-3); }
+  .dashboard-artwork-carousel {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    border-radius: var(--radius-md);
+  }
+  .dashboard-artwork-carousel::-webkit-scrollbar { display: none; }
+  .dashboard-artwork-controls { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); margin-top: var(--space-3); }
+  .dashboard-artwork-controls button { min-width: 44px; min-height: 44px; border: 0; background: transparent; }
+  .dashboard-artwork-controls button:hover { background: transparent; }
+  .dashboard-artwork-controls button:disabled { opacity: .35; cursor: default; }
+  .dashboard-artwork-controls button:focus-visible { outline: 2px solid var(--focus-ring-color); outline-offset: 2px; }
+  .dashboard-artwork-controls [role="status"] { color: var(--color-muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+  .dashboard-artwork-carousel:focus-within { outline: 2px solid var(--focus-ring-color); outline-offset: 2px; }
 
-  .dashboard-artwork-option { position: relative; min-width: 0; cursor: pointer; }
+  .dashboard-artwork-option { position: relative; min-width: 0; flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; cursor: pointer; }
 
   .dashboard-artwork-option input {
     position: absolute;
@@ -61,12 +76,4 @@
   .dashboard-artwork-option.is-selected .dashboard-artwork-option-visual { border-color: var(--color-accent); background: var(--color-accent-soft); }
   .dashboard-artwork-option.is-selected .dashboard-artwork-option-visual > span { color: var(--color-text); }
   .dashboard-artwork-option input:focus-visible + .dashboard-artwork-option-visual { outline: 2px solid var(--focus-ring-color); outline-offset: 2px; }
-}
-
-@media (max-width: 960px) {
-  .dashboard-artwork-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-}
-
-@media (max-width: 640px) {
-  .dashboard-artwork-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

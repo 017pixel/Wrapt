@@ -174,7 +174,7 @@ export function StatusBar() {
         <Link
           to="/usage"
           ref={limitsHover.triggerRef}
-          className={`status-limits ${menuConfig.statusBar.alwaysShowLimits ? "is-always-visible" : ""} ${limitsHover.open ? "is-open" : ""}`}
+          className={`status-limits ${limitsHover.open ? "is-open" : ""}`}
           style={statusBarStyle}
           aria-label="Nutzung und Limits öffnen"
           aria-expanded={limitsHover.open}
@@ -206,7 +206,6 @@ export function StatusBar() {
               { id: hostContextMenuId("statusbar.usage"), onSelect: () => window.location.assign("/usage") },
               { id: hostContextMenuId("statusbar.font-increase"), disabled: menuConfig.statusBar.fontSizePx >= 20, onSelect: () => saveMenuConfig({ ...menuConfig, statusBar: { ...menuConfig.statusBar, fontSizePx: Math.min(20, Math.round(menuConfig.statusBar.fontSizePx * 1.05 * 10) / 10) } }) },
               { id: hostContextMenuId("statusbar.font-decrease"), disabled: menuConfig.statusBar.fontSizePx <= 10, onSelect: () => saveMenuConfig({ ...menuConfig, statusBar: { ...menuConfig.statusBar, fontSizePx: Math.max(10, Math.round(menuConfig.statusBar.fontSizePx * .95 * 10) / 10) } }) },
-              { id: hostContextMenuId("statusbar.always-show"), checked: menuConfig.statusBar.alwaysShowLimits, onSelect: () => saveMenuConfig({ ...menuConfig, statusBar: { ...menuConfig.statusBar, alwaysShowLimits: !menuConfig.statusBar.alwaysShowLimits } }) },
               { id: hostContextMenuId("statusbar.codex"), checked: monitoring.codex, onSelect: () => toggleProvider("codex") },
               { id: hostContextMenuId("statusbar.opencode"), checked: monitoring.opencode, onSelect: () => toggleProvider("opencode") },
               { id: hostContextMenuId("statusbar.claude"), checked: monitoring.claude, onSelect: () => toggleProvider("claude") },
@@ -217,7 +216,7 @@ export function StatusBar() {
           {visibleProviders.length === 0 ? <span>Limits</span> : null}
           {visibleProviders.flatMap((provider, index) => [
             ...(index > 0 ? [<span key={`${provider.providerId}-divider`} className="status-bar-divider" aria-hidden="true" />] : []),
-            <span key={provider.providerId}><strong>{menuConfig.statusBar.alwaysShowLimits ? provider.title : provider.label}</strong>{menuConfig.statusBar.alwaysShowLimits ? ":" : ""} {usage.isLoading ? "lädt…" : providerLimit(providerById[provider.providerId], true, !menuConfig.statusBar.alwaysShowLimits)}</span>,
+            <span key={provider.providerId}><strong>{provider.label}</strong> {usage.isLoading ? "lädt…" : providerLimit(providerById[provider.providerId], true, true)}</span>,
           ])}
           <span className="status-limits-caret" aria-hidden="true">
             <svg width="9" height="9" viewBox="0 0 12 12" fill="none">

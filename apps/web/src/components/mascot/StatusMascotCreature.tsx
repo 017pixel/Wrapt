@@ -1,12 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { wraptQueries } from "../../lib/queryOptions";
-import { useOrbitStore } from "../../stores/orbit";
 import { preloadCapybaraImage, preloadCapybaraFrames } from "./capybaraImageCache";
 import { CAPYBARA_FRAMES } from "./capybaraFrames";
-import { CapybaraConfetti } from "./CapybaraConfetti";
-import { CapybaraSprite } from "./CapybaraSprite";
-import { CapybaraZzz } from "./CapybaraZzz";
+import { CapybaraActor, CAPYBARA_SPRITE_SIZE } from "./CapybaraActor";
 import { mascotContextFrom, mascotMood, selectMascotLine } from "./mascotLines";
 import {
   CAPYBARA_ITEM_WIDTH,
@@ -17,19 +14,16 @@ import {
 import { useMascotReactions, type MascotReaction } from "./useMascotReactions";
 
 const BUBBLE_VISIBLE_MS = 4_200;
-const STATUS_SPRITE_SIZE = 88;
 
 export function StatusMascotCreature({ scale }: { readonly scale: number }) {
   const health = useQuery(wraptQueries.health());
   const usage = useQuery(wraptQueries.usage());
-  const orbitDirty = useOrbitStore((state) => state.dirty);
-  const orbitSaving = useOrbitStore((state) => state.saving);
   const reducedMotion = usePrefersReducedMotion();
 
   const context = mascotContextFrom(
     usage.data?.providers ?? [],
     health.isError,
-    orbitDirty || orbitSaving,
+    false,
   );
   const mood = mascotMood(context);
   const stageRef = useRef<HTMLDivElement>(null);
@@ -44,7 +38,7 @@ export function StatusMascotCreature({ scale }: { readonly scale: number }) {
     return () => observer.disconnect();
   }, []);
   const itemWidth = Math.round(CAPYBARA_ITEM_WIDTH * scale);
-  const spriteSize = Math.round(STATUS_SPRITE_SIZE * scale);
+  const spriteSize = Math.round(CAPYBARA_SPRITE_SIZE * scale);
   const stage = useMemo(
     () => ({ width: stageWidth, itemWidth }),
     [stageWidth, itemWidth],
@@ -98,16 +92,8 @@ export function StatusMascotCreature({ scale }: { readonly scale: number }) {
       } as CSSProperties}
     >
       <div ref={stageRef} className="status-mascot-stage">
-        <button
-          type="button"
-          className="status-mascot-button"
-          onClick={handlePoke}
-          aria-label="Capybara begrüßen"
-        >
-          <CapybaraSprite frame={behavior.frame} size={spriteSize} label="Capybara-Maskottchen" />
-          {behavior.sleeping ? <CapybaraZzz /> : null}
-          {behavior.frame === "party" ? <CapybaraConfetti /> : null}
-        </button>
+        <CapybaraActor behavior={behavior} size={spriteSize} scale={scale}
+          label="Capybara begrüßen" imageLabel="Capybara-Maskottchen" onClick={handlePoke} />
       </div>
       {line !== null ? (
         <span className="status-mascot-bubble-anchor">

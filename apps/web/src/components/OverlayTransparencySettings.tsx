@@ -1,5 +1,6 @@
 import { useEffect, useId, useState } from "react";
 import { readOverlayTransparency, subscribeOverlayTransparency, writeOverlayTransparency } from "../lib/overlayTransparency";
+import { SettingsRange } from "./SettingsRange";
 import "./OverlayTransparencySettings.css";
 
 export function OverlayTransparencySettings() {
@@ -14,9 +15,8 @@ export function OverlayTransparencySettings() {
         <h3><label id={`${id}-label`} htmlFor={id}>Transparenz-Intensität</label></h3>
         <output htmlFor={id}>{intensity} %</output>
       </div>
-      <input
+      <SettingsRange
         id={id}
-        type="range"
         min={0}
         max={300}
         step={1}

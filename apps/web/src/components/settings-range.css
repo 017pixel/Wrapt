@@ -1,0 +1,57 @@
+@layer components {
+  .settings-range { position: relative; min-width: 0; }
+
+  .settings-range-track {
+    position: absolute;
+    inset: calc(50% - 2px) 9px auto;
+    height: 4px;
+    overflow: clip;
+    border-radius: var(--radius-sm);
+    background: var(--color-ink-700);
+    pointer-events: none;
+  }
+
+  .settings-range-track > span {
+    display: block;
+    width: var(--range-fill);
+    height: 100%;
+    background: var(--color-accent);
+  }
+
+  .settings-range input[type="range"] {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 44px;
+    margin: 0;
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .settings-range input::-webkit-slider-runnable-track { height: 4px; background: transparent; }
+  .settings-range input::-moz-range-track { height: 4px; background: transparent; }
+  .settings-range input::-moz-range-progress { background: transparent; }
+
+  .settings-range input::-webkit-slider-thumb {
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    margin-top: -7px;
+    border: 1px solid var(--color-accent-line);
+    border-radius: 50%;
+    background: var(--color-accent);
+  }
+
+  .settings-range input::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border: 1px solid var(--color-accent-line);
+    border-radius: 50%;
+    background: var(--color-accent);
+  }
+
+  .settings-range input:focus-visible { outline: 2px solid var(--focus-ring-color); outline-offset: 2px; }
+  .settings-range:has(input:disabled) { opacity: 0.6; }
+  .settings-range input:disabled { cursor: progress; }
+}

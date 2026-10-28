@@ -15,11 +15,9 @@ import { wraptQueries } from "../../lib/queryOptions";
 import { rankedToolIds, useToolUsage } from "../../stores/toolUsage";
 
 const surfaceLabels: Record<ContextMenuConfigSurface, string> = {
-  "host.context-menu.project": "Sidebar: Orbit-Projekte",
+  "host.context-menu.project": "Sidebar: Projekte",
   "host.context-menu.file": "Dateibaum: Dateien",
   "host.context-menu.directory": "Dateibaum: Ordner",
-  "host.context-menu.orbit-node": "Orbit: Knoten",
-  "host.context-menu.orbit-pane": "Orbit: freie Fläche",
   "host.context-menu.preview": "Preview-Tabs und Gruppen",
   "host.context-menu.terminal": "Terminal-Sidebar",
   "host.context-menu.git": "Git",
@@ -86,7 +84,7 @@ export function ContextMenuSettings() {
         {contextMenuConfigSurfaces.map((surface) => {
           const enabled = config.surfaces[surface]?.enabled ?? true;
           return <button key={surface} type="button" className="settings-toggle-row" disabled={saving || !config.enabled} onClick={() => void save({ ...config, surfaces: { ...config.surfaces, [surface]: { enabled: !enabled } } })}>
-            <span><strong>{surfaceLabels[surface]}</strong><small>{surface}</small></span>
+            <span><strong>{surfaceLabels[surface]}</strong></span>
             <span className={`settings-toggle-switch ${enabled ? "is-on" : ""}`} role="switch" aria-checked={enabled}><span className="settings-toggle-thumb" /></span>
           </button>;
         })}
@@ -99,10 +97,6 @@ export function ContextMenuSettings() {
         <span>Schriftgröße</span>
         <div><button type="button" disabled={saving || config.statusBar.fontSizePx <= 10} onClick={() => void save({ ...config, statusBar: { ...config.statusBar, fontSizePx: Math.max(10, config.statusBar.fontSizePx - 1) } })} aria-label="Schrift verkleinern"><MinusIcon className="h-4 w-4" /></button><input type="range" min={10} max={20} step={1} value={config.statusBar.fontSizePx} disabled={saving} onChange={(event) => void save({ ...config, statusBar: { ...config.statusBar, fontSizePx: Number(event.target.value) } })} aria-label="Statusleisten-Schriftgröße" /><output>{config.statusBar.fontSizePx}px</output><button type="button" disabled={saving || config.statusBar.fontSizePx >= 20} onClick={() => void save({ ...config, statusBar: { ...config.statusBar, fontSizePx: Math.min(20, config.statusBar.fontSizePx + 1) } })} aria-label="Schrift vergrößern"><PlusIcon className="h-4 w-4" /></button></div>
       </div>
-      <button type="button" className="settings-toggle-row" disabled={saving} onClick={() => void save({ ...config, statusBar: { ...config.statusBar, alwaysShowLimits: !config.statusBar.alwaysShowLimits } })}>
-        <span><strong>Limits immer anzeigen</strong></span>
-        <span className={`settings-toggle-switch ${config.statusBar.alwaysShowLimits ? "is-on" : ""}`} role="switch" aria-checked={config.statusBar.alwaysShowLimits}><span className="settings-toggle-thumb" /></span>
-      </button>
     </Card>
     {message ? <p className="context-menu-settings-message" role="status">{message}</p> : null}
   </div>;

@@ -1,4 +1,5 @@
 @layer components {
+  .settings-plugin-link { margin-bottom: var(--space-4); }
   .settings-mobile-navigation { display: none; }
   .settings-page {
     display: grid;

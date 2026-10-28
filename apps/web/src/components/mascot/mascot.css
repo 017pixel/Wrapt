@@ -108,13 +108,12 @@
   100% { opacity: 0; transform: translate(2px, -16px); }
 }
 
-/* Kopf und oberer Rücken ragen sichtbar über die Leiste, die Füße bleiben
-   knapp über der Unterkante stehen. */
+/* Die Füße stehen unabhängig von der Größe über der Unterkante. Der Abstand
+   lässt auch beim Verbeugen Platz. Größenwechsel dürfen nicht nachziehen. */
 .status-mascot-button .capy-sprite {
-  --capy-rest-y: calc(var(--capy-sprite-size, 88px) * -.1625);
+  --capy-rest-y: calc(11px - var(--capy-sprite-size, 88px) * .36);
   transform: translateY(var(--capy-rest-y)) scaleX(var(--capy-facing, 1));
   transform-origin: center;
-  transition: transform var(--duration-fast) var(--ease-standard);
 }
 
 .status-mascot[data-facing="left"] {
@@ -261,8 +260,8 @@
   top: var(--capy-confetti-top, calc(var(--capy-sprite-size, 88px) * -0.523));
   right: var(--capy-confetti-right, calc(var(--capy-sprite-size, 88px) * -0.159));
   display: block;
-  width: 44px;
-  height: 44px;
+  width: var(--capy-confetti-size, 44px);
+  height: var(--capy-confetti-size, 44px);
   pointer-events: none;
 }
 
@@ -270,6 +269,9 @@
   position: absolute;
   inset: 0;
   display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   opacity: 0;

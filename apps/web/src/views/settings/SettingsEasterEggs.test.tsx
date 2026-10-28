@@ -30,12 +30,14 @@ function renderSettings() {
 describe("SettingsEasterEggs", () => {
   afterEach(() => {
     cleanup();
+    vi.unstubAllGlobals();
     window.localStorage.removeItem("wrapt.dashboard-preferences.v1");
     document.head.querySelector("link[data-dashboard-artwork]")?.remove();
   });
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
     useDashboardPreferences.setState({
       hiddenSections: new Set(),
       artworkEnabled: false,
@@ -67,7 +69,7 @@ describe("SettingsEasterEggs", () => {
     renderSettings();
 
     fireEvent.click(await screen.findByRole("switch", { name: /Maskottchen anzeigen/ }));
-    expect((await screen.findByRole("status")).textContent).toContain("Die Einstellung konnte nicht gespeichert werden.");
+    expect(await screen.findByText("Die Einstellung konnte nicht gespeichert werden.")).toBeTruthy();
   });
 
   it("skaliert die Vorschau über den Größenregler und speichert beim Loslassen", async () => {
@@ -84,25 +86,26 @@ describe("SettingsEasterEggs", () => {
 
     fireEvent.pointerUp(slider);
     await waitFor(() => expect(mocks.saveMascot).toHaveBeenCalledWith({ enabled: false, scale: 1.5 }));
-    expect((await screen.findByRole("status")).textContent).toContain("150 % Größe");
+    expect(screen.queryByText(/Das Capybara läuft jetzt/)).toBeNull();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("speichert den gewählten Doku-Hintergrund und aktiviert ihn separat", async () => {
     renderSettings();
 
     const toggle = screen.getByRole("switch", { name: "Dashboard-Hintergrund anzeigen" });
-    const orbit = screen.getByRole("radio", { name: "Orbit" }) as HTMLInputElement;
+    const artwork = screen.getByRole("radio", { name: "Arbeitsbereich" }) as HTMLInputElement;
     expect(toggle.getAttribute("aria-checked")).toBe("false");
-    expect(screen.getAllByRole("radio")).toHaveLength(19);
+    expect(screen.getAllByRole("radio")).toHaveLength(18);
 
-    fireEvent.click(orbit);
+    fireEvent.click(artwork);
     fireEvent.click(toggle);
 
-    expect(orbit.checked).toBe(true);
+    expect(artwork.checked).toBe(true);
     expect(toggle.getAttribute("aria-checked")).toBe("true");
     const stored = JSON.parse(window.localStorage.getItem("wrapt.dashboard-preferences.v1") ?? "{}");
     expect(stored.version).toBe(2);
-    expect(stored.state).toMatchObject({ artworkEnabled: true, artworkId: "hero-orbit" });
+    expect(stored.state).toMatchObject({ artworkEnabled: true, artworkId: "hero-arbeitsbereich" });
   });
 
   it("zeigt kleine Vorschauen statt der vollen Hintergrunddateien", () => {
@@ -111,7 +114,7 @@ describe("SettingsEasterEggs", () => {
     const thumbnails = screen
       .getAllByRole("radio")
       .map((radio) => radio.parentElement?.querySelector("img")?.getAttribute("src") ?? "");
-    expect(thumbnails).toHaveLength(19);
+    expect(thumbnails).toHaveLength(18);
     for (const source of thumbnails) expect(source).toMatch(/-thumb\.webp$/);
   });
 
@@ -120,10 +123,10 @@ describe("SettingsEasterEggs", () => {
 
     expect(document.head.querySelector("link[data-dashboard-artwork]")).toBeNull();
 
-    fireEvent.click(screen.getByRole("radio", { name: "Orbit" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Arbeitsbereich" }));
 
     const link = document.head.querySelector<HTMLLinkElement>("link[data-dashboard-artwork]");
-    await waitFor(() => expect(link?.getAttribute("href")).toMatch(/hero-orbit-bg\.webp$/));
+    await waitFor(() => expect(link?.getAttribute("href")).toMatch(/hero-arbeitsbereich-bg\.webp$/));
   });
 
   it("zeigt Konfetti, solange die Party läuft", async () => {
