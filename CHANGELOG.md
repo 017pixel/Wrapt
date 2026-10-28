@@ -2,6 +2,12 @@
 
 Alle relevanten Änderungen werden in kurzen Stichpunkten dokumentiert.
 
+## [3.0.5] - 2026-10-28
+
+### Verändert
+- Notizen im Hintergrund verändern die aktuelle Seitenadresse und den geöffneten Einstellungsbereich nicht mehr. Die letzte Notiz wird erst beim Zurückkehren wiederhergestellt.
+- Tastenkürzel-Tests prüfen die eingebauten Seiten unabhängig von Plugins, die andere Testläufe zuvor aktiviert haben.
+
 ## [3.0.4] - 2026-10-28
 
 ### Verändert
