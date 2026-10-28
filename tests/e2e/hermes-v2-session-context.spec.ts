@@ -36,10 +36,13 @@ test("ersetzt den Kontext beim Wechsel und behält keine Werte bei leerer Auswah
   second.session.cwd = "/eigene/projekte/zweiter-kontext";
   second.session.source = "web";
   await page.goto(`/wrapt/hermes-v2/standalone?session=${sessionId}`);
+  await expect(page.getByRole("textbox", { name: "Nachricht an Hermes", exact: true })).toBeEnabled();
+  await expect(page.getByRole("dialog", { name: "Hermes-V2-Sitzungen", exact: true })).toHaveCount(0);
   await page.getByText("Sitzungsdetails", { exact: true }).click();
   await expect(page.getByText(first.cwd, { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Sitzungen", exact: true }).click();
   await page.locator(`[data-session-id="${second.session.id}"] .hermesv2-rowselect`).click();
+  await expect(page.getByRole("dialog", { name: "Hermes-V2-Sitzungen", exact: true })).toHaveCount(0);
   await page.getByText("Sitzungsdetails", { exact: true }).click();
   await expect(page.getByText(second.session.cwd, { exact: true })).toBeVisible();
   await expect(page.getByText("web", { exact: true })).toBeVisible();

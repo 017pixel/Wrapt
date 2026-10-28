@@ -20,7 +20,7 @@ test.afterAll(async () => {
   const api = await request.newContext({ baseURL: e2eOrigin, extraHTTPHeaders: apiIdentityHeaders("user@example.com") });
   try {
     const response = await api.put("/api/v1/settings/ui", { data: { clientId: "shortcut-e2e-cleanup", changes: [
-      { key: "appPreferences", value: { version: 3, state: {} } },
+      { key: "appPreferences", value: { version: 5, state: {} } },
       { key: "sidebarPreferences", value: { version: 6, state: {} } },
     ] } });
     expect(response.ok()).toBe(true);
@@ -40,7 +40,7 @@ test.beforeEach(async ({ request, page }) => {
   const response = await request.put("/api/v1/settings/ui", {
     headers: { "tailscale-user-login": "user@example.com" },
     data: { clientId: "shortcut-e2e", changes: [
-      { key: "appPreferences", value: { version: 3, state: {} } },
+      { key: "appPreferences", value: { version: 5, state: {} } },
       { key: "sidebarPreferences", value: { version: 6, state: {} } },
     ] },
   });
@@ -81,7 +81,7 @@ test("nummeriert zehn Seiten in Sidebar-Reihenfolge und wechselt mit 0 zur zehnt
 test("vergibt bei weniger als zehn Seiten keine Zahlen an Account und System", async ({ page, request }) => {
   const response = await request.put("/api/v1/settings/ui", {
     data: { clientId: "shortcut-account-e2e", changes: [
-      { key: "sidebarPreferences", value: { version: 6, state: { hiddenPages: ["ki-skills"] } } },
+      { key: "sidebarPreferences", value: { version: 6, state: { hiddenPages: ["ki-skills", "files", "previews"] } } },
     ] },
   });
   expect(response.ok()).toBe(true);
@@ -90,7 +90,9 @@ test("vergibt bei weniger als zehn Seiten keine Zahlen an Account und System", a
   await expect(sidebar.getByRole("link", { name: "Dashboard", exact: true })).toBeVisible();
   await expect(sidebar.getByRole("link", { name: "KI-Skills", exact: true })).toHaveCount(0);
   await page.keyboard.down("Control"); await page.keyboard.down("Shift");
-  await expect(sidebar.locator("[data-number-hint]")).toHaveCount(9);
+  const targetCount = await sidebar.getByRole("navigation", { name: "Seiten und Werkzeuge" }).getByRole("link").count();
+  expect(targetCount).toBeLessThan(10);
+  await expect(sidebar.locator("[data-number-hint]:visible")).toHaveCount(targetCount);
   const account = sidebar.getByRole("navigation", { name: "Account und System" });
   await expect(account.locator("kbd")).toHaveText(["P", "N", "E"]);
   await expect(account.locator("[data-number-hint]")).toHaveCount(0);
@@ -199,4 +201,80 @@ test("aktualisiert Nummern nach Drag-and-drop und zeigt eingeklappte Gruppen nur
   await expect(sidebar.locator("[data-number-hint]")).toHaveCount(10);
   expect(await positions()).toEqual(before);
   await page.keyboard.up("Shift"); await page.keyboard.up("Control");
+});
+
+
+test("verwendet unter Windows Alt und Shift für Zahlen, Direktkürzel und Einstellungen", async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(navigator, "platform", { get: () => "Win32" }));
+  await page.goto("/wrapt/");
+  const sidebar = page.locator(".sidebar-shell");
+  await expect(sidebar.getByRole("link", { name: "Dashboard", exact: true })).toBeVisible();
+  await page.keyboard.down("Alt"); await page.keyboard.down("Shift");
+  await expect(sidebar.locator("[data-number-hint]")).toHaveCount(10);
+  await expect(sidebar.getByRole("link", { name: "Einstellungen", exact: true }).locator("kbd")).toHaveText("E");
+  await page.keyboard.press("Digit2");
+  await expect(page).toHaveURL(/\/wrapt\/notizen$/);
+  await page.keyboard.up("Shift"); await page.keyboard.up("Alt");
+  for (const [code, path] of [["KeyP", "plugins"], ["KeyN", "usage"], ["KeyE", "settings"]]) {
+    await page.keyboard.press(`Alt+Shift+${code}`);
+    await expect(page).toHaveURL(new RegExp(`/wrapt/${path}$`));
+  }
+  await page.goto("/wrapt/settings#einstellungen:navigation");
+  const record = page.getByRole("button", { name: "Einstellungen: Tastenkürzel ändern" });
+  await expect(record).toContainText("Alt + Shift + E");
+  await record.click();
+  const saved = page.waitForResponse((response) => response.url().endsWith("/api/v1/settings/ui")
+    && response.request().method() === "PUT" && response.ok());
+  await page.keyboard.press("Control+Shift+KeyE");
+  await saved;
+  await expect(record).toContainText("Ctrl + Shift + E");
+  await page.reload();
+  await expect(record).toContainText("Ctrl + Shift + E");
+});
+
+
+test("synchronisiert Windows- und Mac-Kürzel über den Server in beide Richtungen", async ({ browser, request }) => {
+  const windows = await browser.newContext({ extraHTTPHeaders: { "tailscale-user-login": "user@example.com" }, serviceWorkers: "block" });
+  const mac = await browser.newContext({ extraHTTPHeaders: { "tailscale-user-login": "user@example.com" }, serviceWorkers: "block" });
+  try {
+    await windows.addInitScript(() => Object.defineProperty(navigator, "platform", { get: () => "Win32" }));
+    await mac.addInitScript(() => Object.defineProperty(navigator, "platform", { get: () => "MacIntel" }));
+    const winPage = await windows.newPage();
+    const macPage = await mac.newPage();
+    for (const client of [winPage, macPage]) {
+      client.on("pageerror", (error) => consoleErrors.push(error.message));
+      client.on("console", (message) => {
+        // Gleichzeitige Registry-Schreibzugriffe werden nach einem 409 neu abgeglichen.
+        const registryConflict = message.location().url.endsWith("/api/v1/workspaces/registry")
+          && message.text().includes("409 (Conflict)");
+        if (message.type() === "error" && !registryConflict) consoleErrors.push(`${message.text()} (${message.location().url})`);
+      });
+      await client.goto(`${e2eOrigin}/wrapt/settings#einstellungen:navigation`);
+    }
+    const winRecord = winPage.getByRole("button", { name: "Plugins: Tastenkürzel ändern" });
+    const macRecord = macPage.getByRole("button", { name: "Plugins: Tastenkürzel ändern" });
+    await expect(winRecord).toHaveText("Alt + Shift + P");
+    await expect(macRecord).toHaveText("Ctrl + Shift + P");
+    await winRecord.click();
+    await winPage.keyboard.press("Alt+Shift+KeyK");
+    await expect(macRecord).toHaveText("Ctrl + Shift + K");
+    await expect.poll(async () => (await request.get("/api/v1/settings/ui")).text()).toContain('"KeyK"');
+    await winPage.reload(); await macPage.reload();
+    await expect(winRecord).toHaveText("Alt + Shift + K");
+    await expect(macRecord).toHaveText("Ctrl + Shift + K");
+    await winPage.keyboard.press("Alt+Shift+KeyK");
+    await expect(winPage).toHaveURL(/\/wrapt\/plugins$/);
+    await macPage.keyboard.press("Meta+Shift+KeyK");
+    await expect(macPage).toHaveURL(/\/wrapt\/settings/);
+    await macPage.keyboard.press("Control+Shift+KeyK");
+    await expect(macPage).toHaveURL(/\/wrapt\/plugins$/);
+    for (const client of [winPage, macPage]) await client.goto(`${e2eOrigin}/wrapt/settings#einstellungen:navigation`);
+    await macRecord.click();
+    await macPage.keyboard.press("Control+Shift+KeyJ");
+    await expect(winRecord).toHaveText("Alt + Shift + J");
+    await macPage.getByRole("switch", { name: "Plugins aktivieren" }).click();
+    await expect(winPage.getByRole("switch", { name: "Plugins aktivieren" })).toHaveAttribute("aria-checked", "false");
+  } finally {
+    await windows.close(); await mac.close();
+  }
 });

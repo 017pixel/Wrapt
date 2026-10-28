@@ -1,21 +1,16 @@
 import { test, expect } from "./personas";
-import { assertHealthy, noteLifecycle, openNotesSidebar, openPage, orbitLifecycle, visitMainPages } from "./flows";
+import { assertHealthy, noteLifecycle, openNotesSidebar, openPage, visitMainPages } from "./flows";
 import { getJson } from "./server";
 
 
-test("startet und lädt alle Hauptseiten ohne JavaScript-Fehler", async ({ page, appErrors, api, seededNotes, personaName }) => {
+test("startet und lädt alle Hauptseiten ohne JavaScript-Fehler", async ({ page, appErrors, api, seededNotes }) => {
   expect((await getJson(api, "/notes")).notes).toHaveLength(seededNotes.length);
-  await visitMainPages(page, personaName === "konfiguriert" ? "notizen" : "dashboard");
+  await visitMainPages(page);
   await assertHealthy(page, appErrors);
 });
 
 test("legt eine Notiz an, ändert, lädt neu, löscht und stellt wieder her", async ({ page, api, appErrors, personaName }) => {
   await noteLifecycle(page, api, `Durchlauf ${personaName}`);
-  await assertHealthy(page, appErrors);
-});
-
-test("legt eine Orbit-Arbeitsfläche an, benennt um, lädt neu und entfernt", async ({ page, api, appErrors, personaName }) => {
-  await orbitLifecycle(page, api, `Arbeitsfläche ${personaName}`);
   await assertHealthy(page, appErrors);
 });
 

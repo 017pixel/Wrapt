@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ShortcutPreferences } from "../config/shortcuts";
 import type { PageRouteId } from "./sidebarPreferences";
 
 /**
@@ -61,9 +62,16 @@ function storedState(): Record<string, unknown> | null {
 
 describe("app preferences", () => {
   it("setzt eine verfügbare Standardseite und persistiert sie", () => {
-    appPreferences.useAppPreferences.getState().setDefaultPage("workbench");
-    expect(appPreferences.useAppPreferences.getState().defaultPage).toBe("workbench");
-    expect(storedState()?.defaultPage).toBe("workbench");
+    appPreferences.useAppPreferences.getState().setDefaultPage("files");
+    expect(appPreferences.useAppPreferences.getState().defaultPage).toBe("files");
+    expect(storedState()?.defaultPage).toBe("files");
+  });
+
+  it("setzt eine entfernte Canvas-Startseite auf das Dashboard zurück", () => {
+    storage.setItem(STORAGE_KEY, JSON.stringify({ state: { defaultPage: "workbench", hermesV2Enabled: true }, version: 5 }));
+    appPreferences.useAppPreferences.persist.rehydrate();
+    expect(appPreferences.useAppPreferences.getState()).toMatchObject({ defaultPage: "dashboard", hermesV2Enabled: true });
+    expect(JSON.parse(storage.getItem(STORAGE_KEY)!).version).toBe(6);
   });
 
   it("setzt eine entfernte Inbox-Standardseite auf das Dashboard zurück", () => {
@@ -73,10 +81,10 @@ describe("app preferences", () => {
   });
 
   it("migriert v1 und erhält die gewählte Startseite bei standardmäßig deaktiviertem V2", () => {
-    storage.setItem(STORAGE_KEY, JSON.stringify({ state: { defaultPage: "workbench" }, version: 1 }));
+    storage.setItem(STORAGE_KEY, JSON.stringify({ state: { defaultPage: "files" }, version: 1 }));
     appPreferences.useAppPreferences.persist.rehydrate();
-    expect(appPreferences.useAppPreferences.getState()).toMatchObject({ defaultPage: "workbench", hermesV2Enabled: false });
-    expect(JSON.parse(storage.getItem(STORAGE_KEY)!).version).toBe(3);
+    expect(appPreferences.useAppPreferences.getState()).toMatchObject({ defaultPage: "files", hermesV2Enabled: false });
+    expect(JSON.parse(storage.getItem(STORAGE_KEY)!).version).toBe(6);
   });
 
   it("persistiert die V2-Auswahl und lädt sie nach einem Refresh", () => {
@@ -106,12 +114,12 @@ describe("app preferences", () => {
     const stop = appPreferences.subscribeAppPreferencesStorage();
     const writes = vi.spyOn(storage, "setItem");
     const emit = (key: string | null) => window.dispatchEvent(Object.assign(new Event("storage"), { key }));
-    storage.setItem(STORAGE_KEY, JSON.stringify({ state: { defaultPage: "workbench", hermesV2Enabled: true }, version: 2 }));
+    storage.setItem(STORAGE_KEY, JSON.stringify({ state: { defaultPage: "files", hermesV2Enabled: true }, version: 2 }));
     writes.mockClear();
     emit("anderer-key");
     expect(appPreferences.useAppPreferences.getState().hermesV2Enabled).toBe(false);
     emit(STORAGE_KEY);
-    expect(appPreferences.useAppPreferences.getState()).toMatchObject({ defaultPage: "workbench", hermesV2Enabled: true });
+    expect(appPreferences.useAppPreferences.getState()).toMatchObject({ defaultPage: "files", hermesV2Enabled: true });
     expect(writes).not.toHaveBeenCalled();
     stop();
     storage.clear();
@@ -131,12 +139,25 @@ describe("app preferences", () => {
 
   it("erzeugt auch bei einer alten Datenversion aus einem anderen Tab kein Schreibecho", () => {
     const stop = appPreferences.subscribeAppPreferencesStorage();
-    storage.setItem(STORAGE_KEY, JSON.stringify({ state: { defaultPage: "workbench" }, version: 1 }));
+    storage.setItem(STORAGE_KEY, JSON.stringify({ state: { defaultPage: "files" }, version: 1 }));
     const writes = vi.spyOn(storage, "setItem");
     window.dispatchEvent(Object.assign(new Event("storage"), { key: STORAGE_KEY }));
-    expect(appPreferences.useAppPreferences.getState()).toMatchObject({ defaultPage: "workbench", hermesV2Enabled: false });
+    expect(appPreferences.useAppPreferences.getState()).toMatchObject({ defaultPage: "files", hermesV2Enabled: false });
     expect(writes).not.toHaveBeenCalled();
     writes.mockRestore();
     stop();
   });
+});
+
+
+it("migriert getrennte Windows-Kürzel aus v4 zur gemeinsamen Belegung", async () => {
+  const { defaultShortcuts, resolveShortcuts } = await import("../config/shortcuts");
+  const windows = resolveShortcuts(defaultShortcuts, "Win32");
+  windows.bindings.plugins = { ...windows.bindings.plugins!, code: "KeyK" };
+  storage.setItem(STORAGE_KEY, JSON.stringify({ version: 4, state: { shortcuts: { ...defaultShortcuts, windows } } }));
+  await appPreferences.useAppPreferences.persist.rehydrate();
+  const saved = JSON.parse(storage.getItem(STORAGE_KEY)!) as { version: number; state: { shortcuts: ShortcutPreferences } };
+  expect(saved.version).toBe(6);
+  expect(saved.state.shortcuts).not.toHaveProperty("windows");
+  expect(resolveShortcuts(saved.state.shortcuts, "MacIntel").bindings.plugins).toMatchObject({ ctrl: true, meta: false, alt: false, code: "KeyK" });
 });

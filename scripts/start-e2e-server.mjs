@@ -66,16 +66,10 @@ if (e2eT3Channel) config.t3.channel = e2eT3Channel;
 // laufen (Dateimanager, Projektbrowser, UI-Check und Preview-Fokus).
 const e2eAllowedUsers = [
   "user@example.com",
-  "orbit-notes@example.com",
-  "orbit-preview-focus@example.com",
-  "terminal-orbit-handoff@example.com",
   e2eIdentity,
   "file-manager@example.com",
   "project-browser@example.com",
   "ui-check@example.com",
-  ...["chromium", "firefox", "webkit"].flatMap((browser) =>
-    ["mobile", "resize", "ui", "release", "tools"].flatMap((suite) =>
-      [0, 1].map((retry) => `orbit-${suite}-${browser}-${retry}@example.com`))),
   ...["chromium", "firefox", "webkit"].flatMap((browser) => [0, 1].flatMap((retry) => [
     `plugins-authoring-${browser}-${retry}@example.com`,
     `plugins-authoring-code-${browser}-${retry}@example.com`,
@@ -96,12 +90,10 @@ config.previews.slotPorts = Array.from({ length: 12 }, (_, index) => e2ePort + 1
 config.previews.publicPorts = Array.from({ length: 12 }, (_, index) => e2ePort + 100 + index);
 config.paths = {
   projectsRoot: repositoryRoot,
-  orbitProjectBrowserRoot: repositoryRoot,
+  projectBrowserRoot: repositoryRoot,
   terminalAllowedRoots: [repositoryRoot, temporaryRoot],
   terminalDefaultCwd: repositoryRoot,
   dataDir: dataDirectory,
-  orbitBackupDir: join(dataDirectory, "orbit-backups"),
-  orbitAssetDir: join(dataDirectory, "orbit-assets"),
   fileGalleryDir: join(dataDirectory, "file-gallery"),
   wraptProfilesRoot: join(dataDirectory, "profiles"),
   codexSharedHome: join(dataDirectory, "shared-codex"),
@@ -111,7 +103,7 @@ config.paths = {
 };
 assertInside(temporaryRoot, config.system.homeDirectory, "system.homeDirectory");
 for (const name of [
-  "dataDir", "orbitBackupDir", "orbitAssetDir", "fileGalleryDir",
+  "dataDir", "fileGalleryDir",
   "wraptProfilesRoot", "codexSharedHome", "claudeSharedHome", "opencodeSharedHome", "databasePath",
 ]) assertInside(temporaryRoot, config.paths[name], `paths.${name}`);
 config.codexbar.configPath = join(dataDirectory, "codexbar.json");
@@ -208,13 +200,10 @@ const child = spawn(process.execPath, ["apps/server/dist/index.js"], {
     TERMINAL_SUPERVISOR: "direct",
     PREVIEW_TMUX_SOCKET: `wrapt-e2e-${process.pid}`,
     TMUX_TMPDIR: tmuxDirectory,
-    // Die .env des Repos enthält produktive Pfade (Orbit-Backups, Terminal-Roots,
+    // Die .env des Repos enthält produktive Pfade (Terminal-Roots,
     // Codexbar, KI-Profile). Der isolierte Testserver darf diese NICHT erben:
-    // Beim Start würde er die echten Orbit-Daten aus den Backups wiederherstellen
-    // und beim Speichern die echten Backups mit Testdaten überschreiben. Alle
-    // Pfad- und Profilvariablen werden deshalb auf die Temp-Umgebung umgebogen.
-    ORBIT_BACKUP_DIR: join(dataDirectory, "orbit-backups"),
-    ORBIT_ASSET_DIR: join(dataDirectory, "orbit-assets"),
+    // Alle Pfad- und Profilvariablen werden deshalb auf die Temp-Umgebung umgebogen.
+    PROJECT_BROWSER_ROOT: repositoryRoot,
     FILE_GALLERY_DIR: join(dataDirectory, "file-gallery"),
     CODEXBAR_CONFIG_PATH: join(dataDirectory, "codexbar.json"),
     CODEXBAR_BASE_URL: `http://127.0.0.1:${e2ePort + 120}`,
@@ -239,10 +228,6 @@ const child = spawn(process.execPath, ["apps/server/dist/index.js"], {
     // api.spec und die Shell-Tests melden sich als user@example.com an, die
     // Preview-Szenarien als e2eIdentity.
     TERMINAL_ALLOWED_USERS: e2eAllowedUsers.join(","),
-    // Die .env erbt ORBIT_DESTRUCTIVE_DROP_PERCENT=50 als Produktionsschutz;
-    // die Tests ersetzen Orbit-Dokumente jedoch komplett (eigene Arbeitsflächen).
-    ORBIT_DESTRUCTIVE_DROP_PERCENT: "100",
-    WRAPT_E2E_ALLOW_DESTRUCTIVE_ORBIT_RESET: "true",
     WRAPT_DEV_TAILSCALE_USER: e2eIdentity,
     PREVIEW_PUBLIC_ORIGIN_MODE: "loopback-http",
     PORT: String(e2ePort),

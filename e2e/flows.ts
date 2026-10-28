@@ -5,7 +5,6 @@ export const mainPages = [
   { path: "/", heading: "Dashboard" },
   { path: "/projects", heading: "Projekte" },
   { path: "/notizen", testId: "notes-workspace" },
-  { path: "/orbit", button: "Arbeitsfläche umbenennen" },
   { path: "/usage", heading: "Nutzung und Limits" },
   { path: "/settings", button: "Design" },
   { path: "/files", listbox: "Dateien und Ordner" },
@@ -26,7 +25,7 @@ export async function openPage(page: Page, path: string) {
   await expect(page.getByText("Etwas ist abgestürzt", { exact: true })).toHaveCount(0);
 }
 
-export async function visitMainPages(page: Page, defaultPage = "dashboard") {
+export async function visitMainPages(page: Page) {
   // Fremde Apps werden nicht gestartet oder angemeldet. Nur ihr Dokument wird
   // als Fixture ausgeliefert; Routing und native Wrapt-Daten bleiben echt.
   await page.route((url) => /^\/(hermes|t3|opencode)(\/|$)/.test(url.pathname), (route) => {
@@ -35,10 +34,7 @@ export async function visitMainPages(page: Page, defaultPage = "dashboard") {
   });
   for (const entry of mainPages) {
     await openPage(page, entry.path);
-    if (entry.path === "/" && defaultPage !== "dashboard") {
-      await expect(page).toHaveURL(/\/notizen/);
-      await expect(page.getByTestId("notes-workspace")).toBeVisible();
-    } else if ("heading" in entry) await expect(page.getByRole("heading", { name: entry.heading, exact: true })).toBeVisible();
+    if ("heading" in entry) await expect(page.getByRole("heading", { name: entry.heading, exact: true })).toBeVisible();
     else if ("button" in entry) await expect(page.getByRole("button", { name: entry.button, exact: true }).first()).toBeVisible();
     else if ("listbox" in entry) await expect(page.getByRole("listbox", { name: entry.listbox })).toBeVisible();
     else if ("tablist" in entry) await expect(page.getByRole("tablist", { name: entry.tablist })).toBeVisible();
@@ -100,19 +96,6 @@ export async function noteLifecycle(page: Page, api: APIRequestContext, title: s
   await page.getByRole("button", { name: "Wiederherstellen", exact: true }).click();
   await expect.poll(async () => (await getJson(api, `/notes/${id}`)).note.archived).toBe(false);
   return id;
-}
-
-export async function orbitLifecycle(page: Page, api: APIRequestContext, name: string) {
-  await openPage(page, "/orbit");
-  await page.getByRole("button", { name: "Arbeitsfläche hinzufügen", exact: true }).click();
-  await page.getByRole("button", { name: "Arbeitsfläche umbenennen", exact: true }).click();
-  await page.getByRole("textbox", { name: "Name der Arbeitsfläche" }).fill(name);
-  await page.getByRole("button", { name: "Arbeitsfläche umbenennen speichern" }).click();
-  await expect.poll(async () => (await getJson(api, "/orbit")).document.boards.some((board: { name: string }) => board.name === name)).toBe(true);
-  await page.reload();
-  await expect(page.getByRole("button", { name: `Arbeitsfläche: ${name}`, exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Arbeitsfläche entfernen", exact: true }).click();
-  await expect.poll(async () => (await getJson(api, "/orbit")).document.boards.some((board: { name: string }) => board.name === name)).toBe(false);
 }
 
 export async function assertHealthy(page: Page, errors: string[]) {

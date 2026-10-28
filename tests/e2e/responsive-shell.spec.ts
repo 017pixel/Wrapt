@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 test.use({ extraHTTPHeaders: { "tailscale-user-login": "user@example.com" } });
 
 const routes = [
-  "", "projects", "settings", "usage", "orbit",
+  "", "projects", "settings", "usage",
   "terminal", "previews", "code-editor", "t3-code", "codex", "opencode", "claude", "notizen",
 ];
 
@@ -62,21 +62,6 @@ test("uses mobile navigation or the iPad landscape sidebar for the viewport", as
   expect(size.height).toBeGreaterThanOrEqual(44);
 });
 
-test.describe("Orbit auf dem iPad im Querformat", () => {
-  test.use({ viewport: { width: 1_024, height: 768 }, hasTouch: true });
-
-  test("behält die Navigation erreichbar, wenn die Orbit-Leiste sichtbar ist", async ({ page }) => {
-    await page.goto("/wrapt/orbit");
-    await expect(page.locator(".app-shell")).toHaveAttribute("data-shell-mode", "tablet");
-    await expect(page.locator(".app-shell")).toHaveAttribute("data-orientation", "landscape");
-    const sidebar = page.locator(".sidebar-shell");
-    await expect(sidebar).toBeVisible();
-    await expect(page.getByRole("button", { name: "Navigation öffnen" })).toHaveCount(0);
-    await sidebar.getByRole("link", { name: /Projekte/ }).click();
-    await expect(page).toHaveURL(/\/wrapt\/projects$/);
-  });
-});
-
 test("navigation page manages focus, history and scroll lock", async ({ page }) => {
   test.skip(usesTabletLandscapeSidebar(page), "Das iPad im Querformat nutzt die Seitenleiste.");
   await page.goto("/wrapt/");
@@ -97,9 +82,8 @@ test("navigation page manages focus, history and scroll lock", async ({ page }) 
 
 test("keeps route floating controls behind the navigation page", async ({ page }) => {
   test.skip(usesTabletLandscapeSidebar(page), "Das iPad im Querformat nutzt die Seitenleiste.");
-  const floatingRoutes = ["", "orbit", "terminal"];
+  const floatingRoutes = ["", "terminal"];
   const floatingSelector = [
-    ".orbit-main-island",
     ".terminal-island",
     ".panel-island",
   ].join(",");
@@ -145,18 +129,29 @@ test("keeps all main routes inside the viewport", async ({ page }) => {
   }
 });
 
-test("uses a reversible touch dialog for destructive settings", async ({ page }) => {
+test("schließt die Kanalwechsel-Bestätigung per Zurück ohne Änderung", async ({ page }) => {
+  let writes = 0;
+  await page.route("**/api/v1/system/t3-channel", async (route) => {
+    if (route.request().method() !== "GET") {
+      writes++;
+      await route.abort();
+      return;
+    }
+    const response = await route.fetch();
+    await route.fulfill({ json: { ...await response.json(), configuredChannel: "nightly", activeChannel: "nightly" } });
+  });
   await page.goto("/wrapt/settings");
   // Auf kompakten Breiten ersetzt eine Bereichsauswahl die Tab-Leiste.
-  await page.getByRole("combobox", { name: "Bereich" }).selectOption("layout");
-  const trigger = page.getByRole("button", { name: "Layout zurücksetzen" });
+  await page.getByRole("combobox", { name: "Bereich" }).selectOption("system");
+  const trigger = page.getByRole("button", { name: /^Stable/ });
   await trigger.click();
-  const dialog = page.getByRole("dialog", { name: "Layout zurücksetzen?" });
+  const dialog = page.getByRole("dialog", { name: "Auf Stable wechseln?" });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Abbrechen" })).toBeFocused();
   await page.goBack();
   await expect(dialog).toHaveCount(0);
   await expect(trigger).toBeFocused();
+  expect(writes).toBe(0);
 });
 
 test("moves focus into content after a navigation choice", async ({ page }) => {
