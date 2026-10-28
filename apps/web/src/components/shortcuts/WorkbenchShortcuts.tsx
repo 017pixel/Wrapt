@@ -1,3 +1,4 @@
+import { resolveShortcuts } from "../../config/shortcuts";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { useNavigate } from "react-router";
 import { useNavigationRegistry } from "../../extensions/useNavigationRegistry";
@@ -34,7 +35,7 @@ export function WorkbenchShortcuts() {
       return true;
     };
     const controller = createShortcutController({
-      preferences: () => useAppPreferences.getState().shortcuts,
+      preferences: () => resolveShortcuts(useAppPreferences.getState().shortcuts),
       recording: () => useShortcutState.getState().recording,
       numbersAllowed: () => !Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"], [role="alertdialog"], [role="menu"]'))
         .some((element) => !element.closest('[inert], [aria-hidden="true"]') && element.getClientRects().length > 0),

@@ -1,6 +1,6 @@
 import { useNavigationRegistry } from "../../extensions/useNavigationRegistry";
 import { useAppPreferences } from "../../stores/appPreferences";
-import { sameModifiers, type ShortcutAction } from "../../config/shortcuts";
+import { resolveShortcuts, sameModifiers, type ShortcutAction } from "../../config/shortcuts";
 import { useSidebarPreferences } from "../../stores/sidebarPreferences";
 import { navigationTargets } from "./navigationTargets";
 import { useShortcutState } from "./shortcutState";
@@ -10,7 +10,8 @@ export function ShortcutBadge({ itemId }: { itemId: string }) {
   const navigation = useNavigationRegistry();
   const hidden = useSidebarPreferences((state) => state.hiddenPages);
   const order = useSidebarPreferences((state) => state.navigationOrder);
-  const shortcuts = useAppPreferences((state) => state.shortcuts);
+  const stored = useAppPreferences((state) => state.shortcuts);
+  const shortcuts = resolveShortcuts(stored);
   const item = navigation.items.find((entry) => entry.contributionId === itemId);
   const page = item?.value.runtime.legacyVisibilityKey;
   const action = page && ["settings", "usage", "plugins"].includes(page) ? page as ShortcutAction : null;

@@ -39,7 +39,7 @@ function validModifiers(value: unknown): value is ShortcutModifiers {
   return !!value && typeof value === "object" && ["ctrl", "shift", "alt", "meta"].every((key) => typeof (value as Record<string, unknown>)[key] === "boolean") && hasModifiers(value as ShortcutModifiers);
 }
 export function normalizeShortcuts(value: unknown): ShortcutPreferences {
-  const raw = value && typeof value === "object" ? value as Partial<ShortcutPreferences> : {};
+  const raw = value && typeof value === "object" ? value as Partial<ShortcutPreferences> & { windows?: Partial<ShortcutPreferences> } : {};
   const bindings = { ...defaultShortcuts.bindings };
   for (const action of shortcutActions) {
     const binding = raw.bindings?.[action];
@@ -57,6 +57,19 @@ export function normalizeShortcuts(value: unknown): ShortcutPreferences {
     if (overlapsNumbers || duplicate) bindings[action] = null;
     else accepted.push(binding);
   }
+  // Bisher getrennte Windows-Belegungen werden einmalig in die gemeinsame Belegung übernommen.
+  if (raw.windows && typeof raw.windows === "object") {
+    const windows = normalizeShortcuts({ numbers: raw.windows.numbers, bindings: raw.windows.bindings });
+    const shared = encodeShortcuts(windows, "Win32");
+    // Unveränderte Windows-Vorgaben dürfen neuere gemeinsame Anpassungen nicht verdrängen.
+    for (const action of shortcutActions) {
+      const binding = shared.bindings[action];
+      const standard = defaultShortcuts.bindings[action]!;
+      if (binding?.code === standard.code && sameModifiers(binding, standard)) shared.bindings[action] = bindings[action];
+    }
+    if (shared.numbers && sameModifiers(shared.numbers, defaultShortcuts.numbers!)) shared.numbers = numbers;
+    return normalizeShortcuts(shared);
+  }
   return { numbers, bindings };
 }
 
@@ -70,4 +83,27 @@ export function shortcutConflict(preferences: ShortcutPreferences): string | nul
     if (duplicate) return `Diese Kombination ist bereits für „${shortcutLabels[action]}“ belegt.`;
   }
   return null;
+}
+
+
+/** Intern bezeichnet Ctrl die gemeinsame Haupttaste: Alt unter Windows, Control auf dem Mac. */
+function mapPlatformShortcuts(preferences: ShortcutPreferences, platform: string): ShortcutPreferences {
+  const key = /Win/i.test(platform) ? "alt" : null;
+  if (!key) return preferences;
+  const map = <T extends ShortcutModifiers>(value: T): T => ({ ...value, ctrl: value[key], [key]: value.ctrl });
+  return {
+    numbers: preferences.numbers ? map(preferences.numbers) : null,
+    bindings: Object.fromEntries(shortcutActions.map((action) => [action,
+      preferences.bindings[action] ? map(preferences.bindings[action]!) : null,
+    ])) as ShortcutPreferences["bindings"],
+  };
+}
+
+export function resolveShortcuts(preferences: ShortcutPreferences, platform = globalThis.navigator?.platform ?? ""): ShortcutPreferences {
+  return mapPlatformShortcuts(preferences, platform);
+}
+
+/** Die Umkehrung derselben Tastenabbildung wird serverseitig gemeinsam gespeichert. */
+export function encodeShortcuts(preferences: ShortcutPreferences, platform = globalThis.navigator?.platform ?? ""): ShortcutPreferences {
+  return normalizeShortcuts(mapPlatformShortcuts(preferences, platform));
 }

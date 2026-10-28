@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Card } from "../../components/Card";
-import { defaultShortcuts, eventModifiers, hasModifiers, modifierKey, normalizeShortcuts, shortcutActions, shortcutConflict, shortcutLabels, shortcutText, type ShortcutAction, type ShortcutBinding, type ShortcutModifiers } from "../../config/shortcuts";
+import { defaultShortcuts, encodeShortcuts, resolveShortcuts, eventModifiers, hasModifiers, modifierKey, normalizeShortcuts, shortcutActions, shortcutConflict, shortcutLabels, shortcutText, type ShortcutAction, type ShortcutBinding, type ShortcutModifiers } from "../../config/shortcuts";
 import { useAppPreferences } from "../../stores/appPreferences";
 import { useShortcutState } from "../../components/shortcuts/shortcutState";
 
 type Recording = ShortcutAction | "numbers";
 
 export function SettingsShortcuts() {
-  const preferences = useAppPreferences((state) => state.shortcuts);
+  const stored = useAppPreferences((state) => state.shortcuts);
+  const preferences = resolveShortcuts(stored);
+  const defaults = resolveShortcuts(defaultShortcuts);
   const save = useAppPreferences((state) => state.setShortcuts);
   const [recording, setRecording] = useState<Recording | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +36,7 @@ export function SettingsShortcuts() {
     };
     const conflict = shortcutConflict(next);
     if (conflict) { setError(conflict); return; }
-    save(next);
+    save(encodeShortcuts(next));
     setError(null);
     stop();
   };
@@ -85,7 +87,7 @@ export function SettingsShortcuts() {
             <kbd>{active ? pending ? `${shortcutText(pending)} …` : "Kombination drücken …" : shortcutText(value)}</kbd>
           </button>
           <button type="button" className="shortcut-enable-button" role="switch" aria-checked={!!value}
-            aria-label={`${label} aktivieren`} onClick={() => apply(id, value ? null : id === "numbers" ? defaultShortcuts.numbers : defaultShortcuts.bindings[id])}>
+            aria-label={`${label} aktivieren`} onClick={() => apply(id, value ? null : id === "numbers" ? defaults.numbers : defaults.bindings[id])}>
             <span className={`settings-toggle-switch${value ? " is-on" : ""}`} aria-hidden="true"><span className="settings-toggle-thumb" /></span>
           </button>
         </div>;
