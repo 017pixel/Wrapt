@@ -1,182 +1,20 @@
+import { legacyCliPageRouteOwners } from "./legacyCliPageRoutes";
 import {
-  pageContributionSchema,
-  routeContributionSchema,
-  type RouteContribution,
-} from "@wrapt/extension-contracts";
-import { Dashboard } from "../views/Dashboard";
-import {
-  loadCliTerminal,
   loadFileManager,
   loadHermes,
-  loadPreviewGroup,
   loadPreviewLive,
   loadProjectDetail,
   loadProjects,
   loadPlugins,
-  loadRouteWithRecovery,
   loadSettings,
   loadSkillEditor,
   loadTerminal,
   loadToolRoute,
   loadUsage,
-  loadWorkbench,
 } from "../lib/routeModules";
-import {
-  pageRouteRegistry,
-  type PageModuleLoader,
-  type PageRouteOwnerBatch,
-  type PageRouteRegistry,
-  type PageRuntimeBinding,
-  type RouteRuntimeBinding,
-} from "./pageRouteRegistry";
-
-interface LegacyPageRouteDefinition {
-  readonly page: {
-    readonly id: string;
-    readonly title: string;
-    readonly description?: string;
-  };
-  readonly route: RouteContribution;
-  readonly pageRuntime: PageRuntimeBinding;
-  readonly routeRuntime: RouteRuntimeBinding;
-}
-
-export interface LegacyPageRouteOwner {
-  readonly ownerId: string;
-  readonly batch: PageRouteOwnerBatch;
-}
-
-export interface LegacyHostRouteDefinition {
-  readonly id: "app-shell" | "not-found";
-  readonly kind: "layout" | "fallback";
-  readonly path: null | "*";
-  readonly boundary: "app-shell" | "deferred-route";
-}
-
-const dashboardModule = Object.freeze({ Dashboard });
-
-function eagerPageRuntime(exportName: string): PageRuntimeBinding {
-  return Object.freeze({
-    chunkId: "dashboard",
-    exportName,
-    loading: "eager",
-    recovery: "none",
-    load: () => Promise.resolve(dashboardModule),
-    eagerModule: dashboardModule,
-  });
-}
-
-function lazyPageRuntime(
-  chunkId: string,
-  exportName: string,
-  sourceLoader: PageModuleLoader,
-): PageRuntimeBinding {
-  return Object.freeze({
-    chunkId,
-    exportName,
-    loading: "lazy",
-    recovery: "stale-chunk",
-    load: () => loadRouteWithRecovery(sourceLoader),
-  });
-}
-
-function routeRuntime(
-  prefetchPathPrefix?: string,
-  aliasBehavior: RouteRuntimeBinding["aliasBehavior"] = "render",
-): RouteRuntimeBinding {
-  return Object.freeze({
-    boundary: "deferred-route",
-    aliasBehavior,
-    ...(prefetchPathPrefix === undefined ? {} : { prefetchPathPrefix }),
-  });
-}
-
-function standardRoute(
-  id: string,
-  pageId: string,
-  path: string,
-  overrides: Partial<
-    Omit<RouteContribution, "id" | "pageId" | "path" | "aliases">
-  > & { readonly aliases?: readonly string[] } = {},
-): RouteContribution {
-  return routeContributionSchema.parse({
-    id,
-    pageId,
-    path,
-    shell: "standard",
-    persistent: true,
-    prefetch: "idle",
-    projectContext: false,
-    topbar: true,
-    breadcrumbs: true,
-    standaloneActions: false,
-    mobileNavigation: false,
-    ...overrides,
-  });
-}
-
-function standaloneRoute(
-  id: string,
-  pageId: string,
-  path: string,
-): RouteContribution {
-  return routeContributionSchema.parse({
-    id,
-    pageId,
-    path,
-    shell: "standalone",
-    persistent: false,
-    prefetch: "idle",
-    projectContext: false,
-    topbar: false,
-    breadcrumbs: false,
-    standaloneActions: false,
-    mobileNavigation: false,
-  });
-}
-
-function owner(
-  ownerId: string,
-  definitions: readonly LegacyPageRouteDefinition[],
-): LegacyPageRouteOwner {
-  return Object.freeze({
-    ownerId,
-    batch: Object.freeze({
-      pages: Object.freeze(
-        definitions.map((definition) =>
-          Object.freeze({
-            contribution: pageContributionSchema.parse(definition.page),
-            runtime: definition.pageRuntime,
-          }),
-        ),
-      ),
-      routes: Object.freeze(
-        definitions.map((definition) =>
-          Object.freeze({
-            contribution: definition.route,
-            runtime: definition.routeRuntime,
-          }),
-        ),
-      ),
-    }),
-  });
-}
-
-export const legacyHostRoutes: readonly LegacyHostRouteDefinition[] =
-  Object.freeze([
-    Object.freeze({
-      id: "app-shell",
-      kind: "layout",
-      path: null,
-      boundary: "app-shell",
-    }),
-    Object.freeze({
-      id: "not-found",
-      kind: "fallback",
-      path: "*",
-      boundary: "deferred-route",
-    }),
-  ]);
+import { pageRouteRegistry, type PageRouteRegistry } from "./pageRouteRegistry";
+import { eagerPageRuntime, lazyPageRuntime, routeRuntime, standardRoute, standaloneRoute, owner, type LegacyPageRouteOwner, registerLegacyPageRoutes as registerPageOwners } from "./legacyRouteBindings";
+export { legacyHostRoutes, type LegacyHostRouteDefinition, type LegacyPageRouteOwner, registerLegacyPageRoutes as registerPageOwners } from "./legacyRouteBindings";
 
 export const legacyPageRouteOwners: readonly LegacyPageRouteOwner[] =
   Object.freeze([
@@ -195,33 +33,6 @@ export const legacyPageRouteOwners: readonly LegacyPageRouteOwner[] =
         ),
         pageRuntime: eagerPageRuntime("Dashboard"),
         routeRuntime: routeRuntime(),
-      },
-    ]),
-    owner("wrapt.orbit", [
-      {
-        page: {
-          id: "wrapt.orbit.page.main",
-          title: "Orbit",
-          description: "Werkzeuge und Previews öffnen",
-        },
-        route: standardRoute(
-          "wrapt.orbit.route.main",
-          "wrapt.orbit.page.main",
-          "/orbit",
-          {
-            aliases: ["/workbench"],
-            shell: "full-bleed",
-            topbar: false,
-            breadcrumbs: false,
-            mobileNavigation: true,
-          },
-        ),
-        pageRuntime: lazyPageRuntime(
-          "workbench",
-          "Workbench",
-          loadWorkbench,
-        ),
-        routeRuntime: routeRuntime("/orbit", "redirect-to-canonical"),
       },
     ]),
     owner("wrapt.projects", [
@@ -451,44 +262,10 @@ export const legacyPageRouteOwners: readonly LegacyPageRouteOwner[] =
           "wrapt.previews.route.main",
           "wrapt.previews.page.main",
           "/previews",
-          { aliases: ["/orbit/previews"], projectContext: true, mobileNavigation: true },
+          { projectContext: true, mobileNavigation: true },
         ),
         pageRuntime: lazyPageRuntime("tool-route", "Previews", loadToolRoute),
         routeRuntime: routeRuntime("/previews"),
-      },
-      {
-        page: {
-          id: "wrapt.previews.page.group",
-          title: "Preview-Gruppe",
-        },
-        route: standardRoute(
-          "wrapt.previews.route.group",
-          "wrapt.previews.page.group",
-          "/previews/gruppe/:groupId",
-        ),
-        pageRuntime: lazyPageRuntime(
-          "preview-group",
-          "PreviewGroupRoute",
-          loadPreviewGroup,
-        ),
-        routeRuntime: routeRuntime("/previews/gruppe/"),
-      },
-      {
-        page: {
-          id: "wrapt.previews.page.window",
-          title: "Preview-Fenster",
-        },
-        route: standaloneRoute(
-          "wrapt.previews.route.window",
-          "wrapt.previews.page.window",
-          "/previews/fenster/:groupId",
-        ),
-        pageRuntime: lazyPageRuntime(
-          "preview-group",
-          "PreviewGroupWindowRoute",
-          loadPreviewGroup,
-        ),
-        routeRuntime: routeRuntime("/previews/fenster/"),
       },
       {
         page: {
@@ -550,111 +327,17 @@ export const legacyPageRouteOwners: readonly LegacyPageRouteOwner[] =
         routeRuntime: routeRuntime("/terminal"),
       },
     ]),
-    owner("wrapt.codex", [
-      {
-        page: {
-          id: "wrapt.codex.page.main",
-          title: "Codex",
-          description: "Codex CLI im Browser",
-        },
-        route: standardRoute(
-          "wrapt.codex.route.main",
-          "wrapt.codex.page.main",
-          "/codex",
-          {
-            projectContext: true,
-            standaloneActions: true,
-            mobileNavigation: true,
-          },
-        ),
-        pageRuntime: lazyPageRuntime(
-          "cli-terminal",
-          "CodexTerminal",
-          loadCliTerminal,
-        ),
-        routeRuntime: routeRuntime("/codex"),
-      },
-    ]),
-    owner("wrapt.opencode", [
-      {
-        page: {
-          id: "wrapt.opencode.page.main",
-          title: "OpenCode",
-          description: "OpenCode Web",
-        },
-        route: standardRoute(
-          "wrapt.opencode.route.main",
-          "wrapt.opencode.page.main",
-          "/opencode",
-          {
-            projectContext: false,
-            standaloneActions: true,
-            mobileNavigation: true,
-          },
-        ),
-        pageRuntime: lazyPageRuntime(
-          "tool-route",
-          "OpenCodeWeb",
-          loadToolRoute,
-        ),
-        routeRuntime: routeRuntime("/opencode"),
-      },
-    ]),
-    owner("wrapt.claude", [
-      {
-        page: {
-          id: "wrapt.claude.page.main",
-          title: "Claude Code",
-          description: "Claude Code CLI im Browser",
-        },
-        route: standardRoute(
-          "wrapt.claude.route.main",
-          "wrapt.claude.page.main",
-          "/claude",
-          {
-            projectContext: true,
-            standaloneActions: true,
-            mobileNavigation: true,
-          },
-        ),
-        pageRuntime: lazyPageRuntime(
-          "cli-terminal",
-          "ClaudeCodeTerminal",
-          loadCliTerminal,
-        ),
-        routeRuntime: routeRuntime("/claude"),
-      },
-    ]),
+    ...legacyCliPageRouteOwners,
   ]);
 
 /** Die bisherigen LocalStorage-IDs bleiben bis zur Preferences-Migration lesbar. */
-export const legacyPageAliases = Object.freeze({
-  dashboard: "wrapt.dashboard.page.main",
-  workbench: "wrapt.orbit.page.main",
-  projects: "wrapt.projects.page.list",
-  "t3-code": "wrapt.t3-code.page.main",
-  "hermes-agent": "wrapt.hermes.page.main",
-  codex: "wrapt.codex.page.main",
-  opencode: "wrapt.opencode.page.main",
-  claude: "wrapt.claude.page.main",
-  "code-editor": "wrapt.code-server.page.main",
-  previews: "wrapt.previews.page.main",
-  terminal: "wrapt.terminal.page.main",
-  files: "wrapt.files.page.main",
-  "ki-skills": "wrapt.skills.page.main",
-  plugins: "wrapt.plugins.page.main",
-  usage: "wrapt.usage.page.main",
-  settings: "wrapt.settings.page.main",
-});
+export { pagePreferenceAliases as legacyPageAliases } from "./pagePreferenceAliases";
 
 export function registerLegacyPageRoutes(registry: PageRouteRegistry): void {
-  for (const builtIn of legacyPageRouteOwners) {
-    registry.replaceOwner(builtIn.ownerId, builtIn.batch);
-  }
+  registerPageOwners(registry, legacyPageRouteOwners);
 }
 
 let defaultRegistryBootstrapped = false;
-
 export function bootstrapLegacyPageRoutes(): PageRouteRegistry {
   if (!defaultRegistryBootstrapped) {
     registerLegacyPageRoutes(pageRouteRegistry);

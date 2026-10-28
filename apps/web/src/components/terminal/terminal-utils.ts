@@ -1,24 +1,13 @@
 import {
   baseTerminalFontSize,
   compactTerminalFontSize,
-  maximumCompensatedRenderScale,
-  minimumCompensatedRenderScale,
   mouseReportingModes,
   terminalSpecialKeys,
 } from "./terminal-constants";
 
-/**
- * xterm rendert Zeichen in einen Canvas. In einem gezoomten Orbit-Knoten wird
- * dieser Canvas anschließend erneut skaliert. Eine umgekehrt skalierte
- * Schriftgröße hält die sichtbare Zellgröße konstant und liefert dem Browser
- * mehr Rasterauflösung, bevor der Knoten verkleinert wird.
- */
-export function terminalFontSizeForRenderScale(renderScale = 1, compact = false): number {
-  const scale = Number.isFinite(renderScale)
-    ? Math.min(maximumCompensatedRenderScale, Math.max(minimumCompensatedRenderScale, renderScale))
-    : 1;
-  const base = compact ? compactTerminalFontSize : baseTerminalFontSize;
-  return Number((base / scale).toFixed(2));
+/** Schriftgröße folgt der Kompaktheit der umgebenden Shell. */
+export function terminalFontSize(compact = false): number {
+  return compact ? compactTerminalFontSize : baseTerminalFontSize;
 }
 
 /** Erkennt die kompakte Terminal-Schrift an der umgebenden Shell: schmale

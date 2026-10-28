@@ -132,14 +132,14 @@ describe("StatusBarRegistry", () => {
     registry.replaceOwner(owner, [
       {
         contribution: statusBar(owner, {
-          when: { all: [{ key: "host.orbit.focused", operator: "exists" }] },
+          when: { all: [{ key: "host.project.open", operator: "exists" }] },
         }),
         runtime: {},
       },
     ]);
     const item = registry.getSnapshot().items[0]!;
     expect(registry.visibleIn(item, new Map())).toBe(false);
-    expect(registry.visibleIn(item, new Map([["host.orbit.focused", true] as const]))).toBe(true);
+    expect(registry.visibleIn(item, new Map([["host.project.open", true] as const]))).toBe(true);
   });
 
   it("entfernt Items eines Owners beim Dispose", () => {

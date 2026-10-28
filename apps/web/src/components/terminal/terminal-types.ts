@@ -60,8 +60,6 @@ export interface WebTerminalProps {
   focused?: boolean;
   /** Hält die PTY-Verbindung für eine geparkte, aber gecachte Route offen. */
   keepAlive?: boolean;
-  /** Bildschirm-Zoom des umgebenden Orbit-Knotens. 1 bedeutet keine Skalierung. */
-  renderScale?: number;
   mode?: "agent" | "login";
   accountId?: string;
   onMetaChange?: (meta: TerminalMeta) => void;

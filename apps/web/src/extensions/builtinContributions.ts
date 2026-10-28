@@ -1,8 +1,6 @@
 import { bootstrapLegacyCommands } from "./legacyCommands";
-import { bootstrapLegacyContextMenus } from "./legacyContextMenus";
 import { bootstrapLegacyDashboardSections } from "./legacyDashboardSections";
 import { bootstrapLegacyNavigation } from "./legacyNavigation";
-import { bootstrapLegacyOrbitPalette } from "./legacyOrbitPalette";
 import { bootstrapLegacyPageRoutes } from "./legacyPageRoutes";
 import { bootstrapLegacySettingsCards } from "./legacySettingsCards";
 import { bootstrapLegacyStatusBar } from "./legacyStatusBar";
@@ -29,9 +27,7 @@ export function bootstrapBuiltinContributions(): void {
   bootstrapLegacyCommands();
   bootstrapLegacyStatusBar();
   bootstrapLegacyTopbar();
-  bootstrapLegacyContextMenus();
   bootstrapHostContextMenus();
   bootstrapLegacyDashboardSections();
   bootstrapLegacySettingsCards();
-  bootstrapLegacyOrbitPalette();
 }

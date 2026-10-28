@@ -35,7 +35,6 @@ describe("Plugin-Paket mein-plugin", () => {
   });
 
   it("registriert die neue Seite sichtbar als Sidebar-Werkzeugseite", () => {
-    expect(draft.surfaces).toEqual(["page", "sidebar"]);
     expect(draft.wizard.surfaces).toEqual(["page", "sidebar"]);
     expect(manifest.contributes.navigation).toHaveLength(1);
     expect(manifest.contributes.navigation?.[0]).toMatchObject({
@@ -112,12 +111,9 @@ describe("Plugin-Paket mein-plugin", () => {
     expect(draft.html).not.toMatch(/width\s*:\s*\d+px/i);
   });
 
-  it("nutzt das kontrollierte Icon-Codewort folder und keine Orbit-Fläche", () => {
+  it("nutzt das kontrollierte Icon-Codewort folder", () => {
     expect(pluginIconPresetSchema.options).toContain("folder");
     expect(draft.icon).toBe("folder");
-    expect(draft.orbit.enabled).toBe(false);
-    expect(draft.wizard.includeOrbit).toBe(false);
-    expect(draft.surfaces).not.toContain("orbit");
   });
 
   it("weist fehlerhafte Varianten des Pakets zurück", async () => {

@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CommandRegistry } from "./commandRegistry";
-import { ContextMenuRegistry } from "./contextMenuRegistry";
 import { registerLegacyCommands } from "./legacyCommands";
-import { registerLegacyContextMenus } from "./legacyContextMenus";
 import { registerLegacyPageRoutes } from "./legacyPageRoutes";
 import { registerLegacyStatusBar } from "./legacyStatusBar";
 import { registerLegacyTopbar } from "./legacyTopbar";
@@ -51,18 +49,4 @@ describe("Legacy Oberflächen-Built-ins", () => {
     }
   });
 
-  it("registriert den Projektbrowser-Menüpunkt auf der Orbit-Fläche", () => {
-    const commands = new CommandRegistry();
-    registerLegacyCommands(commands);
-    const registry = new ContextMenuRegistry(commands);
-    registerLegacyContextMenus(registry);
-
-    const items = registry.getSnapshot().bySurface.get("host.context-menu.orbit-pane");
-    expect(items?.map((item) => item.contributionId)).toEqual([
-      "wrapt.orbit.menu.project-browser",
-    ]);
-    expect(items?.[0]?.value.contribution.commandId).toBe(
-      "wrapt.orbit.command.project-browser",
-    );
-  });
 });

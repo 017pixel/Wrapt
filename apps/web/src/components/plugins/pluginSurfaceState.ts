@@ -1,6 +1,6 @@
 import type { PluginDraftContent, PluginSurface } from "@wrapt/contracts";
 
-type SurfacePatch = Pick<PluginDraftContent, "orbit" | "surfaces" | "wizard">;
+type SurfacePatch = Pick<PluginDraftContent, "surfaces" | "wizard">;
 type PluginRouteSource = Pick<PluginDraftContent, "routePath" | "slug" | "surfaces">;
 
 export function pluginHostRoute(draft: PluginRouteSource): string {
@@ -15,11 +15,9 @@ function synchronizedSurfacePatch(
     "page" as const,
     ...[...new Set(selected)].filter((surface) => surface !== "page"),
   ];
-  const includeOrbit = surfaces.includes("orbit");
   return {
     surfaces,
-    orbit: { ...draft.orbit, enabled: includeOrbit },
-    wizard: { ...draft.wizard, surfaces, includeOrbit },
+    wizard: { ...draft.wizard, surfaces },
   };
 }
 
@@ -31,15 +29,5 @@ export function togglePluginSurface(
   const selected = new Set(draft.surfaces);
   if (selected.has(surface)) selected.delete(surface);
   else selected.add(surface);
-  return synchronizedSurfacePatch(draft, selected);
-}
-
-export function setPluginOrbitEnabled(
-  draft: PluginDraftContent,
-  enabled: boolean,
-): SurfacePatch {
-  const selected = new Set(draft.surfaces);
-  if (enabled) selected.add("orbit");
-  else selected.delete("orbit");
   return synchronizedSurfacePatch(draft, selected);
 }

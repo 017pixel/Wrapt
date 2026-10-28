@@ -2,7 +2,7 @@ import type { ComponentType, ReactNode } from "react";
 import type { PluginCleanup } from "./schema.js";
 export { z } from "zod";
 
-export type PluginUiSurface = "navigation" | "page" | "dashboard" | "topbar" | "statusbar" | "settings" | "context-menu" | "orbit" | "panel";
+export type PluginUiSurface = "navigation" | "page" | "dashboard" | "topbar" | "statusbar" | "settings" | "context-menu" | "panel";
 
 export interface PluginClientRegistration { dispose(): void }
 

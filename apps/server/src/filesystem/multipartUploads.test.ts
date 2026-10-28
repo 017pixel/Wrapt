@@ -4,7 +4,7 @@ import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, it } from "vitest";
-import { OrbitAssetRepository } from "../orbit/assets.js";
+import { GalleryRepository } from "./galleryRepository.js";
 import { AppError } from "../utils/errors.js";
 import { FileManagerService } from "./fileManagerService.js";
 
@@ -13,7 +13,7 @@ it.each(["Archiv", "Dateimanager"])("veröffentlicht keine vom Multipart-Parser 
   const directory = join(root, "files");
   const { mkdir } = await import("node:fs/promises");
   await mkdir(directory);
-  const assets = new OrbitAssetRepository(join(root, "assets.sqlite"), directory, 5, 100);
+  const assets = new GalleryRepository(join(root, "assets.sqlite"), directory, 5, 100);
   const files = new FileManagerService(directory, 100, 5, join(root, "files.sqlite"));
   const app = Fastify();
   try {

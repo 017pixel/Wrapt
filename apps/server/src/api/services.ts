@@ -1,8 +1,7 @@
 import type { CodexbarUsageService } from "../adapters/codexbar/codexbar-cache.js";
 import type { ProjectBrowserService } from "../filesystem/projectBrowserService.js";
 import type { FileManagerService } from "../filesystem/fileManagerService.js";
-import type { OrbitAssetRepository } from "../orbit/assets.js";
-import type { OrbitDatabase } from "../orbit/database.js";
+import type { GalleryRepository } from "../filesystem/galleryRepository.js";
 import type { NotesDatabase } from "../notes/database.js";
 import type { PreviewSlotService } from "../previews/slots.js";
 import type { createCommandService } from "../services/commandService.js";
@@ -26,13 +25,11 @@ export interface RouteServices {
   analytics: UsageAnalyticsService;
   accounts: AccountService;
   usageTimeline: UsageTimelineService;
-  orbit: OrbitDatabase;
   notes: NotesDatabase;
   projectFiles: ReturnType<typeof createProjectFileService>;
   localPorts: ReturnType<typeof createLocalPortService>;
   previewSlots: PreviewSlotService;
-  orbitAssets: OrbitAssetRepository;
-  fileGallery: OrbitAssetRepository;
+  fileGallery: GalleryRepository;
   projectBrowser: ProjectBrowserService;
   identity: WorkbenchIdentityOptions;
   fileManager: FileManagerService;

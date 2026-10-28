@@ -20,10 +20,6 @@ export const performanceSettingsShape = {
   T3_REMOTE_POLL_CONCURRENCY: boundedIntegerFromEnvironment(remoteT3PollDefaults.concurrency, 1, 16),
   T3_REMOTE_POLL_MAX_BACKOFF_MS: boundedIntegerFromEnvironment(remoteT3PollDefaults.maximumBackoffMilliseconds, 5_000, 600_000),
   HERMES_WEBSOCKET_BUFFERED_BYTES: boundedIntegerFromEnvironment(2 * 1024 * 1024, 131_072, 536_870_912),
-  ORBIT_BACKUP_BATCH_SIZE: boundedIntegerFromEnvironment(5, 1, 50),
-  ORBIT_BACKUP_BATCH_MS: boundedIntegerFromEnvironment(25, 1, 1_000),
-  ORBIT_BACKUP_SHUTDOWN_MS: boundedIntegerFromEnvironment(5_000, 100, 60_000),
-  ORBIT_BACKUP_RETRY_MS: boundedIntegerFromEnvironment(5_000, 100, 60_000),
 };
 
 type PerformanceEnvironment = z.infer<z.ZodObject<typeof performanceSettingsShape>>;
@@ -35,8 +31,6 @@ export function resolvePerformanceSettings(environment: PerformanceEnvironment) 
     hermesCommitCacheMilliseconds: environment.HERMES_COMMIT_CACHE_MS,
     remoteT3Poll: { concurrency: environment.T3_REMOTE_POLL_CONCURRENCY, maximumBackoffMilliseconds: environment.T3_REMOTE_POLL_MAX_BACKOFF_MS },
     hermesWebSocketBufferedBytes: environment.HERMES_WEBSOCKET_BUFFERED_BYTES,
-    orbitBackupDrain: { batchSize: environment.ORBIT_BACKUP_BATCH_SIZE, batchMilliseconds: environment.ORBIT_BACKUP_BATCH_MS,
-      shutdownMilliseconds: environment.ORBIT_BACKUP_SHUTDOWN_MS, retryMilliseconds: environment.ORBIT_BACKUP_RETRY_MS },
     codexSessionRead: {
       discoveryMilliseconds: environment.CODEX_SESSION_DISCOVERY_MS,
       blockBytes: environment.CODEX_SESSION_READ_BLOCK_BYTES,

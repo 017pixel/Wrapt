@@ -7,16 +7,14 @@ import { QueryBoundary } from "../components/QueryBoundary";
 import { Card } from "../components/Card";
 import { Badge, StateDot } from "../components/primitives";
 import { EmptyState } from "../components/EmptyState";
-import { openPreviewForProject, openProjectDefault, openProjectStandaloneDefault, openToolForProject } from "../lib/wraptActions";
+import { openPreviewForProject, openProjectStandaloneDefault, openToolForProject } from "../lib/wraptActions";
 import { useRouteActivity } from "../lib/routeActivity";
 import { codeServerState, codeServerUnavailableReason } from "../lib/codeServerAvailability";
-import { useSidebarPreferences } from "../stores/sidebarPreferences";
 import heroFehlerdiagnoseBackground from "../assets/dashboard-artwork/hero-fehlerdiagnose-surface.webp";
 
 export function ProjectDetail() {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
-  const orbitEnabled = useSidebarPreferences((state) => !state.hiddenPages.has("workbench"));
   const routeActive = useRouteActivity();
   const projects = useQuery({ ...wraptQueries.projects(), enabled: routeActive });
   const services = useQuery({ ...wraptQueries.services(), enabled: routeActive });
@@ -79,17 +77,14 @@ export function ProjectDetail() {
                         if (project.links.t3Code) {
                           openToolForProject(project, "t3-code");
                           navigate("/t3-code");
-                        } else if (orbitEnabled) {
-                          openProjectDefault(project, editorReason === null);
-                          navigate("/orbit");
                         } else {
                           navigate(openProjectStandaloneDefault(project, editorReason === null));
                         }
                       }}
                       className="quiet-button-primary"
                     >
-                      {project.links.t3Code || orbitEnabled ? <T3CodeIcon className="h-3.5 w-3.5" /> : editorReason === null ? <CodeServerIcon className="h-3.5 w-3.5" /> : <TerminalIcon className="h-3.5 w-3.5" />}
-                      {project.links.t3Code ? "T3 öffnen" : orbitEnabled ? "Orbit öffnen" : editorReason === null ? "Editor öffnen" : "Terminal öffnen"}
+                      {project.links.t3Code ? <T3CodeIcon className="h-3.5 w-3.5" /> : editorReason === null ? <CodeServerIcon className="h-3.5 w-3.5" /> : <TerminalIcon className="h-3.5 w-3.5" />}
+                      {project.links.t3Code ? "T3 öffnen" : editorReason === null ? "Editor öffnen" : "Terminal öffnen"}
                     </button>
                     <button
                       type="button"

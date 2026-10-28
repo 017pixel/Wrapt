@@ -60,7 +60,7 @@ export async function registerFilesystemRoutes(app: FastifyInstance, services: R
   app.post("/filesystem/upload", { config: { rateLimit: { max: 30, timeWindow: "1 minute" } } }, async (request, reply) => {
     const query = z.object({ path: z.string().trim().min(1).max(4_096) }).parse(request.query);
     // Das eigene, größere Upload-Limit des Dateimanagers muss auch den
-    // Multipart-Parser erreichen, sonst lehnt das globale Orbit-Limit die Datei
+    // Multipart-Parser erreichen, sonst lehnt das globale Upload-Limit die Datei
     // vorher mit einer generischen Meldung ab (F01-02).
     const upload = await request.file({ limits: { fileSize: settings.fileManagerMaxUploadBytes } });
     if (!upload) throw new AppError(400, "UPLOAD_REQUIRED", "Es wurde keine Datei mitgesendet.");

@@ -75,7 +75,6 @@ test.describe("T3-Performance", () => {
     });
 
     const routes = [
-      ["Orbit", "/wrapt/orbit"],
       ["Projekte", "/wrapt/projects"],
       ["Dateien", "/wrapt/files"],
       ["KI-Skills", "/wrapt/ki-skills"],
@@ -95,9 +94,6 @@ test.describe("T3-Performance", () => {
         await t3Link.click();
         return;
       }
-      // Die Workbench-Route zeigt im Sidebar-Bereich die Orbit-Palette statt
-      // der Standalone-Links. Über das Dashboard bleibt der Wechsel trotzdem
-      // clientseitig und der Routenspeicher wird weiter geprüft.
       await page.getByRole("link", { name: "Dashboard", exact: true }).click();
       await page.getByRole("link", { name: "T3 Code", exact: true }).click();
     };

@@ -16,7 +16,7 @@ const notificationSourceLabels: Record<NotificationSource, string> = {
   claude: "Claude Code",
   terminal: "Terminal",
   wrapt: "Wrapt",
-  workbench: "Orbit",
+  workbench: "Frühere Meldungen",
   update: "Updates",
 };
 

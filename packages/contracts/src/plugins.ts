@@ -53,7 +53,6 @@ export const pluginSurfaceSchema = z.enum([
   "topbar",
   "bottom-bar",
   "dashboard",
-  "orbit",
   "right-rail",
   "overlay",
   "bottom-sheet",
@@ -143,15 +142,6 @@ export const pluginFunctionSchema = z.strictObject({
   value: z.string().max(2_000),
 });
 
-export const pluginOrbitSchema = z.strictObject({
-  enabled: z.boolean(),
-  title: text(120),
-  description: z.string().max(500),
-  placement: z.enum(["orbit", "dashboard", "both"]),
-  nodeType: z.enum(["note", "frame", "todo"]),
-  accent: z.enum(["accent", "ok", "warn", "neutral"]),
-});
-
 export const pluginWizardAnswersSchema = z.strictObject({
   goal: z.string().max(4_000),
   audience: z.string().max(1_000),
@@ -160,7 +150,6 @@ export const pluginWizardAnswersSchema = z.strictObject({
   tone: z.enum(["ruhig", "direkt", "freundlich", "fokussiert"]),
   includeHtml: z.boolean(),
   includeIframe: z.boolean(),
-  includeOrbit: z.boolean(),
   additionalDescription: z.string().max(4_000),
   wishes: z.string().max(4_000),
   editRequest: z.string().max(6_000).default(""),
@@ -191,7 +180,6 @@ export const pluginDraftContentSchema = z.strictObject({
   html: z.string().max(100_000),
   blocks: z.array(pluginBlockSchema).max(40),
   functions: z.array(pluginFunctionSchema).max(24),
-  orbit: pluginOrbitSchema,
   wizard: pluginWizardAnswersSchema,
   sourceExampleId: slug.nullable(),
   status: z.enum(["draft", "published"]),
@@ -277,7 +265,6 @@ export const pluginCreatorSkillResponseSchema = z.strictObject({
 
 export type PluginBlock = z.infer<typeof pluginBlockSchema>;
 export type PluginFunction = z.infer<typeof pluginFunctionSchema>;
-export type PluginOrbit = z.infer<typeof pluginOrbitSchema>;
 export type PluginCreationMode = z.infer<typeof pluginCreationModeSchema>;
 export type PluginActivationStatus = z.infer<typeof pluginActivationStatusSchema>;
 export type PluginCapability = z.infer<typeof pluginCapabilitySchema>;

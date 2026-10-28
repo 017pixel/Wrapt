@@ -6,7 +6,6 @@ const surfaceLabels: Record<PluginSurface, string> = {
   topbar: "Topbar",
   "bottom-bar": "Bottom-Bar",
   dashboard: "Dashboard",
-  orbit: "Orbit",
   "right-rail": "Rechte Seitenleiste",
   overlay: "Overlay",
   "bottom-sheet": "Bottom Sheet",

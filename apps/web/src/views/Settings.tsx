@@ -16,10 +16,8 @@ import { Link } from "react-router";
 import { SettingsGeneral } from "./settings/SettingsGeneral";
 import { SettingsNavigation } from "./settings/SettingsNavigation";
 import { SettingsNotifications } from "./settings/SettingsNotifications";
-import { SettingsStartup } from "./settings/SettingsStartup";
 import { SettingsSystem } from "./settings/SettingsSystem";
 import { SettingsUsage } from "./settings/SettingsUsage";
-import { SettingsLayout } from "./settings/SettingsLayout";
 import { SettingsWorkspaces } from "./settings/SettingsWorkspaces";
 import {
   normalizeSettingsTab,
@@ -128,25 +126,23 @@ export function Settings() {
                     </p>
                   </div>
                 </header>
-                <Link className="quiet-button min-h-11" to="/plugins">Plugins erstellen und verwalten</Link>
+                <Link className="quiet-button min-h-11 settings-plugin-link" to="/plugins">Plugins erstellen und verwalten</Link>
                 <ExtensionSettings />
               </section>
             </div>
           ) : null}
           {activeTab === "werkzeuge" ? <SettingsUsage /> : null}
           {activeTab === "experimente" ? <HermesV2Settings /> : null}
-          {activeTab === "layout" ? <SettingsLayout /> : null}
           {activeTab === "workspaces" ? <SettingsWorkspaces /> : null}
           {activeTab === "easter-eggs" ? (
             <div id="settings-easter-eggs">
               <SettingsEasterEggs />
             </div>
           ) : null}
-          {activeTab === "start-app" ? <SettingsStartup /> : null}
           </> }]} />
         </div>
 
-        <footer className="settings-system-footer"><span>{health.data?.appName ?? "Wrapt"}</span><strong>Version {health.data?.version ?? "–"}</strong><span>Lokale Remote-Entwicklungsumgebung</span><span>Einstellungen werden zwischen allen Clients abgeglichen</span></footer>
+        <footer className="settings-system-footer"><span>{health.data?.appName ?? "Wrapt"}</span><strong>Version {health.data?.version ?? "–"}</strong></footer>
       </div>
     </div>
   );

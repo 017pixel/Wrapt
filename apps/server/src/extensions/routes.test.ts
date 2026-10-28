@@ -39,12 +39,11 @@ describe("Extension API", () => {
     const body = response.json() as { providerId: string; entries: Array<{ manifest: { id: string } }> };
     expect(body.providerId).toBe("wrapt-catalog");
     const exampleIds = body.entries.map((entry) => entry.manifest.id).filter((id) => id.startsWith("wrapt.example."));
-    expect(exampleIds).toHaveLength(11);
+    expect(exampleIds).toHaveLength(10);
     expect(exampleIds).toEqual([
       "wrapt.example.focus-timer",
       "wrapt.example.html-status",
       "wrapt.example.mein-plugin",
-      "wrapt.example.orbit-notes",
       "wrapt.example.project-checklist",
       "wrapt.example.prompt-library",
       "wrapt.example.reading-queue",

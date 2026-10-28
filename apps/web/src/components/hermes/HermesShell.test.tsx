@@ -18,7 +18,7 @@ const panel: Panel = {
 beforeEach(() => useAppPreferences.setState({ hermesV2Enabled: false }));
 afterEach(cleanup);
 
-function mount(path = "/hermes-agent", variant: "route" | "panel" | "orbit" = "route", customPanel?: Panel) {
+function mount(path = "/hermes-agent", variant: "route" | "panel" = "route", customPanel?: Panel) {
   return render(<MemoryRouter initialEntries={[path]}><HermesShell variant={variant} {...(customPanel ? { panel: customPanel } : {})} /></MemoryRouter>);
 }
 
@@ -37,13 +37,13 @@ function ParkedSurface({ classic }: { classic: boolean }) {
 }
 
 describe("Hermes-Oberflächenwahl", () => {
-  it.each(["route", "panel", "orbit"] as const)("erhält V1 standardmäßig in %s", (variant) => {
+  it.each(["route", "panel"] as const)("erhält V1 standardmäßig in %s", (variant) => {
     mount("/hermes-agent", variant);
     expect(screen.getByTitle("Hermes Agent").getAttribute("src")).toBe("/hermes/chat");
     expect(screen.queryByTestId("native-hermes")).toBeNull();
   });
 
-  it.each(["route", "panel", "orbit"] as const)("öffnet V2 bei aktivem Flag in %s", async (variant) => {
+  it.each(["route", "panel"] as const)("öffnet V2 bei aktivem Flag in %s", async (variant) => {
     useAppPreferences.getState().setHermesV2Enabled(true);
     mount("/hermes-agent", variant);
     expect((await screen.findByTestId("native-hermes")).textContent).toBe(variant);

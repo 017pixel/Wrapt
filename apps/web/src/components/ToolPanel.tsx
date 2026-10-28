@@ -12,7 +12,7 @@ import type { DeviceOrientation, DevicePresetId } from "../config/devicePresets"
 import { TerminalArea } from "./terminal/TerminalArea";
 import { FileManagerPanel } from "./files/FileManagerPanel";
 import { LocalPorts } from "./preview/LocalPorts";
-import { PreviewSlotFrame, relayCanvasPinch } from "./PreviewSlotFrame";
+import { PreviewSlotFrame } from "./PreviewSlotFrame";
 import { apiClient } from "../lib/apiClient";
 import { useRouteActivity } from "../lib/routeActivity";
 import { t3ThreadIdFromPath } from "../lib/t3Thread";
@@ -52,13 +52,12 @@ interface ToolPanelProps {
   onReload?: () => void;
   onClose?: () => void;
   minimal?: boolean;
-  terminalRenderScale?: number;
   terminalRuntimeId?: string | null;
   onHermesPathChange?: (path: string) => void;
   actionPlacement?: "overlay" | "topbar" | "hidden";
 }
 
-export function ToolPanel({ panel, project, isFocused, codeServerMode = "external", codeServerState, onFocus, standalone = false, externalMaximized, onMaximizedChange, onReload, onClose, minimal = false, terminalRenderScale = 1, terminalRuntimeId = null, onHermesPathChange, actionPlacement = "overlay" }: ToolPanelProps) {
+export function ToolPanel({ panel, project, isFocused, codeServerMode = "external", codeServerState, onFocus, standalone = false, externalMaximized, onMaximizedChange, onReload, onClose, minimal = false, terminalRuntimeId = null, onHermesPathChange, actionPlacement = "overlay" }: ToolPanelProps) {
   const selectProject = useLayoutStore((s) => s.selectProject);
   const reloadPanel = useLayoutStore((s) => s.reloadPanel);
   const closePanel = useLayoutStore((s) => s.closePanel);
@@ -257,13 +256,7 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
       className={`tool-surface group flex h-full min-h-0 flex-col ${standalone ? "tool-surface-standalone" : ""} ${isMaximized ? "tool-surface-maximized" : ""} ${
         isFocused ? "border-ink-600" : "border-line"
       }`}
-      onPointerDown={(event) => {
-        // Eingebettete Werkzeuge, insbesondere T3 Code, gehören zur Knoten-
-        // Oberfläche. Ihre Pointer-Gesten dürfen nicht als Canvas-Pan starten.
-        event.stopPropagation();
-        onFocus?.();
-      }}
-      onWheel={(event) => event.stopPropagation()}
+      onPointerDown={() => onFocus?.()}
     >
       {!minimal && !standalone ? <ToolPanelHeader
         panel={panel}
@@ -311,7 +304,6 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
               areaId={panel.id}
               initialProjectId={panel.projectId}
               kind={panel.type === "terminal" ? "shell" : panel.type}
-              renderScale={terminalRenderScale}
               minimal={minimal}
               requestedRuntimeId={terminalRuntimeId}
             />
@@ -325,8 +317,6 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
             projectLookupFailed={projectLookupFailed}
             projectAssociationMissing={projectAssociationMissing}
             projectId={panel.projectId}
-            runtimeId={panel.id}
-            standalone={standalone}
             onRetry={() => void projectLookup.refetch()}
           />
         ) : showPreviewStart ? (
@@ -361,7 +351,7 @@ export function ToolPanel({ panel, project, isFocused, codeServerMode = "externa
                 ref={iframeRef}
                 src={panelSource}
                 title={panelTitles[panel.type]}
-                onLoad={(event) => { setLoaded(true); relayCanvasPinch(event.currentTarget); }}
+                onLoad={() => setLoaded(true)}
                 onPointerDown={(event) => {
                   event.currentTarget.focus();
                   event.currentTarget.contentWindow?.focus();

@@ -20,7 +20,7 @@ test("verarbeitet weitere Größenänderungen nach dem ersten Frame und räumt a
   const resize = vi.fn();
   const resizeRef = { current: null as number | null };
   const cleanup = attachTerminalAppearance(terminal, document.createElement("div"), {
-    terminalRef: { current: terminal }, disposedRef: { current: false }, compactRef: { current: false }, renderScaleRef: { current: 1 }, resizeRef, themeRefreshRef: { current: null }, resize,
+    terminalRef: { current: terminal }, disposedRef: { current: false }, compactRef: { current: false }, resizeRef, themeRefreshRef: { current: null }, resize,
   });
   try {
     notifyResize();

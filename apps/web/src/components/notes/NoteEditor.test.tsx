@@ -29,12 +29,12 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-it("zeigt den Revisionskonflikt auch im kompakten Orbit-Editor mit beiden Auflösungen", () => {
+it("zeigt den Revisionskonflikt mit beiden Auflösungen", () => {
   const note = { id: "notiz-a", revision: 1, content: "Eigene Fassung", title: "Notiz" } as Note;
   const onSaved = vi.fn();
   render(
     <QueryClientProvider client={new QueryClient()}>
-      <NoteEditor note={note} compact onSaved={onSaved} />
+      <NoteEditor note={note} onSaved={onSaved} />
     </QueryClientProvider>,
   );
 

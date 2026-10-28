@@ -1,5 +1,5 @@
 import { test, expect } from "./personas";
-import { assertHealthy, noteLifecycle, openPage, orbitLifecycle, visitMainPages } from "./flows";
+import { assertHealthy, noteLifecycle, openPage, visitMainPages } from "./flows";
 import { getJson } from "./server";
 import { mockUsageData, scarceAccountLabel } from "../tests/e2e/helpers/usage";
 
@@ -24,37 +24,12 @@ for (const theme of ["Ember", "Grove", "T3 Code"]) {
   });
 }
 
-test("Start-App: Root öffnet Notes, direkte Seiten und Kernaktionen bleiben erreichbar", async ({ page, api, appErrors }) => {
-  await settings(page, "Start-App");
-  await page.getByRole("button", { name: /^Notizen \/notizen/ }).click();
-  await page.reload();
-  await visitMainPages(page, "notizen");
-  await noteLifecycle(page, api, "Neue Start-App");
-  await assertHealthy(page, appErrors);
-});
-
-test("Seiten-Sichtbarkeit: ausgeblendete Start-App fällt aufs Dashboard zurück", async ({ page, api, appErrors }) => {
-  await settings(page, "Start-App");
-  await page.getByRole("button", { name: /^Projekte \/projects/ }).click();
-  await page.getByRole("button", { name: "Navigation", exact: true }).click();
-  // Der Switch selbst befindet sich im klickbaren Button.
-  await page.getByRole("switch", { name: "Projekte", exact: true }).click();
-  await expect(page.getByRole("switch", { name: "Projekte", exact: true })).toHaveAttribute("aria-checked", "false");
-  await page.reload();
+test("entfernte Start-App-Einstellung lässt Dashboard und Kernaktionen erreichbar", async ({ page, api, appErrors }) => {
+  await openPage(page, "/settings#einstellungen:start-app");
+  await expect(page.getByRole("button", { name: "Start-App", exact: true })).toHaveCount(0);
+  await expect(page.locator("#settings-general-version")).toBeVisible();
   await visitMainPages(page);
-  await noteLifecycle(page, api, "Ausgeblendete Seite");
-  await assertHealthy(page, appErrors);
-});
-
-test("Orbit-Palette: ausgeblendeter Block sperrt weder Arbeitsflächen noch Notizen", async ({ page, api, appErrors }) => {
-  await settings(page, "Navigation");
-  await page.getByRole("switch", { name: "Code-Snippet", exact: true }).click();
-  await page.reload();
-  await openPage(page, "/orbit");
-  await expect(page.getByRole("button", { name: /Neues Code-Snippet/ })).toHaveCount(0);
-  await orbitLifecycle(page, api, "Reduzierte Palette");
-  await visitMainPages(page);
-  await noteLifecycle(page, api, "Palette geändert");
+  await noteLifecycle(page, api, "Dashboard-Start");
   await assertHealthy(page, appErrors);
 });
 
@@ -67,16 +42,12 @@ test("Dashboard-Bereiche: ausgeblendete Widgets lassen Navigation und Kern-Flows
   await assertHealthy(page, appErrors);
 });
 
-test("Layout zurücksetzen löscht keine serverseitigen Notizen oder Orbit-Arbeitsflächen", async ({ page, api, appErrors, seededNotes }) => {
-  const boardIds = (await getJson(api, "/orbit")).document.boards.map((board: { id: string }) => board.id);
-  await settings(page, "Layout");
-  await page.getByRole("button", { name: "Layout zurücksetzen", exact: true }).click();
-  await page.getByRole("dialog", { name: "Layout zurücksetzen?" }).getByRole("button", { name: "Layout zurücksetzen", exact: true }).click();
+test("entfernter Layout-Bereich erhält Notizen", async ({ page, api, appErrors, seededNotes }) => {
+  await openPage(page, "/settings#einstellungen:layout");
+  await expect(page.getByRole("button", { name: "Layout", exact: true })).toHaveCount(0);
+  await expect(page.locator("#settings-general-version")).toBeVisible();
   await page.reload();
   expect((await getJson(api, "/notes")).notes).toHaveLength(seededNotes.length);
-  expect((await getJson(api, "/orbit")).document.boards.map((board: { id: string }) => board.id)).toEqual(boardIds);
-  await visitMainPages(page);
-  await noteLifecycle(page, api, "Nach Layout-Reset");
   await assertHealthy(page, appErrors);
 });
 
@@ -90,7 +61,6 @@ test("Rechtsklick, Schnellaktionen und Statusleisten-Schrift wirken über Seiten
   await expect.poll(async () => (await getJson(api, "/system/context-menu")).contextMenu.enabled).toBe(false);
   await page.reload();
   await visitMainPages(page);
-  await orbitLifecycle(page, api, "Ohne Kontextmenüs");
   await noteLifecycle(page, api, "Rechtsklick geändert");
   await assertHealthy(page, appErrors);
 });

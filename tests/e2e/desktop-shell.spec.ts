@@ -11,7 +11,7 @@ test("keeps the information-dense desktop shell", async ({ page }) => {
   await expect(page.locator(".status-bar")).toBeVisible();
   await expect(page.getByRole("button", { name: "Navigation öffnen" })).toHaveCount(0);
 
-  for (const route of ["", "orbit", "projects", "usage", "settings"]) {
+  for (const route of ["", "projects", "usage", "settings"]) {
     await page.goto(`/wrapt/${route}`);
     const bounds = await page.locator(".app-shell").evaluate((element) => ({ client: element.clientWidth, scroll: element.scrollWidth }));
     expect(bounds.scroll, route).toBeLessThanOrEqual(bounds.client + 1);

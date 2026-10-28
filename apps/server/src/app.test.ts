@@ -133,7 +133,6 @@ describe("Wrapt API", () => {
       http: { totalRequests: expect.any(Number), routes: expect.any(Array) },
       eventLoop: { p99Milliseconds: expect.any(Number) },
       audit: { valid: true, entries: expect.any(Number) },
-      orbit: { pendingBackups: expect.any(Number) },
       preview: { totalSlots: settings.previewSlotPorts.length },
       extensions: {
         quarantined: expect.any(Number),
@@ -157,30 +156,7 @@ describe("Wrapt API", () => {
     expect(responses.map((response) => response.statusCode)).not.toContain(429);
   });
 
-  it("returns a validated Orbit document envelope", async () => {
-    const app = await buildApp({ startBackgroundServices: false });
-    apps.push(app);
-    const response = await app.inject({ method: "GET", url: "/api/v1/orbit", headers: authenticatedHeaders });
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({
-      revision: expect.any(Number),
-      initialized: expect.any(Boolean),
-      // Version 6 bleibt während der Release-Übergangsphase lesbar; der Client hebt auf 7.
-      document: { version: expect.any(Number), boards: expect.any(Array) },
-    });
-  });
 
-  it("lists Orbit assets and rejects malformed archive cursors", async () => {
-    const app = await buildApp({ startBackgroundServices: false });
-    apps.push(app);
-    const list = await app.inject({ method: "GET", url: "/api/v1/orbit/assets?limit=2", headers: authenticatedHeaders });
-    expect(list.statusCode).toBe(200);
-    expect(list.json<{ assets: unknown[]; nextCursor: string | null }>().assets).toEqual(expect.any(Array));
-    expect(list.json<{ assets: unknown[]; nextCursor: string | null }>().nextCursor === null || typeof list.json<{ assets: unknown[]; nextCursor: string | null }>().nextCursor === "string").toBe(true);
-    const invalid = await app.inject({ method: "GET", url: "/api/v1/orbit/assets?cursor=not-a-cursor", headers: authenticatedHeaders });
-    expect(invalid.statusCode).toBe(400);
-    expect(invalid.json()).toMatchObject({ error: { code: "ORBIT_ASSET_CURSOR_INVALID", message: "Der Archivcursor ist ungültig.", retryable: false } });
-  });
 
   it("lists gallery files and rejects malformed file cursors", async () => {
     const app = await buildApp({ startBackgroundServices: false });

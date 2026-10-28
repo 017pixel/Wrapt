@@ -31,7 +31,7 @@ import type { AppDependencies } from "./dependencies.js";
 export async function registerApplicationRoutes(app: FastifyInstance, deps: AppDependencies) {
   const webBuildMetrics = createWebBuildMetricsReader(settings.webDistDirectory, settings.webBuildMetricsCacheMilliseconds);
   await app.register(async (scope) => {
-    await scope.register(multipart, { limits: { files: 1, fileSize: settings.orbitAssetMaxFileBytes } });
+    await scope.register(multipart, { limits: { files: 1, fileSize: Math.max(settings.fileGalleryMaxFileBytes, settings.fileManagerMaxUploadBytes) } });
     await registerApiRoutes(scope, {
       projects: deps.projects,
       pluginHub: deps.pluginCode.hub,
@@ -41,9 +41,7 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
       analytics: deps.analytics,
       accounts: deps.accounts,
       usageTimeline: deps.usageTimeline,
-      orbit: deps.orbitDatabase,
       notes: deps.notesDatabase,
-      orbitAssets: deps.orbitAssets,
       fileGallery: deps.fileGallery,
       projectBrowser: deps.projectBrowser,
       identity: deps.identityOptions,
@@ -81,7 +79,6 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
     push: deps.notificationPush.metrics(),
     build,
     audit: { ...audit, outboxPending: deps.operationalAudit.outboxPending() },
-    orbit: deps.orbitDatabase.maintenanceStatus(),
     preview: (() => {
       const slots = deps.previewSlots.list().slots;
       return {

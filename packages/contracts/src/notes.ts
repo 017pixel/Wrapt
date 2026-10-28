@@ -3,7 +3,7 @@ import { z } from "zod";
 /**
  * Verträge für das Notizen-Feature. Notizen werden als Markdown gespeichert;
  * Titel und Metadaten liegen daneben. Die Revision schützt vor stillen
- * Überschreibungen bei parallelen Bearbeitungen (zwei Tabs, Orbit und Seite).
+ * Überschreibungen bei parallelen Bearbeitungen (beispielsweise zwei Tabs).
  */
 
 export const NOTE_TITLE_MAX_LENGTH = 300;

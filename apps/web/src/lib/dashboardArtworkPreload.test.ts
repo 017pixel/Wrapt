@@ -26,7 +26,7 @@ describe("Dashboard-Artwork-Preload", () => {
   });
 
   it("legt keinen Preload an, solange der Hintergrund ausgeschaltet ist", () => {
-    storedArtwork({ artworkEnabled: false, artworkId: "hero-orbit" });
+    storedArtwork({ artworkEnabled: false, artworkId: "hero-arbeitsbereich" });
     preloadDashboardArtwork();
     expect(preloadLink()).toBeNull();
   });
@@ -37,14 +37,14 @@ describe("Dashboard-Artwork-Preload", () => {
   });
 
   it("holt das gespeicherte Motiv vor, sobald der Hintergrund aktiv ist", () => {
-    storedArtwork({ artworkEnabled: true, artworkId: "hero-orbit" });
+    storedArtwork({ artworkEnabled: true, artworkId: "hero-arbeitsbereich" });
     preloadDashboardArtwork();
 
     const link = preloadLink();
     expect(link?.getAttribute("rel")).toBe("preload");
     expect(link?.getAttribute("as")).toBe("image");
     expect(link?.getAttribute("fetchpriority")).toBe("high");
-    expect(link?.getAttribute("href")).toBe(backgroundOf("hero-orbit"));
+    expect(link?.getAttribute("href")).toBe(backgroundOf("hero-arbeitsbereich"));
   });
 
   it("übernimmt das übergebene Motiv, ohne den Speicher zu verändern", () => {
@@ -58,22 +58,22 @@ describe("Dashboard-Artwork-Preload", () => {
   });
 
   it("verwendet beim Hover niedrige Priorität für das gespeicherte Motiv", () => {
-    storedArtwork({ artworkEnabled: true, artworkId: "hero-orbit" });
+    storedArtwork({ artworkEnabled: true, artworkId: "hero-arbeitsbereich" });
     preloadDashboardArtwork(undefined, "low");
     expect(preloadLink()?.getAttribute("fetchpriority")).toBe("low");
-    expect(preloadLink()?.getAttribute("href")).toBe(backgroundOf("hero-orbit"));
+    expect(preloadLink()?.getAttribute("href")).toBe(backgroundOf("hero-arbeitsbereich"));
   });
 
   it("hebt die Priorität beim anschließenden Öffnen ohne zweiten Preload an", () => {
-    preloadDashboardArtwork("hero-orbit", "low");
+    preloadDashboardArtwork("hero-arbeitsbereich", "low");
     const link = preloadLink();
-    preloadDashboardArtwork("hero-orbit");
+    preloadDashboardArtwork("hero-arbeitsbereich");
     expect(preloadLink()).toBe(link);
     expect(link?.getAttribute("fetchpriority")).toBe("high");
   });
 
   it("wechselt den Preload beim Motivwechsel statt einen zweiten anzulegen", () => {
-    preloadDashboardArtwork("hero-orbit");
+    preloadDashboardArtwork("hero-arbeitsbereich");
     preloadDashboardArtwork("hero-terminal");
 
     expect(document.head.querySelectorAll("link[data-dashboard-artwork]")).toHaveLength(1);
@@ -81,9 +81,9 @@ describe("Dashboard-Artwork-Preload", () => {
   });
 
   it("lässt einen unveränderten Preload unangetastet", () => {
-    preloadDashboardArtwork("hero-orbit");
+    preloadDashboardArtwork("hero-arbeitsbereich");
     const first = preloadLink();
-    preloadDashboardArtwork("hero-orbit");
+    preloadDashboardArtwork("hero-arbeitsbereich");
 
     expect(preloadLink()).toBe(first);
   });

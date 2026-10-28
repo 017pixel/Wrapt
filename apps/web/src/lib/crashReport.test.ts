@@ -25,7 +25,7 @@ beforeEach(() => {
 });
 
 describe("harmlose Browser-Meldungen", () => {
-  // Diese Meldung tauchte im Orbit (@xyflow/react) auf und hat fälschlich das
+  // Diese harmlose ResizeObserver-Meldung hat fälschlich das
   // Crash-Pop-Up geöffnet, obwohl laut Spezifikation nichts kaputt ist.
   it("stuft ResizeObserver-Meldungen nicht als Absturz ein", () => {
     const message = "ResizeObserver loop completed with undelivered notifications.";

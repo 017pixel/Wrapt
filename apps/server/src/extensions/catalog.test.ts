@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -50,6 +50,31 @@ describe("LocalExtensionCatalog", () => {
       "./extension.json",
       "./server.js",
     ]);
+  });
+
+  it("erhält Seiten gemischter Alt-Pakete und prüft unbekannte Beiträge weiterhin streng", () => {
+    const fixture = catalogFixture();
+    cleanup = () => rmSync(fixture.directory, { recursive: true, force: true });
+    const manifest = JSON.parse(fixture.manifest);
+    manifest.entrypoints.ui = "./index.js";
+    manifest.activationEvents = ["onOrbitNode:workbench.agent-tasks.orbit.main", "onStartup"];
+    manifest.contributes = { pages: [{ id: "workbench.agent-tasks.page.main", title: "Aufgaben" }], orbit: [{ id: "workbench.agent-tasks.orbit.main" }] };
+    const path = join(fixture.directory, "agent-tasks", "extension.json");
+    writeFileSync(path, JSON.stringify(manifest));
+    writeFileSync(join(fixture.directory, "agent-tasks", "index.js"), "// Seiten-Einstieg\n");
+    const catalog = new LocalExtensionCatalog(defaultCatalogProviderId());
+    catalog.addSourceDirectory(fixture.directory);
+    const entry = catalog.list()[0];
+    expect(entry?.manifest.contributes.pages).toEqual(manifest.contributes.pages);
+    expect(entry?.manifest.contributes).not.toHaveProperty("orbit");
+    expect(entry?.manifest.activationEvents).toEqual(["onStartup"]);
+    expect(JSON.parse(readFileSync(path, "utf8"))).toEqual(manifest);
+    expect(catalog.resolvePackage("workbench.agent-tasks", "1.0.0", catalog.integrityOf("workbench.agent-tasks")!).contributes.pages)
+      .toEqual(manifest.contributes.pages);
+    manifest.contributes.unknownContribution = [];
+    writeFileSync(path, JSON.stringify(manifest));
+    catalog.refresh();
+    expect(catalog.list()).toEqual([]);
   });
 
   it("löst Pakete nur mit passender Version und Integrität auf", () => {

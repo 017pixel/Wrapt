@@ -9,7 +9,6 @@
 @import "./note-editor.css";
 @import "./note-blocks.css";
 @import "./note-menus.css";
-@import "./note-orbit.css";
 /* Mobile- und Touch-Regeln zuletzt: Media Queries erhöhen die Spezifität
    nicht, die mobilen Regeln müssen die Basisdateien überschreiben können. */
 @import "./note-responsive.css";

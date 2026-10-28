@@ -51,7 +51,6 @@ const notesMainRoute: RouteContribution = routeContributionSchema.parse({
   id: "wrapt.notes.route.main",
   pageId: "wrapt.notes.page.main",
   path: "/notizen",
-  aliases: ["/orbit/notizen"],
   shell: "full-bleed",
   persistent: true,
   prefetch: "idle",

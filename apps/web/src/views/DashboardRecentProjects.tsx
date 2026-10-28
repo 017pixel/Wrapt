@@ -9,7 +9,7 @@ type Project = ProjectsResponse["projects"][number];
 
 function latestActivity(project: Project): { at: string; source: string } | null {
   const activity = [
-    { at: project.activity.lastWorkbenchUseAt, source: "Orbit" },
+    { at: project.activity.lastWorkbenchUseAt, source: "Wrapt" },
     { at: project.activity.lastFilesystemChangeAt, source: "Dateien" },
     { at: project.activity.lastGitCommitAt, source: "Git" },
   ].filter((item): item is { at: string; source: string } => item.at !== null && Number.isFinite(Date.parse(item.at)));

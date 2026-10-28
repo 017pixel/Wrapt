@@ -10,6 +10,7 @@ import {
 import type { LocalExtensionCatalog } from "../extensions/catalog.js";
 import { extensionPermissionRequestSchema } from "@wrapt/extension-contracts";
 import { AppError } from "../utils/errors.js";
+import { normalizeLegacyPluginDraft } from "./legacy-draft.js";
 import { contentOf } from "./draft-content.js";
 import { removeOwnedPluginPackage } from "./draft-package-ownership.js";
 import { nextAvailablePluginSlug, replaceGeneratedPluginSlug } from "./draft-slugs.js";
@@ -24,7 +25,7 @@ export interface PluginRegistryBridge {
 }
 
 async function readJson(path: string): Promise<unknown> {
-  return JSON.parse(await readFile(path, "utf8")) as unknown;
+  return normalizeLegacyPluginDraft(JSON.parse(await readFile(path, "utf8")) as unknown);
 }
 
 /** Lokale Drafts und die versionierten Beispielpakete des Beta-Stores. */

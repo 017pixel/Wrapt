@@ -14,6 +14,7 @@ import {
   type ExtensionPackageFile,
   type Sha256Integrity,
 } from "@wrapt/extension-contracts";
+import { normalizeLegacyExtensionManifest } from "./legacy-manifest.js";
 import { AppError } from "../utils/errors.js";
 
 interface CatalogSource {
@@ -131,7 +132,7 @@ export class LocalExtensionCatalog {
 
         try {
           const manifest = extensionManifestV1Schema.parse(
-            JSON.parse(readFileSync(manifestPath, "utf8")) as unknown,
+            normalizeLegacyExtensionManifest(JSON.parse(readFileSync(manifestPath, "utf8")) as unknown),
           );
           if (source.include !== undefined && !source.include(manifest)) continue;
           const inventory = packageInventory(packageDirectory);
@@ -235,7 +236,7 @@ export class LocalExtensionCatalog {
       throw new AppError(409, "integrity-mismatch", "Das Catalog-Paket wurde seit dem Scan verändert.");
     }
     const manifest = extensionManifestV1Schema.parse(
-      JSON.parse(readFileSync(join(packageDirectory, entry.package.manifestPath), "utf8")) as unknown,
+      normalizeLegacyExtensionManifest(JSON.parse(readFileSync(join(packageDirectory, entry.package.manifestPath), "utf8")) as unknown),
     );
     if (manifest.id !== entry.manifest.id || manifest.version !== entry.package.version) {
       throw new AppError(409, "integrity-mismatch", "Das Catalog-Manifest passt nicht mehr zum Paket-Snapshot.");

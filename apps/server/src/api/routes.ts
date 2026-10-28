@@ -1,7 +1,8 @@
+import { registerGalleryRoutes } from "../filesystem/galleryRoutes.js";
+import { registerMediaRoutes } from "../filesystem/mediaRoutes.js";
 import type { FastifyInstance } from "fastify";
 import { registerFilesystemRoutes } from "../filesystem/routes.js";
 import { registerNotesRoutes } from "../notes/routes.js";
-import { registerOrbitRoutes } from "../orbit/routes.js";
 import { registerProjectRoutes } from "../projects/routes.js";
 import { registerSkillsRoutes } from "../skills/routes.js";
 import { registerSystemRoutes } from "../system/routes.js";
@@ -10,11 +11,12 @@ import { createProxyHandler } from "./proxy.js";
 import type { RouteServices } from "./services.js";
 
 export async function registerApiRoutes(app: FastifyInstance, services: RouteServices) {
+  await registerGalleryRoutes(app, services);
+  await registerMediaRoutes(app, services);
   await registerSystemRoutes(app, services);
   await registerFilesystemRoutes(app, services);
   await registerSkillsRoutes(app, services);
   await registerProjectRoutes(app, services);
-  await registerOrbitRoutes(app, services);
   await registerNotesRoutes(app, services);
   await registerUsageRoutes(app, services);
 

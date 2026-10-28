@@ -7,8 +7,6 @@ export const contextMenuConfigSurfaces = [
   "host.context-menu.project",
   "host.context-menu.file",
   "host.context-menu.directory",
-  "host.context-menu.orbit-node",
-  "host.context-menu.orbit-pane",
   "host.context-menu.preview",
   "host.context-menu.terminal",
   "host.context-menu.git",

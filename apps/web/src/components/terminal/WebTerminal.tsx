@@ -21,7 +21,6 @@ export const WebTerminal = forwardRef<WebTerminalHandle, WebTerminalProps>(funct
     initialCwd = null,
     active = true,
     focused = true,
-    renderScale = 1,
     mode = "agent",
     accountId,
     onMetaChange,
@@ -30,7 +29,7 @@ export const WebTerminal = forwardRef<WebTerminalHandle, WebTerminalProps>(funct
 ) {
   const renderer = useTerminalRenderer({
     instanceId, sessionId, preload, kind, projectId, initialCwd, mode, accountId, active, focused,
-    renderScale, onMetaChange,
+    onMetaChange,
   });
 
   useImperativeHandle(ref, () => ({

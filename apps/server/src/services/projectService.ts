@@ -175,7 +175,7 @@ export function createProjectService(
     return {
       id: project.id,
       name: project.name,
-      description: "Im Orbit ausgewählter lokaler Arbeitsbereich.",
+      description: "Ausgewählter lokaler Arbeitsbereich.",
       path: project.path,
       enabled: true,
       sortOrder: 2_000,
@@ -195,7 +195,7 @@ export function createProjectService(
       settings.projectActivityConcurrency,
       mapProject,
     );
-    return projectsResponseSchema.parse({ projects, projectsRoot: discovery.rootDirectory, recentLimit: settings.orbitRecentProjectLimit });
+    return projectsResponseSchema.parse({ projects, projectsRoot: discovery.rootDirectory, recentLimit: settings.recentProjectLimit });
   });
   async function references(): Promise<readonly ProjectReference[]> {
     const availableProjects = await discoveryCache.get();
@@ -238,7 +238,7 @@ export function createProjectService(
       if (existing) {
         return registerProjectResponseSchema.parse({ project: await mapProject(existing), created: false });
       }
-      if (!registry) throw new AppError(503, "PROJECT_REGISTRY_UNAVAILABLE", "Die Orbit-Projektregistry ist momentan nicht verfügbar.");
+      if (!registry) throw new AppError(503, "PROJECT_REGISTRY_UNAVAILABLE", "Die Projektregistry ist momentan nicht verfügbar.");
       const registered = registry.register(path, basename(path));
       listCache.clear();
       discoveryCache.clear();

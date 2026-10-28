@@ -56,7 +56,7 @@ export class ProjectBrowserService {
     try {
       canonicalRoot = await realpath(resolve(root));
       const details = await lstat(canonicalRoot);
-      if (!details.isDirectory()) throw new Error("Orbit project browser root must be a directory.");
+      if (!details.isDirectory()) throw new Error("Project browser root must be a directory.");
       await access(canonicalRoot, constants.R_OK | constants.X_OK);
     } catch (error) {
       filesystemFailure(error);

@@ -7,10 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { MemoryRouter, useLocation } from "react-router";
 import { openPreviewLiveWindow, openPreviewWindow } from "../lib/previewExternalOpen";
 import { RouteActivityProvider } from "../lib/routeActivity";
-import { freshOrbitWorkspace, useOrbitStore } from "../stores/orbit";
 import { usePreviewHubStore } from "../stores/previewHub";
 import { useLayoutStore } from "../stores/layout";
-import { useSidebarPreferences } from "../stores/sidebarPreferences";
 import { PreviewHub } from "./PreviewHub";
 
 vi.mock("../lib/previewExternalOpen", () => ({
@@ -40,8 +38,6 @@ function RoutePath() {
 
 afterEach(() => {
   cleanup();
-  window.sessionStorage.removeItem("wrapt-orbit-palette-queue");
-  useSidebarPreferences.setState({ hiddenPages: new Set(["workbench"]) });
 });
 
 function renderHub(configuredProject: Project, initialEntry: string) {
@@ -80,13 +76,6 @@ function renderHub(configuredProject: Project, initialEntry: string) {
   queryClient.setQueryData(["preview-dev-servers"], { runtimes: [status] });
   queryClient.setQueryData(["preview-dev-server", configuredProject.id], status);
   queryClient.setQueryData(["preview-dev-server", configuredProject.id, "logs"], logs);
-  queryClient.setQueryData(["orbit"], {
-    document: freshOrbitWorkspace(),
-    revision: 0,
-    updatedAt: "2026-09-26T12:00:00.000Z",
-    initialized: true,
-    syncIntervalMilliseconds: 5_000,
-  });
   render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[initialEntry]}>
@@ -106,7 +95,6 @@ describe("Preview-Hub-Routensynchronisierung", () => {
     useLayoutStore.persist.setOptions({ storage });
     usePreviewHubStore.setState({ openProjectIds: ["preview-projekt"], activeProjectId: "preview-projekt" });
     useLayoutStore.setState({ selectedProjectId: "preview-projekt" });
-    useOrbitStore.setState({ hydrated: false });
     vi.mocked(openPreviewLiveWindow).mockClear();
     vi.mocked(openPreviewWindow).mockClear();
   });
@@ -138,34 +126,6 @@ describe("Preview-Hub-Routensynchronisierung", () => {
     });
   });
 
-  it("übergibt die per ID gewählte Preview samt Pfad an Orbit, auch bei gleichem Port", async () => {
-    useSidebarPreferences.setState({ hiddenPages: new Set() });
-    window.sessionStorage.clear();
-    const configuredProject: Project = {
-      ...project("preview-projekt"),
-      previews: [
-        { id: "frontend", name: "Frontend", url: null, targetPort: 4173, path: "/", mode: "embedded", dependencies: [] },
-        { id: "admin", name: "Admin", url: null, targetPort: 4173, path: "/admin", mode: "embedded", dependencies: [] },
-      ],
-    };
-    renderHub(configuredProject, "/previews?preview=admin");
-
-    fireEvent.click(await screen.findByLabelText("Weitere Optionen"));
-    fireEvent.click(await screen.findByRole("button", { name: /Im Orbit öffnen/ }));
-
-    await waitFor(() => expect(screen.getByTestId("route-path").textContent).toBe("/orbit"));
-    expect(JSON.parse(window.sessionStorage.getItem("wrapt-orbit-palette-queue") ?? "[]")).toContainEqual({
-      type: "previewTarget",
-      title: "Admin",
-      projectId: "preview-projekt",
-      previewId: "admin",
-      targetPort: 4173,
-      previewPath: "/admin",
-      previewSlotId: null,
-      previewStorageProfileId: null,
-      previewIsolation: false,
-    });
-  });
 
   it("öffnet im Simulator den per ID gewählten Pfad, wenn mehrere Ziele denselben Port nutzen", async () => {
     const configuredProject: Project = {
@@ -188,13 +148,8 @@ describe("Preview-Hub-Routensynchronisierung", () => {
     }));
   });
 
-  it("zeigt bei deaktiviertem Orbit keine Orbit-Aktion", async () => {
-    renderHub(project("preview-projekt"), "/previews");
-    fireEvent.click(await screen.findByLabelText("Weitere Optionen"));
-    expect(screen.queryByRole("button", { name: /Im Orbit öffnen/ })).toBeNull();
-  });
 
-  it("zeigt ein URL-only-Ziel an und öffnet es extern ohne Orbit oder Simulator", async () => {
+  it("zeigt ein URL-only-Ziel an und öffnet es extern ohne Simulator", async () => {
     const configuredProject: Project = {
       ...project("preview-projekt"),
       previews: [{ id: "docs", name: "Dokumentation", url: "https://docs.example.test/guide", targetPort: null, path: "/guide", mode: "external", dependencies: [] }],
@@ -205,7 +160,6 @@ describe("Preview-Hub-Routensynchronisierung", () => {
     expect(targetSelect.textContent).toContain("Dokumentation");
     expect(screen.getByText("https://docs.example.test/guide").textContent).toBe("https://docs.example.test/guide");
     fireEvent.click(screen.getByLabelText("Weitere Optionen"));
-    expect(screen.queryByRole("button", { name: /Im Orbit öffnen/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Preview-Werkzeuge/ })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: /Im neuen Tab öffnen/ }));

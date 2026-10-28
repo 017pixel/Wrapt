@@ -117,15 +117,6 @@ test.describe("Dateimanager desktop", () => {
     await expect(page.locator(".file-manager-row")).toHaveCount(1);
     await expect(row(page, "/package.json")).toContainText("package.json");
   });
-
-  test("öffnet den Dateimanager als Tool-Node im Orbit", async ({ page }) => {
-    test.skip(skip(), "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
-    await page.goto(`${workbench}/wrapt/orbit`);
-    await page.getByRole("button", { name: "Files", exact: true }).click();
-    const panel = page.locator('[data-panel-type="files"]').filter({ has: page.locator(".file-manager") }).first();
-    await expect(panel).toBeVisible();
-    await expect(panel.locator(".file-manager-row").first()).toBeVisible();
-  });
 });
 
 test.describe("Dateimanager iPad hoch", () => {

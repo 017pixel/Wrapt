@@ -10,8 +10,7 @@ const roots: string[] = [];
 const content = (slug: string) => pluginDraftContentSchema.parse({
   slug, name: "Recovery", description: "Test", publisher: "local", category: "productivity", version: "0.1.0",
   routePath: `/plugins/view/${slug}`, pageMode: "blocks", iframeUrl: null, html: "", blocks: [], functions: [],
-  orbit: { enabled: false, title: "Recovery", description: "", placement: "orbit", nodeType: "note", accent: "accent" },
-  wizard: { goal: "", audience: "", design: "klar", layout: "einspaltig", tone: "direkt", includeHtml: false, includeIframe: false, includeOrbit: false, additionalDescription: "", wishes: "", agent: "codex", permissions: [] },
+  wizard: { goal: "", audience: "", design: "klar", layout: "einspaltig", tone: "direkt", includeHtml: false, includeIframe: false, additionalDescription: "", wishes: "", agent: "codex", permissions: [] },
   sourceExampleId: null, status: "draft",
 });
 

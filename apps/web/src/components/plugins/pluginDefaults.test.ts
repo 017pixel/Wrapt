@@ -9,8 +9,6 @@ describe("Plugin-Standardwerte", () => {
     expect(draft.surfaces).toEqual(["page", "sidebar"]);
     expect(draft.wizard.surfaces).toEqual(["page", "sidebar"]);
     expect(draft.routePath).toBe("/plugins/view/sichtbare-seite");
-    expect(draft.wizard.includeOrbit).toBe(false);
-    expect(draft.orbit.enabled).toBe(false);
   });
 
   it("übernimmt ein Store-Beispiel als persönlichen Draft ohne Store-Markierung", () => {

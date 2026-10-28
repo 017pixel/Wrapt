@@ -54,7 +54,7 @@ it("Ordnername/Create invalidiert keine Details, Auflösen nur betroffene Wurzel
   const f = await fixture();
   await invalidateNoteFolder(f.client);
   expect(f.calls.every((call) => call.mock.calls.length === 0)).toBe(true);
-  // Auch im Orbit ohne beobachtete Liste geben vorhandene Details den Ordner an.
+  // Auch ohne beobachtete Liste geben vorhandene Details den Ordner an.
   f.client.removeQueries({ queryKey: ["notes", "list"], exact: true });
   await invalidateNoteFolder(f.client, "folder");
   expect(f.calls.map((call) => call.mock.calls.length)).toEqual([0, 0, 1, 0, 0, 0, 0, 0, 0, 0]);

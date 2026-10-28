@@ -58,7 +58,6 @@ if (process.env.WRAPT_E2E_URL && process.env.WRAPT_E2E_ISOLATED !== "true") {
 // übernommen.
 const desktopTestIgnore = [
   /responsive-shell\.spec\.ts/,
-  /orbit-performance\.spec\.ts$/,
   /preview-start-performance\.spec\.ts$/,
 ];
 
@@ -85,7 +84,7 @@ export default defineConfig<object, { personaName: "frisch" | "normal" | "heavy"
     // sie parallel laufen; nur der gemeinsame Build bleibt geteilt.
     { name: "personas", testDir: "./e2e", testIgnore: /journeys\.spec\.ts/, fullyParallel: true, workers: personaWorkers,
       use: { ...devices["Desktop Chrome"], personaName: "normal" } },
-    // Historische Specs teilen sich Identitäten, Konfiguration und Orbit-Dokument.
+    // Historische Specs teilen sich Identitäten und Konfiguration.
     // Ihre Serialisierung bleibt erhalten, die neuen Personas sind workerisoliert.
     { name: "chromium", testDir: "./tests/e2e", fullyParallel: false, workers: 1,
       testIgnore: desktopTestIgnore, use: { ...devices["Desktop Chrome"] } },

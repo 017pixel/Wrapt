@@ -62,19 +62,3 @@ test("klappt Sektionen zu und wieder auf, ohne Einträge zu verlieren", async ({
   await werkzeuge.click();
   await expect(sidebar.getByRole("link", { name: "Terminal" })).toBeVisible();
 });
-
-test("hält eigene Werkzeugseiten im Orbit getrennt von der Einfügepalette erreichbar", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 768 });
-  await page.goto("/wrapt/orbit");
-  const sidebar = page.locator(".sidebar-shell");
-  const pages = sidebar.getByRole("navigation", { name: "Seiten und Werkzeuge" });
-  await expect(pages.getByRole("link", { name: "Terminal" })).toBeVisible();
-  await expect(pages.getByRole("link", { name: "Notizen" })).toBeVisible();
-  await expect(sidebar.getByText("Zum Orbit hinzufügen")).toBeVisible();
-  await expect(sidebar.getByRole("button", { name: "Orbit-Werkzeuge einklappen" })).toBeVisible();
-  const library = sidebar.locator(".sidebar-orbit-library");
-  await expect(library.locator(".sidebar-section-header").first()).toHaveText(/Orbit-Werkzeuge/);
-  await expect(library.getByRole("button", { name: "T3 Code", exact: true })).toBeInViewport();
-  await pages.getByRole("link", { name: "Terminal" }).click();
-  await expect(page).toHaveURL(/\/wrapt\/terminal$/);
-});

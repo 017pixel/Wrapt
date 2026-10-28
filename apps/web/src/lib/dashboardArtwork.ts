@@ -20,8 +20,6 @@ import heroNotizenNutzungBg from "../assets/dashboard-artwork/hero-notizen-nutzu
 import heroNotizenNutzungThumb from "../assets/dashboard-artwork/hero-notizen-nutzung-thumb.webp";
 import heroOpenSourceBg from "../assets/dashboard-artwork/hero-open-source-bg.webp";
 import heroOpenSourceThumb from "../assets/dashboard-artwork/hero-open-source-thumb.webp";
-import heroOrbitBg from "../assets/dashboard-artwork/hero-orbit-bg.webp";
-import heroOrbitThumb from "../assets/dashboard-artwork/hero-orbit-thumb.webp";
 import heroPluginsExtensionsBg from "../assets/dashboard-artwork/hero-plugins-extensions-bg.webp";
 import heroPluginsExtensionsThumb from "../assets/dashboard-artwork/hero-plugins-extensions-thumb.webp";
 import heroPreviewsBg from "../assets/dashboard-artwork/hero-previews-bg.webp";
@@ -76,7 +74,6 @@ export const dashboardArtworks: readonly DashboardArtwork[] = [
   { id: "hero-mitarbeiten", label: "Mitarbeit", background: heroMitarbeitenBg, thumbnail: heroMitarbeitenThumb },
   { id: "hero-notizen-nutzung", label: "Notizen", background: heroNotizenNutzungBg, thumbnail: heroNotizenNutzungThumb },
   { id: "hero-open-source", label: "Open Source", background: heroOpenSourceBg, thumbnail: heroOpenSourceThumb },
-  { id: "hero-orbit", label: "Orbit", background: heroOrbitBg, thumbnail: heroOrbitThumb },
   { id: "hero-plugins-extensions", label: "Plugins", background: heroPluginsExtensionsBg, thumbnail: heroPluginsExtensionsThumb },
   { id: "hero-previews", label: "Previews", background: heroPreviewsBg, thumbnail: heroPreviewsThumb },
   { id: "hero-sichern", label: "Sichern", background: heroSichernBg, thumbnail: heroSichernThumb },

@@ -67,7 +67,6 @@ test("erstellt leichte, mittlere und komplexe Plugins im visuellen Editor", asyn
     }
     if (variant.complex) {
       await page.getByRole("checkbox", { name: /Topbar/i }).check();
-      await page.getByRole("checkbox", { name: /Orbit Node, Inspector/i }).check();
       await page.getByRole("button", { name: "Fähigkeit hinzufügen" }).click();
       await page.getByRole("textbox", { name: "Fähigkeit 1", exact: true }).fill("Status aktualisieren");
     }

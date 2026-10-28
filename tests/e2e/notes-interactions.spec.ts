@@ -141,12 +141,12 @@ test("Ordner, Favoriten, Drag-and-drop und gespeicherte Abschnittsreihenfolge", 
 
 test("freie Editorfläche und große Bilder halten Cursor und Blockgriff am Inhalt", async ({ page, request }) => {
   const note = await createNote(request, `Bild ${Date.now()}`);
-  const image = await request.post("/api/v1/orbit/assets", { headers, multipart: { file: {
-    name: "test.svg", mimeType: "image/svg+xml", buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="420" height="1000"><rect width="420" height="1000" fill="white"/></svg>'),
-  } } });
-  expect(image.ok()).toBe(true);
-  const asset = await image.json();
-  await request.put(`/api/v1/notes/${note.id}/content`, { headers, data: { content: `![Großes Bild](/api/v1/orbit/assets/${asset.asset?.id ?? asset.id})`, expectedRevision: note.revision } });
+  const imagePath = "/__fixtures__/large-note-image.svg";
+  await page.route(`**${imagePath}`, (route) => route.fulfill({
+    contentType: "image/svg+xml",
+    body: '<svg xmlns="http://www.w3.org/2000/svg" width="420" height="1000"><rect width="420" height="1000" fill="white"/></svg>',
+  }));
+  await request.put(`/api/v1/notes/${note.id}/content`, { headers, data: { content: `![Großes Bild](${imagePath})`, expectedRevision: note.revision } });
   await page.goto(`${workbenchUrl}/notizen?note=${note.id}`);
   const img = page.locator(".note-editor-content img");
   await expect(img).toBeVisible();

@@ -1,9 +1,9 @@
-import { createProjectFileRequestSchema, projectActivityTouchResponseSchema, projectFileResponseSchema, projectResponseSchema, projectsResponseSchema, registerProjectRequestSchema, registerProjectResponseSchema, orbitDocumentResponseSchema, saveOrbitDocumentRequestSchema, fileManagerDeleteRequestSchema, fileManagerMkdirRequestSchema, fileManagerMoveRequestSchema, fileManagerRenameRequestSchema, fileManagerTextPreviewResponseSchema, fileManagerSearchResponseSchema, filesystemTreeResponseSchema, saveFileManagerStateRequestSchema } from "@wrapt/contracts";
+import { createProjectFileRequestSchema, projectActivityTouchResponseSchema, projectFileResponseSchema, projectResponseSchema, projectsResponseSchema, registerProjectRequestSchema, registerProjectResponseSchema, fileManagerDeleteRequestSchema, fileManagerMkdirRequestSchema, fileManagerMoveRequestSchema, fileManagerRenameRequestSchema, fileManagerTextPreviewResponseSchema, fileManagerSearchResponseSchema, filesystemTreeResponseSchema, saveFileManagerStateRequestSchema } from "@wrapt/contracts";
 import { z } from "zod";
 import type { RouteServices } from "../api/services.js";
 import type { PluginHostApi } from "./code-host-api.js";
 
-export type PluginWorkspaceServices = Pick<RouteServices, "projects" | "projectBrowser" | "projectFiles" | "fileManager" | "orbit">;
+export type PluginWorkspaceServices = Pick<RouteServices, "projects" | "projectBrowser" | "projectFiles" | "fileManager">;
 
 export function registerWorkspacePluginApi(api: PluginHostApi, services: PluginWorkspaceServices): void {
   const projectId = z.object({ projectId: z.string().min(1) });
@@ -12,8 +12,6 @@ export function registerWorkspacePluginApi(api: PluginHostApi, services: PluginW
   api.register("projects.register", { description: "Lokales Projekt registrieren", mutates: true, hookable: true, input: registerProjectRequestSchema, output: registerProjectResponseSchema, handler: async ({ path }) => services.projects.register(await services.projectBrowser.resolveDirectory(path, false)) });
   api.register("projects.touch", { description: "Projektaktivität erfassen", mutates: true, hookable: true, input: projectId, output: projectActivityTouchResponseSchema, handler: ({ projectId }) => services.projects.touch(projectId) });
   api.register("projects.createFile", { description: "Projektdatei erstellen", mutates: true, hookable: true, input: projectId.extend({ file: createProjectFileRequestSchema }), output: projectFileResponseSchema, handler: ({ projectId, file }) => services.projectFiles.create(projectId, file) });
-  api.register("orbit.get", { description: "Orbit-Arbeitsfläche lesen", mutates: false, hookable: true, output: orbitDocumentResponseSchema, handler: () => services.orbit.get() });
-  api.register("orbit.save", { description: "Orbit mit Revisionsprüfung speichern", mutates: true, hookable: true, input: saveOrbitDocumentRequestSchema, output: orbitDocumentResponseSchema, handler: (input) => services.orbit.save(input.document, input.expectedRevision) });
   api.register("filesystem.tree", { description: "Dateibaum im freigegebenen Bereich", mutates: false, hookable: true, input: z.object({ path: z.string().optional(), cursor: z.string().optional(), limit: z.number().int().min(1).max(500).optional() }).default({}), output: filesystemTreeResponseSchema, handler: (input) => services.projectBrowser.tree({ ...(input.path ? { path: input.path } : {}), ...(input.cursor ? { cursor: input.cursor } : {}), ...(input.limit ? { limit: input.limit } : {}) }) });
   api.register("filesystem.read", { description: "Textdatei lesen", mutates: false, hookable: true, input: z.object({ path: z.string().min(1) }), output: fileManagerTextPreviewResponseSchema, handler: (input) => services.fileManager.textPreview(input) });
   api.register("filesystem.search", { description: "Dateien suchen", mutates: false, hookable: true, input: z.object({ q: z.string().min(1).max(200) }), output: fileManagerSearchResponseSchema, handler: ({ q }) => services.fileManager.search(q) });

@@ -1,5 +1,4 @@
 import { expect, test, type Page } from "@playwright/test";
-import { resetOrbitTestWorkspace } from "./helpers/orbit";
 import { resetTerminalTestWorkspace } from "./helpers/terminal";
 
 // `WRAPT_E2E_URL` zeigt auf den Origin des Testservers; die Wrapt
@@ -201,48 +200,4 @@ test("does not grant embedded previews extra clipboard permissions", async ({ pa
   for (const frame of await page.locator('iframe[title*="Preview"]').all()) {
     expect(await frame.getAttribute("allow")).toBeNull();
   }
-});
-
-test("routes Orbit paste to the focused editor, canvas or terminal only", async ({ page }) => {
-  test.skip(!workbench, "Set WRAPT_E2E_URL to an isolated Wrapt test server.");
-  test.setTimeout(60_000);
-  await resetOrbitTestWorkspace(page, "user@example.com");
-  await page.goto(`${workbench}/orbit`);
-  await expect(page.locator(".orbit-page")).toBeVisible();
-  await page.getByRole("button", { name: /Neue Notiz/ }).click();
-  const note = page.getByLabel("Neue Notiz bearbeiten").last();
-  await note.fill("Vorhanden: ");
-  const noteMarker = `NOTIZ_${Date.now()}`;
-  await page.evaluate((text) => navigator.clipboard.writeText(text), noteMarker);
-  await note.press("Control+V");
-  await expect(note).toHaveText(`Vorhanden: ${noteMarker}`);
-
-  const nodesBeforeCanvasPaste = await page.locator(".react-flow__node-orbit").count();
-  const canvasMarker = `CANVAS_${Date.now()}`;
-  await page.evaluate((text) => navigator.clipboard.writeText(text), canvasMarker);
-  // Nahe der Pane-Ecke klicken: Auf einer frischen Fläche liegt die erste
-  // Notiz in der Mitte und würde den Klick (und damit den Fokus) abfangen.
-  await page.locator(".react-flow__pane").click({ position: { x: 80, y: 60 } });
-  await page.keyboard.press("Control+V");
-  const pastedNote = page.locator(".react-flow__node-orbit").filter({
-    has: page.getByText("Eingefügter Text", { exact: true }),
-  }).last();
-  await expect(pastedNote.getByLabel("Neue Notiz bearbeiten")).toHaveText(canvasMarker);
-  await expect(page.locator(".react-flow__node-orbit")).toHaveCount(nodesBeforeCanvasPaste + 1);
-
-  await page.locator(".orbit-palette-item").filter({ hasText: /^Terminalziehen$/ }).click();
-  const terminal = page.locator('.orbit-live-node [data-panel-type="terminal"]').last();
-  // Orbit-Panels laufen im Minimalmodus ohne Tab-Leiste; der Status steht
-  // dort in der sr-only-Zeile `.terminal-connection-status`.
-  await expect(terminal.locator(".terminal-connection-status")).toHaveText("Verbunden", { timeout: 20_000 });
-  await terminal.locator(".xterm-helper-textarea").focus();
-  const nodesBeforeTerminalPaste = await page.locator(".react-flow__node-orbit").count();
-  const terminalMarker = `__ORBIT_TERMINAL_${Date.now()}__`;
-  await page.evaluate((text) => navigator.clipboard.writeText(`printf '${text}\\n'`), terminalMarker);
-  // xterm puffert die Eingabe bereits nach „Verbunden“; auf den sichtbaren
-  // Shell-Prompt zu warten ist unter kalten PTY-Starts ein unnötiges Rennen.
-  await terminal.locator(".xterm-helper-textarea").press("Control+Shift+V");
-  await terminal.locator(".xterm-helper-textarea").press("Enter");
-  await expect(terminal.locator(".xterm-screen")).toContainText(terminalMarker, { timeout: 20_000 });
-  await expect(page.locator(".react-flow__node-orbit")).toHaveCount(nodesBeforeTerminalPaste);
 });

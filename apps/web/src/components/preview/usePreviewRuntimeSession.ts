@@ -59,7 +59,7 @@ export function usePreviewRuntimeSession(input: UsePreviewRuntimeSessionInput) {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
-      // Persistente Orbit-Schlüssel werden erst beim ausdrücklichen Entfernen
+      // Persistente Sitzungsschlüssel werden erst beim ausdrücklichen Entfernen
       // geschlossen. Nur diese Komponente besitzt ihre erzeugte Session.
       if (input.sessionKey !== undefined) return;
       window.setTimeout(() => {

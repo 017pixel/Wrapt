@@ -9,7 +9,6 @@ import {
   GridIcon, ListIcon, MoreIcon, PlusIcon, RefreshIcon, SearchIcon, TerminalIcon, TrashIcon, UploadIcon, WarningIcon,
 } from "../icons";
 import { apiClient } from "../../lib/apiClient";
-import { requestOrbitNode } from "../../lib/orbitPalette";
 import { breadcrumbsFor, formatBytes, formatDate, parentPath, previewKindOf, sortEntries } from "../../lib/fileManager";
 import { useFileManagerStore } from "../../stores/fileManager";
 import { useLayoutStore } from "../../stores/layout";
@@ -105,7 +104,7 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
     void queryClient.invalidateQueries({ queryKey: ["filesystem", "tree"] });
   }, [queryClient]);
 
-  // Standalone (Orbit-Node, Workbench-Panel): Wenn kein FileManagerSync
+  // Standalone (Workbench-Panel): Wenn kein FileManagerSync
   // gemountet ist, wird der serverseitige Zustand beim ersten Rendern geladen.
   const hydrated = useFileManagerStore((state) => state.hydrated);
   const initializeRemote = useFileManagerStore((state) => state.initializeRemote);
@@ -221,7 +220,6 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
         const exists = current.projects.some((project) => project.id === result.project.id);
         return { ...current, projects: exists ? current.projects.map((project) => project.id === result.project.id ? result.project : project) : [...current.projects, result.project] };
       });
-      requestOrbitNode({ type: "project", title: result.project.name, projectId: result.project.id });
       void queryClient.invalidateQueries({ queryKey: ["projects"] });
     }).catch((error: unknown) => {
       setActionError(error instanceof Error ? error.message : "Das Projekt konnte nicht registriert werden.");

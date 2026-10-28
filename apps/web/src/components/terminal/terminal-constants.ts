@@ -3,8 +3,6 @@ export const baseTerminalFontSize = 14;
 // 13 px bleiben auf Touch-Geräten lesbar und geben weiterhin genug Spalten
 // für gängige TUI-Oberflächen frei.
 export const compactTerminalFontSize = 13;
-export const minimumCompensatedRenderScale = 0.1;
-export const maximumCompensatedRenderScale = 2.2;
 
 // Größere geparkte Puffer werden vollständig an xterm übergeben, damit
 // Speicher begrenzt bleibt, ohne ANSI-Sequenzen oder Ausgabe abzuschneiden.

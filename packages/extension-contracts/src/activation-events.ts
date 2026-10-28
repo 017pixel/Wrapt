@@ -11,7 +11,7 @@ import type { ContributionId, ExtensionId } from "./ids.js";
 
 export const EXTENSION_EVENT_ID_MAX_LENGTH = 192;
 export const ACTIVATION_EVENTS_MAX_COUNT = 128;
-export const ACTIVATION_EVENT_MAX_LENGTH = CONTRIBUTION_ID_MAX_LENGTH + "onOrbitNode:".length;
+export const ACTIVATION_EVENT_MAX_LENGTH = CONTRIBUTION_ID_MAX_LENGTH + "onSchedule:".length;
 
 export const extensionEventIdPattern = new RegExp(
   "^" +
@@ -37,7 +37,6 @@ export const staticActivationEventSchema = z.enum(staticActivationEvents);
 export const contributionActivationEventPrefixes = [
   "onCommand",
   "onRoute",
-  "onOrbitNode",
   "onSchedule",
 ] as const;
 
@@ -58,7 +57,6 @@ function referencedActivationEventSchema(prefix: ContributionActivationEventPref
 
 export const onCommandActivationEventSchema = referencedActivationEventSchema("onCommand");
 export const onRouteActivationEventSchema = referencedActivationEventSchema("onRoute");
-export const onOrbitNodeActivationEventSchema = referencedActivationEventSchema("onOrbitNode");
 export const onScheduleActivationEventSchema = referencedActivationEventSchema("onSchedule");
 
 export const onEventActivationEventSchema = z
@@ -74,7 +72,6 @@ export const activationEventSchema = z
     staticActivationEventSchema,
     onCommandActivationEventSchema,
     onRouteActivationEventSchema,
-    onOrbitNodeActivationEventSchema,
     onEventActivationEventSchema,
     onScheduleActivationEventSchema,
   ])

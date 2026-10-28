@@ -67,7 +67,6 @@ SOURCE_NAMES = (
     "hero-mitarbeiten",
     "hero-notizen-nutzung",
     "hero-open-source",
-    "hero-orbit",
     "hero-plugins-extensions",
     "hero-previews",
     "hero-sichern",

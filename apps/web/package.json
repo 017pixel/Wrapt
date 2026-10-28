@@ -1,6 +1,6 @@
 {
   "name": "@wrapt/web",
-  "version": "2.22.2",
+  "version": "3.0.4",
   "private": true,
   "type": "module",
   "scripts": {
@@ -44,7 +44,6 @@
     "@wrapt/extension-contracts": "workspace:*",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
-    "@xyflow/react": "12.11.6",
     "dompurify": "^3.4.17",
     "highlight.js": "^11.12.0",
     "highlight.js-notes": "npm:highlight.js@11.11.2",

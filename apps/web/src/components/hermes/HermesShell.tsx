@@ -8,7 +8,7 @@ export { DEFAULT_HERMES_PATH, hermesSessionPath, type HermesShellProps } from ".
 
 const HermesV2Shell = lazy(() => import("./v2/HermesV2Shell").then((module) => ({ default: module.HermesV2Shell })));
 
-/** Route, Panel und Orbit wählen dieselbe Oberfläche; Verwaltungslinks bleiben klassisch. */
+/** Route und Panel wählen dieselbe Oberfläche; Verwaltungslinks bleiben klassisch. */
 export function HermesShell(props: HermesShellProps) {
   const enabled = useAppPreferences((state) => state.hermesV2Enabled);
   const [params] = useSearchParams();

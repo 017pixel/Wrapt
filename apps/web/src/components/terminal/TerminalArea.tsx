@@ -6,11 +6,9 @@ import { ChevronRightIcon, MonitorOffIcon, PlusIcon, TerminalIcon } from "../ico
 import { apiClient } from "../../lib/apiClient";
 import { wraptQueries } from "../../lib/queryOptions";
 import { useTerminalResponsiveLayout } from "./useTerminalResponsiveLayout";
-import { useTerminalOrbitHandoff } from "./terminal-handoff";
 import { usePaneWidth } from "../../lib/usePaneWidth";
 import { useRouteActivity } from "../../lib/routeActivity";
 import { useTerminalWorkspaceStore } from "../../stores/terminalWorkspace";
-import { useSidebarPreferences } from "../../stores/sidebarPreferences";
 import { kindLabels, statusLabel } from "./terminal-labels";
 import { TerminalKeybar } from "./terminal-keybar";
 import { TerminalSessionPicker } from "./terminal-session-picker";
@@ -40,7 +38,6 @@ interface TerminalAreaProps {
   areaId?: string;
   initialProjectId?: string | null;
   kind?: TerminalKind;
-  renderScale?: number;
   layout?: "tabs" | "bento";
   maxTabs?: number;
   minimal?: boolean;
@@ -52,7 +49,6 @@ export function TerminalArea({
   areaId = "standalone",
   initialProjectId = null,
   kind = "shell",
-  renderScale = 1,
   layout = "tabs",
   minimal = false,
   requestedSessionId = null,
@@ -60,8 +56,6 @@ export function TerminalArea({
 }: TerminalAreaProps) {
   const { isMobile, hasTouchControls, sidebarVisible, setSidebarVisible, showSingleMobilePane } = useTerminalResponsiveLayout();
   const routeActive = useRouteActivity();
-  const openSessionInOrbit = useTerminalOrbitHandoff();
-  const orbitEnabled = useSidebarPreferences((state) => !state.hiddenPages.has("workbench"));
   const bento = layout === "bento";
   const terminalSidebar = usePaneWidth({ storageKey: "wrapt.terminal-sidebar.v1", initial: 256, min: 220, max: 420 });
   const document = useTerminalWorkspaceStore((state) => state.document);
@@ -227,9 +221,7 @@ export function TerminalArea({
       kind={kind}
       sessions={sessions.data?.sessions ?? []}
       openTabIds={panes.map((pane) => pane.runtimeId)}
-      orbitEnabled={orbitEnabled}
       onOpen={(session) => openEntry(session.runtimeId)}
-      onOpenInOrbit={openSessionInOrbit}
       onRestart={async (session: TerminalSession) => { await apiClient.restartTerminalSession(session.id); void sessions.refetch(); }}
       onClose={async (session: TerminalSession) => { await apiClient.closeTerminalSession(session.id); void sessions.refetch(); }}
     />
@@ -285,7 +277,6 @@ export function TerminalArea({
           active={routeActive && visible}
           preload={routeActive && preloadRuntimeId === pane.runtimeId && Boolean(sessions.data?.sessions.some((session) => session.runtimeId === pane.runtimeId && session.status === "running"))}
           focused={focusedRuntimeId === pane.runtimeId}
-          renderScale={renderScale}
           onMetaChange={(next) => {
             setRuntimeCwd(pane.runtimeId, next.cwd);
             setMeta((current) => {

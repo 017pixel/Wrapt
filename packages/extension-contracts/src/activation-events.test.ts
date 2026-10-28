@@ -19,7 +19,6 @@ describe("Activation Events V1", () => {
   it.each([
     "onCommand:workbench.agent-tasks.command.create",
     "onRoute:workbench.agent-tasks.route.main",
-    "onOrbitNode:workbench.agent-tasks.orbit.task-board",
     "onEvent:project.opened",
     "onEvent:workbench.agent-tasks.task.created",
     "onSchedule:workbench.agent-tasks.job.cleanup",
@@ -34,7 +33,6 @@ describe("Activation Events V1", () => {
     "onCommand:",
     "onCommand:workbench.agent-tasks",
     "onRoute:Workbench.Agent.route.main",
-    "onOrbitNode:workbench.agent_tasks.orbit.main",
     "onEvent:project",
     "onEvent:project/opened",
     "onSchedule:../cleanup",

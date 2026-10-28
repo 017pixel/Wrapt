@@ -35,17 +35,21 @@ test("findet Design über Alias und Tippfehler und springt zum Bereich", async (
   await expect(page.locator("#settings-search-results").getByRole("button", { name: /Design/ }).first()).toBeVisible();
 });
 
-test("öffnet den verschobenen Start-App-Bereich", async ({ page }) => {
-  await page.goto("/wrapt/settings");
-  await page.getByRole("button", { name: "Start-App", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Start-App", exact: true })).toBeVisible();
-  await expect(page.getByText("Welche Seite beim Öffnen von Wrapt geladen wird", { exact: true })).toBeVisible();
+test("entfernt Start-App und Layout und fängt alte Links ab", async ({ page }) => {
+  for (const tab of ["start-app", "layout", "workspace"]) {
+    await page.goto(`/wrapt/settings#einstellungen:${tab}`);
+    await expect(page.locator("#settings-general-version")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Start-App", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Layout", exact: true })).toHaveCount(0);
+    await expect(page.getByText("Lokale Remote-Entwicklungsumgebung", { exact: true })).toHaveCount(0);
+    await expect(page.getByText("Einstellungen werden zwischen allen Clients abgeglichen", { exact: true })).toHaveCount(0);
+  }
 });
 
 test("erreicht jeden Einstellungs-Tab und rendert seinen Fachbereich", async ({ page }) => {
   await page.goto("/wrapt/settings");
   const tabs = [
-    ["Allgemein", "settings-general-restart"],
+    ["Allgemein", "settings-general-version"],
     ["Design", "settings-design"],
     ["Navigation", "settings-navigation"],
     ["Rechtsklick", "settings-context-menu"],
@@ -53,11 +57,9 @@ test("erreicht jeden Einstellungs-Tab und rendert seinen Fachbereich", async ({ 
     ["System", "settings-system"],
     ["Plugin-Berechtigungen", "settings-extensions"],
     ["Nutzung & Limits", "settings-usage"],
-    ["Layout", "settings-layout"],
     ["Workspaces", "settings-workspaces"],
     ["Easter Eggs", "settings-easter-eggs"],
     ["Experimente", "settings-hermes-v2"],
-    ["Start-App", "settings-start-app"],
   ] as const;
 
   for (const [label, anchor] of tabs) {
@@ -171,7 +173,7 @@ test("testet Capybara-Vorschau und Schalter", async ({ page }) => {
   await slider.blur();
   await expect(preview).toHaveAttribute("data-scale", "1.5");
   await expect.poll(() => sprite.evaluate((image) => image.getAttribute("width")))
-    .toBe("158");
+    .toBe("132");
 
   const toggle = page.getByRole("switch", { name: /Maskottchen anzeigen/ });
   await expect(toggle).toHaveAttribute("aria-checked", "false");
@@ -180,10 +182,7 @@ test("testet Capybara-Vorschau und Schalter", async ({ page }) => {
   try {
     await toggle.click();
     await expect(toggle).toHaveAttribute("aria-checked", "true");
-    await expect(page.getByText(
-      "Das Capybara ist unterwegs.",
-      { exact: true },
-    )).toBeVisible();
+    await expect(page.locator(".mascot-setting-message")).toHaveCount(0);
     // Die Statusleiste übernimmt die gespeicherte Größe (150 % von 88 px).
     const mascot = page.locator(".status-mascot");
     await expect(mascot).toHaveAttribute("data-scale", "1.5");

@@ -35,7 +35,7 @@ export function createRendererCore(refs: RendererRefs, deps: RendererCoreDeps): 
     const terminal = terminalRef.current;
     if (!terminal) return;
     if (terminal.cols !== cols || terminal.rows !== rows) terminal.resize(cols, rows);
-    if (owns || terminal.element?.closest(".orbit-flow")) deps.fitAndReport();
+    if (owns) deps.fitAndReport();
   };
 
   const resync = () => {

@@ -187,7 +187,7 @@ function describe(value: unknown): { message: string; stack: string | null } {
 const benignMessages = [
   // Laut Resize-Observer-Spezifikation harmlos: Der Browser konnte nicht alle
   // Benachrichtigungen im selben Frame zustellen und holt das im nächsten nach.
-  // @xyflow/react im Orbit löst das beim Zoomen und Verschieben regelmäßig aus.
+  // Größenänderungen können harmlose ResizeObserver-Meldungen auslösen.
   "ResizeObserver loop completed with undelivered notifications",
   "ResizeObserver loop limit exceeded",
 ];

@@ -17,15 +17,13 @@ for (const name of ["wrapt.example.json", "projects.example.json", "services.exa
 process.env.CONFIG_DIR = testConfigDirectory;
 process.env.DATA_DIR = join(base, "data");
 process.env.DATABASE_PATH = join(base, "wrapt.sqlite");
-process.env.ORBIT_BACKUP_DIR = join(base, "orbit-backups");
-process.env.ORBIT_ASSET_DIR = join(base, "orbit-assets");
 process.env.FILE_GALLERY_DIR = join(base, "file-gallery");
 process.env.WRAPT_PROFILES_ROOT = join(base, "profiles");
 process.env.CODEXBAR_CONFIG_PATH = join(base, "codexbar.json");
 process.env.CODEX_SHARED_HOME = join(base, "shared-codex");
 process.env.CLAUDE_SHARED_HOME = join(base, "shared-claude");
 process.env.OPENCODE_SHARED_HOME = join(base, "shared-opencode");
-process.env.ORBIT_PROJECT_BROWSER_ROOT = base;
+process.env.PROJECT_BROWSER_ROOT = base;
 // Projekt-Root mit zwei erkennbaren Projekten, die app.test.ts erwartet.
 const projectsRoot = join(base, "projects");
 mkdirSync(projectsRoot, { recursive: true });

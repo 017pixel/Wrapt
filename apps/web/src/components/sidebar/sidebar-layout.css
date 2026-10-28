@@ -7,56 +7,8 @@
   padding: 8px 0 12px;
 }
 
-.sidebar-primary-navigation.is-orbit {
-  min-height: min(140px, 24%);
-  max-height: 30%;
-  flex: 0 1 auto;
-  border-bottom: 1px solid var(--color-line);
-}
-
-.sidebar-primary-navigation .sidebar-section-header,
-.sidebar-orbit-library .sidebar-section-header,
-.sidebar-footer .sidebar-section-header {
+.sidebar-primary-navigation .sidebar-section-header, .sidebar-footer .sidebar-section-header {
   margin-top: 14px;
-}
-
-.sidebar-orbit-library {
-  min-height: 90px;
-  flex: 1;
-  overflow-x: hidden;
-  overflow-y: auto;
-  padding-bottom: 12px;
-  scrollbar-gutter: stable;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-ink-600) transparent;
-}
-
-.sidebar-orbit-library-heading {
-  position: sticky;
-  z-index: 1;
-  top: 0;
-  overflow: hidden;
-  max-height: 40px;
-  border-bottom: 1px solid var(--color-line);
-  background: var(--wrapt-surface-sidebar);
-  padding: 10px 12px;
-  color: var(--color-faint);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: .06em;
-  text-transform: uppercase;
-  transition:
-    max-height var(--duration-slow) var(--ease-standard),
-    opacity var(--duration-fast) var(--ease-standard),
-    padding var(--duration-slow) var(--ease-standard),
-    border-color var(--duration-slow) var(--ease-standard);
-}
-
-.sidebar-orbit-library-heading > span {
-  display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .sidebar-footer {
@@ -88,8 +40,7 @@
   flex: none;
 }
 
-.sidebar-shell .sidebar-item-text,
-.sidebar-shell .sidebar-item-meta {
+.sidebar-shell .sidebar-item-text, .sidebar-shell .sidebar-item-meta {
   overflow: hidden;
   white-space: nowrap;
   opacity: 1;
@@ -124,8 +75,7 @@
   gap: 0;
 }
 
-.sidebar-shell.is-collapsed .sidebar-item-text,
-.sidebar-shell.is-collapsed .sidebar-item-meta {
+.sidebar-shell.is-collapsed .sidebar-item-text, .sidebar-shell.is-collapsed .sidebar-item-meta {
   max-width: 0;
   opacity: 0;
   transform: translateX(-8px);
@@ -136,8 +86,7 @@
 
 /* Eingeklappt: Scrollbar-Platz nicht reservieren, sonst rücken die
    zentrierten Icons optisch nach links. */
-.sidebar-shell.is-collapsed .sidebar-scroll,
-.sidebar-shell.is-collapsed .sidebar-orbit-library {
+.sidebar-shell.is-collapsed .sidebar-scroll {
   scrollbar-gutter: auto;
 }
 
@@ -261,16 +210,6 @@
   overflow: hidden;
 }
 
-/* Orbit-Überschrift: klappt weich zusammen statt hart auf 1 px zu springen. */
-.sidebar-shell.is-collapsed .sidebar-orbit-library-heading {
-  max-height: 0;
-  border-bottom-color: transparent;
-  padding-top: 0;
-  padding-bottom: 0;
-  opacity: 0;
-  pointer-events: none;
-}
-
 /* Workspace-Switcher: Der Name blendet wie die Navi-Texte aus, das Chevron
    gleitet dabei weich in die Mitte — kein harter Justify-Wechsel. */
 .sidebar-shell .workspace-switcher-trigger {
@@ -318,17 +257,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sidebar-shell,
-  .sidebar-shell .sidebar-item,
-  .sidebar-shell .sidebar-item-text,
-  .sidebar-shell .sidebar-item-meta,
-  .sidebar-shell .sidebar-label,
-  .sidebar-shell .sidebar-section-label,
-  .sidebar-shell .sidebar-section-body,
-  .sidebar-shell .sidebar-section-header::after,
-  .sidebar-shell .sidebar-orbit-library-heading,
-  .sidebar-shell .workspace-switcher-trigger,
-  .sidebar-shell .workspace-switcher-name {
+  .sidebar-shell, .sidebar-shell .sidebar-item, .sidebar-shell .sidebar-item-text, .sidebar-shell .sidebar-item-meta, .sidebar-shell .sidebar-label, .sidebar-shell .sidebar-section-label, .sidebar-shell .sidebar-section-body, .sidebar-shell .sidebar-section-header::after, .sidebar-shell .workspace-switcher-trigger, .sidebar-shell .workspace-switcher-name {
     transition-duration: 1ms;
     transition-delay: 0ms;
   }

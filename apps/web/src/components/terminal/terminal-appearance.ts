@@ -1,47 +1,20 @@
 import type { MutableRefObject } from "react";
 import type { ITheme, Terminal } from "@xterm/xterm";
-import { isCompactTerminal, terminalFontSizeForRenderScale } from "./terminal-utils";
+import { isCompactTerminal, terminalFontSize } from "./terminal-utils";
 import { terminalThemesEqual, themeFromDashboard } from "./terminal-theme";
-
-export const terminalScaleResizeDelayMs = 120;
-
-export interface TerminalScaleResizeScheduler {
-  schedule(): void;
-  cancel(): void;
-}
-
-/** Bündelt PTY-Größenmeldungen während Orbit-Zoombewegungen bis zum Stillstand. */
-export function createTerminalScaleResizeScheduler(resize: () => void): TerminalScaleResizeScheduler {
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  return {
-    schedule() {
-      if (timer !== null) clearTimeout(timer);
-      timer = setTimeout(() => {
-        timer = null;
-        resize();
-      }, terminalScaleResizeDelayMs);
-    },
-    cancel() {
-      if (timer === null) return;
-      clearTimeout(timer);
-      timer = null;
-    },
-  };
-}
 
 /** Gemeinsame Zustände für die Anpassung von Schrift, Theme und Raster. */
 export interface TerminalAppearanceContext {
   disposedRef: MutableRefObject<boolean>;
   terminalRef: MutableRefObject<Terminal | null>;
   compactRef: MutableRefObject<boolean>;
-  renderScaleRef: MutableRefObject<number>;
   resizeRef: MutableRefObject<number | null>;
   themeRefreshRef: MutableRefObject<number | null>;
   resize(): void;
 }
 
-export function applyTerminalRenderScale(terminal: Terminal, renderScale: number, compact: boolean): boolean {
-  const fontSize = terminalFontSizeForRenderScale(renderScale, compact);
+export function applyTerminalFontSize(terminal: Terminal, compact: boolean): boolean {
+  const fontSize = terminalFontSize(compact);
   if (terminal.options.fontSize === fontSize) return false;
   terminal.options.fontSize = fontSize;
   if (terminal.rows > 0) terminal.refresh(0, terminal.rows - 1);
@@ -54,7 +27,7 @@ export function applyTerminalRenderScale(terminal: Terminal, renderScale: number
  * Aufräumfunktion zurück, die Observer trennt und offene Timer beendet.
  */
 export function attachTerminalAppearance(terminal: Terminal, mount: HTMLElement, context: TerminalAppearanceContext): () => void {
-  const { disposedRef, terminalRef, compactRef, renderScaleRef, resizeRef, themeRefreshRef, resize } = context;
+  const { disposedRef, terminalRef, compactRef, resizeRef, themeRefreshRef, resize } = context;
 
   // Nach dem asynchronen Laden der Schriften (Fallback → JetBrains Mono)
   // stimmen die Zellmetriken wieder; ein Refresh verhindert den Versatz um
@@ -74,7 +47,7 @@ export function attachTerminalAppearance(terminal: Terminal, mount: HTMLElement,
     const compact = isCompactTerminal(mount);
     if (compact === compactRef.current) return;
     compactRef.current = compact;
-    if (applyTerminalRenderScale(terminal, renderScaleRef.current, compact)) resize();
+    if (applyTerminalFontSize(terminal, compact)) resize();
   });
   if (shellRoot) shellObserver.observe(shellRoot, { attributes: true, attributeFilter: ["data-shell-mode", "data-input-mode", "data-orientation"] });
 

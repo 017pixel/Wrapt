@@ -7,6 +7,7 @@ import { z } from "zod";
 import { pluginSettingsSchema } from "./plugin-settings.js";
 import { absoluteFilesystemPathSchema } from "@wrapt/contracts";
 import { persistLocalConfig } from "./config-persistence.js";
+import { normalizeLegacyFeaturePaths } from "./legacy-feature-paths.js";
 import { resolveInstanceName } from "./instance-name.js";
 import { isLoopbackHost } from "./loopback.js";
 
@@ -43,12 +44,11 @@ export const wraptConfigSchema = z.object({
   }).prefault({}),
   paths: z.object({
     projectsRoot: absolutePath,
-    orbitProjectBrowserRoot: absolutePath,
+    projectBrowserRoot: absolutePath.optional(),
+    legacyMediaDir: absolutePath.optional(),
     terminalAllowedRoots: z.array(absolutePath),
     terminalDefaultCwd: absolutePath,
     dataDir: absolutePath,
-    orbitBackupDir: absolutePath,
-    orbitAssetDir: absolutePath,
     fileGalleryDir: absolutePath.optional(),
     wraptProfilesRoot: absolutePath,
     // Gemeinsame Homes der KI-Werkzeuge für Sessions und Konfiguration; der Accountwechsel
@@ -293,7 +293,7 @@ export function loadWraptConfig(configDirectory: string): WraptConfig {
   for (const candidate of candidates) {
     try {
       const content = readFileSync(join(configDirectory, candidate), "utf8");
-      const config = wraptConfigSchema.parse(migrateLegacyConfigValue(JSON.parse(content) as unknown));
+      const config = wraptConfigSchema.parse(normalizeLegacyFeaturePaths(migrateLegacyConfigValue(JSON.parse(content) as unknown)));
       migrateLegacyPersistentData(config.system.homeDirectory, config.paths.dataDir, config.paths.wraptProfilesRoot, config.paths.databasePath);
       return config;
     } catch (error) {

@@ -1,3 +1,4 @@
+import { normalizeLegacyPluginDraft } from "../plugins/legacy-draft.js";
 import { randomUUID } from "node:crypto";
 import {
   existsSync,
@@ -216,7 +217,7 @@ export class ExtensionRuntimeHost {
 
   private readContent(slot: ExtensionReleaseSlot): PluginDraftContent {
     const path = join(slot.packageDirectory, "plugin.json");
-    const raw = JSON.parse(readFileSync(path, "utf8")) as unknown;
+    const raw = normalizeLegacyPluginDraft(JSON.parse(readFileSync(path, "utf8")) as unknown);
     const fullDraft = pluginDraftSchema.safeParse(raw);
     const content = fullDraft.success
       ? (() => {

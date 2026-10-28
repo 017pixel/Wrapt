@@ -36,17 +36,6 @@ test("ungültige API-Eingaben verändern keine vorhandenen Daten", async ({ page
   await assertHealthy(page, appErrors);
 });
 
-test("leerer Arbeitsflächenname deaktiviert Speichern und Abbrechen erhält den alten Namen", async ({ page, appErrors }) => {
-  await openPage(page, "/orbit");
-  const current = await page.getByRole("button", { name: /^Arbeitsfläche:/ }).getAttribute("aria-label");
-  await page.getByRole("button", { name: "Arbeitsfläche umbenennen", exact: true }).click();
-  await page.getByRole("textbox", { name: "Name der Arbeitsfläche" }).fill(" ");
-  await expect(page.getByRole("button", { name: "Arbeitsfläche umbenennen speichern" })).toBeDisabled();
-  await page.getByRole("button", { name: "Umbenennen abbrechen", exact: true }).click();
-  await expect(page.getByRole("button", { name: current!, exact: true })).toBeVisible();
-  await assertHealthy(page, appErrors);
-});
-
 test("Doppelklick und Absenden während Theme-Speichern erzeugen nur eine Mutation", async ({ page, api, appErrors }) => {
   await openPage(page, "/settings#einstellungen:design");
   await page.getByRole("button", { name: "Ember", exact: true }).click();

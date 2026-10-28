@@ -1,22 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useSearchParams } from "react-router";
-import type { OrbitBoard, Project, PreviewDevServerState, PreviewRuntimeLogLevel, PreviewRuntimeServiceRole } from "@wrapt/contracts";
+import { useSearchParams } from "react-router";
+import type { Project, PreviewDevServerState, PreviewRuntimeLogLevel, PreviewRuntimeServiceRole } from "@wrapt/contracts";
 import {
   ActivityIcon, CopyIcon, DatabaseIcon, ExternalLinkIcon,
-  MoreIcon, PlayIcon, RefreshIcon, ServerIcon, ServicesIcon, TerminalIcon, WarningIcon, WorkbenchIcon,
+  MoreIcon, PlayIcon, RefreshIcon, ServerIcon, ServicesIcon, TerminalIcon, WarningIcon,
 } from "../components/icons";
 import { apiClient, ApiClientError } from "../lib/apiClient";
 import { writeClipboardText } from "../lib/clipboard";
 import { openPreviewLiveWindow, openPreviewWindow } from "../lib/previewExternalOpen";
-import { findOrbitPreviewNodeByTarget } from "../lib/orbitResourceLookup";
-import { orbitPreviewSessionKey } from "../lib/previewWindow";
-import { queueOrbitPayload } from "../lib/orbitPalette";
+import { previewSessionKey } from "../lib/previewWindow";
 import { previewSlotUrl } from "../lib/previewTargets";
 import { wraptQueries } from "../lib/queryOptions";
 import { formatRequestId, queryErrorGuide } from "../lib/queryErrorGuide";
 import { withPreviewSlotRecovery, type PreviewSlotRecoveryPhase } from "../lib/previewSlotRecovery";
-import { useSidebarPreferences } from "../stores/sidebarPreferences";
 
 import { PreviewTargetMenu } from "./PreviewTargetMenu";
 import { ConfirmDialog } from "../components/ModalDialog";
@@ -57,10 +54,8 @@ function openPlaceholder(mode: DirectOpenMode, projectId: string): Window | null
   return opened;
 }
 
-export function PreviewHubProject({ project, routeActive, orbitBoards }: { project: Project; routeActive: boolean; orbitBoards: readonly OrbitBoard[] }) {
-  const orbitEnabled = useSidebarPreferences((state) => !state.hiddenPages.has("workbench"));
+export function PreviewHubProject({ project, routeActive }: { project: Project; routeActive: boolean }) {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const projectId = project.id;
   const statusQuery = useQuery({ ...wraptQueries.previewDevServer(projectId), enabled: routeActive });
@@ -224,22 +219,12 @@ export function PreviewHubProject({ project, routeActive, orbitBoards }: { proje
     } finally { setLaunchPhase(null); }
   };
 
-  const matchingNode = targetPort ? findOrbitPreviewNodeByTarget(orbitBoards, projectId, targetPort, targetPath) : null;
-  const storageProfileId = matchingNode?.node.previewStorageProfileId ?? null;
-  const isolate = matchingNode?.node.previewIsolation ?? false;
-  const slotId = matchingNode?.node.previewSlotId ?? null;
-  const openInOrbit = () => {
-    if (!targetPort || externalUrl) return;
-    queueOrbitPayload({
-      type: "previewTarget", title: selectedPreview?.name ?? `${project.name} · Preview`, projectId,
-      ...(selectedPreview?.id ? { previewId: selectedPreview.id } : {}), targetPort, previewPath: targetPath,
-      previewStorageProfileId: storageProfileId, previewIsolation: isolate, previewSlotId: slotId,
-    });
-    navigate("/orbit");
-  };
+  const storageProfileId = null;
+  const isolate = false;
+  const slotId = null;
   const openPreviewTools = (mode: DirectOpenMode) => {
     if (!targetPort || externalUrl) return;
-    const sessionKey = orbitPreviewSessionKey({ projectId, previewTarget: `${targetPort}${targetPath}`, storageProfileId });
+    const sessionKey = previewSessionKey({ projectId, previewTarget: `${targetPort}${targetPath}`, storageProfileId });
     const opened = openPreviewLiveWindow({ projectId, port: targetPort, path: targetPath, title: selectedPreview?.name ?? project.name, mode, sessionKey, isolate, storageProfileId, requestedSlotId: slotId });
     if (!opened) setActionError(mode === "tab" ? "Der neue Tab wurde blockiert." : "Das Browserfenster wurde blockiert.");
   };
@@ -322,7 +307,6 @@ export function PreviewHubProject({ project, routeActive, orbitBoards }: { proje
               <details className="preview-hub-more"><summary aria-label="Weitere Optionen"><MoreIcon /></summary><div>
                 <button type="button" disabled={!hasTarget || Boolean(launchPhase)} onClick={() => void openDirect("window")}><ExternalLinkIcon /><span><strong>Im neuen Fenster</strong><small>{externalUrl ? "Externe Adresse direkt öffnen" : "Nur das laufende Projekt"}</small></span></button>
                 {externalUrl ? <p role="note">Externe URLs werden direkt im Browser geöffnet.</p> : <>
-                  {orbitEnabled ? <button type="button" disabled={!targetPort} onClick={openInOrbit}><WorkbenchIcon /><span><strong>Im Orbit öffnen</strong><small>Als Preview-Fläche öffnen</small></span></button> : null}
                   <button type="button" disabled={!targetPort} onClick={() => openPreviewTools("tab")}><ServerIcon /><span><strong>Preview-Werkzeuge im Tab</strong><small>Mit Geräte- und Größenwahl</small></span></button>
                   <button type="button" disabled={!targetPort} onClick={() => openPreviewTools("window")}><ServerIcon /><span><strong>Preview-Werkzeuge im Fenster</strong><small>Mit Geräte- und Größenwahl</small></span></button>
                 </>}

@@ -15,8 +15,6 @@ interface DevicePreviewFrameProps {
   children: ReactNode;
   /** Relativer Korrekturfaktor zur automatisch berechneten Gerätegröße. */
   scaleFactor?: number;
-  /** Overlay über dem iframe, solange der Canvas gezogen oder skaliert wird. */
-  interactionLocked?: boolean;
   /** Eigene CSS-Viewportmaße; `null` verwendet die Abmessungen des Presets. */
   viewportSize?: PreviewViewportSize | null;
 }
@@ -67,7 +65,7 @@ export function calculateDevicePreviewScale({
   return snapToDevicePixels(raw, outerWidth, outerHeight, Math.max(1, devicePixelRatio));
 }
 
-export function DevicePreviewFrame({ deviceId, orientation, children, scaleFactor = 1, interactionLocked = false, viewportSize = null }: DevicePreviewFrameProps) {
+export function DevicePreviewFrame({ deviceId, orientation, children, scaleFactor = 1, viewportSize = null }: DevicePreviewFrameProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const [fitScale, setFitScale] = useState(1);
   const device = findDevicePreset(deviceId);
@@ -116,7 +114,6 @@ export function DevicePreviewFrame({ deviceId, orientation, children, scaleFacto
     return (
       <div className="preview-responsive-frame">
         {children}
-        {interactionLocked ? <span className="device-preview-lock" aria-hidden /> : null}
       </div>
     );
   }
@@ -136,7 +133,6 @@ export function DevicePreviewFrame({ deviceId, orientation, children, scaleFacto
       >
         <div className="device-preview-screen" style={{ width, height }}>
           {children}
-          {interactionLocked ? <span className="device-preview-lock" aria-hidden /> : null}
           {orientation === "portrait" && deviceCutout(deviceId) !== "none" ? <span className={`device-preview-cutout is-${deviceCutout(deviceId)}`} aria-hidden /> : null}
           {deviceHasHomeIndicator(deviceId) ? <span className={`device-preview-home ${tablet ? "is-tablet" : ""}`} aria-hidden /> : null}
         </div>

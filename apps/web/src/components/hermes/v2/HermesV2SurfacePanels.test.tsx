@@ -45,7 +45,7 @@ afterEach(cleanup);
 const sidebarOptionen: { projectId?: string | null }[] = [];
 
 function renderSurface(
-  variant: "panel" | "orbit" | "route",
+  variant: "panel" | "route",
   options: { minimal?: boolean; standalone?: boolean; viewport?: [number, number] } = {},
 ) {
   const [breite, hoehe] = options.viewport ?? [390, 844];
@@ -82,10 +82,9 @@ describe("HermesV2Surface – Sitzungsspalte in jeder Variante", () => {
     });
   });
 
-  it("Panel und Orbit stellen den Sitzungsöffner bereit", () => {
+  it("Panels stellen den Sitzungsöffner bereit", () => {
     for (const options of [
       { variant: "panel" as const, minimal: false },
-      { variant: "orbit" as const, minimal: true },
     ]) {
       const view = renderSurface(options.variant, { minimal: options.minimal });
       const toggle = view.getByRole("button", { name: "Sitzungen" });

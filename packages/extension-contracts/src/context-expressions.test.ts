@@ -95,7 +95,7 @@ describe("Context Expressions V1", () => {
           operator: "equals",
           value: "workbench.agent-tasks.route.main",
         },
-        { key: "host.orbit.focused", operator: "equals", value: true },
+        { key: "host.project.open", operator: "equals", value: true },
       ],
       none: [{ key: "host.terminal.focused", operator: "equals", value: true }],
     });
@@ -103,7 +103,7 @@ describe("Context Expressions V1", () => {
       "host.input.focused",
       "host.modal.open",
       "host.route.id",
-      "host.orbit.focused",
+      "host.project.open",
       "host.terminal.focused",
     ]);
   });

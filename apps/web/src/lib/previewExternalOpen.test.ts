@@ -17,14 +17,14 @@ describe("Preview-Fenster", () => {
     const url = new URL(previewLiveWindowUrl({
       projectId: "projekt",
       port: 5173,
-      sessionKey: "orbit-preview:knoten-1",
+      sessionKey: "preview-runtime:knoten-1",
       previewNodeId: "knoten-1",
       requestedSlotId: 17,
       isolate: true,
       storageProfileId: "profil-1",
     }, "https://server.test"));
 
-    expect(url.searchParams.get("session")).toBe("orbit-preview:knoten-1");
+    expect(url.searchParams.get("session")).toBe("preview-runtime:knoten-1");
     expect(url.searchParams.get("node")).toBe("knoten-1");
     expect(url.searchParams.get("slot")).toBe("17");
     expect(url.searchParams.get("isolate")).toBe("1");

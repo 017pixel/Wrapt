@@ -24,10 +24,8 @@ import { NotificationDatabase } from "../notifications/database.js";
 import { NotificationPushService } from "../notifications/push.js";
 import { OperationalAuditDatabase } from "../observability/audit.js";
 import { OperationalMetrics } from "../observability/metrics.js";
-import { OrbitAssetRepository } from "../orbit/assets.js";
-import { OrbitDatabase } from "../orbit/database.js";
+import { GalleryRepository } from "../filesystem/galleryRepository.js";
 import { NotesDatabase } from "../notes/database.js";
-import { migrateOrbitNotesToNotes } from "../notes/migrateOrbitNotes.js";
 import { PreviewDevServerDatabase } from "../previews/devServerDatabase.js";
 import { PreviewDevServerManager } from "../previews/DevServerManager.js";
 import { PreviewDiagnosticsService } from "../previews/diagnostics.js";
@@ -176,9 +174,9 @@ export async function createAppDependencies(app: FastifyInstance) {
     maximumDepth: settings.projectActivityMaximumDepth,
     maximumFiles: settings.projectActivityMaximumFiles,
   });
-  const projectBrowser = await ProjectBrowserService.create(settings.orbitProjectBrowserRoot, settings.orbitProjectBrowserPageSize);
+  const projectBrowser = await ProjectBrowserService.create(settings.projectBrowserRoot, settings.projectBrowserPageSize);
   const fileManager = new FileManagerService(
-    settings.orbitProjectBrowserRoot,
+    settings.projectBrowserRoot,
     settings.fileManagerTextPreviewBytes,
     settings.fileManagerMaxUploadBytes,
     settings.databasePath,
@@ -223,12 +221,8 @@ export async function createAppDependencies(app: FastifyInstance) {
   const hermesSessions = new HermesSessionService(hermesClient, hermesManager, () => projects.listReferences());
   const hermesStatus = new HermesStatusService(hermesClient, hermesManager);
   const hermesResultSync = new HermesResultSync(hermesSessions, hermesManager, notificationDatabase);
-  const orbitDatabase = new OrbitDatabase(settings.databasePath, settings.orbitBackupDirectory);
   const notesDatabase = new NotesDatabase(settings.databasePath);
-  // Einmalig und idempotent: Altbestand an Orbit-Notizen in zentrale Notizen überführen.
-  migrateOrbitNotesToNotes(orbitDatabase, notesDatabase);
-  const orbitAssets = new OrbitAssetRepository(settings.databasePath, settings.orbitAssetDirectory, settings.orbitAssetMaxFileBytes, settings.orbitAssetMaxTotalBytes);
-  const fileGallery = new OrbitAssetRepository(settings.databasePath, settings.fileGalleryDirectory, settings.fileGalleryMaxFileBytes, settings.fileGalleryMaxTotalBytes, "file_gallery_files");
+  const fileGallery = new GalleryRepository(settings.databasePath, settings.fileGalleryDirectory, settings.fileGalleryMaxFileBytes, settings.fileGalleryMaxTotalBytes);
   const codexbarClient = new CodexbarClient({ baseUrl: settings.codexbarBaseUrl, timeoutMilliseconds: settings.codexbarTimeoutMilliseconds, cliPath: settings.codexbarCliPath, claudeCliPath: settings.claudeCliPath, configPath: settings.codexbarConfigPath });
   const liveUsage = createCodexbarUsageService({
     client: codexbarClient,
@@ -312,7 +306,7 @@ export async function createAppDependencies(app: FastifyInstance) {
   });
   const editorOpenSecrets = new EditorOpenSecrets(settings.dataDirectory);
   registerNotesPluginApi(pluginCode.api, notesDatabase);
-  registerWorkspacePluginApi(pluginCode.api, { projects, projectBrowser, projectFiles, fileManager, orbit: orbitDatabase });
+  registerWorkspacePluginApi(pluginCode.api, { projects, projectBrowser, projectFiles, fileManager });
   registerIntegrationPluginApi(pluginCode.api, { projects, notifications: notificationDatabase, terminals: runtime.terminals, previews: previewSlots });
   extensionManager.reconcileRuntime();
   return {
@@ -357,9 +351,7 @@ export async function createAppDependencies(app: FastifyInstance) {
     hermesSessions,
     hermesStatus,
     hermesResultSync,
-    orbitDatabase,
     notesDatabase,
-    orbitAssets,
     fileGallery,
     codexbarClient,
     liveUsage,

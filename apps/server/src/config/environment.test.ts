@@ -13,13 +13,20 @@ describe("Wrapt-Umgebungsvariablen", () => {
   it("normalisiert alte persönliche Pfad-Overrides ohne Secrets zu lesen oder zu loggen", () => {
     expect(canonicalizeWraptEnvironment({
       DATABASE_PATH: "/home/tester/.local/share/remote-workplace/workbench.sqlite",
-      ORBIT_BACKUP_DIR: "/home/tester/.local/share/remote-workplace/orbit-backups",
+      FILE_GALLERY_DIR: "/home/tester/.local/share/remote-workplace/file-gallery",
       WRAPT_PROFILES_ROOT: "/home/tester/.workbench-profiles",
     })).toMatchObject({
       DATABASE_PATH: "/home/tester/.local/share/wrapt/wrapt.sqlite",
-      ORBIT_BACKUP_DIR: "/home/tester/.local/share/wrapt/orbit-backups",
+      FILE_GALLERY_DIR: "/home/tester/.local/share/wrapt/file-gallery",
       WRAPT_PROFILES_ROOT: "/home/tester/.wrapt-profiles",
     });
+  });
+
+  it("übernimmt bestehende Projektbrowser-Grenzen und bevorzugt neue Variablen", () => {
+    const legacy = { ORBIT_PROJECT_BROWSER_ROOT: "/bestehend", ORBIT_PROJECT_BROWSER_PAGE_SIZE: "120", ORBIT_RECENT_PROJECT_LIMIT: "5" };
+    expect(canonicalizeWraptEnvironment(legacy)).toMatchObject({ PROJECT_BROWSER_ROOT: "/bestehend", PROJECT_BROWSER_PAGE_SIZE: "120", RECENT_PROJECT_LIMIT: "5" });
+    expect(canonicalizeWraptEnvironment({ ...legacy, PROJECT_BROWSER_ROOT: "/neu", PROJECT_BROWSER_PAGE_SIZE: "90", RECENT_PROJECT_LIMIT: "7" }))
+      .toMatchObject({ PROJECT_BROWSER_ROOT: "/neu", PROJECT_BROWSER_PAGE_SIZE: "90", RECENT_PROJECT_LIMIT: "7" });
   });
 
   it("reicht unbekannte Variablen unverändert durch", () => {

@@ -17,13 +17,11 @@ import {
 } from "../components/icons";
 import { apiClient } from "../lib/apiClient";
 import { wraptQueries } from "../lib/queryOptions";
-import { findOrbitPreviewNodeByTarget } from "../lib/orbitResourceLookup";
-import { orbitPreviewSessionKey } from "../lib/previewWindow";
+import { previewSessionKey } from "../lib/previewWindow";
 import { openPreviewLiveWindow } from "../lib/previewExternalOpen";
 import { useRouteActivity } from "../lib/routeActivity";
 import { usePreviewHubStore } from "../stores/previewHub";
 import { useLayoutStore } from "../stores/layout";
-import { useOrbitStore } from "../stores/orbit";
 import { openGlobalContextMenu } from "../components/context-menu/contextMenuEvents";
 import { hostContextMenuId } from "../extensions/hostContextMenus";
 import { PromptDialog } from "../components/ModalDialog";
@@ -57,9 +55,6 @@ export function PreviewHub() {
   const closingProjectId = useRef<string | null>(null);
   const synchronizedProjectId = useRef<string | null>(selectedProjectId);
   const projectsQuery = useQuery({ ...wraptQueries.projects(), enabled: routeActive });
-  const orbitQuery = useQuery({ ...wraptQueries.orbit(), enabled: routeActive });
-  const hydratedOrbit = useOrbitStore((state) => state.hydrated ? state.document : null);
-  const orbitBoards = hydratedOrbit?.boards ?? orbitQuery.data?.document.boards ?? [];
   const runtimesQuery = useQuery({ ...wraptQueries.previewDevServers(), enabled: routeActive });
   const projects = useMemo(() => (projectsQuery.data?.projects ?? []).filter((item) => item.availability === "available"), [projectsQuery.data?.projects]);
   const openProjects = useMemo(() => openProjectIds.flatMap((id) => {
@@ -226,19 +221,18 @@ export function PreviewHub() {
                   if (!status?.mainPort) return;
                   const configured = project.previews.find((preview) => preview.targetPort === status.mainPort);
                   const path = configured?.path ?? "/";
-                  const matchingNode = findOrbitPreviewNodeByTarget(orbitBoards, project.id, status.mainPort, path);
-                  const storageProfileId = matchingNode?.node.previewStorageProfileId ?? null;
-                  const isolate = matchingNode?.node.previewIsolation ?? false;
+                  const storageProfileId = null;
+                  const isolate = false;
                   openPreviewLiveWindow({
                     projectId: project.id,
                     port: status.mainPort,
                     path,
                     title: configured?.name ?? project.name,
                     mode: "tab",
-                    sessionKey: orbitPreviewSessionKey({ projectId: project.id, previewTarget: `${status.mainPort}${path}`, storageProfileId }),
+                    sessionKey: previewSessionKey({ projectId: project.id, previewTarget: `${status.mainPort}${path}`, storageProfileId }),
                     isolate,
                     storageProfileId,
-                    requestedSlotId: matchingNode?.node.previewSlotId ?? null,
+                    requestedSlotId: null,
                   });
                 } },
                 { id: hostContextMenuId("preview.close"), icon: <CloseIcon />, danger: true, onSelect: () => void closeProjectTab(project.id) },
@@ -277,7 +271,7 @@ export function PreviewHub() {
 
       {bulkMessage ? <div className={`preview-hub-alert ${bulkMessage.includes("fehlgeschlagen") ? "is-error" : "is-progress"}`} role="status"><ActivityIcon /><span>{bulkMessage}</span><button type="button" aria-label="Meldung schließen" onClick={() => setBulkMessage(null)}><CloseIcon /></button></div> : null}
 
-      {activeProject ? <PreviewHubProject key={activeProject.id} project={activeProject} routeActive={routeActive} orbitBoards={orbitBoards} /> : <section className="preview-hub-stage-empty"><FolderCodeIcon /><strong>Kein Preview-Projekt geöffnet</strong><button type="button" className="preview-hub-primary" onClick={() => setProjectManagerOpen(true)}><PlusIcon />Projekt öffnen</button></section>}
+      {activeProject ? <PreviewHubProject key={activeProject.id} project={activeProject} routeActive={routeActive} /> : <section className="preview-hub-stage-empty"><FolderCodeIcon /><strong>Kein Preview-Projekt geöffnet</strong><button type="button" className="preview-hub-primary" onClick={() => setProjectManagerOpen(true)}><PlusIcon />Projekt öffnen</button></section>}
 
       {projectManagerOpen ? createPortal(
         <div className="preview-project-dialog-backdrop" role="presentation" onPointerDown={(event) => { if (event.target === event.currentTarget) setProjectManagerOpen(false); }}>

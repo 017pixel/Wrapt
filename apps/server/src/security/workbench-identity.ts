@@ -39,12 +39,12 @@ const unprotectedApiPrefixes = [
 
 /**
  * Warntext bei mehreren erlaubten Identitäten (S-004): Die Workbench trennt
- * Mandanten nicht — Orbit, Notizen, Dateisystem, Projekte, Skills und
+ * Mandanten nicht — Notizen, Dateisystem, Projekte, Skills und
  * Benachrichtigungen sind global sichtbar. Gibt null bei Single-User-Betrieb.
  */
 export function allowedUsersIsolationWarning(allowedUsers: readonly string[]): string | null {
   if (allowedUsers.length <= 1) return null;
-  return `Es sind ${allowedUsers.length} Workbench-Benutzer erlaubt, aber Daten (Orbit, Notizen, Dateien, Projekte, Skills) werden nicht pro Benutzer getrennt. Nur vertrauenswürdige allowedUsers eintragen.`;
+  return `Es sind ${allowedUsers.length} Workbench-Benutzer erlaubt, aber Daten (Notizen, Dateien, Projekte, Skills) werden nicht pro Benutzer getrennt. Nur vertrauenswürdige allowedUsers eintragen.`;
 }
 
 // T3 authenticates its root WebSocket with its own session cookie or ticket.

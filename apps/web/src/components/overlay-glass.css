@@ -14,14 +14,6 @@
   .crash-sheet,
   .extension-review-panel,
   .uvs-panel,
-  .orbit-edge-menu,
-  .orbit-command,
-  .orbit-inspector,
-  .orbit-project-picker,
-  .orbit-gallery-move-dropdown,
-  .orbit-gallery-dialog,
-  .orbit-preview-menu,
-  .orbit-preview-device-menu,
   .file-quicklook-modal,
   .file-quicklook-sheet,
   .preview-project-dialog,
@@ -80,9 +72,6 @@
   .plugin-help-popover,
   .plugin-surface-dialog-card,
   .preview-target-menu,
-  .orbit-board-picker-menu,
-  .orbit-info-summary,
-  .orbit-info-dialog,
   .settings-search-results
 ) {
   --color-muted: var(--glass-readable-muted);
@@ -115,8 +104,6 @@
 
 /* Die Glasfläche der schwebenden Steuerleisten liegt hinter dem Inhalt.
    Untermenüs erreichen so auch außerhalb der Leiste den echten Hintergrund. */
-.orbit-main-island,
-.orbit-preview-context-island,
 .panel-island:not(.is-topbar) {
   --color-muted: var(--glass-readable-muted);
   --color-faint: var(--glass-readable-faint);
@@ -126,8 +113,6 @@
   backdrop-filter: none;
 }
 
-.orbit-main-island::before,
-.orbit-preview-context-island::before,
 .panel-island:not(.is-topbar)::before {
   content: "";
   position: absolute;
@@ -140,14 +125,7 @@
   pointer-events: none;
 }
 
-:is(
-  .uvs-section h3,
-  .orbit-inspector > header span,
-  .orbit-inspector label > span,
-  .orbit-inspector h3,
-  .orbit-command-results button span,
-  .orbit-preview-device-menu small
-) { text-transform: none; letter-spacing: normal; }
+.uvs-section h3 { text-transform: none; letter-spacing: normal; }
 
 /* Systempräferenzen und fehlende Blur-Unterstützung haben Vorrang vor dem
    Regler. Text bleibt auch auf hellen oder detailreichen Hintergründen lesbar. */

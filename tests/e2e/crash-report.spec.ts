@@ -35,8 +35,8 @@ test("zeigt bei einem unbehandelten Fehler einen kopierbaren Crash-Report", asyn
   await expect(dialog).toHaveCount(0);
 });
 
-// Diese Meldung ist laut Resize-Observer-Spezifikation harmlos und tritt im Orbit
-// (@xyflow/react) beim Zoomen und Verschieben auf. Sie darf kein Pop-Up öffnen.
+// Diese Meldung ist laut Resize-Observer-Spezifikation harmlos und tritt bei Layoutänderungen
+// beim Anpassen von Elementgrößen auf. Sie darf kein Pop-Up öffnen.
 test("öffnet kein Pop-Up für harmlose ResizeObserver-Meldungen", async ({ page }) => {
   await page.goto("/wrapt/", { waitUntil: "domcontentloaded" });
   await expect(page.locator(".sidebar-shell")).toBeVisible();

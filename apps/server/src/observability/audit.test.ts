@@ -14,7 +14,7 @@ describe("OperationalAuditDatabase", () => {
     directories.push(directory);
     const path = join(directory, "workbench.sqlite");
     const audit = new OperationalAuditDatabase(path);
-    audit.record({ requestId: "request-1", actor: "person@example.com", action: "PUT /orbit", target: "/api/v1/orbit", statusCode: 200 });
+    audit.record({ requestId: "request-1", actor: "person@example.com", action: "PUT /notes", target: "/api/v1/notes", statusCode: 200 });
     audit.record({ requestId: "request-2", actor: "person@example.com", action: "DELETE /files/:id", target: "/api/v1/files/id", statusCode: 204 });
     expect(audit.verify()).toMatchObject({ valid: true, entries: 2 });
     audit.close();
@@ -28,12 +28,12 @@ describe("OperationalAuditDatabase", () => {
   });
 
   it("covers destructive and administrative route families without auditing reads", () => {
-    expect(isAuditedMutation("PUT", "/api/v1/orbit")).toBe(true);
+    expect(isAuditedMutation("PUT", "/api/v1/notes")).toBe(true);
     expect(isAuditedMutation("POST", "/api/v1/projects/test/files")).toBe(true);
     expect(isAuditedMutation("DELETE", "/api/v1/previews/storage/profile")).toBe(true);
     expect(isAuditedMutation("POST", "/api/v1/extensions/workbench.test/operations")).toBe(true);
     expect(isAuditedMutation("PUT", "/api/v1/plugins/drafts/123")).toBe(true);
-    expect(isAuditedMutation("GET", "/api/v1/orbit")).toBe(false);
+    expect(isAuditedMutation("GET", "/api/v1/notes")).toBe(false);
   });
 
   it("deckt Skills und neue Mutationen ohne Präfixliste ab", () => {

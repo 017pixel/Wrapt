@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { orbitPreviewSessionKey, parsePreviewLiveWindowSearch } from "./previewWindow";
+import { previewSessionKey, parsePreviewLiveWindowSearch } from "./previewWindow";
 
 describe("Preview-Fensteridentität", () => {
   it("übernimmt Preview-Knoten, Slotbindung und Storageprofil in die Live-Route", () => {
-    const sessionKey = orbitPreviewSessionKey({
+    const sessionKey = previewSessionKey({
       projectId: "projekt",
       previewTarget: "5173/shop",
       storageProfileId: "profil-1",
@@ -27,7 +27,7 @@ describe("Preview-Fensteridentität", () => {
 
   it("verwendet Projekt, normalisiertes Ziel und Storageprofil statt einer Knoten-ID", () => {
     const input = parsePreviewLiveWindowSearch("?project=projekt&port=5173&path=%2Fshop&storage=profil-1&node=knoten-1");
-    expect(input?.sessionKey).toBe(orbitPreviewSessionKey({
+    expect(input?.sessionKey).toBe(previewSessionKey({
       projectId: "projekt",
       previewTarget: "5173/shop",
       storageProfileId: "profil-1",
@@ -38,18 +38,18 @@ describe("Preview-Fensteridentität", () => {
   });
 
   it("normalisiert äquivalente lokale Ziele und hält den Sitzungsschlüssel unter 160 Zeichen", () => {
-    const shortTarget = orbitPreviewSessionKey({ projectId: "projekt", previewTarget: "5173/shop" });
-    const fullTarget = orbitPreviewSessionKey({ projectId: "projekt", previewTarget: "http://localhost:5173/shop" });
+    const shortTarget = previewSessionKey({ projectId: "projekt", previewTarget: "5173/shop" });
+    const fullTarget = previewSessionKey({ projectId: "projekt", previewTarget: "http://localhost:5173/shop" });
     expect(fullTarget).toBe(shortTarget);
     expect(shortTarget.length).toBeLessThan(160);
-    expect(orbitPreviewSessionKey({ projectId: "anderes-projekt", previewTarget: "5173/shop" })).not.toBe(shortTarget);
-    expect(orbitPreviewSessionKey({ projectId: "projekt", previewTarget: "5173/anderer-pfad" })).not.toBe(shortTarget);
-    expect(orbitPreviewSessionKey({ projectId: "projekt", previewTarget: "5173/shop", storageProfileId: "profil-1" })).not.toBe(shortTarget);
+    expect(previewSessionKey({ projectId: "anderes-projekt", previewTarget: "5173/shop" })).not.toBe(shortTarget);
+    expect(previewSessionKey({ projectId: "projekt", previewTarget: "5173/anderer-pfad" })).not.toBe(shortTarget);
+    expect(previewSessionKey({ projectId: "projekt", previewTarget: "5173/shop", storageProfileId: "profil-1" })).not.toBe(shortTarget);
   });
 
   it("hält die Laufzeitidentität stabil, wenn der Server einen Slot zuweist", () => {
-    const beforeAssignment = orbitPreviewSessionKey({ projectId: "projekt", previewTarget: "5173", previewSlotId: null });
-    const afterAssignment = orbitPreviewSessionKey({ projectId: "projekt", previewTarget: "5173", previewSlotId: 17 });
+    const beforeAssignment = previewSessionKey({ projectId: "projekt", previewTarget: "5173", previewSlotId: null });
+    const afterAssignment = previewSessionKey({ projectId: "projekt", previewTarget: "5173", previewSlotId: 17 });
     expect(afterAssignment).toBe(beforeAssignment);
   });
 

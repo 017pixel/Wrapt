@@ -30,8 +30,8 @@ export function personaStorage(name: PersonaName, origin: string) {
       hiddenSections: ["commands"], artworkEnabled: true, artworkId: "hero-architektur",
     } };
     entries["wrapt.sidebar-preferences.v1"] = { version: 5, state: {
-      hiddenPages: ["projects"], explicitlyVisibleDefaultPages: ["workbench", "codex", "opencode", "claude"],
-      hiddenOrbitItems: ["tool:codex"], navigationReorderEnabled: true,
+      hiddenPages: ["projects"], explicitlyVisibleDefaultPages: ["codex", "opencode", "claude"],
+      navigationReorderEnabled: true,
       navigationOrder: ["notizen", "settings", "dashboard"],
       collapsedSections: { workspace: true, tools: true, previews: true, blocks: true },
     } };
@@ -59,25 +59,6 @@ export async function seedPersona(api: APIRequestContext, name: PersonaName) {
       expectedRevision: note.revision,
     });
     if (index % 8 === 7) await expect(await api.patch(`/api/v1/notes/${note.id}`, { data: { archived: true } })).toBeOK();
-  }
-  if (name !== "frisch") {
-    const { revision } = await getJson(api, "/orbit");
-    const boards = Array.from({ length: name === "heavy" ? 4 : 2 }, (_, boardIndex) => ({
-      id: `persona-board-${boardIndex}`, name: `Persona-Arbeitsfläche ${boardIndex + 1}`,
-      viewport: { x: 0, y: 0, zoom: name === "heavy" ? 0.5 : 1 },
-      worldBounds: { minX: -1600, minY: -1000, maxX: 6400, maxY: 4000 },
-      nodes: Array.from({ length: name === "heavy" ? 20 : 3 }, (_, index) => ({
-        id: `persona-snippet-${boardIndex}-${index}`, type: "snippet",
-        title: `Snippet ${boardIndex + 1}.${index + 1}`,
-        position: { x: 400 + (index % 4) * 420, y: 150 + Math.floor(index / 4) * 320 },
-        size: { width: 380, height: 260 }, content: `const persona = ${index + 1};`, language: "typescript",
-        projectId: null, parentId: null, runtimeId: null, toolType: null, previewId: null,
-        provider: null, locked: false, zIndex: index + 1,
-      })), edges: [],
-    }));
-    await putJson(api, "/orbit", { expectedRevision: revision, document: {
-      version: 8, activeBoardId: boards[0]!.id, focusedNodeId: null, boards,
-    } });
   }
   if (name === "konfiguriert") {
     await putJson(api, "/system/appearance", { preset: "ember", colors: appearanceThemePresets.ember });

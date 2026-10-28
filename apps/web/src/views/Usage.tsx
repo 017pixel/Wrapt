@@ -8,7 +8,7 @@ import { Badge } from "../components/primitives";
 import { apiClient } from "../lib/apiClient";
 import { formatRelativeTime } from "../lib/format";
 import { useNow } from "../lib/useNow";
-import { formatUsageReset } from "../lib/orbitUsage";
+import { formatUsageReset } from "../lib/usage";
 import { wraptQueries } from "../lib/queryOptions";
 import { TabBar } from "../components/TabBar";
 import { ConfirmDialog, ModalFrame, PromptDialog } from "../components/ModalDialog";

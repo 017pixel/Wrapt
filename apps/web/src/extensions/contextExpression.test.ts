@@ -93,7 +93,7 @@ describe("evaluateContextExpression", () => {
         {
           key: "host.route.id",
           operator: "in",
-          values: ["workbench.orbit.route.main", "workbench.terminal.route.main"],
+          values: ["workbench.files.route.main", "workbench.terminal.route.main"],
         },
       ],
     } as unknown as ContextExpression;

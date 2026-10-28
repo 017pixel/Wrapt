@@ -16,19 +16,12 @@ describe("Visuelle Plugin-Flächen", () => {
     expect((page as HTMLInputElement).disabled).toBe(true);
   });
 
-  it("hält Orbit-Fläche, Orbit-Konfiguration und Wizard-Antwort synchron", () => {
+  it("hält Sidebar-Auswahl und Wizard-Antwort synchron", () => {
     const onChange = vi.fn();
     render(<PluginCapabilityPicker draft={emptyPluginDraft()} onChange={onChange} />);
-
-    fireEvent.click(screen.getByRole("checkbox", { name: /Orbit/i }));
-
+    fireEvent.click(screen.getByRole("checkbox", { name: /Sidebar/i }));
     expect(onChange).toHaveBeenCalledWith(expect.objectContaining({
-      surfaces: expect.arrayContaining(["page", "sidebar", "orbit"]),
-      orbit: expect.objectContaining({ enabled: true }),
-      wizard: expect.objectContaining({
-        includeOrbit: true,
-        surfaces: expect.arrayContaining(["page", "sidebar", "orbit"]),
-      }),
+      surfaces: ["page"], wizard: expect.objectContaining({ surfaces: ["page"] }),
     }));
   });
 

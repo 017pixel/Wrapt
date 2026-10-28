@@ -1,5 +1,5 @@
 // Befüllt die laufende Screenshot-Instanz über deren HTTP-API mit reinen
-// Dummy-Daten: Erscheinungsbild, Dummy-Accounts, Nutzung, Notizen und Orbit.
+// Dummy-Daten: Erscheinungsbild, Dummy-Accounts, Nutzung und Notizen.
 import { access, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -37,7 +37,7 @@ const notes = [
   { title: "T3-Code Tastenkürzel", content: "# T3-Code Tastenkürzel\n\n| Kürzel | Wirkung |\n| --- | --- |\n| Strg + K | Befehlspalette |\n| Strg + P | Datei öffnen |\n\n> Alles bleibt lokal, es gehen keine Daten an Dritte.\n" },
   { title: "Preview-Slots: Ideen", content: "# Preview-Slots: Ideen\n\n- [ ] Feste Slots pro Projekt\n- [ ] Getrennte Storage-Profile\n- [x] Log-Ansicht je Dienst\n\n> Cookies bleiben gemeinsam, Storage ist getrennt.\n" },
   { title: "Kundenportal Nordlicht", content: "# Kundenportal Nordlicht\n\nZählerstände, Rechnungen und Störungsmeldungen an einem Ort.\n\n- [x] Prototyp\n- [ ] Feinschliff der Startseite\n" },
-  { title: "Wochenrückblick KW 39", content: "# Wochenrückblick KW 39\n\n- Terminal-Design verbessert\n- Nutzungslimits sichtbar gemacht\n- Orbit-Verbindungen aufgeräumt\n" },
+  { title: "Wochenrückblick KW 39", content: "# Wochenrückblick KW 39\n\n- Terminal-Design verbessert\n- Nutzungslimits sichtbar gemacht\n- Notizstruktur aufgeräumt\n" },
 ];
 
 async function seedNotes(baseUrl) {
@@ -61,63 +61,6 @@ async function seedNotes(baseUrl) {
     }
   }
   return created;
-}
-
-function orbitNode(overrides) {
-  return {
-    id: overrides.id,
-    type: overrides.type,
-    title: overrides.title,
-    position: overrides.position,
-    size: overrides.size,
-    projectId: overrides.projectId ?? null,
-    parentId: null,
-    runtimeId: null,
-    toolType: overrides.toolType ?? null,
-    previewId: null,
-    provider: overrides.provider ?? null,
-    content: overrides.content ?? "",
-    language: overrides.language ?? null,
-    noteId: overrides.noteId ?? null,
-    locked: false,
-    zIndex: overrides.zIndex ?? 1,
-  };
-}
-
-function buildOrbitDocument(noteId) {
-  const nodes = [
-    orbitNode({ id: "project-nordlicht", type: "project", title: "Nordlicht", position: { x: 0, y: 0 }, size: { width: 320, height: 200 }, projectId: "nordlicht", zIndex: 1 }),
-    orbitNode({ id: "project-feldnotiz", type: "project", title: "Feldnotiz", position: { x: 380, y: 0 }, size: { width: 320, height: 200 }, projectId: "feldnotiz", zIndex: 2 }),
-    orbitNode({ id: "project-sandkasten", type: "project", title: "Sandkasten", position: { x: 760, y: 0 }, size: { width: 320, height: 200 }, projectId: "sandkasten", zIndex: 3 }),
-    orbitNode({ id: "note-release", type: "note", title: "Release 1.23 vorbereiten", position: { x: 0, y: 280 }, size: { width: 360, height: 260 }, content: "Release 1.23 vorbereiten", noteId, zIndex: 4 }),
-    orbitNode({ id: "tool-terminal", type: "tool", title: "Terminal", position: { x: 420, y: 280 }, size: { width: 320, height: 200 }, toolType: "terminal", zIndex: 5 }),
-    orbitNode({ id: "usage-codex", type: "usage", title: "Codex-Limits", position: { x: 800, y: 280 }, size: { width: 320, height: 220 }, provider: "codex", zIndex: 6 }),
-  ];
-  const edges = [
-    { id: "edge-nordlicht-feldnotiz", source: "project-nordlicht", target: "project-feldnotiz", kind: "project", label: null, sourceSide: "right", targetSide: "left", waypoints: [] },
-    { id: "edge-feldnotiz-sandkasten", source: "project-feldnotiz", target: "project-sandkasten", kind: "project", label: null, sourceSide: "right", targetSide: "left", waypoints: [] },
-    { id: "edge-nordlicht-note", source: "project-nordlicht", target: "note-release", kind: "manual", label: "Aufgaben", sourceSide: "right", targetSide: "left", waypoints: [] },
-    { id: "edge-nordlicht-tool", source: "project-nordlicht", target: "tool-terminal", kind: "manual", label: "Shell", sourceSide: "right", targetSide: "left", waypoints: [] },
-    { id: "edge-tool-usage", source: "tool-terminal", target: "usage-codex", kind: "manual", label: "Limits", sourceSide: "right", targetSide: "left", waypoints: [] },
-  ];
-  const bounds = nodes.reduce((acc, node) => ({
-    minX: Math.min(acc.minX, node.position.x),
-    minY: Math.min(acc.minY, node.position.y),
-    maxX: Math.max(acc.maxX, node.position.x + node.size.width),
-    maxY: Math.max(acc.maxY, node.position.y + node.size.height),
-  }), { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity });
-  return {
-    version: 8,
-    activeBoardId: "board-work",
-    focusedNodeId: "project-nordlicht",
-    boards: [{ id: "board-work", name: "Arbeitsfläche", viewport: { x: 40, y: 40, zoom: 0.9 }, worldBounds: bounds, nodes, edges }],
-  };
-}
-
-async function seedOrbit(baseUrl, noteId) {
-  const current = await api(baseUrl, "/orbit");
-  if (current.initialized && current.document.boards.some((board) => board.id === "board-work")) return;
-  await api(baseUrl, "/orbit", { method: "PUT", body: { document: buildOrbitDocument(noteId), expectedRevision: current.revision } });
 }
 
 async function seedAccounts(baseUrl, profilePaths, databasePath) {
@@ -157,9 +100,7 @@ export async function seedScreenshotData({ baseUrl, root, profilePaths }) {
   await api(baseUrl, "/system/usage-monitoring", { method: "PUT", body: { monitoring: { codex: true, opencode: true, claude: false } } }).catch(() => undefined);
   await seedAccounts(baseUrl, profilePaths, join(root, "data", "wrapt.sqlite"));
   await api(baseUrl, "/usage/sync", { method: "POST" }).catch(() => undefined);
-  const createdNotes = await seedNotes(baseUrl);
-  const noteId = createdNotes.find((note) => note.title === "Release 1.23 vorbereiten")?.id ?? createdNotes[0]?.id ?? null;
-  await seedOrbit(baseUrl, noteId);
+  await seedNotes(baseUrl);
   for (const projectId of ["nordlicht", "feldnotiz", "sandkasten"]) {
     await api(baseUrl, `/projects/${projectId}/activity`, { method: "POST" }).catch(() => undefined);
   }

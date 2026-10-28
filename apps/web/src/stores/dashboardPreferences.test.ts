@@ -7,7 +7,7 @@ describe("Dashboard-Präferenzen", () => {
     expect(migrateDashboardPreferences({
       hiddenSections: ["metrics", "unbekannt"],
       artworkEnabled: true,
-      artworkId: "hero-orbit",
+      artworkId: "hero-arbeitsbereich",
     })).toEqual({
       hiddenSections: ["metrics"],
       artworkEnabled: false,

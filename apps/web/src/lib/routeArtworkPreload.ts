@@ -10,6 +10,6 @@ export function preloadRouteArtwork(pathname: string): void {
   if (pathname === "/") preloadDashboardArtwork(undefined, "low");
   else if (pathname === "/projects") preloadArtwork(projectsArtwork);
   else if (pathname.startsWith("/projects/")) preloadArtwork(projectArtwork);
-  else if (pathname === "/notizen" || pathname === "/orbit/notizen") preloadArtwork(notesArtwork);
+  else if (pathname === "/notizen") preloadArtwork(notesArtwork);
   else if (pathname === "/t3-code" || pathname === "/code-editor") preloadArtwork(toolArtwork);
 }

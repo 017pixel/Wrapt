@@ -59,9 +59,9 @@ describe("Workspace-Ankunft", () => {
     expect(container.querySelector("output")?.textContent).toBe("/projects");
   });
 
-  it("verwendet beim normalen App-Start weiterhin die Standardseite", async () => {
+  it("öffnet beim normalen App-Start das Dashboard trotz alter Start-App-Auswahl", async () => {
     const { container } = open("/");
-    await waitFor(() => expect(container.querySelector("output")?.textContent).toBe("/hermes-agent"));
+    await waitFor(() => expect(container.querySelector("output")?.textContent).toBe("/"));
   });
 
   it("beschränkt den Fallback auf die Ankunft nach einem Workspace-Wechsel", async () => {

@@ -16,6 +16,5 @@
     border-radius: var(--radius-sm);
     background: var(--color-ink-600);
   }
-  .modal-sheet.orbit-project-browser::before { display: none; }
   .modal-sheet > header { padding-top: var(--space-3); }
 }

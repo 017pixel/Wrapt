@@ -85,7 +85,7 @@ export function PreviewTargetMenu({ label, value, options, disabled, placeholder
       <span>{options.find((option) => option.value === value)?.label ?? (options.length && placeholder ? placeholder : "Kein Browser-Ziel erkannt")}</span><ChevronDownIcon aria-hidden="true" />
     </button>
     {open && !disabled ? createPortal(<div id={id} ref={menuRef} role="menu" aria-label={label}
-      className="orbit-board-picker-menu preview-target-menu" style={position} onKeyDown={onKeyDown}>
+      className="preview-target-menu" style={position} onKeyDown={onKeyDown}>
       {options.map((option) => <button key={option.value} type="button" role="menuitemradio" tabIndex={-1}
         aria-checked={option.value === value} className="preview-target-option"
         onClick={() => { close(true); onChange(option.value); }}>

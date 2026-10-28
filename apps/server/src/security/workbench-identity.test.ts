@@ -135,7 +135,7 @@ describe("Workbench-Identität", () => {
     expect(isProtectedWorkbenchRequest(request("/api/v1/previews/doctor/status"))).toBe(false);
     expect(isProtectedWorkbenchRequest(request("/api/v1/editor/open"))).toBe(false);
     // Alles andere unter /api bleibt geschützt.
-    for (const url of ["/api/v1/skills/status", "/api/v1/system/restart", "/api/v1/orbit", "/api/v1/notes", "/api/v1/previews/slots"]) {
+    for (const url of ["/api/v1/skills/status", "/api/v1/system/restart", "/api/v1/notes", "/api/v1/previews/slots"]) {
       expect(isProtectedWorkbenchRequest(request(url))).toBe(true);
     }
   });

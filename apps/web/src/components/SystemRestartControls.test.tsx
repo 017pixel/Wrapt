@@ -2,7 +2,6 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { apiClient } from "../lib/apiClient";
-import { useOrbitStore } from "../stores/orbit";
 import { restartEnv, useSystemRestart } from "./SystemRestartControls";
 import { registerEditorReloadGuard } from "../lib/reloadGuard";
 
@@ -63,7 +62,6 @@ function laufStatus(override: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  useOrbitStore.setState({ dirty: false });
   restartEnv.reload = vi.fn();
   restartEnv.confirmDirty = vi.fn(() => true);
   vi.mocked(apiClient.restartSystem).mockResolvedValue({

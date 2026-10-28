@@ -37,7 +37,7 @@ describe("createGlobalQuicknote", () => {
     });
   });
 
-  it("nimmt einen expliziten Titel an, ohne eine Orbit-Zuordnung zu senden", async () => {
+  it("nimmt einen expliziten Titel an, ohne zusätzliche Zuordnungen zu senden", async () => {
     const now = "2026-09-26T12:00:00.000Z";
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({
       note: {

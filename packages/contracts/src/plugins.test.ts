@@ -21,14 +21,6 @@ const legacyDraft = {
   html: "",
   blocks: [{ id: "intro", type: "heading" as const, title: "Notizen", content: "Text", actionId: null }],
   functions: [],
-  orbit: {
-    enabled: false,
-    title: "Notizen",
-    description: "",
-    placement: "orbit" as const,
-    nodeType: "note" as const,
-    accent: "accent" as const,
-  },
   wizard: {
     goal: "Notizen sammeln",
     audience: "Ich",
@@ -37,7 +29,6 @@ const legacyDraft = {
     tone: "direkt" as const,
     includeHtml: false,
     includeIframe: false,
-    includeOrbit: false,
     additionalDescription: "",
     wishes: "",
     agent: "codex" as const,

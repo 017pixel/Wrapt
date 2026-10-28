@@ -2,15 +2,18 @@ import { describe, expect, it } from "vitest";
 import { normalizeSettingsTab, settingsTabIds, settingsTabs } from "./settingsTabs";
 
 describe("settingsTabs", () => {
-  it("behält den alten Workspace-Deep-Link für das Layout bei", () => {
+  it("führt entfernte Einstellungsbereiche auf Allgemein zurück", () => {
     expect(settingsTabIds).toContain("workspace");
-    expect(normalizeSettingsTab("workspace")).toBe("layout");
+    for (const tab of ["workspace", "layout", "start-app"] as const) {
+      expect(normalizeSettingsTab(tab)).toBe("allgemein");
+      expect(settingsTabs.some((entry) => entry.id === (tab as string))).toBe(false);
+    }
   });
 
-  it("ordnet Client-Einstellungen, Layout und Workspaces sichtbar in Ebenen", () => {
+  it("ordnet Client-Einstellungen und Workspaces sichtbar in Ebenen", () => {
     expect(settingsTabs.map((tab) => tab.group)).toEqual([
-      ...Array.from({ length: 8 }, () => "Wrapt"),
-      ...Array.from({ length: 4 }, () => "Oberfläche & Bedienung"),
+      ...Array.from({ length: 7 }, () => "Wrapt"),
+      ...Array.from({ length: 3 }, () => "Oberfläche & Bedienung"),
       "Verbindungen",
     ]);
   });

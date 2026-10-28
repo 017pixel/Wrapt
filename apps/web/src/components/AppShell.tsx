@@ -189,7 +189,6 @@ export function AppShell() {
   // die Route-Contribution bleibt damit die einzige Quelle für die Darstellung.
   const activeRouteId = pageRouteRegistry.matchRoute(location.pathname)?.route.contributionId;
   const isProjectDetail = activeRouteId === "wrapt.projects.route.detail";
-  const isOrbit = activeRouteId === "wrapt.orbit.route.main";
   const isStandaloneT3 = activeRouteId === "wrapt.t3-code.route.main";
   const isStandaloneOpenCode = activeRouteId === "wrapt.opencode.route.main";
   const isTerminalRoute = ["/terminal", "/codex", "/claude"].includes(location.pathname);
@@ -275,7 +274,7 @@ export function AppShell() {
 
   return (
     <div
-      className={`app-shell ${isOrbit ? "is-orbit" : ""}`}
+      className="app-shell"
       data-shell-mode={responsive.mode}
       data-input-mode={responsive.inputMode}
       data-orientation={responsive.orientation}
@@ -309,10 +308,10 @@ export function AppShell() {
         onResize={sidebar.setWidth}
       /></ErrorBoundary> : null}
       <div
-        className={`content-column ${isOrbit ? "is-orbit" : ""}`}
+        className="content-column"
         inert={mobileNavigationOpen && !hasTabletSidebar ? true : undefined}
       >
-        {!isOrbit ? <ErrorBoundary label="Kopfbereich"><header className="topbar">
+        <ErrorBoundary label="Kopfbereich"><header className="topbar">
           {showNavigationTrigger ? <button
             ref={navigationTriggerRef}
             type="button"
@@ -341,7 +340,7 @@ export function AppShell() {
             <CodePluginSurface surface="topbar" builtins={[{ id: "wrapt.shell.topbar.plugins", surface: "topbar", title: "Plugin-Aktionen", children: <PluginTopbar /> }]} />
             {(isStandaloneT3 || isStandaloneOpenCode || location.pathname === "/code-editor") ? <div id="topbar-tool-actions" className="topbar-tool-actions" aria-label={`${title} Aktionen`} /> : hasStandaloneToolMenu ? <StandaloneRouteActions terminalFocus={terminalFocus} onTerminalFocusChange={setTerminalFocus} /> : null}
           </div>
-        </header></ErrorBoundary> : isOrbit ? (showNavigationTrigger ? <button ref={navigationTriggerRef} type="button" className="orbit-app-menu mobile-nav-trigger" onClick={() => setMobileNavigationOpen(true)} aria-label="Navigation öffnen"><MenuIcon className="h-[18px] w-[18px]" /></button> : null) : null}
+        </header></ErrorBoundary>
         {!online ? <div className="connection-banner" role="status"><span>Offline</span><strong>Live-Daten und Remote-Werkzeuge sind vorübergehend nicht verfügbar.</strong></div> : null}
         <main ref={mainRef} id="main-content" tabIndex={-1} className="relative min-h-0 flex-1 overflow-hidden">
           <PersistentOutlet />

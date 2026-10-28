@@ -265,16 +265,6 @@ async function captureNotes(options = {}) {
   await shoot(options.output ?? "wrapt-notes", viewport.width, viewport.height);
 }
 
-async function captureOrbit(options = {}) {
-  const viewport = options.viewport ?? desktopViewport;
-  await page.setViewportSize(viewport);
-  const orbit = waitApi("/orbit");
-  await open("/wrapt/orbit");
-  await orbit;
-  await page.waitForTimeout(2500);
-  await shoot(options.output ?? "wrapt-orbit", viewport.width, viewport.height);
-}
-
 async function captureMobile(options = {}) {
   const viewport = options.viewport ?? mobileViewport;
   await page.setViewportSize(viewport);
@@ -341,7 +331,6 @@ const landingTasks = [
   ["themes", () => captureThemes()],
   ["usage", () => captureUsage()],
   ["notes", () => captureNotes()],
-  ["orbit", () => captureOrbit()],
   ["mobile", () => captureMobile()],
   ["mobil-notizen", () => captureMobileNotes()],
 ];
@@ -352,7 +341,6 @@ const landingTasks = [
 // explizitem Namen gestartet, damit die Landing-Defaults unberührt bleiben.
 const docsTasks = [
   ["docs-dashboard", () => captureDashboard({ output: "01-dashboard" })],
-  ["docs-orbit", () => captureOrbit({ output: "02-workbench" })],
   ["docs-dateimanager", () => captureSimpleRoute("/wrapt/files", { output: "06-gallery" })],
   ["docs-terminal", () => captureTerminal({ output: "07-terminal" })],
   ["docs-usage", () => captureUsage({ output: "08-usage" })],

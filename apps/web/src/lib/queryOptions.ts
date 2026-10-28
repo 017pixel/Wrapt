@@ -1,6 +1,6 @@
 import { queryPollingInterval } from "./queryPolicy";
 import { keepPreviousData, queryOptions } from "@tanstack/react-query";
-import { orbitUsageRefreshIntervalMs } from "./orbitUsage";
+import { usageRefreshIntervalMs } from "./usage";
 import type { NoteSearchQuery } from "@wrapt/contracts";
 import { apiClient } from "./apiClient";
 
@@ -153,7 +153,7 @@ export const wraptQueries = {
       queryFn: ({ signal }) => apiClient.usage(signal),
       // Der Server hält den Live-Cache selbst warm; ein 30-Sekunden-Takt hält
       // die Statusleiste nah am aktuellen Stand, ohne CodexBar zu belasten.
-      refetchInterval: queryPollingInterval(orbitUsageRefreshIntervalMs),
+      refetchInterval: queryPollingInterval(usageRefreshIntervalMs),
       // Der Takt soll auch laufen, wenn der Tab nicht im Fokus ist, und beim
       // Zurückkehren sofort aktualisieren.
       refetchIntervalInBackground: true,
@@ -166,7 +166,6 @@ export const wraptQueries = {
   usageTimeline: (refetchInterval = 30_000) => queryOptions({ queryKey: ["usage", "timeline"], queryFn: ({signal}) => apiClient.usageTimeline(signal), refetchInterval: queryPollingInterval(refetchInterval), staleTime: 15_000, placeholderData: keepPreviousData }),
   accounts: () => queryOptions({ queryKey: ["accounts"], queryFn: ({signal}) => apiClient.accounts(signal), staleTime: 15_000 }),
   discoveredAccounts: () => queryOptions({ queryKey: ["accounts", "discovered"], queryFn: ({signal}) => apiClient.discoverAccounts(signal), staleTime: 15_000 }),
-  orbit: () => queryOptions({ queryKey: ["orbit"], queryFn: ({signal}) => apiClient.orbit(signal), staleTime: 1_000 }),
   notesList: () => queryOptions({ queryKey: ["notes", "list"], queryFn: ({ signal }) => apiClient.notes(signal), staleTime: 2_000 }),
   note: (noteId: string) => queryOptions({
     queryKey: ["notes", "detail", noteId],

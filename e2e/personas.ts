@@ -43,7 +43,6 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
         const value = await getJson(server.api, path);
         snapshots[path] = key ? path === "/system/t3-channel" ? { channel: value[key] } : value[key] : value;
       }
-      snapshots["/orbit"] = (await getJson(server.api, "/orbit")).document;
       snapshots["/workspaces/registry"] = (await getJson(server.api, "/workspaces/registry")).document;
       await use({ ...server, notes, snapshots });
     } finally { await server.stop(); }
@@ -86,7 +85,7 @@ export const test = base.extend<Fixtures, WorkerFixtures>({
       for (const note of current.notes) if (!seedIds.has(note.id)) remove.run(note.id);
     } finally { database.close(); }
     for (const [path, data] of Object.entries(snapshots)) {
-      if (path === "/orbit" || path === "/workspaces/registry") {
+      if (path === "/workspaces/registry") {
         const { revision } = await getJson(api, path);
         await putJson(api, path, { expectedRevision: revision, document: data });
       } else if (path === "/system/t3-channel") {

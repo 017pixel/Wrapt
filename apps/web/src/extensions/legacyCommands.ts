@@ -31,31 +31,13 @@ function reloadWorkbench(): void {
 export const legacyCommandOwners: readonly LegacyCommandOwner[] =
   Object.freeze([
     Object.freeze({
-      ownerId: "wrapt.orbit",
-      registrations: Object.freeze([
-        Object.freeze({
-          contribution: commandContributionSchema.parse({
-            id: "wrapt.orbit.command.project-browser",
-            title: "Alle Projekte auswählen",
-            description: "Serverordner nach Projekten durchsuchen",
-            category: "Orbit",
-          }),
-          runtime: Object.freeze({
-            execute: () => {
-              window.dispatchEvent(new Event("orbit:project-browser"));
-            },
-          }),
-        }),
-      ]),
-    }),
-    Object.freeze({
       ownerId: "wrapt.shell",
       registrations: Object.freeze([
         Object.freeze({
           contribution: commandContributionSchema.parse({
             id: "wrapt.shell.command.fullscreen-toggle",
             title: "Vollbild umschalten",
-            description: "Orbit im Browser-Vollbild anzeigen",
+            description: "Wrapt im Browser-Vollbild anzeigen",
             category: "Ansicht",
           }),
           runtime: Object.freeze({ execute: fullscreenToggle }),
@@ -63,7 +45,7 @@ export const legacyCommandOwners: readonly LegacyCommandOwner[] =
         Object.freeze({
           contribution: commandContributionSchema.parse({
             id: "wrapt.shell.command.reload",
-            title: "Orbit neu laden",
+            title: "Wrapt neu laden",
             description: "Das Frontend im Browser neu laden",
             category: "Ansicht",
           }),

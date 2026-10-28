@@ -28,7 +28,6 @@ const shardPortSpacing = 500;
 const ignoredSpecs = new Set([
   // Diese beiden Harness-Specs laufen ausschließlich über ihre eigenen
   // Konfigurationen und gehören nicht in den Standarddurchlauf.
-  "tests/e2e/orbit-performance.spec.ts",
   "tests/e2e/preview-start-performance.spec.ts",
 ]);
 const weightMultipliers = new Map([

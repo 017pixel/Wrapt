@@ -22,14 +22,12 @@
   },
   "paths": {
     "projectsRoot": "/home/your-user/projects",
-    "orbitProjectBrowserRoot": "/home/your-user",
+    "projectBrowserRoot": "/home/your-user",
     "terminalAllowedRoots": [
       "/home/your-user"
     ],
     "terminalDefaultCwd": "/home/your-user",
     "dataDir": "/home/your-user/.local/share/wrapt",
-    "orbitBackupDir": "/home/your-user/.local/share/wrapt/orbit-backups",
-    "orbitAssetDir": "/home/your-user/.local/share/wrapt/orbit-assets",
     "fileGalleryDir": "/home/your-user/.local/share/wrapt/file-gallery",
     "wraptProfilesRoot": "/home/your-user/.wrapt-profiles",
     "codexSharedHome": "/home/your-user/.codex",

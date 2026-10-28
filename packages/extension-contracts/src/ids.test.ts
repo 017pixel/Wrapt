@@ -38,7 +38,7 @@ describe("stabile Contribution IDs", () => {
   it.each([
     "wrapt.terminal.page.main",
     "wrapt.terminal.command.new",
-    "com.example.extension.orbit.main",
+    "com.example.extension.page.main",
   ])("akzeptiert %s", (value) => {
     expect(contributionIdSchema.parse(value)).toBe(value);
   });

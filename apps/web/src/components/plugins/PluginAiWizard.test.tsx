@@ -64,19 +64,15 @@ describe("KI-Plugin-Setup", () => {
     expect(screen.getByRole("button", { name: "Vorschau öffnen" })).toBeTruthy();
   });
 
-  it("erklärt die sichtbare Standardseite eindeutig und hält Orbit synchron", () => {
+  it("erklärt die sichtbare Standardseite und synchronisiert die Sidebar", () => {
     const { onChange } = renderWizard();
-
     goToStep("Einsatzort");
     const sidebar = screen.getByRole("checkbox", { name: /Seite in der Sidebar/i });
     expect((sidebar as HTMLInputElement).checked).toBe(true);
     expect(screen.queryByText("Eigene Seite")).toBeNull();
-
-    fireEvent.click(screen.getByRole("checkbox", { name: /Orbit/i }));
+    fireEvent.click(sidebar);
     expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({
-      surfaces: expect.arrayContaining(["page", "sidebar", "orbit"]),
-      orbit: expect.objectContaining({ enabled: true }),
-      wizard: expect.objectContaining({ includeOrbit: true }),
+      surfaces: ["page"], wizard: expect.objectContaining({ surfaces: ["page"] }),
     }));
   });
 

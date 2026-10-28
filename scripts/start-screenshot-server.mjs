@@ -122,12 +122,9 @@ config.previews = {
 };
 config.paths = {
   projectsRoot,
-  orbitProjectBrowserRoot: projectsRoot,
   terminalAllowedRoots: [root],
   terminalDefaultCwd: join(projectsRoot, "nordlicht"),
   dataDir: dataDirectory,
-  orbitBackupDir: join(dataDirectory, "orbit-backups"),
-  orbitAssetDir: join(dataDirectory, "orbit-assets"),
   fileGalleryDir: join(dataDirectory, "file-gallery"),
   wraptProfilesRoot: join(dataDirectory, "profiles"),
   codexSharedHome: join(dataDirectory, "shared-codex"),
@@ -185,8 +182,6 @@ const sharedEnvironment = {
   HOME: root,
   USER: "demo",
   LOGNAME: "demo",
-  ORBIT_BACKUP_DIR: join(dataDirectory, "orbit-backups"),
-  ORBIT_ASSET_DIR: join(dataDirectory, "orbit-assets"),
   FILE_GALLERY_DIR: join(dataDirectory, "file-gallery"),
   CODEXBAR_CONFIG_PATH: join(dataDirectory, "codexbar.json"),
   CODEXBAR_BASE_URL: `http://127.0.0.1:${codexbarPort}`,
@@ -212,8 +207,6 @@ const sharedEnvironment = {
   WRAPT_LOCAL_LOOPBACK_TRUST: "true",
   WRAPT_DEV_TAILSCALE_USER: SCREENSHOT_IDENTITY,
   PREVIEW_PUBLIC_ORIGIN_MODE: "loopback-http",
-  ORBIT_DESTRUCTIVE_DROP_PERCENT: "100",
-  WRAPT_E2E_ALLOW_DESTRUCTIVE_ORBIT_RESET: "true",
   PORT: String(basePort),
   WEB_DIST_DIR: webDistDirectory,
 };

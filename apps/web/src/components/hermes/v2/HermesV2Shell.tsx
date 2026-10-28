@@ -11,7 +11,7 @@ export interface HermesV2ShellProps extends HermesShellProps {
 
 /**
  * Native Hermes-Oberfläche (Experiment). Eintritt und Flagvariante: Route,
- * Panel und Orbit teilen dieselbe Fläche; Standalone ergänzt nur die
+ * Panels teilen dieselbe Fläche; Standalone ergänzt nur die
  * Fensterbildung ohne Doppel-Navigation. Jede Oberfläche besitzt ihre eigene
  * Auswahl: Route/Standalone speichern `?session=`, Panels ihren Layoutpfad
  * als `/chat?resume=`.Feature aus = klassisches Verhalten zurück.

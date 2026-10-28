@@ -45,7 +45,6 @@ export async function writePluginPackage(publishedDirectory: string, draft: Plug
   const bottomBarEntries = surfaceEntries(draft, "bottom-bar");
   const dashboardEntries = surfaceEntries(draft, "dashboard");
   const contextEntries = surfaceEntries(draft, "context-menu");
-  const orbitEntries = surfaceEntries(draft, "orbit");
   const contributes: Record<string, unknown> = {
     pages: [{ id: pageId, title: draft.name, description: draft.description }],
     routes: [{ id: routeId, pageId, path: routePath, shell: "standard", persistent: true, prefetch: "idle", projectContext: false, topbar: true, breadcrumbs: true, standaloneActions: false, mobileNavigation: draft.surfaces.includes("sidebar") }],
@@ -54,7 +53,6 @@ export async function writePluginPackage(publishedDirectory: string, draft: Plug
   if (topbarEntries.length > 0) contributes.topbar = topbarEntries.map((entry, index) => ({ id: `${extensionId}.topbar.${entry.id}`, kind: "action", routeId, commandId: commandFor(`topbar-${entry.id}`, entry.title, entry.description), placement: "secondary", order: index * 10, priority: 50, presentation: "label", compact: "hide" }));
   if (bottomBarEntries.length > 0) contributes.statusBar = bottomBarEntries.map((entry, index) => ({ id: `${extensionId}.status-bar.${entry.id}`, kind: "text", title: entry.title, provider: `${extensionId}.status-provider.${entry.id}`, alignment: "right", order: index * 10, priority: 50, compact: "value" }));
   if (dashboardEntries.length > 0) contributes.dashboard = dashboardEntries.map((entry, index) => ({ id: `${extensionId}.dashboard.${entry.id}`, kind: "card", title: entry.title, description: entry.description, defaultSize: "medium", order: index * 10, projectContext: false, visibleByDefault: true, provider: `${extensionId}.dashboard-provider.${entry.id}`, refresh: { mode: "on-demand" } }));
-  if (orbitEntries.length > 0) contributes.orbit = orbitEntries.map((entry, index) => ({ id: `${extensionId}.orbit.${entry.id}`, title: entry.title, description: entry.description, stateVersion: index + 1, stateSchema: `./schemas/${draft.slug}-${entry.id}.json`, defaultSize: { width: 420, height: 280 }, resizable: true, projectContext: false, inspector: true, connections: "bidirectional", visibleByDefault: true }));
   if (contextEntries.length > 0) contributes.contextMenus = contextEntries.map((entry, index) => ({ id: `${extensionId}.context-menu.${entry.id}`, surface: "host.context-menu.project", commandId: commandFor(`context-${entry.id}`, entry.title, entry.description), group: "run", order: index * 10 }));
   if (commands.length > 0) contributes.commands = commands;
   const manifest = {
@@ -80,11 +78,6 @@ export async function writePluginPackage(publishedDirectory: string, draft: Plug
       const filePath = join(packageDirectory, file.path);
       await mkdir(join(packageDirectory, dirname(file.path)), { recursive: true, mode: 0o700 });
       await writeFile(filePath, file.content, { encoding: "utf8", mode: 0o600 });
-    }
-    for (const entry of orbitEntries) {
-      const statePath = join(packageDirectory, "schemas", `${draft.slug}-${entry.id}.json`);
-      await mkdir(dirname(statePath), { recursive: true, mode: 0o700 });
-      await writeJsonAtomic(statePath, { type: "object", additionalProperties: true });
     }
     await writeFile(join(packageDirectory, "index.js"), `export default ${JSON.stringify({ extensionId, routePath, pageMode: draft.pageMode, surfaces: draft.surfaces, activationStatus: draft.activationStatus }, null, 2)};\n`, { encoding: "utf8", mode: 0o600 });
   });

@@ -36,7 +36,7 @@ export async function buildApp(options: BuildAppOptions = {}) {
       },
     },
     genReqId: () => randomUUID(),
-    bodyLimit: Math.max(settings.orbitDocumentMaxBytes + 65_536, settings.orbitAssetMaxFileBytes + 1_048_576),
+    bodyLimit: Math.max(settings.fileGalleryMaxFileBytes, settings.fileManagerMaxUploadBytes) + 1_048_576,
     trustProxy: ["127.0.0.1", "::1"],
   });
 

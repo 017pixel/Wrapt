@@ -16,7 +16,6 @@ import {
   SkillsIcon,
   T3CodeIcon,
   TerminalIcon,
-  WorkbenchIcon,
 } from "../components/icons";
 import type { PageRouteId } from "../stores/sidebarPreferences";
 import {
@@ -62,17 +61,6 @@ const legacyNavigationDefinitions: readonly LegacyNavigationDefinition[] =
       order: 10,
       visibleByDefault: true,
       legacyVisibilityKey: "dashboard",
-    },
-    {
-      ownerId: "wrapt.orbit",
-      routeId: "wrapt.orbit.route.main",
-      label: "Orbit",
-      description: "Gemeinsamer Wrapt-Arbeitsbereich",
-      icon: WorkbenchIcon,
-      group: "workspace",
-      order: 30,
-      visibleByDefault: false,
-      legacyVisibilityKey: "workbench",
     },
     {
       ownerId: "wrapt.projects",

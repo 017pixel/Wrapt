@@ -22,7 +22,7 @@ export interface LocalPreviewRuntimeProps {
   path?: string;
   requestedSlotId?: number | null;
   isolate?: boolean;
-  /** Stabile Storage-Identität des Slots aus dem Orbit-Dokument. */
+  /** Stabile Storage-Identität des Slots. */
   storageProfileId?: string | null;
   previewNodeId?: string | null;
   projectId?: string | null;
@@ -46,7 +46,6 @@ export interface LocalPreviewRuntimeProps {
   onToolbarWidthChange?: (width: number) => void;
   onViewportSizeChange?: (size: PreviewViewportSize | null) => void;
   onDeviceChange?: (deviceId: string | null) => void;
-  interactionLocked?: boolean;
   onSlotAssigned?: (slotId: number, url: string) => void;
   onOrientationChange?: (orientation: DeviceOrientation) => void;
   onFocus?: () => void;
@@ -61,29 +60,8 @@ export function reloadLocalPreview(
   else remount();
 }
 
-export function relayCanvasPinch(iframe: HTMLIFrameElement) {
-  try {
-    const target = iframe.contentWindow;
-    if (!target || target.__orbitPinchRelayInstalled) return;
-    target.__orbitPinchRelayInstalled = true;
-    target.addEventListener("wheel", (event) => {
-      if (!event.ctrlKey) return;
-      event.preventDefault();
-      event.stopPropagation();
-      const bounds = iframe.getBoundingClientRect();
-      window.dispatchEvent(new CustomEvent("orbit:iframe-pinch", { detail: {
-        clientX: bounds.left + event.clientX,
-        clientY: bounds.top + event.clientY,
-        deltaY: event.deltaY,
-      } }));
-    }, { passive: false, capture: true });
-  } catch {
-    // Cross-Origin-Previews behalten ihre native Eingabe; nur gleiche Origins melden Pinch.
-  }
-}
-
 /**
- * Gemeinsame Laufzeit aller lokalen Previews: Canvas, Sidebar, Vollbildroute und
+ * Gemeinsame Laufzeit aller lokalen Previews: Sidebar, Vollbildroute und
  * das Browser-Panel verwenden dieselbe Komponente. Sie kapselt Session-Lease,
  * Slot-Affinität, Bridge-Handshake, Diagnose, Geräterahmen sowie Reset- und
  * Quarantänestatus.
@@ -113,7 +91,6 @@ export function LocalPreviewRuntime({
   onToolbarWidthChange,
   onViewportSizeChange,
   onDeviceChange,
-  interactionLocked = false,
   onSlotAssigned,
   onOrientationChange,
   onFocus,
@@ -246,7 +223,6 @@ export function LocalPreviewRuntime({
           deviceId={resolvedDevice.deviceId}
           orientation={resolvedDevice.orientation}
           scaleFactor={scaleFactor ?? previewScaleFactor}
-          interactionLocked={interactionLocked}
           viewportSize={viewportSize}
         >
           <iframe
@@ -260,7 +236,6 @@ export function LocalPreviewRuntime({
               bridge.attach(event.currentTarget, url);
               // Meldet sich die Bridge nicht, bleibt die Preview nutzbar — nur ohne Diagnose.
               window.setTimeout(() => bridge.markUnavailable(), 2_500);
-              relayCanvasPinch(event.currentTarget);
             }}
             onPointerDown={(event) => {
               onFocus?.();

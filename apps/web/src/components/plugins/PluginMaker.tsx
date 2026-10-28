@@ -13,7 +13,6 @@ import { PluginCodeEditor } from "./PluginCodeEditor";
 import { PluginHelpPopover } from "./PluginHelpPopover";
 import { PluginPreview } from "./PluginPreview";
 import { PluginIconPicker } from "./pluginIcons";
-import { setPluginOrbitEnabled } from "./pluginSurfaceState";
 import { registerEditorReloadGuard } from "../../lib/reloadGuard";
 
 function draftSignature(draft: PluginDraftContent, mode: PluginDraftContent["creationMode"]): string {
@@ -61,7 +60,6 @@ export function PluginMaker() {
 
   const update = (patch: Partial<PluginDraftContent>) => setDraft((current) => ({ ...current, ...patch }));
   const setPageMode = (pageMode: PluginDraftContent["pageMode"]) => update({ pageMode, iframeUrl: pageMode === "iframe" ? draft.iframeUrl : null, wizard: { ...draft.wizard, includeHtml: pageMode === "html", includeIframe: pageMode === "iframe" } });
-  const updateOrbit = (patch: Partial<PluginDraftContent["orbit"]>) => setDraft((current) => ({ ...current, orbit: { ...current.orbit, ...patch } }));
   const updateBlock = (index: number, patch: Partial<PluginBlock>) => update({ blocks: draft.blocks.map((block, itemIndex) => itemIndex === index ? { ...block, ...patch } : block) });
   const updateFunction = (index: number, patch: Partial<PluginFunction>) => update({ functions: draft.functions.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item) });
 
@@ -182,7 +180,6 @@ export function PluginMaker() {
         </>}
         <PluginCapabilityPicker draft={draft} onChange={update} />
         <section className="plugin-maker-panel" aria-labelledby="plugin-additional-requirements-title"><div className="plugin-panel-heading"><div><span className="plugins-kicker">Zusätzliche Angaben</span><h2 id="plugin-additional-requirements-title">Anforderungen und Neustart</h2></div><PluginHelpPopover title="Weitere Anforderungen">Diese Angaben werden auch an den KI-Weg übergeben. Beschreibe hier Abnahmekriterien, Sonderfälle und wer einen Neustart freigeben muss.</PluginHelpPopover></div><div className="plugin-form-grid"><Field label="Weitere Anforderungen" className="is-wide"><textarea value={draft.wizard.additionalRequirements} onChange={(event) => update({ wizard: { ...draft.wizard, additionalRequirements: event.target.value } })} placeholder="Abnahmekriterien, Sonderfälle und konkrete Erwartungen" /></Field><Field label="Neustart-Verhalten"><select value={draft.wizard.restartBehavior} onChange={(event) => update({ wizard: { ...draft.wizard, restartBehavior: event.target.value as PluginDraftContent["wizard"]["restartBehavior"] } })}><option value="never">Nie selbst neu starten</option><option value="ask">Vorher fragen und auf Freigabe warten</option><option value="approved">Nur nach ausdrücklicher Freigabe neu starten</option></select></Field></div></section>
-        <section className="plugin-maker-panel"><div className="plugin-panel-heading"><div><span className="plugins-kicker">Orbit</span><h2>In den Orbit bringen</h2></div><PluginHelpPopover title="Orbit">Orbit ist eine zusätzliche Fläche für Nodes, Status und kontextbezogene Aktionen. Die Auswahl bleibt deklarativ.</PluginHelpPopover></div><label className="plugin-choice"><input type="checkbox" checked={draft.orbit.enabled} onChange={(event) => update(setPluginOrbitEnabled(draft, event.target.checked))} /><span><strong>Orbit-Integration aktivieren</strong><small>Die Konfiguration wird im Draft und im KI-Prompt gespeichert.</small></span></label>{draft.orbit.enabled ? <div className="plugin-form-grid"><Field label="Titel"><input value={draft.orbit.title} onChange={(event) => updateOrbit({ title: event.target.value })} /></Field><Field label="Platzierung"><select value={draft.orbit.placement} onChange={(event) => updateOrbit({ placement: event.target.value as PluginDraftContent["orbit"]["placement"] })}><option value="orbit">Orbit</option><option value="dashboard">Dashboard</option><option value="both">Beides</option></select></Field><Field label="Node-Typ"><select value={draft.orbit.nodeType} onChange={(event) => updateOrbit({ nodeType: event.target.value as PluginDraftContent["orbit"]["nodeType"] })}><option value="note">Notiz</option><option value="todo">Todo</option><option value="frame">Frame</option></select></Field><Field label="Akzent"><select value={draft.orbit.accent} onChange={(event) => updateOrbit({ accent: event.target.value as PluginDraftContent["orbit"]["accent"] })}><option value="accent">Akzent</option><option value="ok">Erfolg</option><option value="warn">Hinweis</option><option value="neutral">Neutral</option></select></Field></div> : null}</section>
       </main>
       <aside className="plugin-preview-column"><PluginPreview draft={draft} /></aside>
     </div>

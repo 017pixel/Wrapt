@@ -40,12 +40,12 @@ describe("legacyDashboardSections", () => {
 });
 
 describe("legacySettingsCards", () => {
-  it("registriert die elf bisherigen Settings-Bereiche mit Host-Schutz", () => {
+  it("registriert die zehn bisherigen Settings-Bereiche mit Host-Schutz", () => {
     const registry = new SettingsCardRegistry();
     registerLegacySettingsCards(registry);
 
     const snapshot = registry.getSnapshot();
-    expect(snapshot.cards).toHaveLength(11);
+    expect(snapshot.cards).toHaveLength(10);
     expect(snapshot.cards.map((card) => card.value.title)).toEqual([
       "Version",
       "Dienst neu starten",
@@ -55,7 +55,6 @@ describe("legacySettingsCards", () => {
       "Dashboard",
       "Benachrichtigungen",
       "App installieren",
-      "Orbit-Sidebar",
       "Seiten-Sichtbarkeit",
       "Sicherheit",
     ]);

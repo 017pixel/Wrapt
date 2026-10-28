@@ -32,12 +32,10 @@ const baseConfig = {
   tailscale: { hostname: "host.ts.net", ip: "100.0.0.1", httpsPort: 8443, allowedUsers: [] },
   paths: {
     projectsRoot: "/home/tester/projects",
-    orbitProjectBrowserRoot: "/home/tester",
+    projectBrowserRoot: "/home/tester",
     terminalAllowedRoots: ["/home/tester"],
     terminalDefaultCwd: "/home/tester",
     dataDir: "/home/tester/data",
-    orbitBackupDir: "/home/tester/data/backups",
-    orbitAssetDir: "/home/tester/data/assets",
     wraptProfilesRoot: "/home/tester/profiles",
     databasePath: "/home/tester/data/wrapt.sqlite",
   },

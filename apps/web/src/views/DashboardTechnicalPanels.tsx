@@ -89,8 +89,6 @@ function WorkbenchDiagnosticsPanel({
               items={[
                 { label: "Audit", value: data!.audit.valid ? `gültig · ${integer.format(data!.audit.entries)} Einträge` : "Prüfung erforderlich" },
                 { label: "Letzter Audit-Eintrag", value: data!.audit.latestAt ? formatDateTime(data!.audit.latestAt) : "keiner" },
-                { label: "Offene Orbit-Backups", value: integer.format(data!.orbit.pendingBackups) },
-                { label: "Orbit-Fehler", value: data!.orbit.lastError ?? "keiner" },
               ]}
             />
           </div>

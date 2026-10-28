@@ -1,77 +1,11 @@
 import { SettingsShortcuts } from "./SettingsShortcuts";
 import { useMemo } from "react";
 import type { DashboardConfig } from "@wrapt/contracts";
-import { EyeIcon, LayersIcon } from "../../components/icons";
+import { EyeIcon } from "../../components/icons";
 import { Card } from "../../components/Card";
 import { useNavigationRegistry } from "../../extensions/useNavigationRegistry";
 import { useDashboardPreferences, useDashboardSections } from "../../stores/dashboardPreferences";
-import { allPageRoutes, useSidebarPreferences, type OrbitPaletteItem } from "../../stores/sidebarPreferences";
-
-const orbitItemLabels: Record<OrbitPaletteItem, string> = {
-  "tool:terminal": "Terminal",
-  "tool:t3-code": "T3 Code",
-  "tool:hermes": "Hermes Agent",
-  "tool:preview": "Preview",
-  "tool:code-server": "Code-Server",
-  "tool:codex": "Codex",
-  "tool:claude": "Claude Code",
-  "tool:opencode": "OpenCode",
-  "tool:files": "Dateien",
-  "preview:layout-1": "Einzel-Preview",
-  "preview:layout-2": "2er-Preview-Gruppe",
-  "preview:layout-3": "3er-Preview-Gruppe",
-  "preview:layout-6": "6er-Preview-Gruppe",
-  "block:note": "Notiz",
-  "block:todo": "To-do-Liste",
-  "block:snippet": "Code-Snippet",
-  "block:frame": "Bereich",
-  "block:usage-codex": "Codex Nutzung",
-  "block:usage-opencode": "OpenCode Nutzung",
-  "block:usage-claude": "Claude Code Nutzung",
-  "block:file": "Projektdatei",
-  "block:gallery": "Mediengalerie",
-  "block:file-gallery": "Dateigalerie",
-  "block:hermes-tasks": "Hermes Aufgaben",
-  "block:hermes-cron": "Hermes Automatisierungen",
-};
-
-const orbitSections: readonly { label: string; items: readonly OrbitPaletteItem[] }[] = [
-  {
-    label: "Werkzeuge",
-    items: [
-      "tool:terminal",
-      "tool:t3-code",
-      "tool:hermes",
-      "tool:preview",
-      "tool:code-server",
-      "tool:codex",
-      "tool:claude",
-      "tool:opencode",
-      "tool:files",
-    ],
-  },
-  {
-    label: "Previews",
-    items: ["preview:layout-1", "preview:layout-2", "preview:layout-3", "preview:layout-6"],
-  },
-  {
-    label: "Blöcke",
-    items: [
-      "block:note",
-      "block:todo",
-      "block:snippet",
-      "block:frame",
-      "block:usage-codex",
-      "block:usage-opencode",
-      "block:usage-claude",
-      "block:file",
-      "block:gallery",
-      "block:file-gallery",
-      "block:hermes-tasks",
-      "block:hermes-cron",
-    ],
-  },
-];
+import { allPageRoutes, useSidebarPreferences } from "../../stores/sidebarPreferences";
 
 export function SettingsNavigation({ config }: { config: DashboardConfig | undefined }) {
   return (
@@ -87,15 +21,6 @@ export function SettingsNavigation({ config }: { config: DashboardConfig | undef
             Die zentrale Config legt Defaults und verfügbare Bereiche fest. Deine Auswahl wird auf dem Server gespeichert und gilt für alle Clients.
           </p>
           <DashboardSectionToggles config={config} />
-        </Card>
-      </div>
-      <div id="settings-navigation-orbit">
-        <Card
-          title="Orbit-Sidebar"
-          subtitle="Elemente im Infinite Canvas ein- oder ausblenden"
-          action={<LayersIcon className="h-4 w-4 text-faint" />}
-        >
-          <OrbitItemToggles />
         </Card>
       </div>
       <div id="settings-navigation-pages">
@@ -145,43 +70,6 @@ function DashboardSectionToggles({ config }: { config: DashboardConfig | undefin
           </button>
         );
       })}
-    </div>
-  );
-}
-
-function OrbitItemToggles() {
-  const toggleOrbitItem = useSidebarPreferences((state) => state.toggleOrbitItem);
-  const hiddenOrbitItems = useSidebarPreferences((state) => state.hiddenOrbitItems);
-  return (
-    <div className="space-y-4">
-      {orbitSections.map((section) => (
-        <div key={section.label}>
-          <p className="mb-2 text-[11px] font-medium uppercase tracking-wide text-faint">{section.label}</p>
-          <div className="space-y-1">
-            {section.items.map((item) => {
-              const isHidden = hiddenOrbitItems.has(item);
-              return (
-                <button
-                  key={item}
-                  type="button"
-                  className="settings-toggle-row"
-                  onClick={() => toggleOrbitItem(item)}
-                >
-                  <span className="text-[13px] text-text">{orbitItemLabels[item]}</span>
-                  <span
-                    className={`settings-toggle-switch ${isHidden ? "" : "is-on"}`}
-                    role="switch"
-                    aria-checked={!isHidden}
-                    aria-label={orbitItemLabels[item]}
-                  >
-                    <span className="settings-toggle-thumb" />
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
     </div>
   );
 }

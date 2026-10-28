@@ -1,10 +1,10 @@
 import { extensionsApi } from "./extensions.js";
 import { filesystemApi } from "./filesystem.js";
 import { hermesApi } from "./hermes.js";
+import { mediaApi } from "./media.js";
 import { notesApi } from "./notes.js";
 import { notificationsApi } from "./notifications.js";
 import { pluginsApi } from "./plugins.js";
-import { orbitApi } from "./orbit.js";
 import { previewsApi } from "./previews.js";
 import { projectsApi } from "./projects.js";
 import { skillsApi } from "./skills.js";
@@ -22,6 +22,7 @@ export const apiClient = {
   ...settingsApi,
   ...extensionsApi,
   ...hermesApi,
+  ...mediaApi,
   ...notesApi,
   ...notificationsApi,
   ...pluginsApi,
@@ -30,7 +31,6 @@ export const apiClient = {
   ...filesystemApi,
   ...skillsApi,
   ...usageApi,
-  ...orbitApi,
   ...terminalApi,
   ...workspacesApi,
 };

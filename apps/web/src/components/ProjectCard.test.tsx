@@ -36,8 +36,9 @@ it("erklärt den ausgefallenen Dienst ohne Editor-Start", () => {
   expect(screen.getByTestId("route-path").textContent).toBe("/terminal");
 });
 
-it("zeigt den Orbit-Start erst nach Aktivierung an", () => {
+it("behält den eigenständigen Editor bei sichtbaren Werkzeugseiten", () => {
   useSidebarPreferences.setState({ hiddenPages: new Set() });
-  render(<MemoryRouter><ProjectCard project={project} codeServerState="active" /></MemoryRouter>);
-  expect(screen.getByRole("button", { name: "Orbit öffnen" })).toBeTruthy();
+  render(<MemoryRouter><ProjectCard project={project} codeServerState="active" /><RoutePath /></MemoryRouter>);
+  fireEvent.click(screen.getByRole("button", { name: "Editor öffnen" }));
+  expect(screen.getByTestId("route-path").textContent).toBe("/code-editor");
 });

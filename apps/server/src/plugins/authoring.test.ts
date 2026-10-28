@@ -22,7 +22,6 @@ function draftContent(slug: string): PluginDraftContent {
     html: "",
     blocks: [{ id: "intro", type: "heading", title: "Intro", content: "Text", actionId: null }],
     functions: [],
-    orbit: { enabled: false, title: "Plugin", description: "", placement: "orbit", nodeType: "note", accent: "accent" },
     wizard: {
       goal: "",
       audience: "",
@@ -31,7 +30,6 @@ function draftContent(slug: string): PluginDraftContent {
       tone: "direkt",
       includeHtml: false,
       includeIframe: false,
-      includeOrbit: false,
       additionalDescription: "",
       wishes: "",
       agent: "codex",
@@ -56,7 +54,7 @@ describe("Plugin-Authoring lokal", () => {
       pluginDraftContentSchema.parse(JSON.parse(await readFile(join(examplesDirectory, entry.name, "plugin.json"), "utf8")) as unknown),
     ));
 
-    expect(examples).toHaveLength(11);
+    expect(examples).toHaveLength(10);
     for (const example of examples) {
       expect(example.icon).not.toBe("extensions");
       expect(example.functions.length).toBeGreaterThan(0);
@@ -235,7 +233,7 @@ describe("Plugin-Authoring lokal", () => {
     );
     const content = pluginDraftContentSchema.parse({
       ...draftContent("surface-test"),
-      surfaces: ["page", "sidebar", "topbar", "bottom-bar", "dashboard", "orbit", "context-menu"],
+      surfaces: ["page", "sidebar", "topbar", "bottom-bar", "dashboard", "context-menu"],
       surfaceContributions: [
         {
           id: "release-status",
@@ -266,7 +264,6 @@ describe("Plugin-Authoring lokal", () => {
     expect(parsed.contributes.topbar).toHaveLength(1);
     expect(parsed.contributes.statusBar).toHaveLength(1);
     expect(parsed.contributes.dashboard).toHaveLength(1);
-    expect(parsed.contributes.orbit).toHaveLength(1);
     expect(parsed.contributes.contextMenus).toHaveLength(1);
   });
 

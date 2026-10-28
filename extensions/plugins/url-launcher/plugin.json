@@ -12,12 +12,47 @@
   "html": "",
   "blocks": [],
   "functions": [
-    { "id": "open-external", "label": "Extern öffnen", "action": "open-route", "value": "https://example.com" },
-    { "id": "copy-external", "label": "URL kopieren", "action": "copy-text", "value": "https://example.com" }
+    {
+      "id": "open-external",
+      "label": "Extern öffnen",
+      "action": "open-route",
+      "value": "https://example.com"
+    },
+    {
+      "id": "copy-external",
+      "label": "URL kopieren",
+      "action": "copy-text",
+      "value": "https://example.com"
+    }
   ],
-  "orbit": { "enabled": false, "title": "URL-Launcher", "description": "", "placement": "orbit", "nodeType": "frame", "accent": "neutral" },
-  "wizard": { "goal": "Eine externe Informationsseite in Wrapt sichtbar machen und kontrolliert erreichbar halten.", "audience": "Teams mit einem lokalen Arbeitsbereich.", "design": "klar", "layout": "einspaltig", "tone": "fokussiert", "includeHtml": false, "includeIframe": true, "includeOrbit": false, "additionalDescription": "Die Einbettung soll klar als externe Quelle erkennbar sein. Separates Öffnen und Kopieren bleiben sichere, explizite Aktionen.", "wishes": "Sandbox, Hinweis auf die Quelle und eine verständliche Ausweichaktion.", "iconDescription": "Globus für eine externe Informationsquelle.", "additionalRequirements": "Nur HTTP(S), sandboxed Iframe und kein Zugriff auf Host-DOM oder Wrapt-Sitzung.", "restartBehavior": "never", "agent": "opencode", "permissions": [], "surfaces": ["page"], "dataNeeds": [], "interactions": ["Extern öffnen", "URL kopieren"], "mobileBehavior": "responsive" },
+  "wizard": {
+    "goal": "Eine externe Informationsseite in Wrapt sichtbar machen und kontrolliert erreichbar halten.",
+    "audience": "Teams mit einem lokalen Arbeitsbereich.",
+    "design": "klar",
+    "layout": "einspaltig",
+    "tone": "fokussiert",
+    "includeHtml": false,
+    "includeIframe": true,
+    "additionalDescription": "Die Einbettung soll klar als externe Quelle erkennbar sein. Separates Öffnen und Kopieren bleiben sichere, explizite Aktionen.",
+    "wishes": "Sandbox, Hinweis auf die Quelle und eine verständliche Ausweichaktion.",
+    "iconDescription": "Globus für eine externe Informationsquelle.",
+    "additionalRequirements": "Nur HTTP(S), sandboxed Iframe und kein Zugriff auf Host-DOM oder Wrapt-Sitzung.",
+    "restartBehavior": "never",
+    "agent": "opencode",
+    "permissions": [],
+    "surfaces": [
+      "page"
+    ],
+    "dataNeeds": [],
+    "interactions": [
+      "Extern öffnen",
+      "URL kopieren"
+    ],
+    "mobileBehavior": "responsive"
+  },
   "sourceExampleId": "url-launcher",
   "status": "draft",
-  "surfaces": ["page"]
+  "surfaces": [
+    "page"
+  ]
 }

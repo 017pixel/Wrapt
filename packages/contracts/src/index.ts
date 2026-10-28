@@ -6,7 +6,7 @@ export * from "./context-menu.js";
 export * from "./mascot.js";
 export * from "./ui-settings.js";
 export * from "./notes.js";
-export * from "./orbit-assets.js";
+export * from "./gallery.js";
 export * from "./operational-metrics.js";
 export * from "./plugins.js";
 export * from "./plugin-host.js";

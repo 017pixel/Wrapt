@@ -92,8 +92,6 @@
     min-width: 0;
     min-height: 0;
   }
-  .app-shell[data-input-mode="touch"] .orbit-hermes-action { min-height: 44px; padding-inline: var(--space-3); }
-  .app-shell[data-input-mode="touch"] .orbit-hermes-list-meta { flex-wrap: wrap; }
 
   .app-shell[data-shell-mode="compact"] .content-column,
   .app-shell[data-shell-mode="compact"] > .sidebar-shell,

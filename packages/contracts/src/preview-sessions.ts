@@ -53,7 +53,7 @@ export const previewSessionRequestSchema = z.object({
   primaryProtocol: z.enum(["http", "https"]).default("http"),
   requestedSlotId: z.number().int().min(1).max(128).nullable().optional(),
   isolate: z.boolean().default(true),
-  // Stabile Identität des Preview-Slots im Orbit-Dokument. Sie entscheidet, ob eine
+  // Stabile Identität des Preview-Slots in der Preview-Sitzung. Sie entscheidet, ob eine
   // Slot-Origin ohne Storage-Reset wiederverwendet werden darf.
   storageProfileId: z.string().uuid().nullable().default(null),
   expectedRoutingRevision: z.number().int().nonnegative().optional(),

@@ -17,7 +17,7 @@ function TerminalToast({ notice }: { notice: TerminalNotice }) {
   </div>;
 }
 
-/** Portal liegt auch außerhalb gezoomter Orbit-Flächen oben rechts. */
+/** Portal liegt unabhängig vom Terminal-Container oben rechts. */
 export function TerminalToastRegion() {
   const notices = useTerminalNotices((state) => state.notices);
   return createPortal(<aside className="terminal-toasts" aria-label="Terminalhinweise">{notices.map((notice) => <TerminalToast key={notice.id} notice={notice} />)}</aside>, document.body);

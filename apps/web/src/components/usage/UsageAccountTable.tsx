@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { TimelineLane } from "../../lib/quotaTimeline";
-import { formatUsageReset } from "../../lib/orbitUsage";
+import { formatUsageReset } from "../../lib/usage";
 import { formatRelativeTime } from "../../lib/format";
 import { formatCountdown, shortWindowLabel, type AccountLimitView } from "../../lib/usageView";
 import { Badge } from "../primitives";

@@ -143,7 +143,7 @@ describe("Einstellungs-Sync", () => {
       clientId: "remote-client",
       entries: {
         appPreferences: {
-          value: { state: { defaultPage: "workbench", hermesV2Enabled: false }, version: 2 },
+          value: { state: { defaultPage: "files", hermesV2Enabled: false }, version: 2 },
           revision: 9,
           updatedAt: new Date().toISOString(),
         },
@@ -157,10 +157,10 @@ describe("Einstellungs-Sync", () => {
       updatedAt: new Date().toISOString(),
       clientId: "remote-client",
       entries: {
-        appPreferences: { value: { state: { defaultPage: "workbench" } }, revision: 9, updatedAt: new Date().toISOString() },
+        appPreferences: { value: { state: { defaultPage: "files" } }, revision: 9, updatedAt: new Date().toISOString() },
       },
     }).success).toBe(true);
-    expect(useAppPreferences.getState().defaultPage).toBe("workbench");
+    expect(useAppPreferences.getState().defaultPage).toBe("files");
     await vi.advanceTimersByTimeAsync(500);
     await flush();
     expect(fetchCalls.filter((call) => call.method === "PUT")).toHaveLength(0);

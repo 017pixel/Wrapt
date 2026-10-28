@@ -26,7 +26,7 @@ interface AppPreferencesState {
 }
 
 const STORAGE_KEY = "wrapt.app-preferences.v1";
-const PERSIST_VERSION = 3;
+const PERSIST_VERSION = 6;
 let readingStorageEvent = false;
 
 function readPreferences(key: string): string | null {

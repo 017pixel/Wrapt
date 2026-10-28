@@ -36,7 +36,6 @@ function attach(terminal: Terminal) {
     terminalRef: { current: terminal },
     disposedRef: { current: false },
     compactRef: { current: false },
-    renderScaleRef: { current: 1 },
     resizeRef: { current: null },
     themeRefreshRef: { current: null },
     resize: vi.fn(),

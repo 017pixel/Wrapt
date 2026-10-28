@@ -73,6 +73,6 @@ export function projectToolPath(tool: ProjectToolOption): string {
     case "preview":
       return tool.previewId ? `/previews?preview=${encodeURIComponent(tool.previewId)}` : "/previews";
     default:
-      return "/orbit";
+      return "/hermes-agent";
   }
 }

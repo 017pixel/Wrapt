@@ -40,10 +40,8 @@ const requiredBootstraps = [
   "bootstrapLegacyCommands",
   "bootstrapLegacyStatusBar",
   "bootstrapLegacyTopbar",
-  "bootstrapLegacyContextMenus",
   "bootstrapLegacyDashboardSections",
   "bootstrapLegacySettingsCards",
-  "bootstrapLegacyOrbitPalette",
 ];
 
 for (const bootstrap of requiredBootstraps) {

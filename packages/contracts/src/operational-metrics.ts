@@ -75,12 +75,6 @@ export const operationalMetricsSchema = z.object({
     outboxPending: z.number().int().nonnegative().default(0),
     checkedSequence: z.number().int().nonnegative().optional(),
   }),
-  orbit: z.object({
-    pendingBackups: z.number().int().nonnegative(),
-    oldestPendingAt: isoDateSchema.nullable(),
-    lastError: z.string().nullable(),
-    failedAt: isoDateSchema.nullable(),
-  }),
   preview: z.object({
     totalSlots: z.number().int().nonnegative(),
     freeSlots: z.number().int().nonnegative(),

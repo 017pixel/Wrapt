@@ -16,8 +16,10 @@ describe("settingsSearch", () => {
     expect(searchSettings("Farben ändern")[0]?.entry.id).toBe("design-colors");
   });
 
-  it("ordnet Layout und verbundene Workspaces getrennt zu", () => {
-    expect(searchSettings("Layout")[0]?.entry.id).toBe("layout");
+  it("findet Workspaces und entfernt alte Einstellungsziele aus der Suche", () => {
+    for (const query of ["Layout", "Start-App"]) {
+      expect(searchSettings(query).some((result) => ["layout", "startup"].includes(result.entry.id))).toBe(false);
+    }
     expect(searchSettings("Workspace")[0]?.entry.id).toBe("workspaces");
     expect(searchSettings("Verbindung")[0]?.entry.id).toBe("workspaces");
   });

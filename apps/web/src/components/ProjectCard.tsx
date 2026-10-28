@@ -2,10 +2,9 @@ import { Link, useNavigate } from "react-router";
 import { ChevronDownIcon, CodeServerIcon, T3CodeIcon, TerminalIcon } from "./icons";
 import type { Project } from "@wrapt/contracts";
 import { Badge } from "./primitives";
-import { openProjectDefault, openProjectStandaloneDefault, openProjectToolStandalone, openToolForProject } from "../lib/wraptActions";
+import { openProjectStandaloneDefault, openProjectToolStandalone, openToolForProject } from "../lib/wraptActions";
 import { projectToolOptions, projectToolPath } from "../lib/projectTools";
 import { codeServerUnavailableReason, type CodeServerState } from "../lib/codeServerAvailability";
-import { useSidebarPreferences } from "../stores/sidebarPreferences";
 
 type ProjectIssue = Exclude<Project["availability"], "available">;
 
@@ -24,13 +23,10 @@ const availabilityLabel: Record<ProjectIssue, string> = {
 export function ProjectCard({ project, codeServerState }: { project: Project; codeServerState: CodeServerState }) {
   const navigate = useNavigate();
   const codeServerReason = codeServerUnavailableReason(project.links.codeServer !== null, codeServerState);
-  const orbitEnabled = useSidebarPreferences((state) => !state.hiddenPages.has("workbench"));
   const tools = projectToolOptions(project, codeServerReason === null);
   const primaryPath = project.links.t3Code
     ? "/t3-code"
-    : orbitEnabled
-      ? "/orbit"
-      : codeServerReason === null ? "/code-editor" : "/terminal";
+    : codeServerReason === null ? "/code-editor" : "/terminal";
   const openPrimary = () => {
     if (project.availability !== "available") return;
     if (project.links.t3Code) {
@@ -38,12 +34,7 @@ export function ProjectCard({ project, codeServerState }: { project: Project; co
       navigate("/t3-code");
       return;
     }
-    if (orbitEnabled) {
-      openProjectDefault(project, codeServerReason === null);
-      navigate("/orbit");
-    } else {
-      navigate(openProjectStandaloneDefault(project, codeServerReason === null));
-    }
+    navigate(openProjectStandaloneDefault(project, codeServerReason === null));
   };
 
   return (
@@ -74,8 +65,8 @@ export function ProjectCard({ project, codeServerState }: { project: Project; co
           data-prefetch-route={primaryPath}
           className="quiet-button-primary max-md:basis-full"
         >
-          {project.links.t3Code ? <T3CodeIcon className="h-3.5 w-3.5" /> : orbitEnabled ? <T3CodeIcon className="h-3.5 w-3.5" /> : codeServerReason === null ? <CodeServerIcon className="h-3.5 w-3.5" /> : <TerminalIcon className="h-3.5 w-3.5" />}
-          {project.links.t3Code ? "T3 öffnen" : orbitEnabled ? "Orbit öffnen" : codeServerReason === null ? "Editor öffnen" : "Terminal öffnen"}
+          {project.links.t3Code ? <T3CodeIcon className="h-3.5 w-3.5" /> : codeServerReason === null ? <CodeServerIcon className="h-3.5 w-3.5" /> : <TerminalIcon className="h-3.5 w-3.5" />}
+          {project.links.t3Code ? "T3 öffnen" : codeServerReason === null ? "Editor öffnen" : "Terminal öffnen"}
         </button>
         <details className="project-tools-menu">
           <summary aria-label="Weitere Werkzeuge öffnen" title="Weitere Werkzeuge"><ChevronDownIcon className="h-4 w-4" /><span>Weitere</span><span className="project-tools-count">{tools.length}</span></summary>

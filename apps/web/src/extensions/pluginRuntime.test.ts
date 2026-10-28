@@ -27,7 +27,6 @@ function content(slug: string, surfaces: PluginExample["surfaces"] = ["page"]) {
     html: "",
     blocks: [{ id: "main", type: "heading", title: slug, content: "Inhalt", actionId: null }],
     functions: [],
-    orbit: { enabled: false, title: slug, description: "", placement: "orbit", nodeType: "note", accent: "accent" },
     wizard: {
       goal: "",
       audience: "",
@@ -36,7 +35,6 @@ function content(slug: string, surfaces: PluginExample["surfaces"] = ["page"]) {
       tone: "direkt",
       includeHtml: false,
       includeIframe: false,
-      includeOrbit: false,
       additionalDescription: "",
       wishes: "",
       agent: "opencode",

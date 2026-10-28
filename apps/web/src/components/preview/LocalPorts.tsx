@@ -11,7 +11,7 @@ interface LocalPortsProps {
   projectId?: string | null;
   projectName?: string;
   allowAllPorts?: boolean;
-  /** Gemeinsame Daten aus einem bereits laufenden Poller, z. B. im Orbit. */
+  /** Gemeinsame Daten aus einem bereits laufenden Poller, z. B. im Dashboard. */
   dataOverride?: LocalPortsResponse | null;
   loadingOverride?: boolean;
   errorOverride?: boolean;

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render as renderWithTestingLibrary, screen, waitFor, within } from "@testing-library/react";
 import { createElement } from "react";
+import { MemoryRouter } from "react-router";
 import type { Panel, Project } from "@wrapt/contracts";
 import { projectBoundCodeServerProxyUrl, projectBoundCodeServerUrl } from "./ToolPanel";
 import { ToolPanel } from "./ToolPanel";
@@ -19,7 +20,7 @@ function render(ui: Parameters<typeof renderWithTestingLibrary>[0]) {
   client.setQueryData(["projects"], { projects: [] });
   queryClients.add(client);
   return renderWithTestingLibrary(ui, {
-    wrapper: ({ children }) => createElement(QueryClientProvider, { client, children }),
+    wrapper: ({ children }) => createElement(MemoryRouter, null, createElement(QueryClientProvider, { client, children })),
   });
 }
 
@@ -39,7 +40,7 @@ describe("project-bound code-server URLs", () => {
 
 describe("standalone T3 Code actions", () => {
   it("lädt die serverweite T3-Instanz auch ohne Projektzuordnung über den gemeinsamen Proxy", () => {
-    const panel = { id: "orbit-t3-code", type: "t3-code", projectId: null, previewId: null, reloadKey: 0 } satisfies Panel;
+    const panel = { id: "panel-t3-code", type: "t3-code", projectId: null, previewId: null, reloadKey: 0 } satisfies Panel;
 
     render(createElement(ToolPanel, { panel, project: undefined, isFocused: true }));
 
@@ -168,11 +169,11 @@ describe("Code-Server-Verfügbarkeit", () => {
     previews: [], links: { t3Code: null, codeServer: "https://editor.example.test" },
   } satisfies Project;
 
-  it.each(["standalone", "orbit"])("zeigt bei ausgefallenem Dienst in %s keinen iframe", (surface) => {
+  it.each(["standalone", "panel"])("zeigt bei ausgefallenem Dienst in %s keinen iframe", (surface) => {
     const panel = { id: `${surface}-code-server`, type: "code-server", projectId: project.id, previewId: null, reloadKey: 0 } satisfies Panel;
     render(createElement(ToolPanel, {
       panel, project, isFocused: true, codeServerMode: "embedded", codeServerState: "error",
-      standalone: surface === "standalone", minimal: surface === "orbit",
+      standalone: surface === "standalone", minimal: surface === "panel",
     }));
 
     expect(screen.getByText(/Code-Server läuft auf diesem Gerät nicht/)).not.toBeNull();
@@ -181,18 +182,11 @@ describe("Code-Server-Verfügbarkeit", () => {
 });
 
 describe("fehlende Projektzuordnung", () => {
-  it("zeigt für Code-Server einen bedienbaren Zustand und öffnet die Orbit-Eigenschaften", () => {
-    const panel = { id: "orbit-code-server", type: "code-server", projectId: null, previewId: null, reloadKey: 0 } satisfies Panel;
-    const onOpenSettings = vi.fn();
-    window.addEventListener("orbit:open-tool-project-settings", onOpenSettings);
-
+  it("öffnet bei fehlender Code-Server-Zuordnung die Projektauswahl", () => {
+    const panel = { id: "panel-code-server", type: "code-server", projectId: null, previewId: null, reloadKey: 0 } satisfies Panel;
     render(createElement(ToolPanel, { panel, project: undefined, isFocused: true }));
-
     expect(screen.getByText("Projektzuordnung fehlt")).not.toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Projekt im Orbit auswählen" }));
-    expect(onOpenSettings).toHaveBeenCalledOnce();
-    expect((onOpenSettings.mock.calls[0]?.[0] as CustomEvent).detail).toEqual({ runtimeId: panel.id });
-    window.removeEventListener("orbit:open-tool-project-settings", onOpenSettings);
+    expect(screen.getByRole("link", { name: "Projekt auswählen" }).getAttribute("href")).toBe("/projects");
   });
 });
 
@@ -239,21 +233,20 @@ describe("T3-Einbettung über den Proxy", () => {
   });
 });
 
-describe("eingebettete Werkzeug-Eingaben", () => {  it("lässt Pointer-Gesten im Werkzeug nicht bis zum Canvas durch", () => {
+describe("eingebettete Werkzeug-Eingaben", () => {
+  it("fokussiert das Werkzeug bei Pointer-Eingabe", () => {
     const project = {
       id: "wrapt", name: "Wrapt", description: "Workbench", path: "/tmp/wrapt", enabled: true, sortOrder: 1,
       availability: "available", activity: { lastWorkbenchUseAt: null, lastFilesystemChangeAt: null, lastGitCommitAt: null, effectiveAt: null },
       previews: [], links: { t3Code: "https://t3.example.test", codeServer: null },
     } satisfies Project;
-    const panel = { id: "orbit-t3-code", type: "t3-code", projectId: project.id, previewId: null, reloadKey: 0 } satisfies Panel;
+    const panel = { id: "panel-t3-code", type: "t3-code", projectId: project.id, previewId: null, reloadKey: 0 } satisfies Panel;
     const onFocus = vi.fn();
-    const onCanvasPointerDown = vi.fn();
-    const { container } = render(createElement("div", { onPointerDown: onCanvasPointerDown }, createElement(ToolPanel, { panel, project, isFocused: false, onFocus })));
+    const { container } = render(createElement(ToolPanel, { panel, project, isFocused: false, onFocus }));
 
     fireEvent.pointerDown(container.querySelector(".tool-surface")!);
 
     expect(onFocus).toHaveBeenCalledOnce();
-    expect(onCanvasPointerDown).not.toHaveBeenCalled();
   });
 });
 

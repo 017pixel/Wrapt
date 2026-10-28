@@ -51,7 +51,6 @@ export function loadRouteWithRecovery<T>(load: RouteLoader<T>): Promise<T> {
 }
 
 const routeLoaders = {
-  workbench: () => import("../views/OrbitWorkbench"),
   projects: () => import("../views/Projects"),
   projectDetail: () => import("../views/ProjectDetail"),
   settings: () => import("../views/Settings"),
@@ -62,13 +61,11 @@ const routeLoaders = {
   terminal: () => import("../views/Terminal"),
   cliTerminal: () => import("../views/CliTerminal"),
   fileManager: () => import("../views/FileManagerView"),
-  previewGroup: () => import("../views/PreviewGroupRoute"),
   previewLive: () => import("../views/PreviewLiveWindow"),
   skillEditor: () => import("../views/SkillEditor"),
   notes: () => import("../views/Notes"),
 } as const;
 
-export const loadWorkbench = routeLoaders.workbench;
 export const loadProjects = routeLoaders.projects;
 export const loadProjectDetail = routeLoaders.projectDetail;
 export const loadSettings = routeLoaders.settings;
@@ -79,16 +76,11 @@ export const loadHermes = routeLoaders.hermes;
 export const loadTerminal = routeLoaders.terminal;
 export const loadCliTerminal = routeLoaders.cliTerminal;
 export const loadFileManager = routeLoaders.fileManager;
-export const loadPreviewGroup = routeLoaders.previewGroup;
 export const loadPreviewLive = routeLoaders.previewLive;
 export const loadSkillEditor = routeLoaders.skillEditor;
 export const loadNotes = routeLoaders.notes;
 
 const pathLoaders: Array<[prefix: string, load: () => Promise<unknown>]> = [
-  ["/orbit/notizen", loadNotes],
-  ["/orbit/previews", loadToolRoute],
-  ["/orbit", loadWorkbench],
-  ["/workbench", loadWorkbench],
   ["/projects/", loadProjectDetail],
   ["/projects", loadProjects],
   ["/files", loadFileManager],
@@ -105,8 +97,6 @@ const pathLoaders: Array<[prefix: string, load: () => Promise<unknown>]> = [
   ["/t3-code", loadToolRoute],
   ["/hermes-agent", loadHermes],
   ["/code-editor", loadToolRoute],
-  ["/previews/gruppe/", loadPreviewGroup],
-  ["/previews/fenster/", loadPreviewGroup],
   ["/previews/live", loadPreviewLive],
   ["/previews", loadToolRoute],
 ];

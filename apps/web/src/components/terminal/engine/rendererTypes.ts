@@ -16,7 +16,6 @@ export interface TerminalRendererOptions {
   active: boolean;
   preload?: boolean;
   focused: boolean;
-  renderScale: number;
   onMetaChange: ((meta: TerminalMeta) => void) | undefined;
 }
 

@@ -11,7 +11,6 @@ const surfaceOptions: Array<{ value: PluginSurface; label: string; description: 
   { value: "topbar", label: "Topbar", description: "Kleine Aktion oder Statusanzeige oben." },
   { value: "bottom-bar", label: "Bottom-Bar", description: "Status, Zähler oder Schnellaktion unten." },
   { value: "dashboard", label: "Dashboard", description: "Karte, Metrik, Liste oder Quick Action." },
-  { value: "orbit", label: "Orbit", description: "Node, Inspector oder Orbit-Aktion." },
   { value: "right-rail", label: "Rechte Seitenleiste", description: "Ein kontrolliertes Panel neben dem Inhalt." },
   { value: "overlay", label: "Overlay", description: "Kleine kontextbezogene Zusatzfläche." },
   { value: "bottom-sheet", label: "Bottom Sheet", description: "Mobile Fläche für Aktionen und Details." },

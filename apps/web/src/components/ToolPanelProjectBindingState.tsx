@@ -1,11 +1,10 @@
+import { Link } from "react-router";
 import { WarningIcon } from "./icons";
 
 interface ToolPanelProjectBindingStateProps {
   projectLookupFailed: boolean;
   projectAssociationMissing: boolean;
   projectId: string | null;
-  runtimeId: string;
-  standalone: boolean;
   onRetry: () => void;
 }
 
@@ -13,8 +12,6 @@ export function ToolPanelProjectBindingState({
   projectLookupFailed,
   projectAssociationMissing,
   projectId,
-  runtimeId,
-  standalone,
   onRetry,
 }: ToolPanelProjectBindingStateProps) {
   if (projectLookupFailed) {
@@ -35,14 +32,9 @@ export function ToolPanelProjectBindingState({
         <strong className="text-sm text-text">Projektzuordnung fehlt</strong>
         <p className="text-sm text-muted">
           {projectId ? "Das gespeicherte Projekt ist nicht mehr verfügbar." : "Dieses Werkzeug braucht ein zugeordnetes Projekt."}
-          {standalone ? "" : " Wähle ein Projekt in den Knoteneigenschaften."}
         </p>
       </div>
-      {!standalone ? <button
-        type="button"
-        className="quiet-button-primary"
-        onClick={() => window.dispatchEvent(new CustomEvent("orbit:open-tool-project-settings", { detail: { runtimeId } }))}
-      >Projekt im Orbit auswählen</button> : null}
+      <Link className="quiet-button-primary" to="/projects">Projekt auswählen</Link>
     </div>
   );
 }

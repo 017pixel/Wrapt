@@ -12,7 +12,7 @@ import {
   type MoveNoteRequest,
 } from "@wrapt/contracts";
 import { AppError } from "../utils/errors.js";
-import { migrateOrbitSources, type OrbitNotesMigrationResult } from "./orbitSourceMigration.js";
+import { normalizeLegacyMediaLinks } from "./legacyMediaLinks.js";
 import { noteSearchRangeStart } from "./searchRange.js";
 import { NoteFoldersDatabase } from "./folders.js";
 import { createNoteExcerpt, escapeLikePattern } from "./excerpt.js";
@@ -21,7 +21,7 @@ export { createNoteExcerpt, escapeLikePattern } from "./excerpt.js";
 import { moveNoteInOrder } from "./ordering.js";
 
 /**
- * Eigene Tabelle für das Notizen-Feature in derselben SQLite-Datei wie Orbit.
+ * Eigene Tabelle für das Notizen-Feature in der gemeinsamen SQLite-Datei.
  * Inhalt ist Markdown; die Revision schützt vor stillen Überschreibungen.
  */
 
@@ -47,7 +47,7 @@ function toNote(row: NoteRow): Note {
   return noteSchema.parse({
     id: row.id,
     title: row.title,
-    content: row.content,
+    content: normalizeLegacyMediaLinks(row.content),
     icon: row.icon,
     coverAssetId: row.cover_asset_id,
     parentId: row.parent_id,
@@ -105,18 +105,6 @@ export class NotesDatabase {
       CREATE INDEX IF NOT EXISTS notes_order ON notes(archived, favorite, updated_at DESC);
       CREATE TABLE IF NOT EXISTS notes_schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);
       INSERT OR IGNORE INTO notes_schema_migrations(version, applied_at) VALUES (1, datetime('now'));
-      CREATE TABLE IF NOT EXISTS note_source_migrations (
-        source_id TEXT PRIMARY KEY,
-        target_note_id TEXT NOT NULL REFERENCES notes(id),
-        source_hash TEXT NOT NULL,
-        source_type TEXT NOT NULL CHECK(source_type IN ('note', 'todo')),
-        source_title TEXT NOT NULL,
-        source_content TEXT NOT NULL,
-        imported_title TEXT NOT NULL,
-        imported_content TEXT NOT NULL,
-        migrated_at TEXT NOT NULL
-      );
-      INSERT OR IGNORE INTO notes_schema_migrations(version, applied_at) VALUES (2, datetime('now'));
       CREATE TABLE IF NOT EXISTS note_conflict_backups (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         note_id TEXT NOT NULL,
@@ -135,10 +123,6 @@ export class NotesDatabase {
   }
 
   rebuildExcerpts(): void { rebuildNoteExcerpts(this.db); }
-
-  migrateOrbitSources(): OrbitNotesMigrationResult {
-    return migrateOrbitSources(this.db);
-  }
 
   list(): NoteSummary[] {
     const rows = this.db

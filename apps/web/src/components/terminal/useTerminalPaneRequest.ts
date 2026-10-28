@@ -5,7 +5,7 @@ import { createTerminalOps } from "./workspace/terminalWorkspaceModel";
 import { kindLabels } from "./terminal-labels";
 import { useTerminalWorkspaceStore } from "../../stores/terminalWorkspace";
 
-/** Session-Deeplinks öffnen bestehende Sitzungen; Orbit-Runtimes dürfen neu entstehen. */
+/** Session-Deeplinks öffnen bestehende Sitzungen; angeforderte Runtimes dürfen neu entstehen. */
 export function useTerminalPaneRequest(options: {
   areaId: string;
   active: boolean;

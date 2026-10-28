@@ -89,7 +89,7 @@ export const settingsSearchCatalog: readonly SettingsSearchEntry[] = [
     category: "Navigation",
     tab: "navigation",
     anchor: "settings-navigation",
-    aliases: ["Oberfläche", "Sidebar", "Seiten", "Menü", "Dashboard", "Orbit"],
+    aliases: ["Oberfläche", "Sidebar", "Seiten", "Menü", "Dashboard"],
   },
   {
     id: "dashboard",
@@ -99,15 +99,6 @@ export const settingsSearchCatalog: readonly SettingsSearchEntry[] = [
     tab: "navigation",
     anchor: "settings-navigation-dashboard",
     aliases: ["Dashboard", "Übersicht", "Widgets", "Karten"],
-  },
-  {
-    id: "orbit-sidebar",
-    title: "Orbit-Sidebar",
-    description: "Werkzeuge, Previews und Blöcke im Infinite Canvas verwalten",
-    category: "Navigation",
-    tab: "navigation",
-    anchor: "settings-navigation-orbit",
-    aliases: ["Canvas", "Infinite Canvas", "Orbit-Werkzeuge", "Palette"],
   },
   {
     id: "page-visibility",
@@ -200,15 +191,6 @@ export const settingsSearchCatalog: readonly SettingsSearchEntry[] = [
     aliases: ["Nutzung", "Usage", "Quoten", "Kontingent", "Token", "Kosten", "Limit"],
   },
   {
-    id: "layout",
-    title: "Layout",
-    description: "Geöffnete Panels und Arbeitsflächen aller Clients verwalten",
-    category: "Layout",
-    tab: "layout",
-    anchor: "settings-layout",
-    aliases: ["Arbeitsfläche", "Panels", "Fenster", "synchronisiert", "Speicher", "Zurücksetzen"],
-  },
-  {
     id: "workspaces",
     title: "Workspaces",
     description: "Verbundene lokale und entfernte Wrapt-Instanzen",
@@ -216,15 +198,6 @@ export const settingsSearchCatalog: readonly SettingsSearchEntry[] = [
     tab: "workspaces",
     anchor: "settings-workspaces",
     aliases: ["Instanz", "Verbindung", "Remote", "Server wechseln"],
-  },
-  {
-    id: "startup",
-    title: "Start-App",
-    description: "Festlegen, welche Seite beim Öffnen geladen wird",
-    category: "Start-App",
-    tab: "start-app",
-    anchor: "settings-start-app",
-    aliases: ["Startup", "Startseite", "beim Start", "Öffnen", "Standardseite", "Default Page"],
   },
   {
     id: "hermes-v2",

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { RestartTarget } from "@wrapt/contracts";
 import { ApiClientError, apiClient } from "../lib/apiClient";
-import { useOrbitStore } from "../stores/orbit";
 import { editorsHaveUnsavedChanges } from "../lib/reloadGuard";
 import { writeClipboardText } from "../lib/clipboard";
 import { CopyIcon, DeviceRotateIcon, LoaderIcon, RefreshIcon, ServerIcon, WarningIcon } from "./icons";
@@ -92,8 +91,8 @@ export function useSystemRestart(options: SystemRestartOptions = {}) {
       if (generationRef.current !== generation) return;
       if (result.ok) {
         // Dirty-Guard (U-002): Der Neustart killt auch laufende KI-Sitzungen und
-        // verwirft Filter-/Scroll-Kontext — bei ungespeichertem Orbit nur mit Confirm neu laden.
-        if ((useOrbitStore.getState().dirty || editorsHaveUnsavedChanges()) && !restartEnv.confirmDirty()) {
+        // Verwirft Filter-/Scroll-Kontext; ungespeicherte Editor-Inhalte vorher bestätigen.
+        if (editorsHaveUnsavedChanges() && !restartEnv.confirmDirty()) {
           setPhase({ status: "idle" });
           return;
         }

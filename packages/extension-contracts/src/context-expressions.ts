@@ -13,7 +13,6 @@ export const hostContextKeys = [
   "host.project.open",
   "host.surface",
   "host.platform",
-  "host.orbit.focused",
   "host.terminal.focused",
   "host.preview.focused",
   "host.agent.focused",

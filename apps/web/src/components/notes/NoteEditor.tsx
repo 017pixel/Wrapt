@@ -30,8 +30,6 @@ interface NoteEditorProps {
   onRegisterNoteReferenceAppender?: (parentId: string, append: NoteReferenceAppender | null) => void;
   /** Öffnet eine Notiz, etwa die frisch angelegte Unterseite. */
   onOpenNote?: (noteId: string) => void;
-  /** Kompakter Zustand für den Orbit-Knoten: kleinere Abstände. */
-  compact?: boolean;
   ariaLabel?: string;
 }
 
@@ -63,7 +61,6 @@ export function NoteEditor({
   onCreateSubpage,
   onRegisterNoteReferenceAppender,
   onOpenNote,
-  compact = false,
   ariaLabel,
 }: NoteEditorProps) {
   const editorRef = useRef<Editor | null>(null);
@@ -75,8 +72,8 @@ export function NoteEditor({
   const [noteLinkOpen, setNoteLinkOpen] = useState(false);
 
   const uploadFile = useCallback(async (file: File) => {
-    const asset = await apiClient.uploadOrbitAsset(file);
-    return apiClient.orbitAssetUrl(asset.id);
+    const asset = await apiClient.uploadMedia(file);
+    return apiClient.mediaUrl(asset.id);
   }, []);
 
   const requestLink = useCallback(() => setLinkOpen(true), []);
@@ -147,12 +144,12 @@ export function NoteEditor({
   const extensions = useMemo(
     () =>
       createNotesExtensions({
-        placeholder: compact ? "Notiz schreiben…" : "Schreibe etwas oder tippe / für Befehle…",
+        placeholder: "Schreibe etwas oder tippe / für Befehle…",
         uploadFile,
         slashContext: () => slashContextRef.current,
         onRequestLink: requestLink,
       }),
-    [compact, requestLink, uploadFile],
+    [requestLink, uploadFile],
   );
 
   const editor = useEditor(
@@ -161,7 +158,7 @@ export function NoteEditor({
       editable,
       editorProps: {
         attributes: {
-          class: compact ? "note-editor-content is-compact" : "note-editor-content",
+          class: "note-editor-content",
           spellcheck: "true",
           "data-testid": "note-editor",
           ...(ariaLabel ? { "aria-label": ariaLabel } : {}),
@@ -179,7 +176,7 @@ export function NoteEditor({
 
 
   useEffect(() => {
-    if (!editor || compact) return;
+    if (!editor) return;
     const scroll = editor.view.dom.closest(".notes-editor-scroll");
     if (!scroll) return;
     const focusBlank = (event: Event) => {
@@ -193,7 +190,7 @@ export function NoteEditor({
     };
     scroll.addEventListener("pointerdown", focusBlank);
     return () => scroll.removeEventListener("pointerdown", focusBlank);
-  }, [editor, compact]);
+  }, [editor]);
 
   const captureMarkdown = useCallback(() => {
     if (!editor || editor.isDestroyed || !editor.storage.markdown?.manager) return null;
@@ -282,7 +279,7 @@ export function NoteEditor({
   }, [acceptServerNote, conflictNote, editor, onSaved]);
 
   return (
-    <div className={compact ? "note-editor is-compact" : "note-editor"} onPointerDown={(event) => {
+    <div className="note-editor" onPointerDown={(event) => {
       if (!editor || event.button !== 0 || event.target !== event.currentTarget) return;
       event.preventDefault();
       focusLastNoteLine(editor);
@@ -302,22 +299,10 @@ export function NoteEditor({
             </button>
           </div>
         </div>
-      ) : compact && state === "error" ? (
-        <div className="note-conflict" role="alert">
-          <div>
-            <strong>Notiz konnte nicht gespeichert werden.</strong>
-            <span>Deine Änderungen bleiben im Editor.</span>
-          </div>
-          <div className="note-conflict-actions">
-            <button type="button" className="quiet-button-primary" onClick={() => void autosave.saveNow()}>
-              Erneut speichern
-            </button>
-          </div>
-        </div>
       ) : null}
       <EditorContent className="note-editor-body" editor={editor} />
       {editor ? <FormatToolbar editor={editor} onRequestLink={requestLink} /> : null}
-      {editor && !compact ? <BlockMenu editor={editor} /> : null}
+      {editor ? <BlockMenu editor={editor} /> : null}
       <SlashMenu />
       {editor ? <LinkDialog editor={editor} open={linkOpen} onClose={() => setLinkOpen(false)} /> : null}
       <NoteLinkPicker

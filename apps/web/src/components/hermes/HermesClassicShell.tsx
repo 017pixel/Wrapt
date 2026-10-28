@@ -11,7 +11,7 @@ import { useHermesPathCallback } from "./useHermesPathCallback";
 export const DEFAULT_HERMES_PATH = "/chat";
 
 export interface HermesShellProps {
-  variant: "route" | "panel" | "orbit";
+  variant: "route" | "panel";
   minimal?: boolean;
   panel?: Panel;
   active?: boolean;

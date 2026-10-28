@@ -17,15 +17,11 @@ const expectedPublicPatterns = [
   "/hermes-agent",
   "/ki-skills",
   "/opencode",
-  "/orbit",
-  "/orbit/previews",
   "/plugins",
   "/plugins/maker",
   "/plugins/tool/:pluginSlug",
   "/plugins/view/:pluginSlug",
   "/previews",
-  "/previews/fenster/:groupId",
-  "/previews/gruppe/:groupId",
   "/previews/live",
   "/projects",
   "/projects/:projectId",
@@ -34,7 +30,6 @@ const expectedPublicPatterns = [
   "/terminal",
   "/terminal/fenster/:runtimeId",
   "/usage",
-  "/workbench",
 ];
 
 function createRegistry(): PageRouteRegistry {
@@ -44,17 +39,17 @@ function createRegistry(): PageRouteRegistry {
 }
 
 describe("Legacy Page-/Route-Built-ins", () => {
-  it("registriert 16 Owner, 23 Pages und 23 Routes", () => {
+  it("registriert 15 Owner, 20 Pages und 20 Routes", () => {
     const registry = createRegistry();
     const snapshot = registry.getSnapshot();
 
-    expect(legacyPageRouteOwners).toHaveLength(16);
-    expect(snapshot.pages).toHaveLength(23);
-    expect(snapshot.routes).toHaveLength(23);
-    expect(new Set(snapshot.pages.map((page) => page.ownerId)).size).toBe(16);
+    expect(legacyPageRouteOwners).toHaveLength(15);
+    expect(snapshot.pages).toHaveLength(20);
+    expect(snapshot.routes).toHaveLength(20);
+    expect(new Set(snapshot.pages.map((page) => page.ownerId)).size).toBe(15);
   });
 
-  it("bildet alle 23 öffentlichen URL-Muster ohne Host-Wildcard ab", () => {
+  it("bildet alle öffentlichen URL-Muster ohne Host-Wildcard ab", () => {
     const registry = createRegistry();
     const patterns = registry
       .getSnapshot()
@@ -66,6 +61,10 @@ describe("Legacy Page-/Route-Built-ins", () => {
 
     expect(patterns).toEqual(expectedPublicPatterns);
     expect(patterns).not.toContain("*");
+    for (const removed of ["/orbit", "/workbench", "/orbit/notizen", "/orbit/previews", "/previews/gruppe/team", "/previews/fenster/team"]) {
+      expect(registry.matchRoute(removed)).toBeUndefined();
+    }
+
     expect(registry.matchRoute("/gallery")?.route.contributionId).toBe(
       "wrapt.files.route.main",
     );
@@ -93,10 +92,10 @@ describe("Legacy Page-/Route-Built-ins", () => {
         boundary: "deferred-route",
       },
     ]);
-    expect(23 + legacyHostRoutes.length).toBe(25);
+    expect(20 + legacyHostRoutes.length).toBe(22);
   });
 
-  it("bewahrt Eager-Dashboard, 15 Lazy-Chunks und Stale-Chunk-Recovery", () => {
+  it("bewahrt Eager-Dashboard, Lazy-Chunks und Stale-Chunk-Recovery", () => {
     const pages = createRegistry().getSnapshot().pages;
     const eager = pages.filter((page) => page.value.runtime.loading === "eager");
     const lazy = pages.filter((page) => page.value.runtime.loading === "lazy");
@@ -105,13 +104,12 @@ describe("Legacy Page-/Route-Built-ins", () => {
     expect(eager.map((page) => page.contributionId)).toEqual([
       "wrapt.dashboard.page.main",
     ]);
-    expect(lazy).toHaveLength(22);
+    expect(lazy).toHaveLength(19);
     expect(lazyChunks).toEqual(
       new Set([
         "cli-terminal",
         "file-manager",
         "hermes",
-        "preview-group",
         "preview-live",
         "project-detail",
         "projects",
@@ -121,7 +119,6 @@ describe("Legacy Page-/Route-Built-ins", () => {
         "terminal",
         "tool-route",
         "usage",
-        "workbench",
       ]),
     );
     expect(lazy.every((page) => page.value.runtime.recovery === "stale-chunk"))
@@ -137,8 +134,8 @@ describe("Legacy Page-/Route-Built-ins", () => {
           : [route.value.runtime.prefetchPathPrefix],
       );
 
-    expect(new Set(prefixes).size).toBe(21);
-    expect(prefixes).toHaveLength(22);
+    expect(new Set(prefixes).size).toBe(18);
+    expect(prefixes).toHaveLength(19);
     expect(prefixes.filter((prefix) => prefix === "/terminal")).toHaveLength(2);
   });
 
@@ -151,7 +148,7 @@ describe("Legacy Page-/Route-Built-ins", () => {
       (route) => route.value.contribution.shell === "full-bleed",
     );
 
-    expect(standalone).toHaveLength(3);
+    expect(standalone).toHaveLength(2);
     expect(standalone.every((route) => !route.value.contribution.persistent))
       .toBe(true);
     expect(
@@ -160,20 +157,19 @@ describe("Legacy Page-/Route-Built-ins", () => {
         .every((route) => route.value.contribution.persistent),
     ).toBe(true);
     expect(fullBleed.map((route) => route.value.contribution.path).sort()).toEqual([
-      "/orbit",
     ]);
     expect(
       routes.every((route) => route.value.runtime.boundary === "deferred-route"),
     ).toBe(true);
     expect(
       routes.filter((route) => route.value.contribution.mobileNavigation),
-    ).toHaveLength(16);
+    ).toHaveLength(15);
   });
 
-  it("hält alle 16 Preference-IDs als stabile Aliase", () => {
+  it("hält alle 15 Preference-IDs als stabile Aliase", () => {
     const registry = createRegistry();
 
-    expect(Object.keys(legacyPageAliases)).toHaveLength(16);
+    expect(Object.keys(legacyPageAliases)).toHaveLength(15);
     for (const pageId of Object.values(legacyPageAliases)) {
       expect(registry.getPage(pageId)).toBeDefined();
     }

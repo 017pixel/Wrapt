@@ -4,17 +4,16 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { writeClipboardText } from "../../../lib/clipboard";
-import { applyTerminalRenderScale, attachTerminalAppearance, createTerminalScaleResizeScheduler } from "../terminal-appearance";
+import { attachTerminalAppearance } from "../terminal-appearance";
 import { attachTerminalInput } from "../terminal-input";
 import { useTerminalOutput } from "../useTerminalOutput";
-import { isCompactTerminal, mouseWheelSequence, terminalFontSizeForRenderScale } from "../terminal-utils";
+import { isCompactTerminal, mouseWheelSequence, terminalFontSize } from "../terminal-utils";
 import { themeFromDashboard } from "../terminal-theme";
 import type { ClientMessage, TerminalMeta, TerminalStatus } from "../terminal-types";
 import type { TerminalSubscription } from "../transport/TerminalTransport";
 import { createRendererCore } from "./rendererCore";
 import type { TerminalRenderer, TerminalRendererOptions } from "./rendererTypes";
 import { useTerminalSessionActions } from "./useTerminalSessionActions";
-import { useOrbitTerminalActivity } from "../../orbit/useOrbitTerminalActivity";
 import { publishTerminalView, removeTerminalView } from "./terminalViewRegistry";
 
 /**
@@ -25,7 +24,7 @@ import { publishTerminalView, removeTerminalView } from "./terminalViewRegistry"
  * Subscription, sobald er unsichtbar wird — kein ANSI-Parsing im Hintergrund.
  */
 export function useTerminalRenderer(options: TerminalRendererOptions): TerminalRenderer {
-  const { instanceId, kind, projectId, initialCwd, mode, accountId, focused, renderScale, onMetaChange } = options;
+  const { instanceId, kind, projectId, initialCwd, mode, accountId, focused, onMetaChange } = options;
 
   const mountRef = useRef<HTMLDivElement>(null);
   const terminalRef = useRef<Terminal | null>(null);
@@ -48,12 +47,9 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
   const createRetriesRef = useRef(0);
   const subscriptionRef = useRef<TerminalSubscription | null>(null);
   const revealFrameRef = useRef<number | null>(null);
-  const scaleResizeSchedulerRef = useRef<ReturnType<typeof createTerminalScaleResizeScheduler> | null>(null);
-  const renderScaleRef = useRef(renderScale);
   const cwdRef = useRef("–");
   const metaCallbackRef = useRef(onMetaChange);
   metaCallbackRef.current = onMetaChange;
-  renderScaleRef.current = renderScale;
 
   // Beim Antippen wird der Ref im PointerDown-Handler sofort gesetzt. Ein
   // Render darf diesen Fokus nicht mit dem alten Parent-Prop überschreiben.
@@ -62,10 +58,7 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
   }, [focused]);
 
   const [status, setStatusState] = useState<TerminalStatus>("connecting");
-  // Auch entfernte neue Tools starten wie bisher. Erst nach dem ersten
-  // vollständigen Sync darf ihr Browser-Abo ruhen, niemals die Runtime.
-  const active = useOrbitTerminalActivity(mountRef, options.active,
-    status !== "connecting" && (hasLiveStateRef.current || status === "error" || status === "exited"));
+  const active = options.active;
   activeRef.current = active;
   const subscribed = active || options.preload === true;
   outputActiveRef.current = subscribed;
@@ -112,9 +105,8 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
     const terminal = terminalRef.current;
     if (!terminal || !fitRef.current || !activeRef.current) return;
     try {
-      // Orbit-Spiegel brauchen ein eigenes sichtbares Raster. Die PTY-Größe
-      // auf dem Server darf weiterhin nur der Geometrie-Eigentümer ändern.
-      if (ownsGeometryRef.current || mountRef.current?.closest(".orbit-flow")) {
+      // Nur der Geometrie-Eigentümer verändert das sichtbare Raster.
+      if (ownsGeometryRef.current) {
         fitRef.current.fit();
         if (ownsGeometryRef.current) reportSize(terminal.cols, terminal.rows);
       } else {
@@ -167,7 +159,7 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
       cursorStyle: "block",
       cursorInactiveStyle: "outline",
       convertEol: false,
-      fontSize: terminalFontSizeForRenderScale(renderScale, compact),
+      fontSize: terminalFontSize(compact),
       lineHeight: 1,
       letterSpacing: 0,
       customGlyphs: true,
@@ -242,13 +234,10 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
     const disposeAppearance = attachTerminalAppearance(terminal, mount, {
       disposedRef, terminalRef,
       compactRef: { current: compact },
-      renderScaleRef,
       resizeRef: { current: null },
       themeRefreshRef: { current: null },
       resize: fitAndReport,
     });
-    const scaleResizeScheduler = createTerminalScaleResizeScheduler(fitAndReport);
-    scaleResizeSchedulerRef.current = scaleResizeScheduler;
 
     const onVisibility = () => { if (document.visibilityState === "visible") revealTerminal(); };
     document.addEventListener("visibilitychange", onVisibility);
@@ -261,8 +250,6 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
       window.removeEventListener("pageshow", revealTerminal);
       window.removeEventListener("resize", fitAndReport);
       if (revealFrameRef.current !== null) window.cancelAnimationFrame(revealFrameRef.current);
-      scaleResizeScheduler.cancel();
-      if (scaleResizeSchedulerRef.current === scaleResizeScheduler) scaleResizeSchedulerRef.current = null;
       disposeInput();
       disposeAppearance();
       for (const handler of cwdHandlers) handler.dispose();
@@ -295,16 +282,6 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
     if (active && focused && !isCompactTerminal(mountRef.current)) terminalRef.current?.focus();
   }, [active, focused]);
 
-  useEffect(() => {
-    // Entfernte Panes messen während einer Canvasbewegung keine neuen
-    // Schriftmetriken. Bei Rückkehr gelten sofort Zoom und Raster von jetzt.
-    if (!active) return;
-    const terminal = terminalRef.current;
-    if (!terminal || !applyTerminalRenderScale(terminal, renderScale, isCompactTerminal(mountRef.current))) return;
-    const scheduler = scaleResizeSchedulerRef.current;
-    if (scheduler) scheduler.schedule();
-    else fitAndReport();
-  }, [active, fitAndReport, renderScale]);
 
   const actions = useTerminalSessionActions({ refs, focusedRef, instanceId, core, sendMessage, setErrorState, setStatus, setPendingPaste, reportMeta });
 

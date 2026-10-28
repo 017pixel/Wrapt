@@ -8,7 +8,7 @@
   flex-direction: column;
 }
 
-.note-editor:not(.is-compact) { min-height: 35vh; }
+.note-editor { min-height: 35vh; }
 .note-editor-body { position: relative; }
 
 .note-editor-content {
@@ -21,7 +21,6 @@
   overflow-wrap: anywhere;
 }
 
-.note-editor-content.is-compact { font-size: var(--text-base); line-height: 1.6; }
 
 .note-editor-content > * + * { margin-top: var(--space-3); }
 

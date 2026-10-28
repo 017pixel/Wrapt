@@ -21,9 +21,9 @@ async function service() {
 describe("project file service", () => {
   it("creates nested UTF-8 files below the project root", async () => {
     const { root, files } = await service();
-    const result = await files.create("test", { path: "notes/orbit.md", content: "# Orbit", overwrite: false });
-    expect(result).toMatchObject({ path: "notes/orbit.md", bytes: 7, created: true, version: expect.stringMatching(/^[0-9a-f]{64}$/) });
-    expect(await readFile(join(root, "notes/orbit.md"), "utf8")).toBe("# Orbit");
+    const result = await files.create("test", { path: "notes/notes.md", content: "# Notes", overwrite: false });
+    expect(result).toMatchObject({ path: "notes/notes.md", bytes: 7, created: true, version: expect.stringMatching(/^[0-9a-f]{64}$/) });
+    expect(await readFile(join(root, "notes/notes.md"), "utf8")).toBe("# Notes");
   });
 
   it("rejects traversal and implicit overwrites", async () => {

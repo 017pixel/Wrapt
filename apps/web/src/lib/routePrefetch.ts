@@ -36,9 +36,6 @@ const dataLoaders: Array<[prefix: string, warm: WarmRoute]> = [
   ["/usage", (client) => client.prefetchQuery(wraptQueries.accounts())],
   ["/projects", (client) => client.prefetchQuery(wraptQueries.projects())],
   ["/projects", (client) => client.prefetchQuery(wraptQueries.services())],
-  ["/orbit", (client) => client.prefetchQuery(wraptQueries.orbit())],
-  ["/orbit", (client) => client.prefetchQuery(wraptQueries.projects())],
-  ["/workbench", (client) => client.prefetchQuery(wraptQueries.orbit())],
   ["/files", (client) => client.prefetchQuery(wraptQueries.projects())],
   ["/gallery", (client) => client.prefetchQuery(wraptQueries.projects())],
   ["/terminal", (client) => client.prefetchQuery(wraptQueries.terminalSessions())],
@@ -55,7 +52,6 @@ const dataLoaders: Array<[prefix: string, warm: WarmRoute]> = [
   ["/plugins", (client) => client.prefetchQuery(wraptQueries.pluginDrafts())],
   ["/hermes-agent", (client) => client.prefetchQuery(wraptQueries.hermesStatus())],
   ["/notizen", (client) => client.prefetchQuery(wraptQueries.notesList())],
-  ["/orbit/notizen", (client) => client.prefetchQuery(wraptQueries.notesList())],
   ["/", (client) => client.prefetchQuery(wraptQueries.dashboardConfig())],
 ];
 

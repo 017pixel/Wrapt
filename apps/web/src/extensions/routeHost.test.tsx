@@ -47,9 +47,9 @@ describe("routeHostElements", () => {
     const routes = flattenRoutes(routeHostElements(registry.getSnapshot()));
 
     const standalone = routes.filter((route) =>
-      ["previews/fenster/:groupId", "previews/live", "terminal/fenster/:runtimeId"].includes(route.props.path ?? ""),
+      ["previews/live", "terminal/fenster/:runtimeId"].includes(route.props.path ?? ""),
     );
-    expect(standalone).toHaveLength(3);
+    expect(standalone).toHaveLength(2);
 
     const indexRoutes = routes.filter((route) => route.props.index === true);
     expect(indexRoutes).toHaveLength(1);
@@ -57,7 +57,7 @@ describe("routeHostElements", () => {
     const wildcard = routes.filter((route) => route.props.path === "*");
     expect(wildcard).toHaveLength(1);
 
-    expect(routes.length).toBeGreaterThanOrEqual(26);
+    expect(routes.length).toBeGreaterThanOrEqual(22);
   });
 
   it("führt den Alias /gallery als Redirect auf die kanonische Dateien-Route", () => {
@@ -71,24 +71,24 @@ describe("routeHostElements", () => {
     expect(element.props.target).toBe("/files");
   });
 
-  it("erhält Query und Hash beim kompatiblen Orbit-Alias", async () => {
+  it("erhält Query und Hash beim kompatiblen Dateien-Alias", async () => {
     function LocationOutput() {
       const location = useLocation();
       return <output>{`${location.pathname}${location.search}${location.hash}`}</output>;
     }
 
     const { container } = render(
-      <MemoryRouter initialEntries={["/workbench?board=team&focus=node-4#canvas"]}>
+      <MemoryRouter initialEntries={["/gallery?path=team#files"]}>
         <Routes>
-          <Route path="/workbench" element={<CanonicalAliasRedirect target="/orbit" />} />
-          <Route path="/orbit" element={<LocationOutput />} />
+          <Route path="/gallery" element={<CanonicalAliasRedirect target="/files" />} />
+          <Route path="/files" element={<LocationOutput />} />
         </Routes>
       </MemoryRouter>,
     );
 
     await waitFor(() => {
       expect(container.querySelector("output")?.textContent).toBe(
-        "/orbit?board=team&focus=node-4#canvas",
+        "/files?path=team#files",
       );
     });
   });

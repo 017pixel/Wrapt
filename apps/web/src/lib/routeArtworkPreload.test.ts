@@ -12,7 +12,6 @@ beforeEach(() => vi.clearAllMocks());
 describe("Artwork bei Routenabsicht", () => {
   it.each([
     ["/notizen", "hero-notizen-nutzung"],
-    ["/orbit/notizen", "hero-notizen-nutzung"],
     ["/projects", "hero-arbeitsbereich"],
     ["/projects/projekt", "hero-fehlerdiagnose"],
     ["/t3-code", "hero-konfigurieren"],

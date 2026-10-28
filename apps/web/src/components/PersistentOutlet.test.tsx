@@ -36,13 +36,11 @@ function PreviewRouteSwitch() {
   const navigate = useNavigate();
   return (
     <>
-      <button onClick={() => navigate("/orbit/previews")}>Preview-Hub im Orbit</button>
       <button onClick={() => navigate("/previews")}>Preview-Hub direkt</button>
-      <button onClick={() => navigate("/orbit")}>Orbit öffnen</button>
+      <button onClick={() => navigate("/preview-window")}>Preview öffnen</button>
       <Routes>
         <Route element={<Shell />}>
-          <Route path="/orbit" element={<iframe title="Preview im Orbit" />} />
-          <Route path="/orbit/previews" element={<p>Preview-Hub im Orbit</p>} />
+          <Route path="/preview-window" element={<iframe title="Lokale Preview" />} />
           <Route path="/previews" element={<p>Preview-Hub</p>} />
         </Route>
       </Routes>
@@ -104,21 +102,20 @@ describe("PersistentOutlet", () => {
     expect(mountsA).toBe(1);
   });
 
-  it("behält dasselbe Preview-iframe über Orbit und beide Preview-Hub-Pfade", () => {
+  it("behält dasselbe Preview-iframe beim Wechsel zwischen Preview und Hub", () => {
     const { container } = render(
-      <MemoryRouter initialEntries={["/orbit"]}>
+      <MemoryRouter initialEntries={["/preview-window"]}>
         <PreviewRouteSwitch />
       </MemoryRouter>,
     );
-    const iframe = container.querySelector("iframe[title='Preview im Orbit']");
+    const iframe = container.querySelector("iframe[title='Lokale Preview']");
     expect(iframe).not.toBeNull();
 
-    fireEvent.click(screen.getByText("Preview-Hub im Orbit"));
-    expect(container.querySelector("iframe[title='Preview im Orbit']")).toBe(iframe);
+    expect(container.querySelector("iframe[title='Lokale Preview']")).toBe(iframe);
     fireEvent.click(screen.getByText("Preview-Hub direkt"));
-    expect(container.querySelector("iframe[title='Preview im Orbit']")).toBe(iframe);
-    fireEvent.click(screen.getByText("Orbit öffnen"));
-    expect(container.querySelector("iframe[title='Preview im Orbit']")).toBe(iframe);
+    expect(container.querySelector("iframe[title='Lokale Preview']")).toBe(iframe);
+    fireEvent.click(screen.getByText("Preview öffnen"));
+    expect(container.querySelector("iframe[title='Lokale Preview']")).toBe(iframe);
   });
 
   it("entfernt die älteste inaktive Route und führt ihren Cleanup aus", () => {

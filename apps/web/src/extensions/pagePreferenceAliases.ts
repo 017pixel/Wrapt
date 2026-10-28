@@ -4,7 +4,6 @@
  */
 export const pagePreferenceAliases = Object.freeze({
   dashboard: "wrapt.dashboard.page.main",
-  workbench: "wrapt.orbit.page.main",
   projects: "wrapt.projects.page.list",
   "t3-code": "wrapt.t3-code.page.main",
   "hermes-agent": "wrapt.hermes.page.main",

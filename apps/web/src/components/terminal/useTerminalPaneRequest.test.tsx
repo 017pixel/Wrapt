@@ -8,7 +8,7 @@ import { createEntry } from "./workspace/terminalWorkspaceModel";
 import { useTerminalPaneRequest } from "./useTerminalPaneRequest";
 
 const runtimeId = "00000000-0000-4000-8000-000000000001";
-const areaId = `orbit-${runtimeId}`;
+const areaId = `panel-${runtimeId}`;
 const session: TerminalSession = {
   id: "00000000-0000-4000-8000-000000000002", runtimeId, kind: "codex", mode: "agent",
   projectId: "projekt-a", cwd: "/projects/a", pid: 42, cols: 100, rows: 30, status: "running",
@@ -39,7 +39,7 @@ beforeEach(() => {
 
 afterEach(cleanup);
 
-it("legt einen frischen Orbit-Pane mit der vorgegebenen Runtime genau einmal an", () => {
+it("legt einen frischen Terminal-Pane mit der vorgegebenen Runtime genau einmal an", () => {
   const view = renderHook(useRequest, {
     initialProps: defaults,
     wrapper: ({ children }: { children: ReactNode }) => <StrictMode>{children}</StrictMode>,
@@ -55,7 +55,7 @@ it("legt einen frischen Orbit-Pane mit der vorgegebenen Runtime genau einmal an"
   expect(state.pendingOps.filter((operation) => operation.type === "createEntry")).toHaveLength(1);
 });
 
-it("übernimmt bei einer vorhandenen Orbit-Runtime die Server-Metadaten", () => {
+it("übernimmt bei einer vorhandenen Terminal-Runtime die Server-Metadaten", () => {
   renderHook(useRequest, { initialProps: { ...defaults, sessions: [session] } });
   expect(useTerminalWorkspaceStore.getState().document?.entries).toEqual([expect.objectContaining({
     runtimeId, kind: "codex", projectId: "projekt-a", initialCwd: "/projects/a", name: "Codex 1",

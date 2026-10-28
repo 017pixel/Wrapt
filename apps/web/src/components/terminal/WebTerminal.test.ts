@@ -3,7 +3,7 @@ import {
   isDeviceAnswer,
   mouseWheelSequence,
   shouldForwardTerminalData,
-  terminalFontSizeForRenderScale,
+  terminalFontSize,
   terminalKeySequence,
   touchScrollLines,
   updateMouseEncoding,
@@ -22,36 +22,11 @@ describe("Terminal-Snapshot", () => {
   });
 });
 
-describe("Terminal-Raster bei Orbit-Zoom", () => {
-  it("verwendet ohne äußeren Zoom die Basisschriftgröße", () => {
-    expect(terminalFontSizeForRenderScale()).toBe(14);
-    expect(terminalFontSizeForRenderScale(1)).toBe(14);
+describe("Terminal-Schriftgröße", () => {
+  it("verwendet auf Desktop die Basisschrift und auf Touch die kompakte Schrift", () => {
+    expect(terminalFontSize()).toBe(14);
+    expect(terminalFontSize(true)).toBe(13);
   });
-
-  it("zeichnet bei verkleinertem Orbit-Knoten mit Gegenfaktor", () => {
-    expect(terminalFontSizeForRenderScale(0.8)).toBe(17.5);
-  });
-
-  it("hält die sichtbare Schrift im gesamten Orbit-Zoombereich konstant", () => {
-    expect(terminalFontSizeForRenderScale(0.1) * 0.1).toBeCloseTo(14);
-    expect(terminalFontSizeForRenderScale(0.25) * 0.25).toBeCloseTo(14);
-    expect(terminalFontSizeForRenderScale(0.5) * 0.5).toBeCloseTo(14);
-    expect(terminalFontSizeForRenderScale(1) * 1).toBeCloseTo(14);
-    expect(terminalFontSizeForRenderScale(2.2) * 2.2).toBeCloseTo(14, 1);
-    expect(terminalFontSizeForRenderScale(2)).toBe(7);
-  });
-
-  it("begrenzt Werte außerhalb des Orbit-Zoombereichs und behandelt ungültige Werte sicher", () => {
-    expect(terminalFontSizeForRenderScale(0.01)).toBe(140);
-    expect(terminalFontSizeForRenderScale(3)).toBeCloseTo(6.36);
-    expect(terminalFontSizeForRenderScale(Number.NaN)).toBe(14);
-  });
-
-  it("nutzt auf Touch-Shells die kompakte Schriftgröße", () => {
-    expect(terminalFontSizeForRenderScale(1, true)).toBe(13);
-    expect(terminalFontSizeForRenderScale(0.5, true)).toBe(26);
-  });
-
 });
 
 describe("Antworten auf Geräteabfragen", () => {
