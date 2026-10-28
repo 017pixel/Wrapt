@@ -70,6 +70,7 @@ test.describe("Notizen-Suche (⌘K)", () => {
     // Ohne Filter wird der Inhalt durchsucht.
     await expect(dialog.getByRole("option", { name: new RegExp(alpha) })).toBeVisible();
 
+    await dialog.getByText("Filter", { exact: true }).click();
     // „Nur Titel durchsuchen“ blendet Inhaltstreffer aus.
     await dialog.getByRole("button", { name: /Nur Titel durchsuchen/ }).click();
     await expect(dialog.getByText(/Keine Treffer/)).toBeVisible();
@@ -106,7 +107,7 @@ test.describe("Notizen-Suche (⌘K)", () => {
     await dialog.getByLabel("Notizen durchsuchen").fill("Abschnitt Planung");
 
     await expect(dialog.getByRole("option", { name: new RegExp(title) })).toBeVisible({ timeout: 15_000 });
-    await expect(dialog.locator(".notes-palette-group-title").first()).toHaveText("Heute");
+    await expect(dialog.locator(".notes-palette-group-title").first()).toHaveText("Treffer");
     await expect(dialog.locator(".notes-palette-foot")).toContainText("Neues Fenster");
   });
 });

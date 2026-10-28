@@ -20,6 +20,14 @@ function createEditor(content: string) {
 afterEach(() => editors.splice(0).forEach((editor) => editor.destroy()));
 
 describe("Notizverweise im Editor", () => {
+  it("nutzt den letzten freien Absatz für angehängte Unterseiten", () => {
+    const editor = createEditor("Inhalt");
+    editor.commands.insertContentAt(editor.state.doc.content.size, { type: "paragraph" });
+    expect(insertNoteReferenceInEditor(editor, { id: "kind", title: "Unterseite" })).toBe(true);
+    expect(editor.getJSON().content).toHaveLength(2);
+    expect(editor.getJSON().content?.[1]?.content?.[0]).toMatchObject({ type: "noteMention", attrs: { noteId: "kind" } });
+  });
+
   it("fügt den Slash-Verweis direkt an der Schreibposition ein", () => {
     const editor = createEditor("Vor Nach");
     editor.commands.setTextSelection(5);

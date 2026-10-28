@@ -1,10 +1,11 @@
+import { writeNoteTitleDraft } from "./editor/noteDrafts";
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { Note } from "@wrapt/contracts";
 import { afterEach, expect, it, vi } from "vitest";
 import { NoteTitle } from "./NoteTitle";
 
-afterEach(() => { cleanup(); vi.useRealTimers(); });
+afterEach(() => { cleanup(); localStorage.clear(); vi.useRealTimers(); });
 
 const note = { id: "seite-a", title: "Alter Titel", icon: null } as Note;
 
@@ -53,9 +54,10 @@ it("speichert eingefügte mehrzeilige Titel weiterhin als eine Zeile", () => {
   expect(save).toHaveBeenCalledExactlyOnceWith({ title: "Release vorbereiten" });
 });
 
-it("beendet die Titelbearbeitung mit Enter und speichert", () => {
+it("wechselt mit Enter in den Notiztext und speichert", () => {
   const save = vi.fn();
-  render(<NoteTitle note={note} onPatch={save} />);
+  const enterBody = vi.fn();
+  render(<NoteTitle note={note} onPatch={save} onEnterBody={enterBody} />);
   const title = screen.getByRole("textbox", { name: "Notiztitel" });
   title.focus();
   fireEvent.change(title, { target: { value: "Neuer Titel" } });
@@ -63,6 +65,7 @@ it("beendet die Titelbearbeitung mit Enter und speichert", () => {
 
   expect(save).toHaveBeenCalledExactlyOnceWith({ title: "Neuer Titel" });
   expect(document.activeElement).not.toBe(title);
+  expect(enterBody).toHaveBeenCalledOnce();
 });
 
 it("speichert die Rückkehr zum ursprünglichen Titel während einer offenen Bestätigung", () => {
@@ -111,4 +114,20 @@ it("hält ein Leerzeichen beim Löschen des letzten Wortes bis zur nächsten Ein
   fireEvent.change(input, { target: { value: "Vorher nächstes" } });
   act(() => vi.advanceTimersByTime(500));
   expect(save).toHaveBeenLastCalledWith({ title: "Vorher nächstes" });
+});
+
+it("stellt einen lokal erhaltenen Titel nach Neuladen wieder her", () => {
+  writeNoteTitleDraft(`${note.id}:workspace`, note.title, "Erhaltene Idee");
+  const save = vi.fn();
+  render(<NoteTitle note={note} onPatch={save} />);
+  expect((screen.getByRole("textbox", { name: "Notiztitel" }) as HTMLTextAreaElement).value).toBe("Erhaltene Idee");
+  expect(save).toHaveBeenCalledExactlyOnceWith({ title: "Erhaltene Idee" });
+});
+it("überschreibt einen fremden Titel nicht mit einem alten lokalen Entwurf", () => {
+  writeNoteTitleDraft(`${note.id}:workspace`, "Alte Serverfassung", "Lokale Idee");
+  const save = vi.fn();
+  render(<NoteTitle note={note} onPatch={save} />);
+  expect((screen.getByRole("textbox", { name: "Notiztitel" }) as HTMLTextAreaElement).value).toBe(note.title);
+  expect(save).not.toHaveBeenCalled();
+  expect(screen.getByRole("button", { name: "Titel wiederherstellen" })).toBeTruthy();
 });

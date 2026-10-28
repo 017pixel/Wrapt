@@ -48,6 +48,7 @@ test("Notizenaktionen und Suchfilter bekommen dasselbe Material, auch innerhalb 
   const palette = page.locator(".notes-palette");
   await expectGlass(palette, "::before");
   await expect(palette).toHaveCSS("backdrop-filter", "none");
+  await palette.getByText("Filter", { exact: true }).click();
   await palette.getByRole("button", { name: "Auf Seiten", exact: true }).click();
   await expectGlass(page.locator(".notes-filter-popover"));
 });

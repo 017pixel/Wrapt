@@ -137,6 +137,7 @@ test("Notizensuche: Titel-, Bereichs- und Datumsfilter wirken gemeinsam ohne Dat
   const search = page.getByRole("dialog", { name: "Notizen durchsuchen" });
   await search.getByRole("textbox", { name: "Notizen durchsuchen" }).fill("Kiesel-1");
   await expect(search.getByRole("option")).toHaveCount(1);
+  await search.getByText("Filter", { exact: true }).click();
   await search.getByRole("button", { name: "Nur Titel durchsuchen", exact: true }).click();
   await expect(search.getByRole("option")).toHaveCount(0);
   await search.getByRole("button", { name: "Nur Titel durchsuchen", exact: true }).click();

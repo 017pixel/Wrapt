@@ -22,7 +22,7 @@ describe("Einstellungs-Adapter", () => {
     useAppPreferences.setState({ defaultPage: "usage", hermesV2Enabled: true });
     expect(settingsAdaptersByKey.get("appPreferences")?.read()).toEqual({
       state: { defaultPage: "usage", hermesV2Enabled: true, shortcuts: defaultShortcuts },
-      version: 6,
+      version: 7,
     });
   });
 
@@ -41,7 +41,7 @@ describe("Einstellungs-Adapter", () => {
     shortcuts.bindings.settings = { ctrl: true, alt: true, shift: false, meta: false, code: "KeyJ" };
     await settingsAdaptersByKey.get("appPreferences")?.apply({ state: { shortcuts }, version: 6 });
     expect(useAppPreferences.getState().shortcuts).toEqual(shortcuts);
-    expect(settingsAdaptersByKey.get("appPreferences")?.read()).toMatchObject({ state: { shortcuts }, version: 6 });
+    expect(settingsAdaptersByKey.get("appPreferences")?.read()).toMatchObject({ state: { shortcuts }, version: 7 });
   });
 
   it("gleicht die Darstellungspräferenzen der Nutzung ab", async () => {

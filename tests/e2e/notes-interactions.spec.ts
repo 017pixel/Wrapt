@@ -85,7 +85,8 @@ async function createNote(request: APIRequestContext, title: string, extra: Reco
 test("Ordner, Favoriten, Drag-and-drop und gespeicherte Abschnittsreihenfolge", async ({ page, request }) => {
   const unique = Date.now().toString(36);
   await page.goto(`${workbenchUrl}/notizen`);
-  await page.getByRole("button", { name: "Neuer Ordner", exact: true }).click();
+  await page.getByRole("button", { name: "Notizablage verwalten", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Neue Sammlung", exact: true }).click();
   const folderName = `Gedanken ${unique}`;
   await page.getByLabel("Ordnername").fill(folderName);
   await page.getByRole("button", { name: "Erstellen", exact: true }).click();
@@ -105,10 +106,11 @@ test("Ordner, Favoriten, Drag-and-drop und gespeicherte Abschnittsreihenfolge", 
   await expect(page.locator(".notes-note-current")).toHaveText(`Idee ${unique}`);
   const first = new URL(page.url()).searchParams.get("note");
   const favoriteResponse = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/v1/notes" && response.request().method() === "POST");
-  await page.getByRole("button", { name: "Neue Seite in Favoriten", exact: true }).click();
+  await page.locator(".notes-sidebar .notes-sidebar-new").first().click();
   const createdFavorite = (await (await favoriteResponse).json()).note;
   await expect(page).toHaveURL(new RegExp(`note=${createdFavorite.id}`));
   await expect(page.getByLabel("Notiztitel")).toHaveValue(createdFavorite.title);
+  await page.getByRole("button", { name: "Als Favorit markieren", exact: true }).click();
   await expect(page.getByRole("button", { name: "Favorit entfernen", exact: true })).toBeVisible();
   await page.getByLabel("Notiztitel").fill(`Favorit ${unique}`);
   await page.getByLabel("Notiztitel").blur();
@@ -122,7 +124,7 @@ test("Ordner, Favoriten, Drag-and-drop und gespeicherte Abschnittsreihenfolge", 
   const source = page.locator(`[data-section="favorites"] [data-favorite-id="${favoriteId}"]`);
   const folder = page.locator("[data-section]").filter({ has: page.getByRole("button", { name: folderName, exact: true }) });
   const folderToggle = folder.locator(".notes-group-toggle");
-  const recentToggle = page.locator('[data-section="recent"] .notes-group-toggle');
+  const recentToggle = page.locator('[data-section="all"] .notes-group-toggle');
   const favoritesToggle = page.locator('[data-section="favorites"] .notes-group-toggle');
   await prepareDrag(page, source, folderToggle);
   await source.dragTo(folderToggle);
@@ -234,7 +236,7 @@ test("Verschieben zwischen Ordnerbäumen, Zurückziehen und Seitenreihenfolge", 
   await allToggle.click();
   const all = page.locator('[data-section="all"]');
   const source = all.locator(".notes-tree-row").filter({ has: page.getByRole("button", { name: root.title, exact: true }) });
-  const target = all.locator(".notes-tree-row").filter({ has: page.getByRole("button", { name: parentA.title, exact: true }) });
+  const target = groupA.locator(".notes-tree-row").filter({ has: page.getByRole("button", { name: parentA.title, exact: true }) });
   await dragNoteToRow(page, source, target, "before", { x: 80, y: 2 });
   await expect.poll(async () => {
     const live = (await (await request.get("/api/v1/notes", { headers })).json()).notes as { id: string; sortOrder: number }[];
@@ -251,8 +253,8 @@ test("mobile Notizen öffnen Ordner, Favoriten und Suche ohne Überlauf", async 
   await page.goto(`${workbenchUrl}/notizen?note=${note.id}`);
   await page.getByRole("button", { name: "Seitenleiste öffnen", exact: true }).click();
   const sidebar = page.locator(".notes-sidebar");
-  await expect(sidebar.getByRole("button", { name: "Neuer Ordner", exact: true })).toBeVisible();
-  for (const name of ["Neuer Ordner", "Neue Seite in Favoriten"]) {
+  await expect(sidebar.getByRole("button", { name: "Notizablage verwalten", exact: true })).toBeVisible();
+  for (const name of ["Notizablage verwalten", "Aufgaben"]) {
     const box = await sidebar.getByRole("button", { name, exact: true }).boundingBox();
     expect(Math.round(box!.height)).toBeGreaterThanOrEqual(44);
     expect(Math.round(box!.width)).toBeGreaterThanOrEqual(44);

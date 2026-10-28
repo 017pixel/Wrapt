@@ -5,12 +5,24 @@ import { defaultShortcuts, encodeShortcuts, normalizeShortcuts, resolveShortcuts
 describe("Gemeinsame plattformabhängige Wrapt-Kürzel", () => {
   it("verwendet Alt unter Windows und Control unter macOS bei gleicher Belegung", () => {
     const shared = normalizeShortcuts(defaultShortcuts);
-    for (const action of shortcutActions) {
+    expect(resolveShortcuts(shared, "Win32").bindings.quickNote).toEqual({ ctrl: false, alt: true, shift: false, meta: false, code: "KeyN" });
+    expect(resolveShortcuts(shared, "MacIntel").bindings.quickNote).toEqual({ ctrl: true, alt: false, shift: false, meta: false, code: "KeyN" });
+    for (const action of shortcutActions.filter((action) => action !== "quickNote")) {
       expect(resolveShortcuts(shared, "Win32").bindings[action]).toMatchObject({ ctrl: false, shift: true, alt: true, meta: false });
       expect(resolveShortcuts(shared, "MacIntel").bindings[action]).toMatchObject({ ctrl: true, shift: true, alt: false, meta: false });
     }
     expect(resolveShortcuts(shared, "MacIntel").numbers).toEqual({ ctrl: true, shift: true, alt: false, meta: false });
     expect(shared).toEqual(defaultShortcuts);
+  });
+
+  it("migriert die alte Quick-Note-Vorgabe und erhält eigene oder deaktivierte Belegungen", () => {
+    const legacy = { ...defaultShortcuts, bindings: { ...defaultShortcuts.bindings, quickNote: { ctrl: true, alt: true, shift: true, meta: false, code: "KeyN" } } };
+    const migrated = normalizeShortcuts(legacy);
+    expect(migrated.bindings.quickNote).toEqual(defaultShortcuts.bindings.quickNote);
+    expect(normalizeShortcuts(migrated)).toEqual(migrated);
+    const custom = { ctrl: false, alt: false, shift: true, meta: true, code: "KeyJ" };
+    expect(normalizeShortcuts({ bindings: { quickNote: custom } }).bindings.quickNote).toEqual(custom);
+    expect(normalizeShortcuts({ bindings: { quickNote: null } }).bindings.quickNote).toBeNull();
   });
 
   it("übernimmt eine Windows-Änderung auf dem Mac und eine Mac-Änderung unter Windows", () => {

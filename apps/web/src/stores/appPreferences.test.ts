@@ -71,7 +71,7 @@ describe("app preferences", () => {
     storage.setItem(STORAGE_KEY, JSON.stringify({ state: { defaultPage: "workbench", hermesV2Enabled: true }, version: 5 }));
     appPreferences.useAppPreferences.persist.rehydrate();
     expect(appPreferences.useAppPreferences.getState()).toMatchObject({ defaultPage: "dashboard", hermesV2Enabled: true });
-    expect(JSON.parse(storage.getItem(STORAGE_KEY)!).version).toBe(6);
+    expect(JSON.parse(storage.getItem(STORAGE_KEY)!).version).toBe(7);
   });
 
   it("setzt eine entfernte Inbox-Standardseite auf das Dashboard zurück", () => {
@@ -84,7 +84,7 @@ describe("app preferences", () => {
     storage.setItem(STORAGE_KEY, JSON.stringify({ state: { defaultPage: "files" }, version: 1 }));
     appPreferences.useAppPreferences.persist.rehydrate();
     expect(appPreferences.useAppPreferences.getState()).toMatchObject({ defaultPage: "files", hermesV2Enabled: false });
-    expect(JSON.parse(storage.getItem(STORAGE_KEY)!).version).toBe(6);
+    expect(JSON.parse(storage.getItem(STORAGE_KEY)!).version).toBe(7);
   });
 
   it("persistiert die V2-Auswahl und lädt sie nach einem Refresh", () => {
@@ -157,7 +157,7 @@ it("migriert getrennte Windows-Kürzel aus v4 zur gemeinsamen Belegung", async (
   storage.setItem(STORAGE_KEY, JSON.stringify({ version: 4, state: { shortcuts: { ...defaultShortcuts, windows } } }));
   await appPreferences.useAppPreferences.persist.rehydrate();
   const saved = JSON.parse(storage.getItem(STORAGE_KEY)!) as { version: number; state: { shortcuts: ShortcutPreferences } };
-  expect(saved.version).toBe(6);
+  expect(saved.version).toBe(7);
   expect(saved.state.shortcuts).not.toHaveProperty("windows");
   expect(resolveShortcuts(saved.state.shortcuts, "MacIntel").bindings.plugins).toMatchObject({ ctrl: true, meta: false, alt: false, code: "KeyK" });
 });

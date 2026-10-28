@@ -9,8 +9,8 @@ it("migriert die eingeklappte Privatgruppe und erhält Breite, Baum und letzte S
   } }));
   await useNotesPreferences.persist.rehydrate();
   expect(useNotesPreferences.getState()).toMatchObject({ sidebarWidth: 310, expanded: { page: true },
-    collapsedSections: { all: true }, lastOpenedNoteId: "page", sectionOrder: ["recent", "favorites", "all", "trash"] });
-  expect(JSON.parse(localStorage.getItem("wrapt.notes-preferences.v1")!).version).toBe(2);
+    collapsedSections: { all: false }, lastOpenedNoteId: "page", sectionOrder: ["all", "favorites", "trash"] });
+  expect(JSON.parse(localStorage.getItem("wrapt.notes-preferences.v1")!).version).toBe(3);
 });
 it("sortiert neue Abschnitte und Favoriten ohne doppelte IDs", () => {
   expect(moveBefore(["a", "b", "a"], "c", "b")).toEqual(["a", "c", "b"]);
