@@ -19,6 +19,9 @@ Alle relevanten Änderungen werden in kurzen Stichpunkten dokumentiert.
 
 ### Behoben
 - Komponenten-Styles laden nach einem Update wieder zuverlässig. Die Layer-Reihenfolge steht jetzt vor jedem Stylesheet, dadurch überschreibt der Browser-Reset keine Abstände, Rahmen und Paddings mehr.
+- Das Frontend startet auch auf Geräten mit wenig Arbeitsspeicher ohne Preload-Flut und bleibt nicht mehr auf dem Ladeplatzhalter stehen.
+- Die Notizsuche findet Tippfehler wieder, auch wenn der Volltextindex aktiv ist.
+- Das Slash-Menü bleibt im Quick-Note-Fenster sichtbar und bedienbar.
 - Bekannte Sicherheitslücken in Server- und UI-Abhängigkeiten sind geschlossen.
 
 ### Gelöscht
