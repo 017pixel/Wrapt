@@ -38,11 +38,18 @@ test("überlebt das Aus- und Einklappen ohne Absturz", async ({ page }) => {
   await openCollapsed(page);
   const sidebar = page.locator(".sidebar-shell");
 
-  await sidebar.getByRole("button", { name: "Sidebar ausklappen" }).click();
+  // Die Breite wird über den Griff (Maus oder Pfeiltasten) gesteuert. Ein
+  // Pfeil nach rechts öffnet die eingeklappte Leiste mit ihrer Merkbreite.
+  const resizeHandle = sidebar.getByRole("separator", { name: "Breite der Seitennavigation ändern" });
+  await resizeHandle.focus();
+  await page.keyboard.press("ArrowRight");
   await expect(sidebar).not.toHaveClass(/is-collapsed/);
   await expect(sidebar.getByRole("link", { name: "Terminal" })).toBeVisible();
 
-  await sidebar.getByRole("button", { name: "Sidebar einklappen" }).click();
+  // Dreimal 32 px nach links unterschreiten die Einklapp-Schwelle.
+  await page.keyboard.press("Shift+ArrowLeft");
+  await page.keyboard.press("Shift+ArrowLeft");
+  await page.keyboard.press("Shift+ArrowLeft");
   await expect(sidebar).toHaveClass(/is-collapsed/);
 
   // Der Crash-Dialog erscheint nur, wenn wirklich etwas abgestürzt ist.

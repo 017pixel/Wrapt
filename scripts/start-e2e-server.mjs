@@ -82,7 +82,9 @@ config.tailscale.adminUsers = e2eAllowedUsers;
 // abgeleitet. Dadurch kollidiert ein lokaler Lauf nicht mit der laufenden
 // Workbench oder einem anderen Testprozess.
 config.t3.port = e2ePort + 1;
-config.opencodeWeb = { ...config.opencodeWeb, port: e2ePort + 2, host: "127.0.0.1" };
+// Die E2E-Suite prüft auch die optionale OpenCode-Web-Oberfläche. In der
+// Produktion bleibt sie standardmäßig aus, hier wird sie gezielt aktiviert.
+config.opencodeWeb = { ...config.opencodeWeb, enabled: true, port: e2ePort + 2, host: "127.0.0.1" };
 // Der Portscan des Testservers darf keine realen Workbench-/Host-Ports sichtbar
 // machen. Projektlaufzeiten im E2E-Modus bekommen deshalb einen eigenen Bereich.
 config.previews.allowedProjectPorts = Array.from({ length: 10 }, (_, index) => e2ePort + 30 + index);

@@ -37,5 +37,5 @@ test("zeigt die Serverauswahl erst nach dem Hinzufügen eines zweiten Hosts", as
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.getByRole("button", { name: "Navigation öffnen" }).click();
-  await expect(page.getByRole("dialog", { name: "Navigation" }).getByRole("button", { name: /Server wechseln/ })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "Navigation" }).getByRole("button", { name: /Workspace wechseln/ })).toBeVisible();
 });

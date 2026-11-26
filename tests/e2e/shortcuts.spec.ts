@@ -35,7 +35,9 @@ test.afterAll(async () => {
 });
 test.afterEach(async ({ page }) => {
   await page.unrouteAll({ behavior: "ignoreErrors" });
-  expect(consoleErrors).toEqual([]);
+  // Hermes ist in der isolierten E2E-Instanz absichtlich deaktiviert. Der
+  // Dashboard-Status fragt ihn trotzdem ab; der 503 ist dort erwartet.
+  expect(consoleErrors.filter((message) => !/503.*\/api\/v1\/hermes\/status/.test(message))).toEqual([]);
 });
 test.beforeEach(async ({ request, page }) => {
   consoleErrors = [];
@@ -196,7 +198,11 @@ test("aktualisiert Nummern nach Drag-and-drop und zeigt eingeklappte Gruppen nur
   await expect(sidebar.getByRole("link", { name: "Dashboard", exact: true }).locator("kbd")).toHaveText("2");
   await page.keyboard.up("Shift"); await page.keyboard.up("Control");
   await expect(sidebar.getByRole("button", { name: "Allgemein ausklappen" })).toBeVisible();
-  await sidebar.getByRole("button", { name: "Sidebar einklappen" }).click();
+  const resizeHandle = sidebar.getByRole("separator", { name: "Breite der Seitennavigation ändern" });
+  await resizeHandle.focus();
+  await page.keyboard.press("Shift+ArrowLeft");
+  await page.keyboard.press("Shift+ArrowLeft");
+  await page.keyboard.press("Shift+ArrowLeft");
   const icons = sidebar.locator(".sidebar-item-icon");
   const positions = () => icons.evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().x));
   await expect(sidebar).toHaveClass(/is-collapsed/);

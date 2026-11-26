@@ -161,7 +161,7 @@ test("erlaubt Bearbeiten im Detailmenü und bleibt bei schmalen Ansichten im Bil
     const navigationButton = page.getByRole("button", { name: "Navigation öffnen", exact: true });
     await expect(navigationButton).toBeVisible();
     await navigationButton.click();
-    await page.getByRole("button", { name: /Aktueller Server:.*Server wechseln/ }).filter({ visible: true }).click();
+    await page.getByRole("button", { name: /Aktueller Server:.*Workspace wechseln/ }).filter({ visible: true }).click();
     picker = page.getByRole("dialog", { name: "Server wechseln", exact: true });
     await picker.getByRole("button", { name: /Weitere Aktionen für Forschungsserver/ }).click();
     const details = page.getByRole("group", { name: "Weitere Aktionen für Forschungsserver", exact: true });

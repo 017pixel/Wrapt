@@ -222,7 +222,7 @@ createServer((_request, response) => {
 
     const reclaimPreviewSlots = async () => {
       for (let index = 0; index < 12; index += 1) {
-        const startedResponse = await request.post("/api/v1/previews/slots/reclaim", { headers: previewIdentity });
+        const startedResponse = await request.post("/api/v1/previews/slots/reclaim", { headers: previewIdentity, data: { projectId: registeredProject.project.id } });
         if (!startedResponse.ok()) break;
         const started = await startedResponse.json() as { slotId: number; nonce: string };
         await request.post(`/api/v1/previews/slots/${started.slotId}/reset/verify`, {
@@ -240,9 +240,11 @@ createServer((_request, response) => {
       };
       const unusedSlotCount = initialSlots.slots.filter((slot) => slot.affinityStatus === "none").length;
       for (let index = 0; index < unusedSlotCount; index += 1) {
+        // Slots desselben Projekts dürfen nach dem Freigeben wiederverwendet
+        // werden. Fremde Storages bleiben bewusst geschützt.
         const opened = await request.post("/api/v1/previews/sessions", {
           headers: previewIdentity,
-          data: { sessionKey: `e2e-alt-${index}`, projectId: `altes-projekt-${index}`, primaryPort: fixturePorts.spa, primaryProtocol: "http", isolate: true, storageProfileId: null },
+          data: { sessionKey: `e2e-vorbelegt-${index}`, projectId: registeredProject.project.id, primaryPort: fixturePorts.spa, primaryProtocol: "http", isolate: true, storageProfileId: null },
         });
         expect(opened.ok()).toBeTruthy();
         const session = await opened.json() as { id: string };

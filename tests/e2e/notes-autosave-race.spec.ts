@@ -12,7 +12,7 @@ test("behält schnelle Löschungen und neue Eingaben bei verzögerter Speicherbe
   let captured = false;
   const gate = new Promise<void>((resolve) => { release = resolve; });
   let held = false;
-  await page.route("**/api/v1/notes/*/content", async (route) => {
+  await page.route("**/api/v1/notes/*/content*", async (route) => {
     if (held || route.request().method() !== "PUT") return route.continue();
     held = true;
     const response = await route.fetch();
@@ -34,7 +34,7 @@ test("behält schnelle Löschungen und neue Eingaben bei verzögerter Speicherbe
     await editor.pressSequentially(" bleibt");
     await expect(page.locator(".notes-save-state")).toHaveAttribute("data-state", "saved");
     await expect(editor).toHaveText("Neue Fassung bleibt");
-    await page.unroute("**/api/v1/notes/*/content");
+    await page.unroute("**/api/v1/notes/*/content*");
     await page.reload();
     await expect(editor).toHaveText("Neue Fassung bleibt");
   } finally {

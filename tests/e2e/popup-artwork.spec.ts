@@ -104,7 +104,7 @@ test("Server-Bildakzent bleibt auf Desktop und Handy innerhalb des Dialogs", asy
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/wrapt/projects");
     if (width < 768) await page.getByRole("button", { name: "Navigation öffnen" }).click();
-    await page.getByRole("button", { name: /Aktueller Server:.*Server wechseln/ }).filter({ visible: true }).click();
+    await page.getByRole("button", { name: /Aktueller Server:.*Workspace wechseln/ }).filter({ visible: true }).click();
     const dialog = page.getByRole("dialog", { name: "Server wechseln", exact: true });
     const image = dialog.locator(".workspace-switcher-artwork");
     await expect(image).toBeVisible();

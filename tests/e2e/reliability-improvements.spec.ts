@@ -42,11 +42,12 @@ test("erhält den Notizeditor bei einem fehlgeschlagenen Hintergrundabruf", asyn
     await expect(editor).toBeVisible();
     await editor.evaluate((element) => { element.setAttribute("data-survives-refresh", "yes"); });
     await editor.fill("Dieser Entwurf bleibt im Editor.");
-    await page.route(`**/api/v1/notes/${note.id}`, (route) => route.fulfill({ status: 503, json: { error: { code: "UNAVAILABLE", message: "Vorübergehend nicht erreichbar", retryable: true } } }));
+    // Der Detailabruf hängt ab der zweiten Anfrage `?sinceRevision=…` an.
+    await page.route(`**/api/v1/notes/${note.id}?*`, (route) => route.fulfill({ status: 503, json: { error: { code: "UNAVAILABLE", message: "Vorübergehend nicht erreichbar", retryable: true } } }));
     await expect(page.getByText("Aktualisierung fehlgeschlagen", { exact: true })).toBeVisible({ timeout: 20_000 });
     await expect(editor).toHaveAttribute("data-survives-refresh", "yes");
     await expect(editor).toContainText("Dieser Entwurf bleibt im Editor.");
-    await page.unroute(`**/api/v1/notes/${note.id}`);
+    await page.unroute(`**/api/v1/notes/${note.id}?*`);
   } finally {
     await page.request.delete(new URL(`/api/v1/notes/${note.id}`, workbenchUrl).href, { headers: apiIdentityHeaders("user@example.com") });
   }

@@ -77,7 +77,11 @@ test("findet Tippfehler und zeigt eine Seite nur in ihrer Sammlung", async ({ pa
   await expect(page.locator('.notes-sidebar [data-section="all"]')).not.toContainText(title);
   await expect(page.locator('.notes-sidebar [data-section="recent"]')).toHaveCount(0);
   await page.locator(".notes-search-row").click();
+  // Erst auf die entprellte Suche warten; die Recent-Liste zeigt den Treffer
+  // sonst schon vor dem eigentlichen Suchlauf.
+  const searchResponse = page.waitForResponse((response) => response.url().includes("/api/v1/notes/search") && response.status() === 200);
   await page.getByRole("textbox", { name: "Notizen durchsuchen" }).fill(title.replace("notizen", "notitzen"));
+  await searchResponse;
   await expect(page.getByRole("option", { name: new RegExp(title) })).toBeVisible();
   await page.getByRole("option", { name: new RegExp(title) }).click();
   await expect(page.getByLabel("Notiztitel")).toHaveValue(title);
@@ -88,13 +92,13 @@ test("stellt einen lokalen Entwurf nach Netzfehler und Neuladen wieder her", asy
   await page.goto(`${workbenchUrl}/notizen?note=${note.id}`);
   const editor = page.locator(".notes-workspace .note-editor-content");
   await expect(editor).toBeVisible();
-  await page.route(`**/api/v1/notes/${note.id}/content`, (route) => route.abort());
+  await page.route(`**/api/v1/notes/${note.id}/content*`, (route) => route.abort());
   await editor.fill("Dieser Gedanke darf beim Neuladen nicht verschwinden.");
   await expect(page.getByRole("alert").filter({ hasText: "Nicht auf dem Server gespeichert" })).toBeVisible();
   page.on("dialog", (dialog) => void dialog.accept());
   await page.reload();
   await expect(editor).toContainText("Dieser Gedanke darf beim Neuladen nicht verschwinden.");
-  await page.unroute(`**/api/v1/notes/${note.id}/content`);
+  await page.unroute(`**/api/v1/notes/${note.id}/content*`);
   await page.getByRole("button", { name: "Erneut versuchen", exact: true }).click();
   await expect(page.locator(".notes-save-state")).toHaveAttribute("data-state", "saved");
   const saved = (await (await request.get(`/api/v1/notes/${note.id}`, { headers })).json()).note;

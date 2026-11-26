@@ -29,20 +29,20 @@ test("schaltet Seiten in Sidebar und Navigation um und behält die Auswahl nach 
   await openSurfaceTab(page);
 
   const visibility = settingsSection(page, "Seiten-Sichtbarkeit");
-  const codex = visibility.getByRole("button", { name: "Codex Codex", exact: true });
+  const codex = visibility.getByRole("switch", { name: "Codex", exact: true });
 
-  await expect(codex.getByRole("switch")).toHaveAttribute("aria-checked", "false");
+  await expect(codex).toHaveAttribute("aria-checked", "false");
   await expect(page.locator(".workspace-sidebar").getByRole("link", { name: "Codex", exact: true })).toHaveCount(0);
 
   await codex.click();
-  await expect(codex.getByRole("switch")).toHaveAttribute("aria-checked", "true");
+  await expect(codex).toHaveAttribute("aria-checked", "true");
   await expect(page.locator(".workspace-sidebar").getByRole("link", { name: "Codex", exact: true })).toBeVisible();
 
   await page.reload();
-  await expect(visibility.getByRole("button", { name: "Codex Codex", exact: true }).getByRole("switch")).toHaveAttribute("aria-checked", "true");
+  await expect(visibility.getByRole("switch", { name: "Codex", exact: true })).toHaveAttribute("aria-checked", "true");
   await expect(page.locator(".workspace-sidebar").getByRole("link", { name: "Codex", exact: true })).toBeVisible();
 
-  await visibility.getByRole("button", { name: "Codex Codex", exact: true }).click();
+  await visibility.getByRole("switch", { name: "Codex", exact: true }).click();
   await page.reload();
   await expect(page.locator(".workspace-sidebar").getByRole("link", { name: "Codex", exact: true })).toHaveCount(0);
 });
@@ -52,8 +52,8 @@ test("macht Claude Code als optionale CLI-Seite verfügbar", async ({ page }) =>
   await openSurfaceTab(page);
 
   const visibility = settingsSection(page, "Seiten-Sichtbarkeit");
-  const claude = visibility.getByRole("button", { name: "Claude Code Claude Code", exact: true });
-  await expect(claude.getByRole("switch")).toHaveAttribute("aria-checked", "false");
+  const claude = visibility.getByRole("switch", { name: "Claude Code", exact: true });
+  await expect(claude).toHaveAttribute("aria-checked", "false");
   await expect(page.locator(".workspace-sidebar").getByRole("link", { name: "Claude Code", exact: true })).toHaveCount(0);
 
   await claude.click();
