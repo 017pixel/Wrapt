@@ -1,6 +1,5 @@
 /* Notizen: alle Stilmodule des Features an einer Stelle gebündelt. */
 
-@import "katex/dist/katex.min.css";
 @import "./notes.css";
 @import "./note-sidebar.css";
 @import "./note-tree.css";

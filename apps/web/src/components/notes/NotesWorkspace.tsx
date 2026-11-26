@@ -127,26 +127,13 @@ export function NotesWorkspace({ noteId, onSelectNote, windowMode = false }: Not
     (note: NoteSummary) => {
       void (async () => {
         try {
-          const detail = await apiClient.note(note.id);
-          if (!detail?.note) throw new Error("Seite nicht gefunden");
-          const created = await apiClient.createNote({
-            title: `${note.title} Kopie`,
-            parentId: note.parentId,
-            folderId: note.folderId ?? null,
-          });
+          const created = await apiClient.duplicateNote(note.id);
           if (!created?.note) throw new Error("Kopie konnte nicht erstellt werden");
-          if (detail.note.content !== "") {
-            await apiClient.saveNoteContent(created.note.id, {
-              content: detail.note.content,
-              expectedRevision: created.note.revision,
-            });
-          }
-          if (detail.note.icon !== null) await apiClient.updateNote(created.note.id, { icon: detail.note.icon });
           void invalidateNotes();
           onSelectNote(created.note.id);
         } catch {
           void invalidateNotes();
-          showActionError("Die Seite konnte nicht vollständig dupliziert werden.");
+          showActionError("Die Seite konnte nicht dupliziert werden.");
         }
       })();
     },

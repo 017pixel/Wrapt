@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { noteBacklinksSchema, noteHistorySchema, noteKnowledgeResponseSchema, noteKnowledgeSchema, noteRestoreRequestSchema, noteTaskUpdateSchema, noteTasksSchema, saveNoteContentResponseSchema } from "@wrapt/contracts";
+import { noteBacklinksSchema, noteHistoryEntryContentSchema, noteHistorySchema, noteKnowledgeResponseSchema, noteKnowledgeSchema, noteRestoreRequestSchema, noteTaskUpdateSchema, noteTasksSchema, saveNoteContentResponseSchema } from "@wrapt/contracts";
 import type { FastifyInstance } from "fastify";
 import { AppError } from "../utils/errors.js";
 import type { NotesDatabase } from "./database.js";
@@ -12,7 +12,7 @@ export function registerNoteKnowledgeRoutes(app: FastifyInstance, notes: NotesDa
     if (!note) throw new AppError(404, "NOTE_NOT_FOUND", "Diese Notiz wurde nicht gefunden.");
     return note;
   };
-  const activeNotes = () => notes.list().filter((note) => !note.archived).map((note) => requireNote(note.id));
+  const activeNotes = () => notes.activeNotes();
   app.get("/notes/tasks", async () => noteTasksSchema.parse({ tasks: activeNotes().flatMap((note) => noteTasks(note, notes.knowledge.metadata(note.id).projectId)) }));
   app.get("/notes/:noteId/metadata", async (request) => {
     const { noteId } = paramsSchema.parse(request.params); requireNote(noteId);
@@ -24,17 +24,23 @@ export function registerNoteKnowledgeRoutes(app: FastifyInstance, notes: NotesDa
   });
   app.get("/notes/:noteId/backlinks", async (request) => {
     const { noteId } = paramsSchema.parse(request.params); requireNote(noteId);
-    return noteBacklinksSchema.parse({ notes: notes.knowledge.backlinks(noteId, activeNotes()) });
+    return noteBacklinksSchema.parse({ notes: notes.knowledge.backlinks(noteId, notes.backlinkCandidates(noteId)) });
   });
   app.get("/notes/:noteId/history", async (request) => {
     const { noteId } = paramsSchema.parse(request.params); requireNote(noteId);
     return noteHistorySchema.parse({ entries: notes.knowledge.history(noteId) });
   });
+  app.get("/notes/:noteId/history/:entryId", async (request) => {
+    const { noteId, entryId } = paramsSchema.extend({ entryId: z.coerce.number().int().positive() }).parse(request.params);
+    requireNote(noteId);
+    const entry = notes.knowledge.historyEntry(noteId, entryId);
+    if (!entry) throw new AppError(404, "NOTE_HISTORY_NOT_FOUND", "Diese Version wurde nicht gefunden.");
+    return noteHistoryEntryContentSchema.parse({ entry: { id: entryId, ...entry, sizeBytes: Buffer.byteLength(entry.content, "utf8") } });
+  });
   app.post("/notes/:noteId/history/restore", async (request) => {
     const { noteId } = paramsSchema.parse(request.params);
     const body = noteRestoreRequestSchema.parse(request.body);
-    const history = noteHistorySchema.parse({ entries: notes.knowledge.history(noteId) });
-    const entry = history.entries.find((item) => item.id === body.entryId);
+    const entry = notes.knowledge.historyEntry(noteId, body.entryId);
     if (!entry) throw new AppError(404, "NOTE_HISTORY_NOT_FOUND", "Diese Version wurde nicht gefunden.");
     const result = notes.saveContent(noteId, entry.content, body.expectedRevision);
     if (result.status === "saved") result.note = notes.update(noteId, { title: entry.title, expectedRevision: result.note.revision });

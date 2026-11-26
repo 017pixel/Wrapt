@@ -15,6 +15,11 @@ export function NoteKnowledgePanel({ note, onSelect, canRestore = true }: { note
   const metadata = useQuery({ queryKey: ["notes", "metadata", note.id], queryFn: () => api.noteMetadata(note.id), enabled: open });
   const backlinks = useQuery({ queryKey: ["notes", "backlinks", note.id, note.revision], queryFn: () => api.noteBacklinks(note.id), enabled: open });
   const history = useQuery({ queryKey: ["notes", "history", note.id, note.revision], queryFn: () => api.noteHistory(note.id), enabled: open });
+  const version = useQuery({
+    queryKey: ["notes", "history", note.id, "entry", selectedVersion],
+    queryFn: () => api.noteHistoryEntry(note.id, selectedVersion!),
+    enabled: open && selectedVersion !== null,
+  });
   const projects = useQuery({ ...wraptQueries.projects(), enabled: open });
   const update = useMutation({
     mutationFn: api.setNoteMetadata.bind(null, note.id),
@@ -51,11 +56,22 @@ export function NoteKnowledgePanel({ note, onSelect, canRestore = true }: { note
         {history.isError ? <p role="alert">Versionen konnten nicht geladen werden.</p> : null}
         {history.data?.entries.length === 0 ? <p>Noch keine frühere Version.</p> : null}
         {history.data?.entries.map((entry) => <div key={entry.id}>
-          <button type="button" onClick={() => setSelectedVersion(selectedVersion === entry.id ? null : entry.id)}>{entry.title} · {new Date(entry.createdAt).toLocaleString("de-DE")}</button>
-          {selectedVersion === entry.id ? <><pre className="note-history-preview">{entry.content || "Leere Seite"}</pre><button type="button" disabled={restore.isPending || !canRestore} onClick={() => restore.mutate(entry.id)}>Diese Version wiederherstellen</button></> : null}
+          <button type="button" onClick={() => setSelectedVersion(selectedVersion === entry.id ? null : entry.id)}>{entry.title} · {new Date(entry.createdAt).toLocaleString("de-DE")} · {formatBytes(entry.sizeBytes)}</button>
+          {selectedVersion === entry.id ? <>
+            {version.isPending ? <p role="status">Version wird geladen…</p> : null}
+            {version.isError ? <p role="alert">Diese Version konnte nicht geladen werden.</p> : null}
+            {version.data ? <pre className="note-history-preview">{version.data.entry.content || "Leere Seite"}</pre> : null}
+            <button type="button" disabled={restore.isPending || !canRestore} onClick={() => restore.mutate(entry.id)}>Diese Version wiederherstellen</button>
+          </> : null}
         </div>)}
       </details>
       {error ? <p className="note-action-error" role="alert">{error}</p> : null}
     </div> : null}
   </details>;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} kB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }

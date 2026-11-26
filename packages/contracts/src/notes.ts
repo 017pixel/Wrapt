@@ -90,6 +90,13 @@ export const noteResponseSchema = z.object({
   note: noteSchema,
 });
 
+/** Bedingte Detailantwort: unveränderte Revision ohne Volltext. */
+export const noteUnchangedResponseSchema = z.object({
+  unchanged: z.literal(true),
+  revision: z.number().int().min(1),
+});
+export const noteDetailResponseSchema = z.union([noteResponseSchema, noteUnchangedResponseSchema]);
+
 export const createNoteRequestSchema = z.object({
   title: noteTitleSchema.default("Unbenannte Notiz"),
   parentId: noteIdSchema.nullable().default(null),
@@ -144,6 +151,17 @@ export const saveNoteContentResponseSchema = z.object({
   note: noteSchema,
 });
 
+/** Sparantwort nach dem Speichern: nur Revision und Zeitstempel. */
+export const noteSaveSummarySchema = z.object({
+  id: noteIdSchema,
+  revision: z.number().int().min(1),
+  updatedAt: z.iso.datetime({ offset: true }),
+});
+export const saveNoteContentSummaryResponseSchema = z.union([
+  z.object({ status: z.literal("saved"), summary: noteSaveSummarySchema }),
+  z.object({ status: z.literal("conflict"), note: noteSchema }),
+]);
+
 export const noteSearchRangeSchema = z.enum(["any", "today", "week", "month"]);
 
 /**
@@ -171,5 +189,7 @@ export type CreateNoteRequest = z.infer<typeof createNoteRequestSchema>;
 export type UpdateNoteRequest = z.infer<typeof updateNoteRequestSchema>;
 export type SaveNoteContentRequest = z.infer<typeof saveNoteContentRequestSchema>;
 export type SaveNoteContentResponse = z.infer<typeof saveNoteContentResponseSchema>;
+export type NoteDetailResponse = z.infer<typeof noteDetailResponseSchema>;
+export type SaveNoteContentSummaryResponse = z.infer<typeof saveNoteContentSummaryResponseSchema>;
 export type NoteSearchRange = z.infer<typeof noteSearchRangeSchema>;
 export type NoteSearchQuery = z.infer<typeof noteSearchQuerySchema>;

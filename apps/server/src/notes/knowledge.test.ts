@@ -21,13 +21,38 @@ it("erhält frühere Inhalte beim Speichern, Umbenennen und Wiederherstellen", a
   db.saveContent(note.id, "Erste Idee", 1);
   db.saveContent(note.id, "Zweite Idee", 2);
   const entries = (await app.inject(`/notes/${note.id}/history`)).json().entries;
-  expect(entries[0]).toMatchObject({ content: "Erste Idee", revision: 2 });
+  expect(entries[0]).toMatchObject({ revision: 2, sizeBytes: 10 });
+  expect(entries[0].content).toBeUndefined();
+  const version = (await app.inject(`/notes/${note.id}/history/${entries[0].id}`)).json();
+  expect(version.entry).toMatchObject({ content: "Erste Idee", revision: 2 });
   const response = await app.inject({ method: "POST", url: `/notes/${note.id}/history/restore`, payload: { entryId: entries[0].id, expectedRevision: 3 } });
   expect(response.json()).toMatchObject({ status: "saved", note: { content: "Erste Idee" } });
   const conflict = await app.inject({ method: "POST", url: `/notes/${note.id}/history/restore`, payload: { entryId: entries[0].id, expectedRevision: 3 } });
   expect(conflict.json().status).toBe("conflict");
   expect(db.get(note.id)?.content).toBe("Erste Idee");
   await app.close();
+});
+it("begrenzt den Verlauf auf das Byte-Budget und behält die jüngste Fassung", async () => {
+  const { db } = setup();
+  const note = db.create({ title: "Groß", parentId: null });
+  const content = "x".repeat(1_000_000);
+  let revision = 1;
+  for (let index = 0; index < 10; index += 1) {
+    db.saveContent(note.id, content, revision);
+    revision += 1;
+  }
+  expect(db.knowledge.history(note.id).length).toBeLessThanOrEqual(8);
+  expect(db.knowledge.history(note.id).length).toBeGreaterThan(0);
+  expect(db.storageBytes().historyBytes).toBeLessThanOrEqual(8 * 1024 * 1024);
+  expect(db.get(note.id)?.content).toBe(content);
+});
+it("begrenzt den Verlauf auch bei vielen Titeländerungen", async () => {
+  const { db } = setup();
+  const note = db.create({ title: "Titel", parentId: null });
+  for (let index = 0; index < 120; index += 1) {
+    db.update(note.id, { title: `Titel ${index}` });
+  }
+  expect(db.knowledge.history(note.id)).toHaveLength(100);
 });
 it("aktualisiert die Originalaufgabe und schützt fremde Revisionen", async () => {
   const { db, app } = setup();

@@ -213,3 +213,27 @@ describe("NotesDatabase", () => {
     expect(escapeLikePattern("50%_x\\")).toBe("%50\\%\\_x\\\\%");
   });
 });
+
+describe("Notizsuche mit FTS5", () => {
+  it("findet neue Inhalte nach dem Speichern und ignoriert alte", () => {
+    const db = new NotesDatabase(":memory:");
+    const note = db.create({ title: "Rezept", parentId: null });
+    db.saveContent(note.id, "Alter Text mit Mehl", 1);
+    expect(db.search({ q: "Mehl", createdWithin: "any", updatedWithin: "any" } as never).map((entry) => entry.id)).toEqual([note.id]);
+    db.saveContent(note.id, "Neuer Text mit Zucker", 2);
+    expect(db.search({ q: "Mehl", createdWithin: "any", updatedWithin: "any" } as never)).toEqual([]);
+    expect(db.search({ q: "Zucker", titleOnly: false, createdWithin: "any", updatedWithin: "any" }).map((entry) => entry.id)).toEqual([note.id]);
+    db.close();
+  });
+
+  it("bleibt bei Sonderzeichen und Anführungszeichen stabil", () => {
+    const db = new NotesDatabase(":memory:");
+    const note = db.create({ title: "Zeichen", parentId: null });
+    db.saveContent(note.id, "50% _Butter_ und \"Zitat\"", 1);
+    for (const query of ["50%", "_Butter_", "\"Zitat\"", "un*known"]) {
+      expect(() => db.search({ q: query, createdWithin: "any", updatedWithin: "any" } as never)).not.toThrow();
+    }
+    expect(db.search({ q: "50%", titleOnly: false, createdWithin: "any", updatedWithin: "any" }).map((entry) => entry.id)).toEqual([note.id]);
+    db.close();
+  });
+});

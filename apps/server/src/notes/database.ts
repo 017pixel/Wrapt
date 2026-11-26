@@ -15,9 +15,11 @@ import {
   type UpdateNoteRequest,
   type MoveNoteRequest,
 } from "@wrapt/contracts";
+import { NOTE_HISTORY_BUDGET_BYTES } from "@wrapt/contracts";
 import { AppError } from "../utils/errors.js";
 import { normalizeLegacyMediaLinks } from "./legacyMediaLinks.js";
-import { noteSearchRangeStart } from "./searchRange.js";
+import { searchNoteRows, setupNoteSearch } from "./searchEngine.js";
+import { duplicateNoteRecord } from "./duplicateNote.js";
 import { NoteFoldersDatabase } from "./folders.js";
 import { createNoteExcerpt } from "./excerpt.js";
 import { migrateNoteExcerpts, rebuildNoteExcerpts } from "./excerptMigration.js";
@@ -83,6 +85,8 @@ function toSummary(row: SummaryRow, match?: string): NoteSummary {
 
 export class NotesDatabase {
   private readonly db: DatabaseSync;
+  private readonly maintenanceTimer: NodeJS.Timeout;
+  private readonly ftsAvailable: boolean;
   readonly folders: NoteFoldersDatabase;
   readonly knowledge: NoteKnowledgeDatabase;
 
@@ -119,15 +123,33 @@ export class NotesDatabase {
         created_at TEXT NOT NULL
       );
     `);
+    this.ftsAvailable = setupNoteSearch(this.db);
     this.folders = new NoteFoldersDatabase(this.db);
     migrateNoteExcerpts(this.db);
     this.knowledge = new NoteKnowledgeDatabase(this.db);
+    // Verlauf und Konfliktsicherungen werden beim Start und danach stündlich
+    // auf ihr Byte-Budget gebracht. Der Timer hält den Prozess nicht offen.
+    this.maintenance();
+    this.maintenanceTimer = setInterval(() => this.maintenance(), 60 * 60 * 1000);
+    this.maintenanceTimer.unref();
   }
 
   importArchive(archive: NotesArchive) { return importNotesArchive(this.db, this, archive); }
 
   close(): void {
+    clearInterval(this.maintenanceTimer);
     this.db.close();
+  }
+
+  private maintenance(): void {
+    this.knowledge.pruneAll();
+    this.pruneConflictBackups();
+  }
+
+  /** Diagnose: aktuelle Bytebelegung von Verlauf und Konfliktsicherungen. */
+  storageBytes(): { historyBytes: number; conflictBackupBytes: number } {
+    const row = this.db.prepare("SELECT COALESCE(SUM(length(CAST(content AS BLOB))), 0) AS bytes FROM note_conflict_backups").get() as { bytes: number };
+    return { historyBytes: this.knowledge.historyBytes(), conflictBackupBytes: row.bytes };
   }
 
   rebuildExcerpts(): void { rebuildNoteExcerpts(this.db); }
@@ -141,36 +163,21 @@ export class NotesDatabase {
   }
 
   search(input: NoteSearchQuery): NoteSummary[] {
-    const conditions = ["archived = 0"];
-    const params: Array<string> = [];
-    if (input.scopeId !== undefined) {
-      conditions.push(`id IN (
-        WITH RECURSIVE subtree(id) AS (
-          SELECT id FROM notes WHERE id = ?
-          UNION ALL
-          SELECT child.id FROM notes child JOIN subtree parent ON child.parent_id = parent.id
-        )
-        SELECT id FROM subtree
-      )`);
-      params.push(input.scopeId);
-    }
-    const createdAfter = noteSearchRangeStart(input.createdWithin);
-    if (createdAfter !== null) {
-      conditions.push("created_at >= ?");
-      params.push(createdAfter);
-    }
-    const updatedAfter = noteSearchRangeStart(input.updatedWithin);
-    if (updatedAfter !== null) {
-      conditions.push("updated_at >= ?");
-      params.push(updatedAfter);
-    }
-    const rows = this.db
-      .prepare(`SELECT id, title, content, icon, cover_asset_id, parent_id, folder_id, sort_order, favorite, archived, created_at, updated_at
-        FROM notes
-        WHERE ${conditions.join(" AND ")}
-        ORDER BY updated_at DESC`)
-      .all(...params) as unknown as SummaryRow[];
+    const rows = searchNoteRows(this.db, input, this.ftsAvailable);
     return rankNoteMatches(rows, input.q, input.titleOnly).map((row) => toSummary(row, input.q));
+  }
+
+  /** Alle aktiven Notizen in einer Abfrage, ohne N+1 über `list()`. */
+  activeNotes(): Note[] {
+    const rows = this.db.prepare("SELECT * FROM notes WHERE archived = 0").all() as unknown as NoteRow[];
+    return rows.map((row) => toNote(row));
+  }
+
+  /** SQL-Vorfilter für Rückverweise; der Regex bleibt die genaue Prüfung. */
+  backlinkCandidates(noteId: string): Note[] {
+    const rows = this.db.prepare(`SELECT * FROM notes WHERE archived = 0 AND id != ? AND content LIKE ?`)
+      .all(noteId, `%noteId="${noteId}"%`) as unknown as NoteRow[];
+    return rows.map((row) => toNote(row));
   }
 
   get(noteId: string): Note | null {
@@ -188,6 +195,13 @@ export class NotesDatabase {
       .prepare(`INSERT INTO notes (id, title, content, icon, cover_asset_id, parent_id, folder_id, sort_order, favorite, archived, revision, created_at, updated_at)
         VALUES (?, ?, '', NULL, NULL, ?, ?, ?, ?, 0, 1, ?, ?)`)
       .run(id, input.title, input.parentId, input.parentId === null ? input.folderId ?? null : null, sortOrder, input.favorite ? 1 : 0, now, now);
+    return this.get(id)!;
+  }
+
+  /** Atomare Kopie über `duplicateNoteRecord` (Inhalt, Icon, Cover, Metadaten). */
+  duplicate(noteId: string): Note {
+    const source = this.requireNote(noteId);
+    const id = duplicateNoteRecord(this.db, source, this.nextSortOrder(source.parentId));
     return this.get(id)!;
   }
 
@@ -224,6 +238,7 @@ export class NotesDatabase {
           new Date().toISOString(),
           noteId,
         );
+      this.afterWrite(noteId);
       return this.get(noteId)!;
     }
     const changed = this.db
@@ -246,6 +261,7 @@ export class NotesDatabase {
       this.writeMetadataConflictBackup(noteId, input, input.expectedRevision, current.revision);
       throw new AppError(409, "NOTE_REVISION_CONFLICT", "Diese Notiz wurde anderweitig geändert. Bitte aktualisiere die Ansicht und versuche es erneut.");
     }
+    this.afterWrite(noteId);
     return this.get(noteId)!;
   }
 
@@ -280,6 +296,7 @@ export class NotesDatabase {
     this.db
       .prepare("UPDATE notes SET content=?, excerpt=?, revision=revision+1, updated_at=? WHERE id=?")
       .run(content, createNoteExcerpt(content), new Date().toISOString(), noteId);
+    this.afterWrite(noteId);
     return { status: "saved", note: this.get(noteId)! };
   }
 
@@ -325,10 +342,34 @@ export class NotesDatabase {
     }
   }
 
-  private pruneConflictBackups(): void {
+  /** Räumt nach jedem Schreibvorgang die Budgets dieser Notiz auf. */
+  private afterWrite(noteId: string): void {
+    this.knowledge.pruneHistory(noteId);
+    this.pruneConflictBackups(noteId);
+  }
+
+  /**
+   * Konfliktsicherungen behalten höchstens 100 Zeilen global und maximal
+   * 8 MB pro Notiz; älteste Einträge fallen zuerst weg.
+   */
+  private pruneConflictBackups(noteId?: string): void {
     this.db.prepare(`DELETE FROM note_conflict_backups WHERE id NOT IN (
       SELECT id FROM note_conflict_backups ORDER BY id DESC LIMIT 100
     )`).run();
+    const scope = noteId === undefined
+      ? this.db.prepare("SELECT note_id, id, length(CAST(content AS BLOB)) AS bytes FROM note_conflict_backups ORDER BY note_id, id ASC").all()
+      : this.db.prepare("SELECT note_id, id, length(CAST(content AS BLOB)) AS bytes FROM note_conflict_backups WHERE note_id = ? ORDER BY id ASC").all(noteId);
+    const totals = new Map<string, number>();
+    for (const row of scope as unknown as Array<{ note_id: string; id: number; bytes: number }>) {
+      totals.set(row.note_id, (totals.get(row.note_id) ?? 0) + row.bytes);
+    }
+    const remove = this.db.prepare("DELETE FROM note_conflict_backups WHERE id = ?");
+    for (const row of scope as unknown as Array<{ note_id: string; id: number; bytes: number }>) {
+      const total = totals.get(row.note_id) ?? 0;
+      if (total <= NOTE_HISTORY_BUDGET_BYTES) continue;
+      remove.run(row.id);
+      totals.set(row.note_id, total - row.bytes);
+    }
   }
 
   /**

@@ -7,8 +7,11 @@ import {
   noteFolderResponseSchema,
   moveNoteRequestSchema,
   noteResponseSchema,
+  noteUnchangedResponseSchema,
   noteSearchQuerySchema,
+  saveNoteContentSummaryResponseSchema,
   notesListResponseSchema,
+  NOTE_CONTENT_MAX_CHARACTERS,
   saveNoteContentRequestSchema,
   saveNoteContentResponseSchema,
   updateNoteRequestSchema,
@@ -58,11 +61,18 @@ export async function registerNotesRoutes(
 
   app.get("/notes/:noteId", async (request) => {
     const { noteId } = noteParamsSchema.parse(request.params);
+    const sinceRevision = z.object({ sinceRevision: z.coerce.number().int().min(1).optional() }).parse(request.query).sinceRevision;
     return pluginRouteOperation(services, request, "notes.get", { noteId }, () => {
       const note = services.notes.get(noteId);
       if (!note) throw notFound();
+      if (sinceRevision !== undefined && sinceRevision === note.revision) return noteUnchangedResponseSchema.parse({ unchanged: true, revision: note.revision });
       return noteResponseSchema.parse({ note });
     });
+  });
+
+  app.post("/notes/:noteId/duplicate", async (request, reply) => {
+    const { noteId } = noteParamsSchema.parse(request.params);
+    return reply.status(201).send(await pluginRouteOperation(services, request, "notes.duplicate", { noteId }, () => noteResponseSchema.parse({ note: services.notes.duplicate(noteId) })));
   });
 
   app.patch("/notes/:noteId", async (request) => {
@@ -77,10 +87,14 @@ export async function registerNotesRoutes(
     return pluginRouteOperation(services, request, "notes.move", { noteId, changes }, () => noteResponseSchema.parse({ note: services.notes.move(noteId, changes) }));
   });
 
-  app.put("/notes/:noteId/content", async (request) => {
+  app.put("/notes/:noteId/content", { bodyLimit: NOTE_CONTENT_MAX_CHARACTERS * 4 + 1_048_576 }, async (request) => {
     const { noteId } = noteParamsSchema.parse(request.params);
     const input = saveNoteContentRequestSchema.parse(request.body);
+    const summary = z.object({ response: z.enum(["summary"]).optional() }).parse(request.query).response === "summary";
     const result = await pluginRouteOperation(services, request, "notes.saveContent", { noteId, changes: input }, () => services.notes.saveContent(noteId, input.content, input.expectedRevision));
+    if (summary && result.status === "saved") {
+      return saveNoteContentSummaryResponseSchema.parse({ status: "saved", summary: { id: result.note.id, revision: result.note.revision, updatedAt: result.note.updatedAt } });
+    }
     return saveNoteContentResponseSchema.parse(result);
   });
 

@@ -1,3 +1,4 @@
+import "katex/dist/katex.min.css";
 import { useNotePosition } from "./editor/useNotePosition";
 import { MobileNoteToolbar } from "./editor/MobileNoteToolbar";
 import { rememberNotePosition, restoreNotePosition } from "./editor/editorBookmarks";

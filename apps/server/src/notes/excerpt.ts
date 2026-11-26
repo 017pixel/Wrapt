@@ -1,5 +1,8 @@
 import { NOTE_EXCERPT_MAX_LENGTH } from "@wrapt/contracts";
 
+/** Große Notizen werden für den Excerpt nur im Präfix gelesen. */
+export const NOTE_EXCERPT_SCAN_BYTES = 16_384;
+
 /** Reiner Text einer Notiz: Markdown-Zeichen fallen weg, Code zählt nicht. */
 function notePlainText(content: string): string {
   return content
@@ -20,8 +23,20 @@ function notePlainText(content: string): string {
  * Treffer, damit Suchergebnisse den Fundort zeigen.
  */
 export function createNoteExcerpt(content: string, match?: string): string {
-  const plain = notePlainText(content);
-  const needle = match?.trim().toLowerCase() ?? "";
+  // Fast Path: 200 Klartextzeichen stehen fast immer in den ersten 16 KB.
+  // Reicht das Präfix nicht (z. B. ein langer führender Codeblock), fällt die
+  // Funktion einmalig auf den bisherigen Vollscan zurück.
+  if (content.length > NOTE_EXCERPT_SCAN_BYTES) {
+    const prefix = notePlainText(content.slice(0, NOTE_EXCERPT_SCAN_BYTES));
+    const needle = match?.trim().toLowerCase() ?? "";
+    if (prefix.length >= NOTE_EXCERPT_MAX_LENGTH && (needle === "" || prefix.toLowerCase().includes(needle))) {
+      return excerptFromPlain(prefix, needle);
+    }
+  }
+  return excerptFromPlain(notePlainText(content), match?.trim().toLowerCase() ?? "");
+}
+
+function excerptFromPlain(plain: string, needle: string): string {
   if (needle === "") return plain.slice(0, NOTE_EXCERPT_MAX_LENGTH);
   const index = plain.toLowerCase().indexOf(needle);
   if (index === -1) return plain.slice(0, NOTE_EXCERPT_MAX_LENGTH);
