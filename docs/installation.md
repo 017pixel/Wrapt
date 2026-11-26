@@ -221,8 +221,8 @@ Der Installer:
 - sichert vorhandene User-Units,
 - installiert und startet `wrapt.service`, dazu `code-server.service`, wenn eine
   code-server-Binary im `PATH` liegt,
-- aktiviert die Units für T3 Code, OpenCode Web (nur bei vorhandener Binary) und den
-  tmux-Terminal-Supervisor,
+- aktiviert die Units für T3 Code und den tmux-Terminal-Supervisor sowie OpenCode Web,
+  wenn `opencodeWeb.enabled` gesetzt ist und eine Binary vorhanden ist,
 - prüft den Health-Endpunkt.
 
 Der Lauf verändert aktive Dienste. Starte ihn nur, wenn der Dienstwechsel gewollt ist.
@@ -233,8 +233,10 @@ Für den normalen Betrieb ist kein `sudo` nötig. Die kanonische Unit liegt unte
 T3 Code und OpenCode Web werden beim ersten Backend-Neustart vollständig eingerichtet und
 gestartet (Unit-Sicherung, Prozessstart, Healthcheck; T3 Code installiert bei Bedarf das
 npm-Paket): Einstellungen → „Dienst neu starten“, `bash scripts/restart-backend.sh` oder
-`bash scripts/restart-all.sh`. Sofort nur für T3 Code: `bash scripts/sync-t3-channel.sh`,
-für OpenCode Web: `bash scripts/sync-opencode-web.sh`.
+`bash scripts/restart-all.sh`. OpenCode Web ist optional und standardmäßig aus; der
+Neustart überspringt es, solange `opencodeWeb.enabled` nicht `true` ist. Sofort nur für
+T3 Code: `bash scripts/sync-t3-channel.sh`, für OpenCode Web:
+`bash scripts/sync-opencode-web.sh`.
 
 Status und Logs:
 
@@ -341,8 +343,7 @@ Die User-Units lassen sich ohne Datenlöschung stoppen und deaktivieren:
 systemctl --user disable --now wrapt.service wrapt-terminal-supervisor.service
 ```
 
-Optionale Units wie `code-server.service`, `t3-code.service`, `opencode-web.service` und
-`codexbar.service` nur mit entfernen, wenn sie nicht anderweitig gebraucht werden.
+Optionale Units wie `code-server.service`, `t3-code.service`, `opencode-web.service` und `codexbar.service` nur mit entfernen, wenn sie nicht anderweitig gebraucht werden.
 Repository, `config/wrapt.local.json`, `.env` und `dataDir` bleiben dabei erhalten.
 Lösche persistierte Daten nur nach einer eigenen Sicherung und bewussten Prüfung der in
 `paths` konfigurierten Ziele.

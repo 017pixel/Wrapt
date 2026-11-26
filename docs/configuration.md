@@ -21,7 +21,7 @@ Konfigurationsquelle für alles Umgebungsspezifische:
 - `notifications` — Aufbewahrung, Erkennungsschwellen sowie Push-Regeln pro Quelle.
 - `previews` — interne Loopback-Listener, zugehörige öffentliche Tailscale-HTTPS-Ports und die Feature-Flags der Preview-Laufzeit (siehe unten).
 - `hermes` — Loopback-Dashboard, ACP-Chat, User-Units, Updatezeit und serverseitige Betriebsgrenzen.
-- `opencodeWeb` — offizielle OpenCode-Web-UI als Loopback-Dienst hinter `/opencode`.
+- `opencodeWeb` — optionale offizielle OpenCode-Web-UI als Loopback-Dienst hinter `/opencode`; standardmäßig aus.
 
 Der Server (`apps/server/src/config/settings.ts`) und der Vite-Build (`apps/web/vite.config.ts`)
 lesen diese Datei beim Start; fehlt sie, wird auf `config/wrapt.example.json` zurückgegriffen.
@@ -120,13 +120,16 @@ zum Hermes-Integrationspfad.
 
 ## OpenCode Web
 
-Die offizielle OpenCode-Web-UI läuft als eigene User-Unit `opencode-web.service` auf Loopback und
-wird ausschließlich über `/opencode` in die Wrapt eingebettet. Die CLI und die Web-UI verwenden
-dasselbe OpenCode-Home; Sessions, Verlauf und der aktive Account bleiben dadurch kompatibel.
+Die offizielle OpenCode-Web-UI ist optional und standardmäßig **aus**. Erst
+`opencodeWeb.enabled: true` registriert den `/opencode`-Proxy und die zugehörige
+Navigation; ohne Freigabe existiert die Route nicht und die Oberfläche zeigt keinen
+Eintrag. Die CLI und die Web-UI verwenden dasselbe OpenCode-Home; Sessions, Verlauf und
+der aktive Account bleiben dadurch kompatibel.
 
 ```json
 {
   "opencodeWeb": {
+    "enabled": false,
     "host": "127.0.0.1",
     "port": 3774,
     "cliPath": "/home/your-user/.npm-global/bin/opencode",
@@ -140,9 +143,12 @@ dasselbe OpenCode-Home; Sessions, Verlauf und der aktive Account bleiben dadurch
 
 `host` muss Loopback sein. Der Dienst hat bewusst kein eigenes Passwort, weil er nicht direkt
 veröffentlicht wird; der Wrapt-Proxy prüft die erlaubte Tailscale-Identität. Bei einem Backend-
-Neustart stellt `scripts/sync-opencode-web.sh` die Unit sicher, beendet veraltete Prozesse und
-wartet auf den HTTP-Healthcheck. Die Unit wird mit `scripts/install-opencode-web-unit.sh` installiert.
-Nach Änderungen an Port oder Binary ist ein Backend-Neustart erforderlich.
+Neustart stellt `scripts/sync-opencode-web.sh` die Unit nur bei aktivierter Funktion sicher,
+beendet veraltete Prozesse und wartet auf den HTTP-Healthcheck. Bei deaktivierter Funktion
+startet das Skript nichts und stoppt eine vorhandene Unit. Die Unit wird mit
+`scripts/install-opencode-web-unit.sh` installiert; auch dieses Skript bricht bei deaktivierter
+Funktion ab. Nach Änderungen an `enabled`, Port oder Binary ist ein Backend-Neustart erforderlich.
+`OPENCODE_WEB_ENABLED=true` überschreibt den Config-Wert ohne Änderung der lokalen Datei.
 
 ## Benachrichtigungen
 
@@ -288,6 +294,13 @@ Der Projektpfad wird zentral konfiguriert:
   }
 }
 ```
+
+Auch T3 Code legt neue Projekte und Klone unter diesem Root ab. Wrapt setzt dafür beim T3-Start
+`addProjectBaseDirectory` in `~/.t3/userdata/settings.json` auf denselben Wert
+(`scripts/sync-t3-project-settings.mjs`). T3 beobachtet die Datei und übernimmt den Wert ohne
+Neustart. Wer `paths.projectsRoot` ändert, löst danach einen Backend-Neustart aus, damit der
+Abgleich erneut läuft. Bestehende T3-Projekte behalten ihren bisherigen Pfad und müssen bewusst
+umgezogen werden.
 
 Manuell ausgewählte Ordner werden in der lokalen `DATABASE_PATH`-SQLite-Datei gespeichert. Ihre stabilen Projekt-IDs bleiben über Browser- und Serverneustarts erhalten. Die erlaubte Browser-Root muss absolut sein; die Seitengröße liegt zwischen 1 und 500.
 
@@ -499,5 +512,9 @@ CLAUDE_MAX_SESSIONS=4
 TERMINAL_SUPERVISOR=tmux
 TMUX_PATH=/usr/bin/tmux
 ```
+
+Der dedizierte tmux-Socket liegt standardmäßig unter `$XDG_RUNTIME_DIR/wrapt/tmux.sock`, auf Linux ohne gesetzte Variable unter `/run/user/<UID>/wrapt/tmux.sock`. Ein eigener absoluter Pfad lässt sich zentral über `terminal.socketPath` setzen, zum Beispiel `/run/user/1000/wrapt/tmux.sock`.
+
+`TMUX_SOCKET_PATH` bleibt als kompatible Env-Überschreibung aktiv und hat Vorrang vor `terminal.socketPath`. Für dauerhafte Änderungen ist `terminal.socketPath` der richtige Ort: Der Unit-Renderer liest die Config, aber keine `.env`. Wer die Env-Variable nutzt, muss sie beim Installer-Lauf in der Shell exportiert haben. Backend und gerenderte Supervisor-Unit verwenden denselben Pfad; ein eigener Pfad muss absolut sein, sonst brechen Installer und Unit-Renderer ab. Die Unit legt `$XDG_RUNTIME_DIR/wrapt` über `RuntimeDirectory` mit Modus `0700` an. Nach einer Pfadänderung muss die Unit neu installiert und der Backend neu gestartet werden; bestehende tmux-Sitzungen auf dem alten Socket werden nicht automatisch umgezogen. Der Backend-Start prüft den Supervisor und bricht ab, wenn er sich nicht starten oder verifizieren lässt; so entsteht kein Backend ohne erreichbaren tmux-Server, bei dem jedes Terminal erst später scheitert.
 
 Alle drei Programme starten ohne automatische Bypass- oder Auto-Approve-Optionen. Projektpfade werden wie beim normalen Terminal ausschließlich aus einer validierten Projekt-ID ermittelt. Claude Code nutzt für das Standardkonto die vorhandene Anmeldung unter `~/.claude`; isolierte Zusatzprofile werden über `CLAUDE_CONFIG_DIR` getrennt.

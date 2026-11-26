@@ -77,6 +77,7 @@ Antworten aus Schritt 1 ein. Bedeutung der Felder:
 | `codexbar.configPath` / `oauthProfileHomes` | CodexBar-Konfiguration und optionale OAuth-Profile. |
 | `plugins.wraptPluginsSkillPath` | Optionaler absoluter Ersatzpfad für die `$wrapt-plugins`-Anleitung. Ohne Wert nutzt Wrapt den mitgelieferten Skill; `creatorSkillPath` bleibt als alter Schlüssel kompatibel. |
 | `hermes.*` | Nur bei Hermes-Anbindung. `cliPath`, `homeDirectory`, `checkoutDirectory` und `pythonPath` trägt `scripts/install-hermes.sh` automatisch ein. |
+| `opencodeWeb.*` | Optionale OpenCode-Web-UI hinter `/opencode`. Standardmäßig aus; erst `enabled: true` registriert Proxy, Navigation und systemd-Unit. |
 
 ### b) `.env`
 Kopiere `.env.example` nach `.env`. Hier gehören **nur Secrets und neutrale Runtime-Knöpfe**
@@ -135,16 +136,19 @@ sudo bash deploy/systemd/install-codexbar.sh
 Die systemd-Units werden aus den Templates in `deploy/systemd/units/` gerendert und mit den
 Werten aus `config/wrapt.local.json` gefüllt (siehe `deploy/systemd/render-units.mjs`).
 Der Installationslauf baut, installiert und startet `wrapt.service` (und `code-server.service`,
-falls vorhanden) und aktiviert die Units für den tmux-Terminal-Supervisor, T3 Code und
-OpenCode Web. Den Supervisor startet das Backend selbst; ohne OpenCode-Binary wird dessen
-Unit bewusst übersprungen. Ein Coding-Agent führt den Lauf nur aus, nachdem der Benutzer den
-Dienstwechsel ausdrücklich bestätigt hat.
+falls vorhanden) und aktiviert die Units für den tmux-Terminal-Supervisor und T3 Code.
+OpenCode Web ist optional und standardmäßig aus; seine Unit wird nur bei
+`opencodeWeb.enabled: true` installiert oder aktiviert. Den Supervisor startet das Backend
+selbst; ohne OpenCode-Binary wird dessen Unit bewusst übersprungen. Ein Coding-Agent führt
+den Lauf nur aus, nachdem der Benutzer den Dienstwechsel ausdrücklich bestätigt hat.
 
 T3 Code und OpenCode Web sind danach noch nicht gestartet. Sie richten sich beim ersten
 Backend-Neustart selbst ein (Unit-Sicherung, Prozessstart, Healthcheck; T3 Code installiert
 bei Bedarf das npm-Paket) — auslösen über Einstellungen → „Dienst neu starten“ oder
-`bash scripts/restart-backend.sh`. Sofort nur für T3 Code: `bash scripts/sync-t3-channel.sh`,
-für OpenCode Web: `bash scripts/sync-opencode-web.sh`. Vor einem Backend-Neustart muss der
+`bash scripts/restart-backend.sh`. OpenCode Web bleibt dabei aus, solange
+`opencodeWeb.enabled` nicht `true` ist. Sofort nur für T3 Code:
+`bash scripts/sync-t3-channel.sh`, für OpenCode Web: `bash scripts/sync-opencode-web.sh`.
+Vor einem Backend-Neustart muss der
 Agent die Neustartregel aus `AGENTS.md` beachten und den Benutzer fragen. Ohne bestätigten
 Neustart bleiben diese optionalen Dienste zunächst nur eingerichtet beziehungsweise aktiviert.
 
@@ -200,8 +204,9 @@ werden dabei nie gelöscht, sondern verschoben und gesichert.
 4. **Terminal/Previews/Usage** laden ohne Fehler; ein Terminal lässt sich unter einer
    erlaubten Root öffnen.
 5. **Optionale Dienste:** `systemctl --user is-active wrapt-terminal-supervisor.service`
-   und bei Bedarf `code-server.service` und `hermes-dashboard.service`. T3 Code und
-   OpenCode Web erst nach dem bestätigten ersten Backend-Neustart als aktiv erwarten.
+   und bei Bedarf `code-server.service` und `hermes-dashboard.service`. T3 Code erst nach
+   dem bestätigten ersten Backend-Neustart als aktiv erwarten. OpenCode Web ist
+   standardmäßig aus und wird nur bei `opencodeWeb.enabled: true` eingerichtet.
 
 Melde dem Benutzer am Ende kurz: Was läuft, welche optionalen Dienste aktiv sind und
 welche Werte in `config/wrapt.local.json` gesetzt wurden (ohne Secrets auszugeben).

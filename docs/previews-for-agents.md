@@ -60,7 +60,7 @@ Regeln gelten für Coding-Agenten, die neben aktiven Previews arbeiten.
   startet ihn die Wrapt selbst wieder (Auto-Restart mit Backoff).
 - Eigene Testserver nur auf freien Ports starten. Vorher prüfen, ob der gewünschte Port von
   einem aktiven Preview genutzt wird: lokale Portübersicht in der Wrapt (Dashboard →
-  „Lokale Ports") oder `GET /api/v1/services/ports`. Ein Port, auf dem ein Preview-Devserver
+  „Lokale Ports") oder `GET /api/v1/local-ports`. Ein Port, auf dem ein Preview-Devserver
   lauscht, ist tabu.
 - Preview-Sessions des Nutzers werden nicht geschlossen (`DELETE /api/v1/previews/sessions/...`
   und `/previews/sessions/by-key/...`), und direkte Slot-Zuweisungen werden nicht geändert
@@ -74,6 +74,32 @@ Regeln gelten für Coding-Agenten, die neben aktiven Previews arbeiten.
   Hub-Status (`/api/v1/previews/doctor/status`) lesen und das Ergebnis dem Nutzer melden.
   Der Slot erholt sich von selbst, sobald der Devserver wieder läuft; die 502-Seite lädt sich
   dann automatisch neu.
+
+## Live-Updates und Pfad-Parität
+
+- Wrapt startet die Laufzeit im registrierten Projektpfad. Ein zweiter Klon oder
+  ein Worktree wird nicht beobachtet; Änderungen dort erscheinen nie in der
+  Preview, auch nicht nach einem harten Reload. Vor dem Editieren den Pfad aus
+  `GET /api/v1/projects` und `services[].workingDirectory` im Profil mit dem
+  eigenen Arbeitsverzeichnis vergleichen.
+- Neue Projekte werden in T3 Code unter `paths.projectsRoot` angelegt. Wrapt
+  gleicht T3 Codes Projektbasis beim Start automatisch damit ab. Ein von Hand
+  außerhalb dieses Roots angelegter Ordner wird nicht automatisch erkannt; er
+  muss in Wrapt registriert oder nach `paths.projectsRoot` verschoben werden.
+- Vite-HMR läuft über einen WebSocket auf der Slot-Origin. Der Gateway leitet
+  ihn am Root weiter; `hmr.clientPort` und zusätzliche Tailscale-Regeln sind
+  nicht nötig.
+- HMR nur abschalten, wenn es fachlich nötig ist: kein `server.hmr: false`,
+  kein `DISABLE_HMR=true`, kein lokales `hmr.host`/`hmr.port`/`hmr.clientPort`.
+  `hmr.protocol` bleibt unset oder `wss`.
+- Die Preview muss den Dev-Server zeigen, nicht `vite preview`, ein gebautes
+  `dist` oder einen statischen Dateiserver. Nur der Dev-Server liefert HMR.
+- In der Browser-Konsole bestätigen `[vite] connecting...` und
+  `[vite] connected` die Verbindung. Fehlt `connected`, zuerst HMR-Konfiguration
+  und den laufenden Dienst prüfen, nicht die App neu bauen.
+- Ein Service Worker aus einer früheren Produktions-Preview kann alte
+  `/assets/` liefern. Bei hartnäckigem Cache die Preview-Session zurücksetzen
+  oder den Service Worker im Browser abmelden.
 
 ## Zugriff auf Preview-Logs (max. sieben Tage)
 

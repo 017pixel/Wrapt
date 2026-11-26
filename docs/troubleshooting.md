@@ -54,6 +54,11 @@ Nachweis läuft mit `pnpm test:extension-deployment` und verändert keine aktive
 
 ## Terminal verbindet nicht
 
+- `XDG_RUNTIME_DIR=/run/user/$(id -u) systemctl --user status wrapt-terminal-supervisor.service` und `journalctl --user -u wrapt-terminal-supervisor.service -n 100 --no-pager` prüfen.
+- `active(exited)` allein bedeutet nicht, dass der Supervisor gesund ist. `tmux -S /run/user/$(id -u)/wrapt/tmux.sock has-session -t wrapt-supervisor` muss erfolgreich sein; bei einem eigenen Socket den konfigurierten Pfad verwenden.
+- Fehlt der tmux-Server, stellt `bash scripts/install-terminal-supervisor-unit.sh` die Unit wieder her. Das Skript erkennt `active(exited)` und startet in diesem Fall neu. Der Installer führt es vor dem Wrapt-Start aus.
+- Kann der Supervisor nicht verifiziert werden, bricht der nächste Backend-Start mit „Der Terminal-Supervisor konnte nicht gestartet werden.“ ab. Dann zuerst die Unit reparieren, statt nur das Backend neu zu starten.
+- Ein eigener `terminal.socketPath` beziehungsweise `TMUX_SOCKET_PATH` muss absolut sein und in Backend, Unit und Installer übereinstimmen.
 - `journalctl --user -u wrapt.service -n 100 --no-pager` auf WebSocket- oder PTY-Fehler prüfen.
 - Sicherstellen, dass `TERMINAL_ALLOWED_USERS` den Tailscale-Login in Kleinschreibung enthält.
 - Der Server muss mit `@fastify/websocket` v11 den Socket direkt verwenden; `connection.socket` ist die alte API und führt zu Code 1006.
@@ -69,6 +74,11 @@ Nachweis läuft mit `pnpm test:extension-deployment` und verändert keine aktive
 
 ### OpenCode Web
 
+OpenCode Web ist optional und standardmäßig aus. Zuerst prüfen, ob
+`config/wrapt.local.json` unter `opencodeWeb` den Wert `"enabled": true` hat; ohne ihn
+existiert weder der `/opencode`-Proxy noch der Navigationseintrag, und es muss nichts
+repariert werden.
+
 - `XDG_RUNTIME_DIR=/run/user/$(id -u) systemctl --user status opencode-web.service` und
   `journalctl --user -u opencode-web.service -n 100 --no-pager` prüfen.
 - `curl -f http://127.0.0.1:3774/` muss die OpenCode-Web-Seite liefern; Port und Binary stehen in
@@ -77,7 +87,9 @@ Nachweis läuft mit `pnpm test:extension-deployment` und verändert keine aktive
   `/opencode` erfolgen. Die Wrapt-Bridge scoped absolute OpenCode-API-, Asset- und
   WebSocket-URLs; ein direktes Einbetten des Loopback-Ports umgeht diese Route.
 - Nach einem Binary-, Port- oder Unit-Änderung `bash scripts/install-opencode-web-unit.sh` und
-  anschließend `bash scripts/restart-backend.sh` ausführen.
+  anschließend `bash scripts/restart-backend.sh` ausführen. Bei deaktivierter Funktion
+  stoppen `install-opencode-web-unit.sh` und `sync-opencode-web.sh` eine vorhandene Unit,
+  statt sie neu zu starten.
 
 ## Projekt fehlt
 

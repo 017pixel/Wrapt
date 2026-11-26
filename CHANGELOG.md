@@ -2,6 +2,119 @@
 
 Alle relevanten Änderungen werden in kurzen Stichpunkten dokumentiert.
 
+## [3.4.0] - 2026-11-26
+
+### Erstellt
+- Das Dashboard zeigt jetzt einen dichten Überblick über Server, Wrapt, laufende Projekte und Nutzung mit mehreren Kennzahlen auf einen Blick.
+- Ein neuer Bereich bündelt Wrapt-Version, Update-Stand, T3 Code, Hermes, Dienste, Builds, Backups und Ereignisse mit direkten Links zu den Einstellungen.
+- Der Messverlauf der letzten Stunde zeigt CPU, Arbeitsspeicher, Netzwerk und Festplatten-I/O. Die umschaltbaren Reihen nutzen echte Messzeitpunkte.
+- Serverdiagnose und laufende Arbeit bleiben auf der Startseite sichtbar, ohne destruktive Aktionen auszuführen.
+
+### Verändert
+- Die Serveransicht zeigt CPU-Kerne, Temperaturen, Netzwerk, Festplatten-I/O und die fünf Prozesse mit der höchsten Last.
+- Fehlgeschlagene Aktualisierungen lassen vorhandene Werte sichtbar und kennzeichnen sie als veraltet, statt sie zu verbergen.
+- Dashboard-Bereiche lassen sich ein-/ausblenden und in ihrer Reihenfolge ändern.
+- Der Verlauf wird im Server gesammelt und nicht mehr im Browser gespeichert. Alte gespeicherte Messpunkte werden beim Start entfernt.
+- Update-Stand, Dienste und Ereignisse bleiben näher an der tatsächlichen Serverzeit und zeigen veraltete Daten ausdrücklich an.
+
+### Behoben
+- Komponenten-Styles laden nach einem Update wieder zuverlässig. Die Layer-Reihenfolge steht jetzt vor jedem Stylesheet, dadurch überschreibt der Browser-Reset keine Abstände, Rahmen und Paddings mehr.
+- Bekannte Sicherheitslücken in Server- und UI-Abhängigkeiten sind geschlossen.
+
+### Gelöscht
+- Die bisherige Browser-Speicherung des Messverlaufs und die zugehörige Hintergrundkomponente sind entfernt.
+- Lösch- und Beenden-Buttons für Terminals sind von der Dashboard-Übersicht in die Verwaltungsseiten gewandert.
+
+---
+
+## [3.3.0] - 2026-11-26
+
+### Erstellt
+- Terminal-Sitzungen überleben einen Wrapt-Neustart und werden nach einem Supervisor-Ausfall automatisch wiederhergestellt.
+- Ein eigener Wiederherstellungsmonitor erkennt abgestürzte oder verschwundene tmux-Panes und startet sie mit wachsenden Pausen neu.
+- Eingaben während eines automatischen Neustarts werden begrenzt zwischengespeichert und danach geordnet zugestellt.
+
+### Verändert
+- Der Terminal-Supervisor richtet seinen Runtime-Ordner selbst ein, repariert eine aktive, aber leere systemd-Unit und prüft den Server nach dem Start.
+- Ein optionaler Socket-Pfad lässt sich zentral konfigurieren; Backend und systemd-Unit verwenden dieselbe Quelle.
+- Terminals verbinden sich nach einem Backend-Neustart schneller wieder und übernehmen den aktuellen tmux-Bildschirm statt alter Deltas.
+- Workspace-Änderungen werden auch nach verlorenen Antworten ohne Doppelkonflikte gespeichert; beschädigte Offline-Operationen blockieren den Start nicht mehr.
+- Fehlgeschlagene oder doppelte Terminalhinweise erscheinen im Split-View nur einmal und verschwinden beim Parken oder Schließen.
+
+### Behoben
+- Ein Verbindungsabbruch beendet keine gesunde Shell mehr; nur ein echter Pane-Absturz löst einen Neustart aus.
+- Geschlossene Terminals tauchen nach einem Reconnect nicht wieder auf, und ein API-Neustart erreicht die offene Anzeige zuverlässig.
+- Ein Close während einer laufenden Wiederherstellung hinterlässt keine verwaisten Panes oder Geistersitzungen.
+- Ein fehlgeschlagener tmux-Start blockiert nicht mehr die gesamte Workbench.
+- Eingaben, Backspace und Sondertasten gehen während der Snapshot-Wiedergabe nicht mehr in falscher Reihenfolge verloren.
+
+## [3.2.5] - 2026-11-19
+
+### Behoben
+- T3-Code-Uploads über 1 MiB kommen wieder an: Der T3-Proxy hat jetzt ein eigenes Limit von 64 MiB. Zuvor griff Fastifys globales 1-MiB-Limit und lehnte zum Beispiel 2,1-MB-Screenshots mit 413 ab.
+
+### Verändert
+- OpenCode Web ist optional und standardmäßig aus. Erst `opencodeWeb.enabled: true` registriert den `/opencode`-Proxy, den Navigationseintrag und die systemd-Unit. Installations- und Sync-Skripte überspringen die Funktion sonst; `install-opencode-web-unit.sh` und `sync-opencode-web.sh` stoppen dabei eine vorhandene Unit.
+- Neue Projekte in T3 Code landen standardmäßig unter `/projects`. Wrapt gleicht dafür T3 Codes Projektbasis beim Start ab, damit Agent und Preview denselben Ordner verwenden.
+
+## [3.2.4] - 2026-11-19
+
+### Verändert
+- Preview-Laufzeiten starten ohne vorgeschaltete Befehlsfreigabe. Der Dialog „Befehl bestätigen" und der dauerhafte Vertrauenshinweis über den Diensten entfallen.
+- Jeder Preview-Dienst zeigt seinen absoluten Arbeitsordner. So ist sofort erkennbar, welcher Klon oder Worktree tatsächlich läuft.
+
+## [3.2.3] - 2026-11-19
+
+### Behoben
+- Der Wechsel zwischen aufgeklappter und kompakter Seitenleiste verschiebt die Icons nicht mehr vertikal. Sektionsköpfe behalten ihre Höhe, nur Beschriftung und Strich tauschen sich aus.
+- Unter 176 px klappt die Leiste beim Loslassen direkt auf die schmale Icon-Spalte ein. Alte gespeicherte 176-px-Stände starten eingeklappt, damit kein breiter Kompaktmodus mit leerem Raum mehr entsteht.
+- Die Striche im Kompaktmodus sitzen mittig auf derselben Achse wie die Icons. Ein Klick auf den Strich klappt die zugehörige Sektion ein und wieder aus.
+- Die kurze Trennlinie unter dem Favicon ist entfernt.
+
+## [3.2.2] - 2026-11-19
+
+### Verändert
+- Der Wechsel zwischen breiter und kompakter Seitenleiste läuft flüssig. Icons, Logo und Workspace-Kürzel bleiben in jedem Zustand links ausgerichtet und springen nicht mehr in die Mitte.
+- Beim Ziehen bleibt nur die Breite selbst ohne Übergang. Texte, Icons und Sektionsköpfe blenden weiterhin weich aus, dadurch wirkt das Umschalten in den Kompaktmodus nicht mehr abrupt.
+- Die durchgehenden Trennlinien unter dem Logo und über dem Footer entfallen. Stattdessen sitzen kurze Striche an der Icon-Spalte, im Kompaktmodus auch für die Sektionsköpfe.
+
+## [3.2.1] - 2026-11-19
+
+### Behoben
+- Die Oberfläche behält nach dem Update ihr Design. `index.css` steht wieder vor allen Komponenten-Styles, dadurch bleibt die Layer-Reihenfolge `theme, base, components, utilities` erhalten und der Browser-Reset überschreibt keine Abstände, Paddings und Rahmen mehr.
+- Der App-Chunk wird weiterhin per `modulepreload` vorab geholt, der Performance-Gewinn des statischen Starts bleibt also bestehen.
+
+## [3.2.0] - 2026-11-19
+
+### Erstellt
+- Notizverlauf zeigt nur noch Metadaten und lädt einzelne Fassungen gezielt; eine Byte-Grenze verhindert unbegrenztes Datenbankwachstum.
+- Notizen lassen sich atomar duplizieren, ohne halbe Kopien bei Fehlern.
+- Die Notizsuche nutzt einen Volltextindex und bleibt auch bei großen Bibliotheken schnell.
+- Dateimanager-Konflikte zeigen einen klaren Vergleich zwischen lokalem Entwurf und Serverstand.
+- Einstellungen zeigen abgelehnte Werte sichtbar und erlauben einen erneuten Versuch.
+
+### Verändert
+- Terminals starten nach Abstürzen mit wachsender Pause neu und bleiben nach fünf Fehlversuchen sichtbar unterbrochen, statt endlos neu zu starten.
+- Preview-Recovery leert nur noch den Storage des eigenen Projekts; fremde Slots bleiben unangetastet.
+- Ein belegter Preview-Port verhindert den Start der Workbench nicht mehr, und ein Deep-Link ändert nicht mehr den gespeicherten Hauptport.
+- Terminal- und Dateimanager-Sync wiederholen Fehler mit Pause statt in einer engen Schleife; im Hintergrundtab wird pausiert.
+- Das Frontend wird nach einem Build ohne Dienstneustart ausgeliefert; fehlt es, erscheint eine klare Hinweisseite.
+- Ein aktiver KI-Account kann nicht mehr gelöscht werden, solange seine Anmeldung noch verknüpft ist.
+- Beschädigte gespeicherte Dokumente blockieren keine Funktion mehr dauerhaft; der Rohwert bleibt für die Diagnose erhalten.
+- Uploads bleiben unverändert, normale JSON-Anfragen sind auf 1 MB begrenzt und Größenfehler werden verständlich gemeldet.
+- Plugin-Seiten, Schriften, Notiz-Formeln und mehrere Statusabfragen werden erst bei Bedarf geladen beziehungsweise kurz zwischengespeichert.
+- Nutzungsprojekte mit gleichem Ordnernamen werden nicht mehr vermischt; Skill-Dateien prüfen ihre Größe in Bytes.
+- Die Audit-Anzeige weist nach der Aufbewahrungsgrenze ehrlich aus, dass nur die jüngsten Einträge geprüft wurden.
+
+### Gelöscht
+- Ein ungenutzter Datenbankindex der Nutzungsdaten wurde entfernt.
+
+## [3.1.5] - 2026-11-18
+
+### Verändert
+- Die Serverauswahl in der Sidebar erscheint nur noch, wenn mehr als ein echter Workspace verfügbar ist. Doppelte Einträge derselben Instanz und lokale Loopback-Aliase werden nicht mehr mitgezählt.
+- Hermes V2 bleibt bei unbekannten globalen Ereignissen und Segmentgrenzen ohne Text verbunden. Nach einem Vertragsfehler verhandelt „Erneut abgleichen" die Verbindung neu, statt gesperrt zu bleiben.
+
 ## [3.1.4] - 2026-10-28
 
 ### Verändert

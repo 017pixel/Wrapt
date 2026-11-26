@@ -145,6 +145,19 @@ keinen Parallelbetrieb beider Kanäle.
   erhalten. **Achtung beim Downgrade Nightly → Stable:** Nightly kann Schema-Migrationen anwenden,
   die die ältere Stable-Version nicht kennt. Vorher `state.sqlite` sichern.
 
+### Projektordner
+
+Neue Projekte gehören unter `paths.projectsRoot` (`/projects`). Wrapt hält dafür T3 Codes
+`addProjectBaseDirectory` auf diesem Wert (`scripts/sync-t3-project-settings.mjs`, aufgerufen aus
+`sync-t3-channel.sh` und `install-t3-unit.sh`). T3 übernimmt die Änderung ohne Neustart, weil es
+`~/.t3/userdata/settings.json` beobachtet. „Projekt hinzufügen" öffnet damit direkt in `/projects`;
+neue Ordner und Klone landen dort und werden von Wrapt automatisch erkannt.
+
+Ein Projekt außerhalb von `/projects` wird nicht automatisch entdeckt und bekommt keine Preview.
+Dann entweder den Ordner in Wrapt registrieren (`POST /api/v1/projects/register`) oder das Projekt
+nach `/projects` verschieben und den T3-Projektpfad mit `t3_project_update` nachziehen. Niemals
+denselben Code als zweiten Klon an beiden Stellen bearbeiten.
+
 ## Keine Daten verlieren
 
 - **Layout-Zustand** (geöffnete Panels, Arbeitsflächen) liegt im Browser-`localStorage` → von Neustarts unberührt.
@@ -209,16 +222,17 @@ fremde Session, bestätigt keinen Storage-Reset und liest keine Snapshots.
 
 ### Browser-Verifikation durch Coding-Agenten
 
-- Die T3-eigenen `preview_*`-Werkzeuge benötigen einen verfügbaren Automation-Host der
-  Desktop-App. Ein `PreviewAutomationNoAvailableHostError` in Web-, TUI- oder headless-
-  Umgebungen bedeutet deshalb nicht, dass Browser-Verifikation grundsätzlich unmöglich ist.
-- Wenn dieser Fehler auftritt, verwenden Agenten den konfigurierten headless
-  `playwright`-MCP-Server für UI-Prüfungen: zuerst `browser_navigate`, danach
-  `browser_snapshot` und bei Bedarf die fokussierten Browser-Aktionen. Für lokale Dienste
-  sind `http://127.0.0.1:<port>` oder `http://localhost:<port>` zu verwenden.
+- Browser-Tests laufen ausschließlich über den T3-Code-Browser. In T3 Code sind das die
+  `preview_*`-Werkzeuge: `preview_status`, `preview_open`, `preview_snapshot`, `preview_act`.
+- Der T3-Browser läuft headless auf dem Host. `available: true` aus `preview_status` heißt
+  bereit. `PreviewAutomationNoAvailableHostError` oder `available: false` heißt: der
+  Server-Browser ist nicht gestartet.
+- Dann auf dem Host einmalig `sudo t3 browser setup --base-dir ~/.t3` ausführen und erneut
+  prüfen. Details: `/projects/server-fleet/.agents/skills/fleet-browser/SKILL.md`.
+- Ein Playwright-MCP ist nicht konfiguriert und wird nicht wieder eingerichtet. Für lokale
+  Dienste sind `http://127.0.0.1:<port>` oder `http://localhost:<port>` zu verwenden.
 - `curl` oder ein API-Smoke-Test kann zusätzlich sinnvoll sein, ersetzt aber bei UI-Änderungen
-  nicht die Browser-Verifikation. Ist auch der `playwright`-MCP nicht verfügbar, muss das als
-  separates MCP-/Browser-Problem gemeldet werden.
+  nicht die Browser-Verifikation.
 
 ### Arbeiten mit aktiven Previews
 
@@ -230,7 +244,7 @@ kein Testmaterial und werden nicht umkonfiguriert. Verbindlich:
   API (`POST /api/v1/previews/dev-servers/:projectId/stop|restart`). Die Workbench startet
   abgestürzte Devserver selbst wieder; eigene Kills brechen das Preview unnötig ab.
 - **Keinen eigenen Devserver auf einem Port starten**, den ein aktives Preview nutzt. Vorher
-  die lokale Portübersicht prüfen (Dashboard → „Lokale Ports" bzw. `GET /api/v1/services/ports`).
+  die lokale Portübersicht prüfen (Dashboard → „Lokale Ports" bzw. `GET /api/v1/local-ports`).
   Eigene Testserver gehören auf eigene freie Ports.
 - **Keine Preview-Sessions des Nutzers schließen** (`DELETE /api/v1/previews/sessions/...`)
   und keine direkten Slot-Zuweisungen ändern (`PUT /api/v1/previews/slots`). Der Nutzer gibt

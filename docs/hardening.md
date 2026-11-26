@@ -26,8 +26,6 @@ umgesetzt wurden, ihre Konfiguration und ihren Rückbau. Es ergänzt die
 - Deshalb gilt: Nur Code ausführen, der als Workbench-Admin agieren dürfte.
 - Die Loopback-Prüfung des Open-in-Editor-Kanals nutzt die echte
   Transportschicht (`socket.remoteAddress`), nie Proxy-Header.
-- Jede Preview-Statusantwort trägt den Hinweis „Nur vertrauenswürdige Repos
-  starten: Preview-Befehle laufen als Server-Benutzer."
 
 ## Ungeschützte API-Pfade (A-010)
 
@@ -51,16 +49,6 @@ umgesetzt wurden, ihre Konfiguration und ihren Rückbau. Es ergänzt die
   sind weiterhin vertrauenswürdig zu pflegen: Sie laufen als Server-Benutzer.
   Eine Binary-Allowlist dafür ist ein offener Punkt (siehe Plan S-011) — bis
   dahin gilt: Config nur direkt auf dem Server bearbeiten.
-
-## Preview-Befehls-Bestätigung (S-013)
-
-- Start, Launch und Restart einer Projektlaufzeit verlangen eine einmalige
-  Bestätigung pro Projekt und Befehls-Hash:
-  `POST /api/v1/previews/dev-servers/:projectId/confirm` mit dem angezeigten
-  `commandHash` bestätigt Befehl + Pfad; `start|launch|restart` antworten sonst
-  mit 409 `PREVIEW_COMMAND_UNCONFIRMED` inklusive Befehls-Vorschau.
-- Ändert sich der Befehl (neuer Hash), ist eine erneute Bestätigung nötig.
-- Der Watchdog startet unbestätigte Befehle nicht (derselbe Prüfpfad).
 
 ## Terminal-Arbeitsverzeichnisse
 
