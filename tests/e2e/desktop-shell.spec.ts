@@ -51,7 +51,7 @@ test("öffnet Schnellaktionen auf freien Bereichen der Shell", async ({ page }) 
 
   const statusBar = page.locator(".status-bar");
   await expect(statusBar).toBeVisible();
-  await statusBar.click({ button: "right", position: { x: 500, y: 20 } });
+  await statusBar.click({ button: "right", position: { x: 10, y: 20 } });
   await expect(menu).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(menu).toHaveCount(0);
