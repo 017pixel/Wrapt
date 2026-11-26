@@ -15,6 +15,8 @@ export const filesystemTreeResponseSchema = z.object({
   path: z.string().startsWith("/"),
   entries: z.array(filesystemEntrySchema),
   nextCursor: z.string().min(1).nullable(),
+  /** Der Client hat die Seitenobergrenze erreicht; es gibt weitere Einträge. */
+  truncated: z.boolean().default(false),
 });
 
 // --- Dateimanager -----------------------------------------------------------

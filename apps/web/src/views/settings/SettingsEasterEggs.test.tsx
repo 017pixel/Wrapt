@@ -104,7 +104,7 @@ describe("SettingsEasterEggs", () => {
     expect(artwork.checked).toBe(true);
     expect(toggle.getAttribute("aria-checked")).toBe("true");
     const stored = JSON.parse(window.localStorage.getItem("wrapt.dashboard-preferences.v1") ?? "{}");
-    expect(stored.version).toBe(2);
+    expect(stored.version).toBe(3);
     expect(stored.state).toMatchObject({ artworkEnabled: true, artworkId: "hero-arbeitsbereich" });
   });
 

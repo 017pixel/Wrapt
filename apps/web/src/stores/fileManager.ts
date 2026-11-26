@@ -19,13 +19,18 @@ interface FileManagerStore extends FileManagerState {
   dirty: boolean;
   saving: boolean;
   syncError: string | null;
+  draftConflict: FileManagerState | null;
+  syncKick: number;
+  kickSync(): void;
   root: string | null;
   entries: FilesystemEntry[];
   entriesLoading: boolean;
   entriesError: string | null;
   ui: FileManagerUiState;
   initializeRemote(document: FileManagerState, revision: number): void;
-  restoreDraft(document: FileManagerState, revision: number): void;
+  restoreDraft(draft: FileManagerState, draftRevision: number, server: FileManagerState, serverRevision: number): void;
+  keepDraft(): void;
+  dropDraft(): void;
   applyRemote(document: FileManagerState, revision: number): void;
   replaceRemote(document: FileManagerState, revision: number): void;
   resolveConflict(revision: number): void;
@@ -84,6 +89,8 @@ export const useFileManagerStore = create<FileManagerStore>()((set) => ({
   dirty: false,
   saving: false,
   syncError: null,
+  draftConflict: null,
+  syncKick: 0,
   root: null,
   entries: [],
   entriesLoading: true,
@@ -111,21 +118,72 @@ export const useFileManagerStore = create<FileManagerStore>()((set) => ({
       revision,
       dirty: useLocal,
       syncError: null,
+      draftConflict: null,
     };
   }),
-  restoreDraft: (document, revision) => set({
-    currentPath: document.currentPath,
-    history: normalizeHistory(document.currentPath, document.history),
-    favorites: document.favorites,
-    viewMode: document.viewMode,
-    sortKey: document.sortKey,
-    sortDirection: document.sortDirection,
-    hydrated: true,
-    revision,
+  restoreDraft: (draft, draftRevision, server, serverRevision) => set(() => {
+    const applyDraft = {
+      currentPath: draft.currentPath,
+      history: normalizeHistory(draft.currentPath, draft.history),
+      favorites: draft.favorites,
+      viewMode: draft.viewMode,
+      sortKey: draft.sortKey,
+      sortDirection: draft.sortDirection,
+    };
+    if (serverRevision === 0 || draftRevision === serverRevision) {
+      return {
+        ...applyDraft,
+        hydrated: true,
+        revision: serverRevision,
+        dirty: true,
+        saving: false,
+        draftConflict: null,
+        syncError: "Ein nicht gespeicherter Dateimanager-Zustand wurde nach dem Reload wiederhergestellt.",
+      };
+    }
+    if (serverRevision > draftRevision) {
+      // Ein älterer Entwurf darf einen neueren Serverstand nicht still
+      // überschreiben. Der Serverstand gilt, bis der Nutzer bewusst den
+      // lokalen Entwurf übernimmt.
+      return {
+        currentPath: server.currentPath,
+        history: normalizeHistory(server.currentPath, server.history),
+        favorites: server.favorites,
+        viewMode: server.viewMode,
+        sortKey: server.sortKey,
+        sortDirection: server.sortDirection,
+        hydrated: true,
+        revision: serverRevision,
+        dirty: false,
+        saving: false,
+        draftConflict: applyDraft,
+        syncError: "Der lokale Dateimanager-Entwurf ist älter als der Serverstand. Prüfe, welchen Stand du behalten möchtest.",
+      };
+    }
+    return {
+      currentPath: server.currentPath,
+      history: normalizeHistory(server.currentPath, server.history),
+      favorites: server.favorites,
+      viewMode: server.viewMode,
+      sortKey: server.sortKey,
+      sortDirection: server.sortDirection,
+      hydrated: true,
+      revision: serverRevision,
+      dirty: false,
+      saving: false,
+      draftConflict: null,
+      syncError: "Ein Dateimanager-Entwurf aus einer neueren Version wurde verworfen.",
+    };
+  }),
+  keepDraft: () => set((state) => state.draftConflict === null ? state : {
+    ...state.draftConflict,
     dirty: true,
     saving: false,
-    syncError: "Ein nicht gespeicherter Dateimanager-Zustand wurde nach dem Reload wiederhergestellt.",
+    draftConflict: null,
+    syncError: "Der lokale Entwurf wurde übernommen und wird gespeichert.",
   }),
+  dropDraft: () => set({ draftConflict: null, dirty: false, syncError: null }),
+  kickSync: () => set((state) => ({ syncKick: state.syncKick + 1 })),
   applyRemote: (document, revision) => set((state) => state.dirty || state.saving || revision <= state.revision
     ? state
     : {
@@ -138,6 +196,7 @@ export const useFileManagerStore = create<FileManagerStore>()((set) => ({
         revision,
         hydrated: true,
         syncError: null,
+        draftConflict: null,
       }),
   replaceRemote: (document, revision) => set({
     currentPath: document.currentPath,
@@ -151,6 +210,7 @@ export const useFileManagerStore = create<FileManagerStore>()((set) => ({
     dirty: false,
     saving: false,
     syncError: null,
+    draftConflict: null,
   }),
   resolveConflict: (revision) => set({
     revision,

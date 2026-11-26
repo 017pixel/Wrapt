@@ -87,3 +87,54 @@ describe("Dateimanager-Navigation und Pfadzustand", () => {
     expect(useFileManagerStore.getState().currentPath).toBe(`${root}/extern`);
   });
 });
+
+describe("Dateimanager-Entwurf und Serverrevision", () => {
+  const server = {
+    currentPath: "/srv/server",
+    history: [],
+    favorites: ["/srv/server/a"],
+    viewMode: "grid" as const,
+    sortKey: "name" as const,
+    sortDirection: "asc" as const,
+  };
+  const draft = {
+    currentPath: "/srv/draft",
+    history: [],
+    favorites: ["/srv/draft/b"],
+    viewMode: "list" as const,
+    sortKey: "name" as const,
+    sortDirection: "asc" as const,
+  };
+
+  beforeEach(() => {
+    useFileManagerStore.getState().replaceRemote(server, 5);
+  });
+
+  it("übernimmt den Entwurf beim Erststart ohne Serverstand", () => {
+    useFileManagerStore.getState().replaceRemote({ ...server, currentPath: "" }, 0);
+    useFileManagerStore.getState().restoreDraft(draft, 0, { ...server, currentPath: "" }, 0);
+    expect(useFileManagerStore.getState()).toMatchObject({ currentPath: "/srv/draft", dirty: true, revision: 0, draftConflict: null });
+  });
+
+  it("übernimmt einen Entwurf mit gleicher Revision", () => {
+    useFileManagerStore.getState().restoreDraft(draft, 5, server, 5);
+    expect(useFileManagerStore.getState()).toMatchObject({ currentPath: "/srv/draft", dirty: true, revision: 5 });
+  });
+
+  it("überschreibt einen neueren Serverstand nicht still", () => {
+    useFileManagerStore.getState().restoreDraft(draft, 4, server, 5);
+    expect(useFileManagerStore.getState()).toMatchObject({
+      currentPath: "/srv/server",
+      dirty: false,
+      revision: 5,
+      draftConflict: { currentPath: "/srv/draft" },
+    });
+    useFileManagerStore.getState().keepDraft();
+    expect(useFileManagerStore.getState()).toMatchObject({ currentPath: "/srv/draft", dirty: true, revision: 5, draftConflict: null });
+  });
+
+  it("verwirft einen Entwurf aus einer neueren Version", () => {
+    useFileManagerStore.getState().restoreDraft(draft, 6, server, 5);
+    expect(useFileManagerStore.getState()).toMatchObject({ currentPath: "/srv/server", dirty: false, revision: 5, draftConflict: null });
+  });
+});

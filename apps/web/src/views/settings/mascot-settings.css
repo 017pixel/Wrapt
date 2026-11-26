@@ -26,18 +26,19 @@
     position: relative;
     width: 100%;
     min-height: max(148px, calc(var(--mascot-preview-sprite, 88px) * 1.2));
-    place-items: center;
+    align-items: end;
+    justify-items: center;
     overflow: clip;
     border: 1px solid var(--color-line);
     border-radius: var(--radius-md);
     background: var(--surface-sunken);
-    padding: var(--space-8);
+    /* Unten ohne Innenabstand: Die Füße stehen auf der Unterkante der Vorschau. */
+    padding: var(--space-8) var(--space-8) 0;
   }
 
+  /* Die Bühne füllt die Vorschau; der 42px-Actor sitzt bündig auf der Unterkante. */
   .mascot-preview .status-mascot-stage {
     width: 100%;
-    /* Dieselbe 42px-Bühne wie unten, zum Zentrieren der Figur versetzt. */
-    transform: translateY(calc(var(--capy-sprite-size) * .36 - 11px));
   }
 
   .mascot-preview[data-facing="left"] { --capy-facing: -1; }

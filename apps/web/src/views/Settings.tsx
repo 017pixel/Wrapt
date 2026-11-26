@@ -8,6 +8,7 @@ import { useHashTab } from "../lib/hashTabs";
 import { searchSettings, type SettingsSearchResult } from "../lib/settingsSearch";
 import { wraptQueries } from "../lib/queryOptions";
 import { useRouteActivity } from "../lib/routeActivity";
+import { SettingsSyncBanner } from "../components/SettingsSyncBanner";
 import { SettingsSearch } from "./settings/SettingsSearch";
 import { SettingsTabNavigation } from "./settings/SettingsTabNavigation";
 import { SettingsEasterEggs } from "./settings/SettingsEasterEggs";
@@ -83,6 +84,8 @@ export function Settings() {
           activeId={activeTab}
           onSelect={setTab}
         />
+
+        <SettingsSyncBanner />
 
         <div className="settings-tab-content">
           <CodePluginSurface surface="settings" target={activeTab} builtins={[{ id: `wrapt.settings.section.${activeTab}`, surface: "settings", title: activeTab, children: <>

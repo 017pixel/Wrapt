@@ -9,7 +9,6 @@ import { DatabaseSync } from "node:sqlite";
 import {
   fileManagerOperationResponseSchema,
   fileManagerSearchResponseSchema,
-  fileManagerStateResponseSchema,
   type FileManagerState,
   type FileManagerStateResponse,
   type FilesystemEntry,
@@ -22,23 +21,18 @@ import { contained, entryFor, filesystemFailure, mimeTypeFor, sanitizeName } fro
 
 import { publishFileNoReplace } from "./fileTransfers.js";
 import { openMediaPreview, readTextPreview } from "./filePreviews.js";
+import { FileManagerStateStore } from "./fileManagerStateStore.js";
 
 const SEARCH_LIMIT = 250;
 const SEARCH_MAX_DEPTH = 6;
 const SEARCH_TIMEOUT_MS = 3_000;
 const SKIPPED_DIRECTORIES = new Set(["node_modules", ".git", "dist", "build", ".next", ".out", ".cache", ".venv", "venv", ".turbo"]);
 
-interface StateRow {
-  id: number;
-  document_json: string;
-  revision: number;
-  updated_at: string;
-}
-
 export class FileManagerService {
   private readonly db: DatabaseSync;
   private readonly rootAliases: string[];
   private readonly deniedRoots: string[];
+  private readonly stateStore: FileManagerStateStore;
   readonly root: string;
 
   constructor(
@@ -54,19 +48,10 @@ export class FileManagerService {
     this.db = new DatabaseSync(databasePath);
     // synchronous=NORMAL wie überall: Mit WAL absturzsicher, ohne fsync pro Commit (P-010).
     this.db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000");
-    this.db.exec(`CREATE TABLE IF NOT EXISTS file_manager_state (
-      id INTEGER PRIMARY KEY CHECK (id = 1),
-      document_json TEXT NOT NULL,
-      revision INTEGER NOT NULL,
-      updated_at TEXT NOT NULL
-    );`);
+    this.stateStore = new FileManagerStateStore(this.db, this.root);
   }
 
   close() { this.db.close(); }
-
-  private defaultState(): FileManagerState {
-    return { currentPath: this.root, history: [], favorites: [], viewMode: "list", sortKey: "name", sortDirection: "asc" };
-  }
 
   private requestedPath(input?: string): string {
     return resolvePathWithinRootAliases(input, this.root, this.rootAliases);
@@ -367,53 +352,12 @@ export class FileManagerService {
 
   // --- Serverseitiger Zustand (Verlauf, Favoriten, Ansicht) -----------------
 
-  private readState(): { document: FileManagerState; revision: number; updatedAt: string } {
-    const row = this.db.prepare("SELECT id, document_json, revision, updated_at FROM file_manager_state WHERE id = 1").get() as StateRow | undefined;
-    if (!row) return { document: this.defaultState(), revision: 0, updatedAt: new Date(0).toISOString() };
-    return { document: JSON.parse(row.document_json) as FileManagerState, revision: row.revision, updatedAt: row.updated_at };
-  }
-
   state(): FileManagerStateResponse {
-    const { document, revision, updatedAt } = this.readState();
-    return fileManagerStateResponseSchema.parse({ document, revision, updatedAt });
+    return this.stateStore.state();
   }
 
   async saveState(input: { document: FileManagerState; expectedRevision: number | null }): Promise<FileManagerStateResponse> {
-    let revision: number;
-    let updatedAt: string;
-    let committed = false;
-    try {
-      this.db.exec("BEGIN IMMEDIATE");
-    } catch (error) {
-      if (String((error as Error).message).includes("SQLITE_BUSY")) {
-        throw new AppError(409, "FILE_MANAGER_STATE_BUSY", "Der Dateimanager-Zustand wird gerade von einem anderen Schreiber geändert.", { revision: null }, true);
-      }
-      throw error;
-    }
-    try {
-      // Revision lesen und schreiben müssen unter derselben Schreibsperre
-      // laufen. Sonst können zwei Schreiber denselben Stand lesen und der
-      // spätere Save überschreibt die Änderung des ersten (Lost Update).
-      const current = this.readState();
-      const matches = input.expectedRevision === null ? current.revision === 0 : input.expectedRevision === current.revision;
-      if (!matches) {
-        throw new AppError(409, "FILE_MANAGER_STATE_CONFLICT", "Der Dateimanager-Zustand wurde parallel geändert. Bitte neu laden.", {
-          revision: current.revision,
-        });
-      }
-      revision = current.revision + 1;
-      updatedAt = new Date().toISOString();
-      this.db.prepare(
-        `INSERT INTO file_manager_state (id, document_json, revision, updated_at) VALUES (1, ?, ?, ?)
-         ON CONFLICT(id) DO UPDATE SET document_json = excluded.document_json, revision = excluded.revision, updated_at = excluded.updated_at`,
-      ).run(JSON.stringify(input.document), revision, updatedAt);
-      this.db.exec("COMMIT");
-      committed = true;
-    } catch (error) {
-      if (!committed && this.db.isTransaction) this.db.exec("ROLLBACK");
-      throw error;
-    }
-    return fileManagerStateResponseSchema.parse({ document: input.document, revision, updatedAt });
+    return this.stateStore.saveState(input);
   }
 
   /** Standardantwort für die Antwort-Form der Operationen. */

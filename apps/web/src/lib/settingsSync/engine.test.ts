@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SaveUiSettingsRequest, UiSettingsDocument } from "@wrapt/contracts";
 import { settingsSocketEventSchema } from "@wrapt/contracts";
 import { useAppPreferences } from "../../stores/appPreferences";
+import { useSidebarPreferences } from "../../stores/sidebarPreferences";
 import { createSettingsSync } from "./engine";
 
 type FetchCall = { url: string; method: string; body: SaveUiSettingsRequest | null };
@@ -164,6 +165,34 @@ describe("Einstellungs-Sync", () => {
     await vi.advanceTimersByTimeAsync(500);
     await flush();
     expect(fetchCalls.filter((call) => call.method === "PUT")).toHaveLength(0);
+  });
+
+  it("isoliert eine per 413 abgelehnte Einstellung und synchronisiert die übrigen weiter", async () => {
+    const errors: Array<string | null> = [];
+    const sync = createSettingsSync({ onSharedConfigChanged: () => {}, onSyncError: (message) => errors.push(message) });
+    syncs.push(sync);
+    sync.start();
+    await flush();
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const method = init?.method ?? "GET";
+      const changes = typeof init?.body === "string" ? JSON.parse(init.body) as SaveUiSettingsRequest : null;
+      fetchCalls.push({ url: String(input), method, body: changes });
+      if (method === "PUT" && changes && (changes.changes.length > 1 || changes.changes[0]?.key === "sidebarPreferences")) {
+        return new Response(JSON.stringify({ error: { code: "PAYLOAD_TOO_LARGE", message: "zu groß" } }), { status: 413, headers: { "Content-Type": "application/json" } });
+      }
+      const document = documentFor(changes ?? undefined);
+      if (changes) servers.push(document);
+      return new Response(JSON.stringify(document), { status: 200, headers: { "Content-Type": "application/json" } });
+    }));
+    useAppPreferences.setState({ defaultPage: "files" });
+    useSidebarPreferences.setState((state) => ({ collapsedSections: { ...state.collapsedSections, tools: true } }));
+    await vi.advanceTimersByTimeAsync(1_000);
+    await flush();
+    const puts = fetchCalls.filter((call) => call.method === "PUT");
+    expect(puts.some((call) => call.body?.changes.length === 1 && call.body.changes[0]?.key === "appPreferences")).toBe(true);
+    expect(errors.at(-1)).toContain("sidebarPreferences");
+    const pendingMeta = JSON.parse(window.localStorage.getItem("wrapt.settings-sync.meta.v1") ?? "{}") as { pending?: Record<string, number> };
+    expect(pendingMeta.pending?.appPreferences).toBeUndefined();
   });
 
   it("lädt bei einem Sync-Ereignis nach einem Verbindungsaufbau neu", async () => {

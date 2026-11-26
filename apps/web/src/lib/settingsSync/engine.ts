@@ -6,7 +6,8 @@ import {
   type UiSettingKey,
   type UiSettingValue,
 } from "@wrapt/contracts";
-import { ApiClientError, apiClient } from "../apiClient";
+import { apiClient } from "../apiClient";
+import { pushSettingChanges } from "./push.js";
 import { settingsAdaptersByKey, type SettingsAdapter } from "./adapters";
 import { readMeta, serializeSetting, writeMeta } from "./meta";
 
@@ -22,6 +23,8 @@ interface PendingChange {
 
 export interface SettingsSyncOptions {
   onSharedConfigChanged(keys: SharedConfigSettingKey[]): void;
+  /** Sichtbarer Sync-Fehler; `null` löscht die Meldung. */
+  onSyncError?(message: string | null): void;
 }
 
 /**
@@ -50,7 +53,6 @@ export function createSettingsSync(options: SettingsSyncOptions) {
   let pollTimer: number | null = null;
   let syncing = false;
   let pushing = false;
-  let pushBlocked = false;
   let syncedOnce = false;
   let applyChain: Promise<void> = Promise.resolve();
 
@@ -189,36 +191,39 @@ export function createSettingsSync(options: SettingsSyncOptions) {
     }, delay);
   }
 
+  const dropPending = (key: UiSettingKey) => { pending.delete(key); delete meta.pending[key]; };
+
   const pushPending = async (): Promise<void> => {
-    if (pushing || pushBlocked || pending.size === 0 || stopped) return;
+    if (pushing || pending.size === 0 || stopped) return;
     pushing = true;
     const batch = [...pending.entries()];
-    const sent = new Map(batch.map(([key, change]) => [key, change.serialized]));
     try {
-      const response = await apiClient.saveUiSettings({
+      const outcome = await pushSettingChanges(
         clientId,
-        changes: batch.map(([key, change]) => ({ key, value: change.value })),
-      });
-      if (!response) throw new Error("Antwort fehlt");
-      for (const [key, serialized] of sent) {
-        clearSavedPending(key, serialized);
-        const entry = response.entries[key];
-        if (entry) meta.revisions[key] = entry.revision;
-      }
-      retryDelay = RETRY_MIN_MS;
-      persistMeta();
-    } catch (error) {
-      // 4xx (außer einem erwartbaren Konflikt) wird durch Wiederholen nicht besser.
-      // Der lokale Wert bleibt erhalten; der nächste Seitenaufruf versucht es erneut.
-      if (error instanceof ApiClientError && error.status >= 400 && error.status < 500) {
-        pushBlocked = true;
-      } else {
+        batch.map(([key, change]) => ({ key, value: change.value, serialized: change.serialized })),
+        (key, serialized, revision) => {
+          clearSavedPending(key, serialized);
+          if (revision !== null) meta.revisions[key] = revision;
+        },
+        dropPending,
+      );
+      if (outcome.kind === "conflict") {
         schedulePush(retryDelay);
         retryDelay = Math.min(RETRY_MAX_MS, retryDelay * 2);
+      } else if (outcome.kind === "retryable") {
+        schedulePush(retryDelay);
+        retryDelay = Math.min(RETRY_MAX_MS, retryDelay * 2);
+      } else if (outcome.kind === "rejected") {
+        retryDelay = RETRY_MIN_MS;
+        options.onSyncError?.(outcome.keys.length > 0 ? `Diese Einstellung wurde vom Server abgelehnt: ${outcome.keys.join(", ")}.` : null);
+      } else {
+        retryDelay = RETRY_MIN_MS;
+        options.onSyncError?.(null);
       }
+      persistMeta();
     } finally {
       pushing = false;
-      if (!pushBlocked && pending.size > 0 && pushTimer === null) schedulePush(PUSH_DELAY_MS);
+      if (pending.size > 0 && pushTimer === null) schedulePush(PUSH_DELAY_MS);
     }
   };
 
@@ -339,6 +344,12 @@ export function createSettingsSync(options: SettingsSyncOptions) {
       pollTimer = window.setInterval(() => void syncFromServer(), POLL_INTERVAL_MS);
       void syncFromServer();
       connect();
+    },
+    /** Nutzeraktion „Erneut versuchen": Backoff und Blockade zurücksetzen. */
+    retry() {
+      retryDelay = RETRY_MIN_MS;
+      options.onSyncError?.(null);
+      if (pending.size > 0) schedulePush(0);
     },
     stop() {
       if (!started) return;

@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import type { FilesystemEntry, Project, ProjectsResponse } from "@wrapt/contracts";
-import { WRAPT_LIMITS } from "@wrapt/contracts";
+import { WRAPT_LIMITS, type FilesystemEntry, type Project, type ProjectsResponse } from "@wrapt/contracts";
 import {
   ArrowLeftIcon, BookmarkIcon, ChevronRightIcon, CloseIcon, ColumnsIcon, DownloadIcon,
   CodeFileIcon, EditIcon, FileIcon, FolderCodeIcon, FolderIcon, FolderOpenIcon, FolderSearchIcon, FolderTreeIcon,
@@ -16,13 +15,13 @@ import { useResponsiveShell } from "../../lib/useResponsiveShell";
 import { usePaneWidth } from "../../lib/usePaneWidth";
 import { PromptDialog } from "../ModalDialog";
 import { FileManagerDeleteDialog } from "./FileManagerDeleteDialog";
+import { FileManagerDraftConflict } from "./FileManagerDraftConflict";
 import { FmTree } from "./FmTree";
 import { FilePreview, QuickLook } from "./QuickLook";
 import { wraptQueries } from "../../lib/queryOptions";
 import { useRouteActivity } from "../../lib/routeActivity";
 import { openGlobalContextMenu } from "../context-menu/contextMenuEvents";
 import { hostContextMenuId } from "../../extensions/hostContextMenus";
-
 function projectForPath(projects: Project[] | undefined, path: string): Project | null {
   let best: Project | null = null;
   for (const project of projects ?? []) {
@@ -46,6 +45,7 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
   const sortKey = useFileManagerStore((state) => state.sortKey);
   const sortDirection = useFileManagerStore((state) => state.sortDirection);
   const syncError = useFileManagerStore((state) => state.syncError);
+  const kickSync = useFileManagerStore((state) => state.kickSync);
   const ui = useFileManagerStore((state) => state.ui);
   const navigateTo = useFileManagerStore((state) => state.navigateTo);
   const goBack = useFileManagerStore((state) => state.goBack);
@@ -66,8 +66,9 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
     queryKey: ["filesystem", "tree", currentPath],
     queryFn: ({ signal }) => apiClient.filesystemTreeAll(currentPath, signal),
     enabled: routeActive && Boolean(root && currentPath),
-    refetchInterval: 5_000,
-    staleTime: 2_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: false,
+    staleTime: 3_000,
   });
   const [renameTarget, setRenameTarget] = useState<FilesystemEntry | null>(null);
   const [moveTarget, setMoveTarget] = useState<FilesystemEntry | null>(null);
@@ -433,13 +434,14 @@ export function FileManagerPanel({ minimal = false, externalSync = false }: { mi
 
       {/* Statusleiste */}
       <div className="file-manager-statusbar">
-        <span>{visibleEntries.length} Einträge{ui.searchQuery ? ` · Suche: „${ui.searchQuery}“` : ""}</span>
+        <span>{visibleEntries.length} Einträge{tree.data?.truncated ? " · Ansicht gekürzt" : ""}{ui.searchQuery ? ` · Suche: „${ui.searchQuery}“` : ""}</span>
         {uploading !== null ? <span className="file-manager-uploading"><UploadIcon className="h-3 w-3" />Wird hochgeladen…</span> : selectedEntry ? <span>{selectedEntry.name} · {formatBytes(selectedEntry.sizeBytes)} · {formatDate(selectedEntry.modifiedAt)}</span> : null}
         {!isCompact ? <span className="file-manager-keyhints"><span className="kbd">Leertaste</span> Vorschau <span className="kbd">↵</span> öffnen <span className="kbd">←</span> zurück</span> : null}
       </div>
 
       {actionError ? <div className="file-manager-alert" role="alert"><WarningIcon className="h-3.5 w-3.5" /><span>{actionError}</span><button type="button" onClick={() => setActionError(null)} aria-label="Meldung schließen"><CloseIcon className="h-3 w-3" /></button></div> : null}
-      {syncError && isCompact ? <div className="file-manager-alert is-sync" role="status"><WarningIcon className="h-3.5 w-3.5" /><span>{syncError}</span></div> : null}
+      <FileManagerDraftConflict />
+      {syncError && isCompact ? <div className="file-manager-alert is-sync has-actions" role="status"><WarningIcon className="h-3.5 w-3.5" /><span>{syncError}</span><button type="button" onClick={kickSync}>Erneut versuchen</button></div> : null}
 
       {/* Hauptbereich: drei Panes */}
       <div

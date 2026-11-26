@@ -61,9 +61,9 @@ export async function request<T>(path: string, schema: ZodType<T>, signal?: Abor
   return schema.parse(await response.json());
 }
 
-export async function mutate<T>(path: string, method: "POST"|"PUT"|"PATCH"|"DELETE", schema: ZodType<T> | null, body?: unknown): Promise<T | undefined> {
+export async function mutate<T>(path: string, method: "POST"|"PUT"|"PATCH"|"DELETE", schema: ZodType<T> | null, body?: unknown, headers?: Record<string, string>): Promise<T | undefined> {
   workbenchAccess.assertAllowed();
-  const response = await fetch(`/api/v1${path}`, { method, cache: "no-store", credentials: "same-origin", signal: requestSignal(), headers: { Accept: "application/json", "X-Wrapt-Sync-Version": WRAPT_SYNC_VERSION, ...(body === undefined ? {} : { "Content-Type": "application/json" }) }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
+  const response = await fetch(`/api/v1${path}`, { method, cache: "no-store", credentials: "same-origin", signal: requestSignal(), headers: { Accept: "application/json", "X-Wrapt-Sync-Version": WRAPT_SYNC_VERSION, ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...headers }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
   if (!response.ok) {
     const payload = await errorPayload(response);
     const error = new ApiClientError(response.status, payload?.error.code ?? "REQUEST_FAILED", payload?.error.message ?? "Die Änderung konnte nicht gespeichert werden.", payload?.error.requestId ?? response.headers.get("x-request-id"), payload?.error.retryable ?? response.status >= 500, payload?.error.details ?? null);

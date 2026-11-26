@@ -18,17 +18,26 @@ async function filesystemTree(path?: string, cursor?: string, signal?: AbortSign
   return request(`/filesystem/tree${query.size ? `?${query}` : ""}`, filesystemTreeResponseSchema, signal);
 }
 
+const TREE_PAGE_LIMIT = 40;
+
+/**
+ * Lädt den Baum seitenweise, aber begrenzt auf 40 × 500 Einträge. Ein
+ * Verzeichnis mit Hunderttausenden Einträgen darf den Client nicht unbegrenzt
+ * Requests und DOM kosten.
+ */
 async function filesystemTreeAll(path?: string, signal?: AbortSignal) {
   let cursor: string | undefined;
   let firstPage: Awaited<ReturnType<typeof filesystemTree>> | null = null;
   const entries: Awaited<ReturnType<typeof filesystemTree>>["entries"] = [];
+  let pages = 0;
   do {
     const page = await filesystemTree(path, cursor, signal, 500);
     firstPage ??= page;
     entries.push(...page.entries);
     cursor = page.nextCursor ?? undefined;
-  } while (cursor);
-  return { ...firstPage!, entries, nextCursor: null };
+    pages += 1;
+  } while (cursor && pages < TREE_PAGE_LIMIT);
+  return { ...firstPage!, entries, nextCursor: null, truncated: Boolean(cursor) };
 }
 
 async function fileManagerUpload(directoryPath: string, file: File): Promise<FilesystemEntry> {

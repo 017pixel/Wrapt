@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import type { SharedConfigSettingKey } from "@wrapt/contracts";
 import { createSettingsSync } from "../lib/settingsSync/engine";
+import { useSettingsSyncStatus } from "../lib/settingsSync/status";
 
 const queryKeysByConfig: Record<SharedConfigSettingKey, readonly unknown[][]> = {
   appearance: [["system", "appearance"]],
@@ -29,9 +30,15 @@ export function SettingsSync() {
           }
         }
       },
+      onSyncError: (message) => useSettingsSyncStatus.getState().setError(message),
     });
+    useSettingsSyncStatus.getState().setRetry(() => sync.retry());
     sync.start();
-    return () => sync.stop();
+    return () => {
+      sync.stop();
+      useSettingsSyncStatus.getState().setRetry(null);
+      useSettingsSyncStatus.getState().setError(null);
+    };
   }, [queryClient]);
 
   return null;
