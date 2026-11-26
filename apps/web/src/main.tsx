@@ -5,6 +5,9 @@ import "./lib/startupArtwork";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { App } from "./App";
+import { CrashReportDialog, CrashToastRegion } from "./components/CrashReportDialog";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { bootstrapBuiltinContributions } from "./extensions/builtinContributions";
 import { addBreadcrumb, formatQueryErrorBreadcrumb, subscribeToCrash } from "./lib/crashReport";
 import { apiClient } from "./lib/apiClient";
@@ -35,17 +38,10 @@ try {
   // Privater Modus oder blockierter Speicher dürfen den Start nicht stoppen.
 }
 
-// App, Crash-Dialog und ErrorBoundary bleiben dynamisch. Ein statischer Import
-// zieht die von ihnen importierten CSS-Dateien vor `index.css` in den Graph.
-// Dann registriert sich `@layer components` vor `theme` und `base`, und der
-// Browser-Reset (padding, margin, border) überschreibt das komplette Design.
-// Der zusätzliche Roundtrip wird über den modulepreload-Link aus
-// `wraptAppPreloadPlugin` in index.html abgefangen.
-const [{ App }, { CrashReportDialog, CrashToastRegion }, { ErrorBoundary }] = await Promise.all([
-  import("./App"),
-  import("./components/CrashReportDialog"),
-  import("./components/ErrorBoundary"),
-]);
+// Die Layer-Reihenfolge steht in `index.html` vor jedem Stylesheet. Deshalb
+// dürfen App und Dialoge wieder statisch geladen werden; der dynamische Import
+// erzeugte dutzende Modul-Preloads und konnte unter Last die Browserressourcen
+// erschöpfen.
 // Vor dem Registrieren der Built-ins klären, welche optionalen Werkzeuge der
 // Server überhaupt anbietet. Ohne Antwort bleibt OpenCode Web aus.
 await loadHostCapabilities();

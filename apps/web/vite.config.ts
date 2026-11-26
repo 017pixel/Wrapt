@@ -3,7 +3,6 @@ import { resolve } from "node:path";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { loadEnv } from "vite";
-import type { IndexHtmlTransformContext } from "vite";
 import { defineConfig } from "vitest/config";
 
 // Zentrale Personalisierung (Branding + Tailscale-Hosts): erst wrapt.local.json,
@@ -39,27 +38,10 @@ export default defineConfig(({mode}) => {
   const proxyOptions = { target: backendTarget, ws: true, changeOrigin: true, ...(developmentProxyHeaders ? { headers: developmentProxyHeaders } : {}) };
   const sameOriginProxyOptions = { ...proxyOptions, changeOrigin: false };
   const base = "/wrapt/";
-  // `App` wird dynamisch geladen, damit `index.css` zuerst im CSS-Graph steht
-  // und die Layer-Reihenfolge (theme, base, components, utilities) stimmt.
-  // Dieser Link holt den Chunk trotzdem vorab, ohne Stylesheets umzusortieren.
-  const appPreloadPlugin = {
-    name: "wrapt-app-preload",
-    apply: "build" as const,
-    transformIndexHtml: {
-      order: "post" as const,
-      handler(html: string, ctx: IndexHtmlTransformContext) {
-        const chunk = Object.values(ctx.bundle ?? {}).find(
-          (entry) => entry.type === "chunk" && entry.facadeModuleId?.endsWith("/src/App.tsx"),
-        );
-        if (chunk?.type !== "chunk") return html;
-        return html.replace("</head>", `    <link rel="modulepreload" crossorigin href="${base}${chunk.fileName}" />\n  </head>`);
-      },
-    },
-  };
   return ({
   base,
   define: { __WRAPT_APP_VERSION__: JSON.stringify(rootPackage.version) },
-  plugins: [react(), tailwindcss(), appNamePlugin, appPreloadPlugin],
+  plugins: [react(), tailwindcss(), appNamePlugin],
   server: {
     host: "0.0.0.0",
     port: 5173,
@@ -88,6 +70,11 @@ export default defineConfig(({mode}) => {
   },
   build: {
     target: "es2022",
+    // Die App hat viele kleine Route-Chunks. Ein Preload-Block mit dutzenden
+    // Modulen erschöpft auf schwachen Geräten und in parallelen Testläufen die
+    // Browserressourcen (ERR_INSUFFICIENT_RESOURCES). Die Chunks werden beim
+    // Navigieren ohnehin nachgeladen; der Einstieg bleibt ein Request.
+    modulePreload: false,
     // Gehashte Chunks bleiben für bereits geöffnete Tabs erreichbar. Die
     // Lazy-Loader können dadurch bei einem laufenden Build weiterladen, statt
     // auf eine fehlende Datei zu treffen.

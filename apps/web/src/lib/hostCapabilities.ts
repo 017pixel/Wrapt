@@ -28,7 +28,7 @@ export function applyHostCapabilities(next: HostCapabilities): void {
  */
 export async function loadHostCapabilities(): Promise<void> {
   try {
-    applyHostCapabilities(await request("/system/capabilities", hostCapabilitiesSchema, AbortSignal.timeout(5_000)));
+    applyHostCapabilities(await request("/system/capabilities", hostCapabilitiesSchema, AbortSignal.timeout(2_000)));
   } catch {
     applyHostCapabilities({ opencodeWeb: false });
   }
