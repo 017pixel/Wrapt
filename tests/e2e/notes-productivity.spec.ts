@@ -136,7 +136,9 @@ test("importiert Markdown und bietet einen vollständigen ZIP-Export an", async 
 });
 
 test("zeigt [[-Vorschläge und Slash-Menüs im richtigen Editor", async ({ page }) => {
-  await page.goto(`${workbenchUrl}/notizen`);
+  // Vom Dashboard aus öffnen: Auf der Notizseite würde derselbe Datensatz
+  // gleichzeitig im Haupteditor und in der Quick Note liegen.
+  await page.goto(`${workbenchUrl}/`);
   await page.getByRole("button", { name: "Quick Note öffnen", exact: true }).click();
   const quick = page.getByRole("dialog", { name: "Quick Note", exact: true });
   const editor = quick.locator(".note-editor-content");
@@ -146,6 +148,7 @@ test("zeigt [[-Vorschläge und Slash-Menüs im richtigen Editor", async ({ page 
   await page.getByRole("option", { name: /Codeblock/ }).click();
   await expect(quick.locator(".note-code-block")).toBeVisible();
   await quick.getByRole("button", { name: "Quick Note schließen", exact: true }).click();
+  await page.goto(`${workbenchUrl}/notizen`);
   await page.locator(".notes-sidebar-new").filter({ hasText: "Neue Seite" }).first().click();
   const main = page.locator(".notes-workspace .note-editor-content");
   await main.click();

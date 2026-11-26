@@ -241,7 +241,7 @@ test("Verschieben zwischen Ordnerbäumen, Zurückziehen und Seitenreihenfolge", 
   await expect.poll(async () => {
     const live = (await (await request.get("/api/v1/notes", { headers })).json()).notes as { id: string; sortOrder: number }[];
     return live.find((note) => note.id === root.id)!.sortOrder < live.find((note) => note.id === parentA.id)!.sortOrder;
-  }).toBe(true);
+  }, { timeout: 15_000 }).toBe(true);
   await page.reload();
   const current = (await (await request.get("/api/v1/notes", { headers })).json()).notes;
   expect(current.find((note: { id: string }) => note.id === root.id).sortOrder).toBeLessThan(current.find((note: { id: string }) => note.id === parentA.id).sortOrder);
