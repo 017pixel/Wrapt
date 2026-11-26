@@ -158,6 +158,17 @@ describe("NotesDatabase", () => {
     db.close();
   });
 
+  it("findet Tippfehler auch bei aktivem Volltextindex", async () => {
+    const { db } = await database();
+    const note = db.create({ title: "Verbindungsnotizen", parentId: null });
+    db.saveContent(note.id, "Die Verbindung bleibt stabil.", 1);
+
+    // Der FTS-Index findet keine exakte Schreibweise; das unscharfe Ranking
+    // muss dennoch über den Vollscan zum Zug kommen.
+    expect(db.search(searchQuery("Verbindungsnotitzen")).map((entry) => entry.id)).toEqual([note.id]);
+    db.close();
+  });
+
   it("filtert Suche nach Titel, Bereich und Zeitraum und zeigt Treffer im Auszug", async () => {
     const { db } = await database();
     const parent = db.create({ title: "Projekt", parentId: null });

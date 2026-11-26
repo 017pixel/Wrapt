@@ -90,8 +90,11 @@ export function searchNoteRows(db: DatabaseSync, input: NoteSearchQuery, ftsAvai
   if (ftsAvailable) {
     try {
       const match = ftsMatch(input.q, input.titleOnly);
-      return db.prepare(`${columns} WHERE ${[...sql, "rowid IN (SELECT rowid FROM notes_fts WHERE notes_fts MATCH ?)"].join(" AND ")} ORDER BY updated_at DESC LIMIT 500`)
+      const rows = db.prepare(`${columns} WHERE ${[...sql, "rowid IN (SELECT rowid FROM notes_fts WHERE notes_fts MATCH ?)"].join(" AND ")} ORDER BY updated_at DESC LIMIT 500`)
         .all(...params, match) as unknown as NoteSearchRow[];
+      // FTS findet nur exakte Präfixe. Für Tippfehler und ähnliche Titel bleibt
+      // der Vollscan die Kandidatenquelle für das unscharfe Ranking.
+      if (rows.length > 0) return rows;
     } catch {
       // Ungültige FTS-Syntax oder fehlender Index: Vollscan unten.
     }
