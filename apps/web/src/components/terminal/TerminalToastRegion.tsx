@@ -7,6 +7,7 @@ import "./terminal-notifications.css";
 function TerminalToast({ notice }: { notice: TerminalNotice }) {
   const dismiss = useTerminalNotices((state) => state.dismiss);
   useEffect(() => {
+    if (notice.sticky) return;
     const timer = window.setTimeout(() => dismiss(notice.id), notice.tone === "error" ? 10_000 : 6_000);
     return () => window.clearTimeout(timer);
   }, [dismiss, notice]);

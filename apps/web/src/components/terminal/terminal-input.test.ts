@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Terminal } from "@xterm/xterm";
-import { attachTerminalInput, type TerminalInputContext } from "./terminal-input";
+import { attachTerminalInput, flushTerminalReplay, sendTerminalSequence, type TerminalInputContext } from "./terminal-input";
 
 function touchEvent(type: string, points: Array<{ clientX: number; clientY: number }>): TouchEvent {
   const event = new Event(type, { bubbles: true, cancelable: true }) as TouchEvent;
@@ -27,10 +27,10 @@ function setupInput(active = true) {
     select: vi.fn(),
   } as unknown as Terminal;
   const context = {
-    send: vi.fn(() => true),
+    send: vi.fn<(message: object) => boolean>(() => true),
     setError: vi.fn(),
     sessionRef: { current: "session-1" },
-    snapshotReplayRef: { current: false },
+    snapshotReplayRef: { current: false as boolean },
     replayBufferRef: { current: [] as string[] },
     mouseTrackingRef: { current: false as boolean },
     kindRef: { current: "shell" as const },
@@ -126,6 +126,84 @@ describe("Terminal-Scroll-Lifecycle", () => {
 
     expect(terminal.select).toHaveBeenCalledWith(1, 100, 89);
     dispose();
+  });
+
+  it("puffert während des Snapshot-Replays Pfeile, Alt, Escape und Maus statt sie zu verwerfen", () => {
+    const { terminal, context, dispose } = setupInput();
+    const emit = vi.mocked(terminal.onData).mock.calls[0]![0];
+    context.snapshotReplayRef.current = true;
+
+    for (const data of ["\x1b[A", "\x1bb", "\x1b", "\x1b[<0;1;1M", "\x1b[M !!"]) emit(data);
+
+    expect(context.replayBufferRef.current).toEqual(["\x1b[A", "\x1bb", "\x1b", "\x1b[<0;1;1M", "\x1b[M !!"]);
+    expect(context.send).not.toHaveBeenCalled();
+    expect(context.rememberTyping).not.toHaveBeenCalled();
+    dispose();
+  });
+
+  it("puffert Backspace und Delete während des Snapshot-Replays wie andere Sequenzen", () => {
+    const { terminal, context, dispose } = setupInput();
+    const keyHandler = vi.mocked(terminal.attachCustomKeyEventHandler).mock.calls[0]![0];
+    context.snapshotReplayRef.current = true;
+
+    expect(keyHandler?.(new KeyboardEvent("keydown", { key: "Backspace" }))).toBe(false);
+    expect(keyHandler?.(new KeyboardEvent("keydown", { key: "Delete" }))).toBe(false);
+
+    expect(context.replayBufferRef.current).toEqual(["\x7f", "\x1b[3~"]);
+    expect(context.send).not.toHaveBeenCalled();
+    dispose();
+  });
+
+  it("meldet eine wegen fehlender Verbindung nicht gesendete Sondertaste sichtbar", () => {
+    const { terminal, context, dispose } = setupInput();
+    const keyHandler = vi.mocked(terminal.attachCustomKeyEventHandler).mock.calls[0]![0];
+    context.send.mockReturnValueOnce(false);
+
+    expect(keyHandler?.(new KeyboardEvent("keydown", { key: "Backspace" }))).toBe(false);
+
+    expect(context.setError).toHaveBeenCalledWith(expect.stringContaining("nicht vollständig gesendet"));
+    expect(context.replayBufferRef.current).toEqual([]);
+    dispose();
+  });
+
+  it("sendet Keybar-Sequenzen nach dem Replay einmalig und in Reihenfolge", () => {
+    const { context, dispose } = setupInput();
+    const sent: string[] = [];
+    context.send.mockImplementation((message) => { sent.push((message as { data: string }).data); return true; });
+    context.snapshotReplayRef.current = true;
+
+    sendTerminalSequence("\x1b[A", context);
+    sendTerminalSequence("\x1b", context);
+    expect(sent).toEqual([]);
+    expect(context.replayBufferRef.current).toEqual(["\x1b[A", "\x1b"]);
+
+    context.snapshotReplayRef.current = false;
+    const chunks = context.replayBufferRef.current;
+    context.replayBufferRef.current = [];
+    flushTerminalReplay(chunks, (data) => {
+      context.send({ type: "terminal.input", sessionId: "session-1", data });
+      return true;
+    }, context.rememberTyping, context.setError);
+    expect(sent).toEqual(["\x1b[A", "\x1b"]);
+    expect(context.rememberTyping).toHaveBeenNthCalledWith(1, "\x1b[A");
+    expect(context.rememberTyping).toHaveBeenNthCalledWith(2, "\x1b");
+    dispose();
+  });
+
+  it("bricht bei einem Teilversand ab und wiederholt bereits gesendete Blöcke nicht", () => {
+    const sent: string[] = [];
+    const remember = vi.fn();
+    const onError = vi.fn();
+    const send = vi.fn((data: string) => {
+      sent.push(data);
+      return sent.length < 3;
+    });
+
+    flushTerminalReplay(["\x1b[A", "abc", "\x1b"], send, remember, onError);
+
+    expect(sent).toEqual(["\x1b[A", "abc", "\x1b"]);
+    expect(remember.mock.calls.map(([data]) => data)).toEqual(["\x1b[A", "abc"]);
+    expect(onError).toHaveBeenCalledWith(expect.stringContaining("nicht vollständig gesendet"));
   });
 
   it("normalisiert eine rückwärts gezogene Auswahl in derselben Zeile", () => {

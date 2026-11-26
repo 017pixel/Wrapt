@@ -36,6 +36,8 @@ export const WebTerminal = forwardRef<WebTerminalHandle, WebTerminalProps>(funct
     clear: () => renderer.action("terminal.clear"),
     restart: () => renderer.restart(),
     close: () => renderer.action("terminal.close"),
+    markSessionClosed: () => renderer.markSessionClosed(),
+    prepareRestart: () => renderer.prepareRestart(),
     resync: () => renderer.resync(),
     focus: () => renderer.focus(),
     sendKey: (key, modifiers = {}) => renderer.sendKey(key, modifiers),

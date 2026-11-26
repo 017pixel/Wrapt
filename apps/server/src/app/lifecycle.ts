@@ -27,7 +27,13 @@ export async function startBackgroundServices(app: FastifyInstance, deps: AppDep
     deps.terminalStatusSync.start();
     await deps.agentSessionSync.start();
   }
-  await deps.previewSlots.startListeners();
+  try {
+    await deps.previewSlots.startListeners();
+  } catch (error) {
+    // Preview ist ein eigenständiger Dienst. Ein belegter Slot-Port darf die
+    // Workbench nicht am Start hindern; der Doctor zeigt den Zustand.
+    app.log.warn({ err: error }, "Preview-Listener konnten nicht gestartet werden; die Workbench startet ohne Preview-Slots.");
+  }
   if (!isolatedTest) deps.previewDevServers.startWatchdog();
   if (settings.previews.diagnosticsEnabled) {
     // Tageswechsel: abgeschlossene Tage komprimieren, alte Tage entfernen.

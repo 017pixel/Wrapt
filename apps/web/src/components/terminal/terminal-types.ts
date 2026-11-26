@@ -37,6 +37,12 @@ export interface WebTerminalHandle {
   clear(): void;
   restart(): void;
   close(): void;
+  /** Markiert eine serverseitig beendete Sitzung lokal als geschlossen,
+   *  ohne ein zweites terminal.close zu senden. */
+  markSessionClosed(): void;
+  /** Bereitet einen API-Neustart vor, damit der eintreffende Snapshot nicht
+   *  als veraltete Nachricht einer beendeten Sitzung verworfen wird. */
+  prepareRestart(): void;
   /** Renderer-Resync: fordert vom Server einen frischen Snapshot an. */
   resync(): void;
   focus(): void;

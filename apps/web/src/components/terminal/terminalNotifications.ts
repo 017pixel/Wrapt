@@ -4,6 +4,8 @@ export interface TerminalNotice {
   id: string;
   message: string;
   tone: "info" | "error";
+  /** Zustandshinweise bleiben sichtbar, bis sich der Zustand ändert. */
+  sticky?: boolean;
   action?: { label: string; run(): void };
 }
 

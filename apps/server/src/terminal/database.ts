@@ -1,15 +1,13 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import type { TerminalKind, TerminalSessionStatus, TerminalWorkspaceV2 } from "@wrapt/contracts";
 import {
-  terminalWorkspaceSchema,
-  terminalWorkspaceV2Schema,
-  type TerminalKind,
-  type TerminalSessionStatus,
-  type TerminalWorkspaceV2,
-} from "@wrapt/contracts";
-import { AppError } from "../utils/errors.js";
-import { emptyTerminalWorkspaceV2, migrateTerminalWorkspaceV1 } from "./workspace/terminalWorkspaceMigrations.js";
+  TerminalWorkspaceStore,
+  type TerminalWorkspaceChangeListener,
+} from "./workspaceStore.js";
+
+export type { TerminalWorkspaceChange, TerminalWorkspaceChangeListener } from "./workspaceStore.js";
 
 export interface StoredTerminalSession {
   id: string;
@@ -53,14 +51,18 @@ interface SessionRow {
   epoch: number;
 }
 
-interface WorkspaceRow { documentJson: string; revision: number; updatedAt: string; }
-
-const DEFAULT_WORKSPACE: TerminalWorkspaceV2 = emptyTerminalWorkspaceV2();
+/** Pane-Zustand aus Sicht der Persistenz (A-Vertrag, ohne Supervisor-Import). */
+export interface ReconciledPaneStatus {
+  state: "alive" | "dead" | "missing" | "unknown";
+  exitCode: number | null;
+  exitSignal?: number | null;
+}
 
 function rowToSession(row: SessionRow): StoredTerminalSession { return { ...row }; }
 
 export class TerminalDatabase {
   private readonly db: DatabaseSync;
+  private readonly workspaces: TerminalWorkspaceStore;
 
   constructor(path: string) {
     mkdirSync(dirname(path), { recursive: true });
@@ -110,34 +112,41 @@ export class TerminalDatabase {
     if (!columns.some((column) => column.name === "epoch")) {
       this.db.exec("ALTER TABLE terminal_sessions ADD COLUMN epoch INTEGER NOT NULL DEFAULT 0");
     }
+    this.workspaces = new TerminalWorkspaceStore(this.db);
   }
 
   close() { this.db.close(); }
+
+  onWorkspaceChange(listener: TerminalWorkspaceChangeListener): () => void {
+    return this.workspaces.onWorkspaceChange(listener);
+  }
+
+  /** Prüft, ob eine Runtime noch im aktuellen Workspace sichtbar ist. Eine
+   *  unlesbare Ablage gilt als referenziert, damit nichts versehentlich fällt. */
+  isRuntimeReferenced(userId: string, runtimeId: string): boolean {
+    return this.workspaces.isRuntimeReferenced(userId, runtimeId);
+  }
 
   markRunningSessionsInterrupted() {
     this.db.prepare(`UPDATE terminal_sessions SET status = 'interrupted', updated_at = ? WHERE status IN ('starting', 'running')`).run(Date.now());
   }
 
-  reconcileSupervisorSessions(activeNames: ReadonlySet<string>) {
+  reconcileSupervisorSessions(
+    activeNames: ReadonlySet<string>,
+    panes?: ReadonlyMap<string, ReconciledPaneStatus>,
+  ) {
     const rows = this.db.prepare("SELECT id, supervisor_name supervisorName FROM terminal_sessions WHERE status IN ('starting', 'running')").all() as unknown as Array<{ id: string; supervisorName: string | null }>;
-    const update = this.db.prepare("UPDATE terminal_sessions SET status = 'interrupted', updated_at = ? WHERE id = ?");
+    const update = this.db.prepare("UPDATE terminal_sessions SET status = ?, updated_at = ?, exit_code = ?, exit_signal = ? WHERE id = ?");
+    const now = Date.now();
     for (const row of rows) {
-      if (!row.supervisorName || !activeNames.has(row.supervisorName)) update.run(Date.now(), row.id);
+      const pane = row.supervisorName ? panes?.get(row.supervisorName) : undefined;
+      if (pane?.state === "dead") {
+        const cleanExit = pane.exitCode === 0 && (pane.exitSignal === null || pane.exitSignal === 0 || pane.exitSignal === undefined);
+        update.run(cleanExit ? "exited" : "interrupted", now, pane.exitCode, pane.exitSignal ?? null, row.id);
+      } else if (!row.supervisorName || !activeNames.has(row.supervisorName)) {
+        update.run("interrupted", now, null, null, row.id);
+      }
     }
-  }
-
-  /** Runtime-IDs, die im Workspace eines Nutzers sichtbar sind; null bei defektem Dokument. */
-  private readReferencedRuntimeIds(userId: string): string[] | null {
-    try {
-      return this.getWorkspace(userId).document.entries.flatMap((entry) => entry.runtimeId ? [entry.runtimeId] : []);
-    } catch {
-      return null;
-    }
-  }
-
-  private referencedRuntimeIds(userId: string): string[] {
-    // Ein defektes Workspace-Dokument fällt auf die reine Live-Zählung zurück.
-    return this.readReferencedRuntimeIds(userId) ?? [];
   }
 
   /**
@@ -152,7 +161,7 @@ export class TerminalDatabase {
     const threshold = Date.now() - olderThanMs;
     let removed = 0;
     for (const { ownerId } of owners) {
-      const referencedIds = this.readReferencedRuntimeIds(ownerId);
+      const referencedIds = this.workspaces.referencedRuntimeIds(ownerId);
       // Ein defektes Workspace-Dokument darf keine Sitzungen verwerfen.
       if (referencedIds === null) continue;
       const referenced = new Set(referencedIds);
@@ -239,7 +248,7 @@ export class TerminalDatabase {
     const activeFilter = `AND (status IN ('starting', 'running')
       OR runtime_id IN (SELECT value FROM json_each(?))
       OR supervisor_name IN (SELECT value FROM json_each(?)))`;
-    const referencedJson = JSON.stringify(this.referencedRuntimeIds(session.userId));
+    const referencedJson = JSON.stringify(this.workspaces.referencedRuntimeIds(session.userId) ?? []);
     const supervisorJson = JSON.stringify([...activeSupervisorNames]);
     let committed = false;
     this.db.exec("BEGIN IMMEDIATE");
@@ -262,7 +271,7 @@ export class TerminalDatabase {
   }
 
   persistentSessions(userId: string): StoredTerminalSession[] {
-    const runtimeIds = new Set(this.getWorkspace(userId).document.entries
+    const runtimeIds = new Set(this.workspaces.getWorkspace(userId).document.entries
       .filter((entry) => entry.persistent)
       .flatMap((entry) => entry.runtimeId ? [entry.runtimeId] : []));
     return [...runtimeIds].flatMap((runtimeId) => {
@@ -272,60 +281,15 @@ export class TerminalDatabase {
   }
 
   getWorkspace(userId: string) {
-    const found = this.readWorkspace(userId);
-    if (!found) return { document: DEFAULT_WORKSPACE, revision: 0, updatedAt: new Date(0).toISOString() };
-    // V1-Dokumente werden beim Lesen einmalig nach V2 migriert und zurück-
-    // geschrieben. Das passiert bewusst als einzelnes atomares Statement und
-    // nicht über saveWorkspace(), weil saveWorkspace() selbst die Revision
-    // liest und eine Transaktion startet — ein Aufruf von dort würde in eine
-    // laufende Transaktion hinein rekursieren (Fehler 500).
-    if (found.raw.version === 1) {
-      const migrated = migrateTerminalWorkspaceV1(terminalWorkspaceSchema.parse(found.raw));
-      const revision = found.row.revision + 1;
-      const updatedAt = new Date().toISOString();
-      this.db.prepare(`INSERT INTO terminal_workspaces(owner_id, document_json, revision, updated_at)
-        VALUES (?, ?, ?, ?) ON CONFLICT(owner_id) DO UPDATE SET document_json=excluded.document_json,
-        revision=excluded.revision, updated_at=excluded.updated_at`).run(userId, JSON.stringify(migrated), revision, updatedAt);
-      return { document: migrated, revision, updatedAt };
-    }
-    return { document: terminalWorkspaceV2Schema.parse(found.raw), revision: found.row.revision, updatedAt: found.row.updatedAt };
+    return this.workspaces.getWorkspace(userId);
   }
 
-  private readWorkspace(userId: string): { row: WorkspaceRow; raw: { version?: unknown } } | null {
-    const row = this.db.prepare("SELECT document_json documentJson, revision, updated_at updatedAt FROM terminal_workspaces WHERE owner_id = ?").get(userId) as WorkspaceRow | undefined;
-    if (!row) return null;
-    return { row, raw: JSON.parse(row.documentJson) as { version?: unknown } };
+  /** Setzt ein beschädigtes oder unerwünschtes Layout bewusst zurück. */
+  resetWorkspace(userId: string) {
+    return this.workspaces.resetWorkspace(userId);
   }
 
   saveWorkspace(userId: string, document: TerminalWorkspaceV2, expectedRevision: number | null) {
-    const parsed = terminalWorkspaceV2Schema.parse(document);
-    let revision: number;
-    let updatedAt: string;
-    let committed = false;
-    this.db.exec("BEGIN IMMEDIATE");
-    try {
-      // Revision und Dokument müssen unter derselben Schreibsperre gelesen
-      // und geschrieben werden. Sonst können zwei Tabs denselben Stand lesen
-      // und der spätere Save überschreibt die Änderung des ersten Tabs.
-      // readWorkspace() statt getWorkspace(): getWorkspace() würde ein
-      // V1-Dokument migrieren und dabei selbst schreiben — innerhalb der
-      // laufenden Transaktion führt das zu einer zweiten Transaktion.
-      const current = this.readWorkspace(userId);
-      const currentRevision = current?.row.revision ?? 0;
-      if (expectedRevision !== null && expectedRevision !== currentRevision) {
-        throw new AppError(409, "TERMINAL_WORKSPACE_CONFLICT", "Das Terminal-Layout wurde auf einem anderen Gerät geändert.");
-      }
-      revision = currentRevision + 1;
-      updatedAt = new Date().toISOString();
-      this.db.prepare(`INSERT INTO terminal_workspaces(owner_id, document_json, revision, updated_at)
-        VALUES (?, ?, ?, ?) ON CONFLICT(owner_id) DO UPDATE SET document_json=excluded.document_json,
-        revision=excluded.revision, updated_at=excluded.updated_at`).run(userId, JSON.stringify(parsed), revision, updatedAt);
-      this.db.exec("COMMIT");
-      committed = true;
-    } catch (error) {
-      if (!committed && this.db.isTransaction) this.db.exec("ROLLBACK");
-      throw error;
-    }
-    return { document: parsed, revision, updatedAt };
+    return this.workspaces.saveWorkspace(userId, document, expectedRevision);
   }
 }

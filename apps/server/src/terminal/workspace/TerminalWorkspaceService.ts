@@ -41,7 +41,15 @@ export class TerminalWorkspaceService {
   }
 
   private createEntry(document: TerminalWorkspaceV2, entry: TerminalEntry): TerminalWorkspaceV2 {
-    if (document.entries.some((candidate) => candidate.id === entry.id)) this.conflict("Ein Terminal mit dieser ID existiert bereits.");
+    const existing = document.entries.find((candidate) => candidate.id === entry.id);
+    // Idempotent gegen eine verlorene Save-Antwort: Beim erneuten Anwenden
+    // desselben Batches können spätere Ops den Eintrag bereits verändert
+    // haben. Solange die Runtime übereinstimmt, ist das derselbe Eintrag und
+    // der Create ein No-Op; eine fremde Runtime bleibt ein echter Konflikt.
+    if (existing) {
+      if (sameValues(existing, entry) || existing.runtimeId === entry.runtimeId) return document;
+      this.conflict("Ein Terminal mit dieser ID existiert bereits.");
+    }
     if (!this.folderExists(document, entry.parentFolderId)) this.conflict("Der Zielordner existiert nicht.");
     return { ...document, entries: [...document.entries, entry] };
   }
@@ -57,7 +65,8 @@ export class TerminalWorkspaceService {
 
   private deleteEntry(document: TerminalWorkspaceV2, id: string): TerminalWorkspaceV2 {
     const entry = document.entries.find((candidate) => candidate.id === id);
-    if (!entry) this.conflict("Das Terminal wurde nicht gefunden.");
+    // Bereits gelöscht: wiederholter Batch nach verlorener Antwort.
+    if (!entry) return document;
     const entries = document.entries.filter((candidate) => candidate.id !== id);
     const areaLayouts = Object.fromEntries(Object.entries(document.areaLayouts).map(([areaKey, areaLayout]) => {
       const paneLayout = removeEntryFromLayout(areaLayout.paneLayout, entry.runtimeId);
@@ -70,7 +79,9 @@ export class TerminalWorkspaceService {
   }
 
   private createFolder(document: TerminalWorkspaceV2, folder: TerminalFolder): TerminalWorkspaceV2 {
-    if (document.folders.some((candidate) => candidate.id === folder.id)) this.conflict("Ein Ordner mit dieser ID existiert bereits.");
+    // Bereits angelegt: No-Op. Spätere Ops desselben Batches (Umbenennen,
+    // Verschieben) dürfen den erneuten Create nicht zum Konflikt machen.
+    if (document.folders.some((candidate) => candidate.id === folder.id)) return document;
     if (folder.parentFolderId !== null && !document.folders.some((candidate) => candidate.id === folder.parentFolderId)) this.conflict("Der übergeordnete Ordner existiert nicht.");
     return { ...document, folders: [...document.folders, folder] };
   }
@@ -89,7 +100,8 @@ export class TerminalWorkspaceService {
 
   private deleteFolder(document: TerminalWorkspaceV2, id: string, moveChildrenTo: string | null): TerminalWorkspaceV2 {
     const folder = document.folders.find((candidate) => candidate.id === id);
-    if (!folder) this.conflict("Der Ordner wurde nicht gefunden.");
+    // Bereits gelöscht: wiederholter Batch nach verlorener Antwort.
+    if (!folder) return document;
     if (moveChildrenTo !== null && moveChildrenTo !== id && !document.folders.some((candidate) => candidate.id === moveChildrenTo)) {
       this.conflict("Der Zielordner existiert nicht.");
     }
@@ -140,6 +152,12 @@ function layoutContainsPane(layout: TerminalPaneLayout, paneId: string | null): 
   if (paneId === null) return false;
   if (layout.type === "pane") return layout.id === paneId;
   return layout.children.some((pane) => pane.id === paneId);
+}
+
+/** Vergleich aller Felder zweier Datensätze (Idempotenz ohne Key-Reihenfolge). */
+function sameValues(base: object, next: object): boolean {
+  const keys = new Set([...Object.keys(base), ...Object.keys(next)]);
+  return [...keys].every((key) => (base as Record<string, unknown>)[key] === (next as Record<string, unknown>)[key]);
 }
 
 /** Mergt einen optionalen Patch verlustfrei (exactOptionalPropertyTypes). */

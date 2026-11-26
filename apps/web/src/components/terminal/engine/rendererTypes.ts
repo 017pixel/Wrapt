@@ -30,6 +30,10 @@ export interface TerminalRenderer {
   sendKey(key: string, modifiers?: { ctrl?: boolean; alt?: boolean }): void;
   pasteFromClipboard(): void;
   restart(): void;
+  /** Markiert eine bereits serverseitig geschlossene Sitzung lokal. */
+  markSessionClosed(): void;
+  /** Öffnet lokal den Neustart, bevor ein API-Restart den Snapshot sendet. */
+  prepareRestart(): void;
   /** Fordert beim Server eine erneute Synchronisation an (Renderer-Resync). */
   resync(): void;
   action(type: "terminal.clear" | "terminal.restart" | "terminal.close"): void;

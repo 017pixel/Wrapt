@@ -32,6 +32,30 @@ test("behält die Reihenfolge verschiedener Sitzungen und leert vor Steueraktion
   expect(received).toEqual(["one:a", "one:b", "two:c", "one:d"]);
 });
 
+test("meldet bei einem Teilfehler nur den nicht gesendeten Rest und wiederholt nichts", () => {
+  vi.useFakeTimers();
+  const sent: string[] = [];
+  const discard = vi.fn();
+  let fail = false;
+  const queue = new TerminalInputQueue((message) => {
+    if (fail) return false;
+    if (message.type === "terminal.input") sent.push(message.data);
+    return true;
+  }, discard);
+
+  queue.enqueue({ type: "terminal.input", sessionId: "one", data: "a" });
+  queue.enqueue({ type: "terminal.input", sessionId: "one", data: "b" });
+  queue.enqueue({ type: "terminal.input", sessionId: "two", data: "c" });
+  fail = true;
+  expect(queue.flush()).toBe(false);
+
+  expect(sent).toEqual(["a"]);
+  expect(discard).toHaveBeenCalledWith(["one", "two"]);
+  // Der bereits gesendete Block bleibt einmalig; ein weiterer Flush sendet nichts.
+  queue.flush();
+  expect(sent).toEqual(["a"]);
+});
+
 test("meldet unterbrochene Eingaben und führt sie nach Reconnect nicht aus", () => {
   vi.useFakeTimers();
   const send = vi.fn(() => true);

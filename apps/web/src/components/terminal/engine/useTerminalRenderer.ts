@@ -5,7 +5,7 @@ import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { writeClipboardText } from "../../../lib/clipboard";
 import { attachTerminalAppearance } from "../terminal-appearance";
-import { attachTerminalInput } from "../terminal-input";
+import { attachTerminalInput, sendTerminalSequence } from "../terminal-input";
 import { useTerminalOutput } from "../useTerminalOutput";
 import { isCompactTerminal, mouseWheelSequence, terminalFontSize } from "../terminal-utils";
 import { themeFromDashboard } from "../terminal-theme";
@@ -215,14 +215,19 @@ export function useTerminalRenderer(options: TerminalRendererOptions): TerminalR
       const sessionId = sessionRef.current;
       if (!sessionId) return;
       const steps = Math.min(Math.abs(lines), 12);
+      const sink = {
+        send: (message: object) => sendMessage(message as ClientMessage),
+        setError: setErrorState,
+        sessionRef, snapshotReplayRef, replayBufferRef,
+      };
       if (terminal.modes.mouseTrackingMode !== "none") {
         const sequence = mouseWheelSequence(lines < 0 ? "up" : "down", mouseEncodingRef.current);
-        sendMessage({ type: "terminal.input", sessionId, data: sequence.repeat(steps) });
+        sendTerminalSequence(sequence.repeat(steps), sink);
         return;
       }
       if (kindRef.current === "shell") {
         const sequence = lines < 0 ? "\x1b[A" : "\x1b[B";
-        sendMessage({ type: "terminal.input", sessionId, data: sequence.repeat(steps) });
+        sendTerminalSequence(sequence.repeat(steps), sink);
       }
     };
     const disposeInput = attachTerminalInput(terminal, mount, {

@@ -5,7 +5,10 @@ import { afterEach, describe, expect, it } from "vitest";
 import { TerminalManager } from "./Manager.js";
 import type { PtyProcess } from "./NodePtyAdapter.js";
 import { TerminalDatabase } from "./database.js";
-import { canonicalCwdWithinRootsSync, validateCwd } from "./restore.js";
+import { canonicalCwdWithinRootsSync, reconcileTerminalSessionsOnStartup, validateCwd } from "./restore.js";
+import type { TmuxSupervisor } from "./TmuxSupervisor.js";
+import { randomUUID } from "node:crypto";
+import type { StoredTerminalSession } from "./database.js";
 import { anyContained, canonicalRootCandidates } from "../utils/pathRoots.js";
 
 const directories: string[] = [];
@@ -151,6 +154,54 @@ describe("kanonische Terminal-Arbeitsverzeichnisse", () => {
     expect(second.getSessionMetadata("owner", session.id).status).toBe("interrupted");
     (await second.shutdown());
     managers.splice(managers.indexOf(second), 1);
+    database.close();
+  });
+});
+
+function storedSession(root: string, overrides: Partial<StoredTerminalSession>): StoredTerminalSession {
+  const now = Date.now();
+  return {
+    id: randomUUID(), userId: "owner", runtimeId: randomUUID(), kind: "shell", mode: "agent",
+    projectId: null, profilePath: null, supervisorName: null, cwd: root, pid: 0, cols: 80, rows: 24,
+    status: "running", createdAt: now, updatedAt: now, exitCode: null, exitSignal: null, epoch: 0,
+    ...overrides,
+  };
+}
+
+describe("Abgleich beim Backend-Start", () => {
+  it("lässt bei einem Scanfehler Status und Bestand unverändert", async () => {
+    const root = await temporaryDirectory("wrapt-reconcile-error-");
+    const database = new TerminalDatabase(join(root, "terminal.sqlite"));
+    const session = storedSession(root, { supervisorName: "wrapt-live" });
+    database.saveSession(session);
+    await reconcileTerminalSessionsOnStartup({
+      supervisor: { scan: () => { throw new Error("tmux kaputt"); } } as unknown as TmuxSupervisor,
+      database, externalSessionOwnerId: undefined, defaultCwd: root, allowedRoots: [root],
+    });
+    expect(database.findSessionById("owner", session.id)).toMatchObject({ status: "running" });
+    database.close();
+  });
+
+  it("übernimmt tote Panes als beendet oder unterbrochen", async () => {
+    const root = await temporaryDirectory("wrapt-reconcile-dead-");
+    const database = new TerminalDatabase(join(root, "terminal.sqlite"));
+    const clean = storedSession(root, { supervisorName: "wrapt-clean" });
+    const crashed = storedSession(root, { supervisorName: "wrapt-crashed" });
+    database.saveSession(clean);
+    database.saveSession(crashed);
+    const scan = () => ({
+      available: true,
+      sessions: [
+        { name: "wrapt-clean", dead: true, exitCode: 0, exitSignal: null },
+        { name: "wrapt-crashed", dead: true, exitCode: 3, exitSignal: null },
+      ],
+    });
+    await reconcileTerminalSessionsOnStartup({
+      supervisor: { scan } as unknown as TmuxSupervisor,
+      database, externalSessionOwnerId: undefined, defaultCwd: root, allowedRoots: [root],
+    });
+    expect(database.findSessionById("owner", clean.id)).toMatchObject({ status: "exited", exitCode: 0 });
+    expect(database.findSessionById("owner", crashed.id)).toMatchObject({ status: "interrupted", exitCode: 3 });
     database.close();
   });
 });

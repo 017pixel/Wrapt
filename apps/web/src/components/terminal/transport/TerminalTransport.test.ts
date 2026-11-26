@@ -10,7 +10,7 @@ class FakeWebSocket {
   readyState = 0;
   onopen: (() => void) | null = null;
   onmessage: ((event: { data: string }) => void) | null = null;
-  onclose: (() => void) | null = null;
+  onclose: ((event: { code: number }) => void) | null = null;
   onerror: (() => void) | null = null;
 
   constructor() { FakeWebSocket.instances.push(this); }
@@ -28,9 +28,9 @@ class FakeWebSocket {
     this.onmessage?.({ data: JSON.stringify(message) });
   }
 
-  close() {
+  close(code = 1006) {
     this.readyState = 3;
-    this.onclose?.();
+    this.onclose?.({ code });
   }
 }
 
@@ -227,6 +227,79 @@ test("öffnet beim Vorladen keine Shell und räumt ungenutzte Hover-Verbindungen
   expect(vi.getTimerCount()).toBe(0);
   window.dispatchEvent(new Event("online"));
   expect(FakeWebSocket.instances).toHaveLength(1);
+});
+
+test("stoppt nach einem Auth-Close 1008 den Reconnect-Sturm bis zum manuellen Retry", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("WebSocket", FakeWebSocket);
+  const { terminalTransport } = await import("./TerminalTransport");
+  const subscription = terminalTransport.subscribe("runtime-auth-close");
+  const statuses: boolean[] = [];
+  subscription.onStatus((connected) => statuses.push(connected));
+  FakeWebSocket.instances[0]!.open();
+  FakeWebSocket.instances[0]!.close(1008);
+
+  // Kein automatischer Neusturm, auch nicht nach langer Wartezeit.
+  vi.advanceTimersByTime(60_000);
+  expect(FakeWebSocket.instances).toHaveLength(1);
+  expect(statuses).toEqual([true, false]);
+
+  // Der manuelle Retry öffnet einen frischen Socket; der Status meldet den
+  // neuen Stand, sodass der Renderer erneut abonnieren kann.
+  subscription.retry();
+  expect(FakeWebSocket.instances).toHaveLength(2);
+  FakeWebSocket.instances[1]!.open();
+  expect(statuses).toEqual([true, false, true]);
+  subscription.dispose();
+  await Promise.resolve();
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+test("baut einen offenen Socket beim manuellen Retry neu auf", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("WebSocket", FakeWebSocket);
+  const { terminalTransport } = await import("./TerminalTransport");
+  const subscription = terminalTransport.subscribe("runtime-retry-open");
+  const statuses: boolean[] = [];
+  subscription.onStatus((connected) => statuses.push(connected));
+  const first = FakeWebSocket.instances[0]!;
+  first.open();
+
+  subscription.retry();
+
+  expect(first.readyState).toBe(3);
+  expect(FakeWebSocket.instances).toHaveLength(2);
+  expect(statuses).toEqual([true, false]);
+  subscription.dispose();
+  await Promise.resolve();
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+test("wartet beim manuellen Retry auf einen laufenden Socket-Aufbau", async () => {
+  vi.useFakeTimers();
+  vi.stubGlobal("WebSocket", FakeWebSocket);
+  const { terminalTransport } = await import("./TerminalTransport");
+  const subscription = terminalTransport.subscribe("runtime-retry-connecting");
+
+  subscription.retry();
+
+  expect(FakeWebSocket.instances).toHaveLength(1);
+  subscription.dispose();
+  await Promise.resolve();
+  expect(vi.getTimerCount()).toBe(0);
+});
+
+test("meldet eine abgelehnte Anmeldung mit Grund", async () => {
+  vi.stubGlobal("WebSocket", FakeWebSocket);
+  const { terminalTransport } = await import("./TerminalTransport");
+  const subscription = terminalTransport.subscribe("runtime-auth-reason");
+  const statuses: Array<[boolean, string | undefined]> = [];
+  subscription.onStatus((connected, reason) => statuses.push([connected, reason]));
+  FakeWebSocket.instances[0]!.open();
+  FakeWebSocket.instances[0]!.close(1008);
+
+  expect(statuses).toEqual([[true, undefined], [false, "auth"]]);
+  subscription.dispose();
 });
 
 test("begrenzt identische Größenmeldungen und behandelt send-Fehler ohne Ausnahme", async () => {

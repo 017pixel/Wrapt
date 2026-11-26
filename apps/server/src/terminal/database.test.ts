@@ -106,3 +106,51 @@ describe("TerminalDatabase", () => {
     db.close();
   });
 });
+
+describe("Workspace-Änderungen", () => {
+  const runtime = (suffix: string) => `00000000-0000-4000-8000-${suffix.padStart(12, "0")}`;
+  const document = (...runtimeIds: string[]) => ({
+    version: 2 as const,
+    entries: runtimeIds.map((runtimeId, index) => ({
+      id: `entry-${index}`, runtimeId, name: `Terminal ${index}`, parentFolderId: null,
+      sortOrder: index, pinned: false, persistent: false, kind: "shell" as const, projectId: null, initialCwd: null,
+    })),
+    folders: [{ id: "default", parentFolderId: null, name: "Terminal", sortOrder: 0, collapsed: false }],
+    areaLayouts: {},
+  });
+
+  it("meldet entfernte Runtime-IDs und behält wiederverwendete", async () => {
+    const db = await database();
+    const changes: Array<{ userId: string; removedRuntimeIds: readonly string[] | null }> = [];
+    db.onWorkspaceChange((change) => changes.push(change));
+    const first = runtime("1");
+    const second = runtime("2");
+    const third = runtime("3");
+
+    db.saveWorkspace("alice", document(first, second), 0);
+    expect(changes.at(-1)).toEqual({ userId: "alice", removedRuntimeIds: [] });
+    db.saveWorkspace("alice", document(second, third), 1);
+    expect(changes.at(-1)).toEqual({ userId: "alice", removedRuntimeIds: [first] });
+    expect(db.isRuntimeReferenced("alice", second)).toBe(true);
+    expect(db.isRuntimeReferenced("alice", first)).toBe(false);
+    db.close();
+  });
+
+  it("meldet bei unlesbarem Altstand keine Löschungen und lässt den Reset zu", async () => {
+    const db = await database();
+    const internal = db as unknown as { db: { prepare: (sql: string) => { run: (...params: (string | number)[]) => void } } };
+    internal.db.prepare("INSERT INTO terminal_workspaces(owner_id, document_json, revision, updated_at) VALUES (?, ?, ?, ?)").run(
+      "alice", "{ kaputt", 4, "2026-08-19T08:00:00.000Z",
+    );
+    const changes: Array<{ userId: string; removedRuntimeIds: readonly string[] | null }> = [];
+    db.onWorkspaceChange((change) => changes.push(change));
+
+    const saved = db.saveWorkspace("alice", document(), 4);
+    expect(saved.revision).toBe(5);
+    expect(changes.at(-1)).toEqual({ userId: "alice", removedRuntimeIds: null });
+    // Der bewusste Reset darf trotz unlesbarem Altstand nicht in einen
+    // Revisionskonflikt laufen.
+    expect(db.resetWorkspace("alice").revision).toBe(6);
+    db.close();
+  });
+});

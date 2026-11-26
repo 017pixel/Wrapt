@@ -2,6 +2,9 @@ import type { ClientMessage, ServerMessage } from "../terminal-types";
 import { terminalConnectTimeoutMs, terminalReconnectDelayMs, terminalMaxReconnectDelayMs, terminalHeartbeatIntervalMs, terminalHeartbeatTimeoutMs } from "../terminal-constants";
 import { TerminalInputQueue } from "./TerminalInputQueue";
 
+/** Grund eines Verbindungsabbruchs, den der Renderer unterscheiden muss. */
+export type TerminalStatusReason = "auth";
+
 export interface TerminalSubscription {
   runtimeId: string;
   sessionId: string | null;
@@ -9,7 +12,9 @@ export interface TerminalSubscription {
   send(message: ClientMessage): boolean;
   /** Registriert einen Nachrichten-Listener; gibt die Abmeldung zurück. */
   onMessage(listener: (message: ServerMessage) => void): () => void;
-  onStatus(listener: (connected: boolean) => void): () => void;
+  onStatus(listener: (connected: boolean, reason?: TerminalStatusReason) => void): () => void;
+  /** Manueller Neuaufbau nach einem abgelehnten Auth-Handshake (Close 1008). */
+  retry(): void;
   dispose(): void;
 }
 
@@ -21,7 +26,7 @@ interface SubscriptionState {
 
 interface SubscriptionClient {
   listeners: Set<(message: ServerMessage) => void>;
-  statusListeners: Set<(connected: boolean) => void>;
+  statusListeners: Set<(connected: boolean, reason?: TerminalStatusReason) => void>;
 }
 
 /**
@@ -41,6 +46,10 @@ class TerminalTransport {
   private lastReceived = 0;
   private warmTimer: number | null = null;
   private observing = false;
+  /** Close 1008 bedeutet Auth-/Policy-Ablehnung. Automatische Reconnects
+   *  würden dieselbe Ablehnung nur wiederholen; erst eine Nutzeraktion öffnet
+   *  den Socket erneut. */
+  private authRejected = false;
   private readonly sizes = new Map<string, string>();
   private readonly inputs = new TerminalInputQueue((message) => this.sendNow(message), (sessionIds) => {
     for (const sessionId of sessionIds) this.route({ type: "terminal.error", sessionId, code: "INPUT_NOT_SENT", message: "Die letzte Terminaleingabe wurde unterbrochen. Prüfe den Befehl vor dem erneuten Senden." });
@@ -59,6 +68,10 @@ class TerminalTransport {
   subscribe(runtimeId: string, initial: { sessionId?: string } = {}): TerminalSubscription {
     if (this.warmTimer !== null) window.clearTimeout(this.warmTimer);
     this.warmTimer = null;
+    // Ohne laufende Abos ist ein neues Subscribe eine bewusste neue Anfrage
+    // (Navigation oder erneut geöffneter Pane) und darf die Auth-Sperre lösen.
+    // Automatische Reconnect-Timer bleiben davon unberührt.
+    if (this.subscriptions.size === 0) this.authRejected = false;
     const state = this.subscriptions.get(runtimeId) ?? {
       runtimeId,
       sessionId: initial.sessionId ?? null,
@@ -89,6 +102,7 @@ class TerminalTransport {
         if (this.socket?.readyState === WebSocket.OPEN) listener(true);
         return () => client.statusListeners.delete(listener);
       },
+      retry: () => this.reconnect(),
       dispose: () => {
         if (disposed) return;
         disposed = true;
@@ -128,6 +142,7 @@ class TerminalTransport {
   }
 
   private ensureSocket(): void {
+    if (this.authRejected) return;
     this.observeWake();
     if (this.socket && (this.socket.readyState === WebSocket.OPEN || this.socket.readyState === WebSocket.CONNECTING)) return;
     if (this.reconnectTimer !== null) window.clearTimeout(this.reconnectTimer);
@@ -161,7 +176,7 @@ class TerminalTransport {
       if (message.type === "terminal.pong") { this.clearDeadline(); return; }
       this.route(message);
     };
-    socket.onclose = () => {
+    socket.onclose = (event?: { code?: number }) => {
       if (this.socket !== socket) return;
       this.socket = null;
       this.inputs.reset();
@@ -169,7 +184,10 @@ class TerminalTransport {
       this.clearDeadline();
       if (this.heartbeat !== null) window.clearInterval(this.heartbeat);
       this.heartbeat = null;
-      this.emitStatus(false);
+      this.emitStatus(false, event?.code === 1008 ? "auth" : undefined);
+      // 1008 = Policy Violation (z. B. fehlende Tailscale-Identität). Ein
+      // automatischer Reconnect würde denselben Fehler endlos wiederholen.
+      if (event?.code === 1008) { this.authRejected = true; return; }
       if (this.subscriptions.size === 0 && this.warmTimer === null) return;
       this.reconnectTimer = window.setTimeout(() => {
         this.reconnectTimer = null;
@@ -213,6 +231,20 @@ class TerminalTransport {
     this.closeSocket();
     this.retries = 0;
     this.emitStatus(false);
+    if (this.subscriptions.size > 0 || this.warmTimer !== null) this.ensureSocket();
+  }
+
+  /** Manueller Neuaufbau: hebt die Auth-Sperre auf und öffnet einen frischen
+   *  Socket. Die Registrierung bleibt bestehen; sobald er offen ist, meldet
+   *  `onStatus` den Renderern den Neustart und sie abonnieren erneut. Ein
+   *  offener oder hängender Socket wird verworfen, ein laufender Aufbau darf
+   *  dagegen erst fertig werden — dafür gibt es keinen zweiten Handshake. */
+  reconnect(): void {
+    this.authRejected = false;
+    this.retries = 0;
+    if (this.socket?.readyState === WebSocket.CONNECTING) return;
+    if (this.socket?.readyState === WebSocket.OPEN) this.emitStatus(false);
+    this.closeSocket();
     if (this.subscriptions.size > 0 || this.warmTimer !== null) this.ensureSocket();
   }
 
@@ -269,10 +301,10 @@ class TerminalTransport {
     }
   }
 
-  private emitStatus(connected: boolean): void {
+  private emitStatus(connected: boolean, reason?: TerminalStatusReason): void {
     for (const state of this.subscriptions.values()) {
       for (const client of state.clients) {
-        for (const listener of client.statusListeners) listener(connected);
+        for (const listener of client.statusListeners) listener(connected, reason);
       }
     }
   }

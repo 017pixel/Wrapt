@@ -17,6 +17,8 @@ interface TerminalWorkspaceStore {
   dirty: boolean;
   saving: boolean;
   syncError: string | null;
+  /** Zählt manuelle Wiederholungsversuche für die Sync-Effekte. */
+  syncKick: number;
   /** Noch nicht vom Server bestätigte Operationen (Offline-Puffer). */
   pendingOps: TerminalWorkspaceOperation[];
   runtimeCwds: Record<string, string>;
@@ -28,6 +30,7 @@ interface TerminalWorkspaceStore {
   markSaved(revision: number): void;
   markSaving(saving: boolean): void;
   markSyncError(message: string | null): void;
+  kickSync(): void;
   /** Wendet lokale Ops optimistisch an und stellt sie in die Warteschlange. */
   queueOps(ops: TerminalWorkspaceOperation[]): void;
   setRuntimeCwd(runtimeId: string, cwd: string): void;
@@ -84,6 +87,7 @@ export const useTerminalWorkspaceStore = create<TerminalWorkspaceStore>()((set, 
   dirty: false,
   saving: false,
   syncError: null,
+  syncKick: 0,
   pendingOps: [],
   runtimeCwds: {},
   initializeRemote: (document, revision, pendingOps) => {
@@ -136,6 +140,7 @@ export const useTerminalWorkspaceStore = create<TerminalWorkspaceStore>()((set, 
   markSaved: (revision) => set({ revision, dirty: false, saving: false, pendingOps: [], syncError: null }),
   markSaving: (saving) => set({ saving }),
   markSyncError: (syncError) => set({ syncError, saving: false }),
+  kickSync: () => set((state) => ({ syncKick: state.syncKick + 1 })),
   queueOps: (ops) => set((state) => {
     if (!state.document || ops.length === 0) return state;
     return {

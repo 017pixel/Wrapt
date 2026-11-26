@@ -3,10 +3,81 @@ import { realpathSync, statSync } from "node:fs";
 import { isAbsolute, resolve } from "node:path";
 import { anyContained, canonicalRootCandidates } from "../utils/pathRoots.js";
 import type { TerminalDatabase, StoredTerminalSession } from "./database.js";
-import type { TmuxSupervisor } from "./TmuxSupervisor.js";
+import type { PaneState, PaneStatus, SupervisorSession, TmuxSupervisor } from "./TmuxSupervisor.js";
 import { GeometryLease } from "./runtime/GeometryLease.js";
 import { OutputJournal } from "./runtime/OutputJournal.js";
 import { STALE_SESSION_TTL_MS, TerminalFailure, type TerminalSession } from "./session.js";
+
+export type { PaneState, PaneStatus } from "./TmuxSupervisor.js";
+
+/** Eintrag aus `scan()` oder dem älteren `list()` eines Supervisors. */
+export interface SupervisorPane extends Partial<SupervisorSession> {
+  name: string;
+  alive?: boolean;
+  state?: PaneState;
+  paneState?: PaneState;
+  status?: PaneState;
+}
+
+export interface SupervisorScan {
+  available: boolean;
+  sessions: readonly SupervisorPane[];
+}
+
+function numericExitCode(value: unknown): number | null {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function isPaneState(value: unknown): value is PaneState {
+  return value === "alive" || value === "dead" || value === "missing" || value === "unknown";
+}
+
+/** Normalisiert einen Scan-Eintrag auf den gemeinsamen Pane-Zustand. */
+export function paneStatusOf(entry: SupervisorPane): PaneStatus {
+  const exitCode = numericExitCode(entry.exitCode);
+  const exitSignal = numericExitCode(entry.exitSignal);
+  const explicit = [entry.state, entry.paneState, entry.status].find(isPaneState);
+  if (explicit) return { state: explicit, exitCode, exitSignal };
+  if (entry.dead === true || entry.alive === false) return { state: "dead", exitCode, exitSignal };
+  // `list()` liefert nur vorhandene Sessions. Ein fehlendes dead-Flag bedeutet
+  // deshalb live und nicht "unbekannt".
+  return { state: "alive", exitCode: null, exitSignal: null };
+}
+
+/** Liest alle Panes in einem Schritt; ältere Supervisoren fallen auf list() zurück. */
+export async function scanSupervisorPanes(supervisor: TmuxSupervisor | undefined): Promise<SupervisorScan | null> {
+  if (!supervisor) return null;
+  const scan = (supervisor as { scan?: () => Promise<SupervisorScan> }).scan;
+  if (typeof scan === "function") {
+    const result = await scan.call(supervisor);
+    return { available: result.available, sessions: result.sessions };
+  }
+  return { available: true, sessions: await supervisor.list() };
+}
+
+/** Namen, deren Pane nachweislich lebt. Tote Panes zählen nicht zur Quote. */
+export function livePaneNames(panes: readonly SupervisorPane[]): Set<string> {
+  return new Set(panes.filter((pane) => paneStatusOf(pane).state === "alive").map((pane) => pane.name));
+}
+
+/**
+ * Pane-bewusste Einzelabfrage. Ein Scanfehler ist "unknown" und keine tote
+ * Pane: Der Aufrufer darf daraus weder Löschung noch Beendigung ableiten.
+ */
+export async function inspectSupervisorPane(supervisor: TmuxSupervisor | undefined, name: string | null): Promise<PaneStatus> {
+  if (!supervisor || !name) return { state: "missing", exitCode: null };
+  let scan: SupervisorScan | null;
+  try { scan = await scanSupervisorPanes(supervisor); }
+  catch { return { state: "unknown", exitCode: null }; }
+  if (!scan || !scan.available) return { state: "unknown", exitCode: null };
+  const pane = scan.sessions.find((entry) => entry.name === name);
+  return pane ? paneStatusOf(pane) : { state: "missing", exitCode: null };
+}
 
 /**
  * Kanonisiert einen Pfad und verlangt, dass das realpath-Ziel in einer der
@@ -59,18 +130,29 @@ export async function reconcileTerminalSessionsOnStartup(deps: {
   allowedRoots: string[];
   deniedRoots?: string[];
 }): Promise<void> {
-  const activeSupervisorNames = new Set((await deps.supervisor?.list())?.map((session) => session.name) ?? []);
-  if (deps.supervisor) {
-    deps.database?.reconcileSupervisorSessions(activeSupervisorNames);
-  } else {
-    deps.database?.markRunningSessionsInterrupted();
+  let scan: SupervisorScan | null;
+  try {
+    scan = await scanSupervisorPanes(deps.supervisor);
+  } catch {
+    // Ohne verlässlichen Scan darf der Start weder Status ändern noch löschen.
+    return;
   }
+  if (!deps.supervisor || !scan) {
+    deps.database?.markRunningSessionsInterrupted();
+    deps.database?.purgeStaleSessions(new Set(), STALE_SESSION_TTL_MS);
+    return;
+  }
+  if (!scan.available) return;
+  const panes = new Map(scan.sessions.map((entry) => [entry.name, paneStatusOf(entry)]));
+  const activeSupervisorNames = livePaneNames(scan.sessions);
+  deps.database?.reconcileSupervisorSessions(activeSupervisorNames, panes);
   // Alte, unsichtbare Zeilen ohne Workspace-Bezug und ohne lebenden Supervisor
   // sammeln sich sonst unbegrenzt in der Registry an.
   deps.database?.purgeStaleSessions(activeSupervisorNames, STALE_SESSION_TTL_MS);
   if (deps.externalSessionOwnerId) {
     await importSupervisorSessions(deps.externalSessionOwnerId, {
       supervisor: deps.supervisor,
+      listSessions: async () => scan.sessions,
       database: deps.database,
       externalSessionOwnerId: deps.externalSessionOwnerId,
       defaultCwd: deps.defaultCwd,
@@ -126,11 +208,15 @@ export function assertValidViewport(cols: number, rows: number): void {
  *  verwaltete Sessions in der Registry ab. */
 export async function importSupervisorSessions(userId: string, deps: {
   supervisor: TmuxSupervisor | undefined;
+  /** Optionaler gecachter Snapshot; ohne Angabe wird direkt tmux gefragt. */
+  listSessions?: () => Promise<readonly SupervisorPane[]>;
   database: TerminalDatabase | undefined;
   externalSessionOwnerId: string | undefined;
   defaultCwd: string;
   allowedRoots: string[];
   deniedRoots?: string[];
+  /** Panes eines noch nicht abgeschlossenen Close: nicht erneut importieren. */
+  skipSupervisorNames?: ReadonlySet<string>;
 }): Promise<void> {
   const { supervisor, database, externalSessionOwnerId, defaultCwd, allowedRoots } = deps;
   const deniedRoots = deps.deniedRoots ?? [];
@@ -138,36 +224,40 @@ export async function importSupervisorSessions(userId: string, deps: {
   if (externalSessionOwnerId !== userId) return;
   const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
   const fallbackCwd = canonicalCwdWithinRootsSync(defaultCwd, allowedRoots, deniedRoots) ?? defaultCwd;
-  for (const discovered of await supervisor.list()) {
+  for (const discovered of await (deps.listSessions ? deps.listSessions() : supervisor.list())) {
     // Die eigene Supervisor-Session ist technisch ebenfalls ein tmux-Pane,
     // aber keine Nutzer-Session. Ohne diesen Filter würde jeder Backend-Start
     // `wrapt-supervisor` als Terminal in die Registry importieren.
     if (!discovered.managed || database.findSessionBySupervisor(discovered.name)) continue;
+    if (deps.skipSupervisorNames?.has(discovered.name)) continue;
     const now = Date.now();
     // Das tmux-Pane kann inzwischen außerhalb der erlaubten Wurzeln stehen.
     // Der gespeicherte CWD fällt dann auf die Standardwurzel zurück, statt
     // einen späteren Respawn außerhalb der Grenze zu ermöglichen.
-    const cwd = isAbsolute(discovered.cwd)
-      ? canonicalCwdWithinRootsSync(discovered.cwd, allowedRoots, deniedRoots) ?? fallbackCwd
+    const cwd = isAbsolute(discovered.cwd ?? "")
+      ? canonicalCwdWithinRootsSync(discovered.cwd!, allowedRoots, deniedRoots) ?? fallbackCwd
       : fallbackCwd;
+    const pane = paneStatusOf(discovered);
+    const dead = pane.state === "dead";
+    const cleanExit = dead && pane.exitCode === 0 && (pane.exitSignal === null || pane.exitSignal === undefined || pane.exitSignal === 0);
     database.saveSession({
       id: randomUUID(),
       userId,
       runtimeId: discovered.runtimeId && uuidPattern.test(discovered.runtimeId) ? discovered.runtimeId : randomUUID(),
-      kind: discovered.kind,
+      kind: discovered.kind ?? "shell",
       mode: "agent",
-      projectId: discovered.projectId,
+      projectId: discovered.projectId ?? null,
       profilePath: null,
       supervisorName: discovered.name,
       cwd,
       pid: 0,
       cols: 120,
       rows: 32,
-      status: "running",
+      status: dead ? (cleanExit ? "exited" : "interrupted") : "running",
       createdAt: discovered.createdAt || now,
       updatedAt: now,
-      exitCode: null,
-      exitSignal: null,
+      exitCode: dead ? pane.exitCode : null,
+      exitSignal: dead ? pane.exitSignal ?? null : null,
       epoch: 0,
     });
   }

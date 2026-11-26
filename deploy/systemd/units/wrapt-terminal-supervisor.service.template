@@ -16,11 +16,19 @@ StartLimitBurst=0
 # Fork interpretiert und versehentlich ExecStop ausführt.
 Type=oneshot
 RemainAfterExit=true
+RuntimeDirectory=wrapt
+RuntimeDirectoryMode=0700
+# Ein Restart darf den Socket nicht unter einem noch laufenden tmux-Server
+# wegziehen. Der Server wird dadurch wiederverwendet statt verwaist.
+RuntimeDirectoryPreserve=yes
 Environment=HOME=__HOME__
 Environment=XDG_RUNTIME_DIR=/run/user/__UID__
-ExecStart=__TMUX_BIN__ -S __TERMINAL_SOCKET__ new-session -d -s wrapt-supervisor
-# Expliziter Stopp beendet alle Terminal-Sessions am dedizierten Socket.
-ExecStop=__TMUX_BIN__ -S __TERMINAL_SOCKET__ kill-server
+ExecStart=/bin/sh -c '__TMUX_BIN__ -S "__TERMINAL_SOCKET__" has-session -t wrapt-supervisor >/dev/null 2>&1 || __TMUX_BIN__ -S "__TERMINAL_SOCKET__" new-session -d -s wrapt-supervisor'
+# active(exited) ist nur dann gesund, wenn der tmux-Server wirklich antwortet.
+ExecStartPost=__TMUX_BIN__ -S "__TERMINAL_SOCKET__" has-session -t wrapt-supervisor
+# Expliziter Stopp beendet alle Terminal-Sessions; ein bereits fehlender Server
+# ist kein Fehler. Das Minuszeichen macht ExecStop idempotent.
+ExecStop=-__TMUX_BIN__ -S "__TERMINAL_SOCKET__" kill-server
 TimeoutStopSec=10s
 UMask=0077
 

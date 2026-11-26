@@ -16,18 +16,37 @@ class FakePty implements PtyProcess {
 
 class FakeSupervisor {
   readonly sessions = new Set<string>();
+  readonly dead = new Map<string, { exitCode: number; exitSignal: number | null }>();
   readonly terminated: string[] = [];
   path: string | null = null;
   sessionName(runtimeId: string) { return `workbench-${runtimeId.replaceAll("-", "")}`; }
+  scan() {
+    return {
+      available: true,
+      sessions: [...this.sessions].map((name) => {
+        const dead = this.dead.get(name);
+        return {
+          name, managed: true, dead: dead !== undefined,
+          exitCode: dead?.exitCode ?? null, exitSignal: dead?.exitSignal ?? null,
+        };
+      }),
+    };
+  }
+  paneStatus(name: string) {
+    if (!this.sessions.has(name)) return { state: "missing" as const, exitCode: null };
+    const dead = this.dead.get(name);
+    if (!dead) return { state: "alive" as const, exitCode: null };
+    return { state: "dead" as const, exitCode: dead.exitCode, ...(dead.exitSignal ? { exitSignal: dead.exitSignal } : {}) };
+  }
   list() { return [...this.sessions].map((name) => ({ name })); }
   has(name: string) { return this.sessions.has(name); }
-  ensure(input: { runtimeId: string }) { const name = this.sessionName(input.runtimeId); this.sessions.add(name); return name; }
+  ensure(input: { runtimeId: string }) { const name = this.sessionName(input.runtimeId); this.sessions.add(name); this.dead.delete(name); return name; }
   capture() { return ""; }
   attachCommand(name: string) { return { file: "/usr/bin/tmux", args: ["attach-session", "-t", name] }; }
-  respawn(name: string) { this.sessions.add(name); }
+  respawn(name: string) { this.sessions.add(name); this.dead.delete(name); }
   sendLastCommandHint() {}
   currentPath() { return this.path; }
-  terminate(name: string) { this.terminated.push(name); this.sessions.delete(name); }
+  terminate(name: string) { this.terminated.push(name); this.sessions.delete(name); this.dead.delete(name); }
 }
 
 let manager: TerminalManager | undefined;
@@ -40,21 +59,6 @@ describe("TerminalManager", () => {
     expect(pty.writes).toEqual(["echo hello\r"]); expect(pty.resizes).toEqual([[120, 40]]); expect(messages).toContainEqual(expect.objectContaining({ type: "terminal.output", sequence: 1 })); expect(messages).toContainEqual(expect.objectContaining({ type: "terminal.exited", sequence: 2, exitCode: 0 })); });
   it("rejects foreign sessions, invalid dimensions and invalid working directories", async () => { const { root, manager: terminal } = await setup(); const session = await terminal.createSession("owner", { cols: 80, rows: 24 }); await expect(terminal.attachSession("other", session.id, vi.fn())).rejects.toThrow(TerminalFailure); expect(() => terminal.resizeSession("owner", session.id, 1, 24)).toThrow(TerminalFailure); await expect(terminal.createSession("other", { cols: 80, rows: 24, cwd: "/tmp" })).rejects.toMatchObject({ code: "INVALID_CWD" }); await expect(terminal.createSession("other", { cols: 80, rows: 24, cwd: join(root, "missing") })).rejects.toMatchObject({ code: "CWD_NOT_FOUND" }); });
   it("limits sessions, retains history and keeps disconnected sessions alive", async () => { const { pty, manager: terminal } = await setup(); const session = await terminal.createSession("owner", { cols: 80, rows: 24 }); await expect(terminal.createSession("owner", { cols: 80, rows: 24 })).rejects.toMatchObject({ code: "TOO_MANY_SESSIONS" }); const detach = (await terminal.attachSession("owner", session.id, vi.fn())); pty.output("x".repeat(3_200_000)); expect(terminal.getSessionMetadata("owner", session.id).sequence).toBe(1); detach(); await new Promise((resolve) => setTimeout(resolve, 10)); expect(pty.killed).not.toContain("SIGTERM"); expect(terminal.getSessionMetadata("owner", session.id)).toMatchObject({ status: "running" }); });
-
-  it("räumt beendete Sessions nach Ablauf der TTL auf, statt den Slot zu blockieren", async () => {
-    const root = await mkdtemp(join(tmpdir(), "workbench-terminal-ttl-"));
-    const pty = new FakePty();
-    const terminal = new TerminalManager({ allowedRoots: [root], defaultCwd: root, maxSessions: 1, adapter: { spawn: () => pty } });
-    const session = await terminal.createSession("owner", { cols: 80, rows: 24 });
-    pty.end(0);
-    expect(terminal.getSessionMetadata("owner", session.id).status).toBe("exited");
-    expect(() => terminal.getSessionMetadata("owner", session.id)).not.toThrow();
-    (session as unknown as { updatedAt: number }).updatedAt = Date.now() - 31 * 60 * 1_000;
-    const replacement = await terminal.createSession("owner", { cols: 80, rows: 24 });
-    expect(replacement.id).not.toBe(session.id);
-    expect(() => terminal.getSessionMetadata("owner", session.id)).toThrow(TerminalFailure);
-    (await terminal.shutdown());
-  });
 
   it("reuses a runtime identity and broadcasts output to multiple devices", async () => {
     const { pty, manager: terminal } = await setup();
@@ -146,11 +150,14 @@ describe("TerminalManager", () => {
     });
     const session = await manager.createSession("owner", { cols: 80, rows: 24 });
     const supervisorName = supervisor.sessionName(session.runtimeId);
-    // Die tmux-Unterlage verschwindet (z. B. extern aufgeräumt); danach endet
-    // der Prozess — die Session bleibt als "exited" zurück, statt zu respawnen.
-    supervisor.sessions.delete(supervisorName);
+    // Die Shell endet sauber; tmux behält die tote Pane (remain-on-exit).
+    supervisor.dead.set(supervisorName, { exitCode: 0, exitSignal: null });
     ptys[0]!.end(0);
     await vi.waitFor(() => expect(manager!.getSessionMetadata("owner", session.id).status).toBe("exited"));
+    // Erst danach verschwindet die Unterlage (z. B. extern aufgeräumt). Das
+    // erneute Öffnen muss die Session trotzdem wieder starten.
+    supervisor.sessions.delete(supervisorName);
+    supervisor.dead.delete(supervisorName);
 
     const resumed = await manager.createSession("owner", { runtimeId: session.runtimeId, cols: 80, rows: 24 });
     expect(resumed.id).toBe(session.id);
@@ -193,27 +200,97 @@ describe("TerminalManager", () => {
     database.close();
   });
 
-  it("reattaches a fresh PTY after every supervised process exit", async () => {
+  it("startet nach einem Absturz mit Backoff neu und behält den Reconnect", async () => {
     const root = await mkdtemp(join(tmpdir(), "workbench-terminal-respawn-"));
     const supervisor = new FakeSupervisor();
     const ptys = [new FakePty(), new FakePty(), new FakePty()];
     let spawnIndex = 0;
-    manager = new TerminalManager({
-      allowedRoots: [root],
-      defaultCwd: root,
-      maxSessions: 1,
-      supervisor: supervisor as unknown as TmuxSupervisor,
-      adapter: { spawn: () => ptys[spawnIndex++]! },
-    });
-    const session = await manager.createSession("owner", { cols: 80, rows: 24 });
-    ptys[0]!.end(1);
-    await vi.waitFor(() => expect(spawnIndex).toBe(2));
-    expect(manager.getSessionMetadata("owner", session.id)).toMatchObject({ status: "running", pid: 0 });
-    ptys[1]!.end(2);
-    await vi.waitFor(() => expect(spawnIndex).toBe(3));
-    expect(manager.getSessionMetadata("owner", session.id)).toMatchObject({ status: "running", pid: 0 });
-    manager.writeToSession("owner", session.id, "weiter");
-    expect(ptys[2]!.writes).toEqual(["weiter"]);
+    vi.useFakeTimers();
+    try {
+      manager = new TerminalManager({
+        allowedRoots: [root],
+        defaultCwd: root,
+        maxSessions: 1,
+        supervisor: supervisor as unknown as TmuxSupervisor,
+        adapter: { spawn: () => ptys[spawnIndex++]! },
+      });
+      const session = await manager.createSession("owner", { cols: 80, rows: 24 });
+      ptys[0]!.end(1);
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(spawnIndex).toBe(2);
+      expect(manager.getSessionMetadata("owner", session.id)).toMatchObject({ status: "running", pid: 0 });
+      ptys[1]!.end(2);
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(spawnIndex).toBe(3);
+      expect(manager.getSessionMetadata("owner", session.id)).toMatchObject({ status: "running", pid: 0 });
+      manager.writeToSession("owner", session.id, "weiter");
+      expect(ptys[2]!.writes).toEqual(["weiter"]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("startet nach einem normalen Exit nicht automatisch neu", async () => {
+    const root = await mkdtemp(join(tmpdir(), "workbench-terminal-clean-exit-"));
+    const supervisor = new FakeSupervisor();
+    const ptys = [new FakePty(), new FakePty()];
+    let spawnIndex = 0;
+    vi.useFakeTimers();
+    try {
+      manager = new TerminalManager({
+        allowedRoots: [root], defaultCwd: root, maxSessions: 1,
+        supervisor: supervisor as unknown as TmuxSupervisor,
+        adapter: { spawn: () => ptys[spawnIndex++]! },
+      });
+      const session = await manager.createSession("owner", { cols: 80, rows: 24 });
+      // Ein sauberer Exit hinterlässt eine tote Pane; er darf keinen Respawn auslösen.
+      supervisor.dead.set(supervisor.sessionName(session.runtimeId), { exitCode: 0, exitSignal: null });
+      ptys[0]!.end(0);
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(spawnIndex).toBe(1);
+      expect(manager.getSessionMetadata("owner", session.id)).toMatchObject({ status: "exited", exitCode: 0 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("stoppt Automatikstarts nach fünf Fehlversuchen und erlaubt einen manuellen Neustart", async () => {
+    const root = await mkdtemp(join(tmpdir(), "workbench-terminal-respawn-limit-"));
+    const supervisor = new FakeSupervisor();
+    const ptys = Array.from({ length: 7 }, () => new FakePty());
+    let spawnIndex = 0;
+    vi.useFakeTimers();
+    try {
+      manager = new TerminalManager({
+        allowedRoots: [root], defaultCwd: root, maxSessions: 1,
+        supervisor: supervisor as unknown as TmuxSupervisor,
+        adapter: { spawn: () => ptys[spawnIndex++]! },
+      });
+      const session = await manager.createSession("owner", { cols: 80, rows: 24 });
+      const messages: unknown[] = [];
+      await manager.attachSession("owner", session.id, (message) => messages.push(message));
+      const supervisorName = supervisor.sessionName(session.runtimeId);
+      // Jeder Exit gehört zu einer toten Pane (die Shell ist abgestürzt). Nur
+      // dann greift der begrenzte Respawn mit Backoff statt eines Reattachments.
+      const crash = (pty: FakePty) => { supervisor.dead.set(supervisorName, { exitCode: 1, exitSignal: null }); pty.end(1); };
+      const delays = [1_000, 2_000, 4_000, 8_000, 16_000];
+      for (const [index, delay] of delays.entries()) {
+        crash(ptys[index]!);
+        await vi.advanceTimersByTimeAsync(delay);
+        expect(spawnIndex).toBe(index + 2);
+      }
+      crash(ptys[5]!);
+      await vi.advanceTimersByTimeAsync(0);
+      expect(manager.getSessionMetadata("owner", session.id)).toMatchObject({ status: "interrupted" });
+      expect(messages).toContainEqual(expect.objectContaining({ type: "terminal.error", code: "SESSION_INTERRUPTED" }));
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect(spawnIndex).toBe(6);
+      const restarted = await manager.restartSession("owner", session.id);
+      expect(restarted.status).toBe("running");
+      expect(spawnIndex).toBe(7);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("launches only the configured shell, Codex and OpenCode commands", async () => {

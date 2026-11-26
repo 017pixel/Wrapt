@@ -88,6 +88,53 @@ describe("TerminalWorkspaceService", () => {
     expect(result.areaLayouts.standalone!.focusedPaneId).toBe("pane-00000000-0000-4000-8000-000000000002");
   });
 
+  it("wendet denselben Batch nach einer verlorenen Save-Antwort idempotent erneut an", () => {
+    const entry = { id: "entry-1", runtimeId: "00000000-0000-4000-8000-000000000001", name: "Build", parentFolderId: null, sortOrder: 0, pinned: false, persistent: false, kind: "shell" as const, projectId: null, initialCwd: null };
+    const folder = { id: "projekte", parentFolderId: null, name: "Projekte", sortOrder: 1, collapsed: false };
+    const operations: Parameters<TerminalWorkspaceService["applyOperations"]>[1] = [
+      { type: "createFolder", folder },
+      { type: "createEntry", entry },
+      { type: "setPaneLayout", areaId: "standalone", layout: { type: "pane", id: `pane-${entry.runtimeId}`, runtimeId: entry.runtimeId } },
+      { type: "setFocusedPane", areaId: "standalone", paneId: `pane-${entry.runtimeId}` },
+      { type: "updateEntry", id: entry.id, patch: { pinned: true } },
+    ];
+
+    const first = service.applyOperations(baseDocument(), operations);
+    const repeated = service.applyOperations(first, operations);
+
+    expect(repeated).toEqual(first);
+    expect(repeated.folders.filter((candidate) => candidate.id === folder.id)).toHaveLength(1);
+    expect(repeated.entries).toHaveLength(1);
+  });
+
+  it("behandelt bereits gelöschte Ziele als No-Op, aber abweichende IDs als Konflikt", () => {
+    const entry = { id: "entry-1", runtimeId: null, name: "Build", parentFolderId: null, sortOrder: 0, pinned: false, persistent: false, kind: "shell" as const, projectId: null, initialCwd: null };
+    const created = service.applyOperations(baseDocument(), [
+      { type: "createEntry", entry },
+      { type: "createFolder", folder: { id: "leer", parentFolderId: null, name: "Leer", sortOrder: 1, collapsed: false } },
+    ]);
+    const deleted = service.applyOperations(created, [
+      { type: "deleteEntry", id: "entry-1" },
+      { type: "deleteFolder", id: "leer", moveChildrenTo: null },
+    ]);
+    expect(service.applyOperations(deleted, [
+      { type: "deleteEntry", id: "entry-1" },
+      { type: "deleteFolder", id: "leer", moveChildrenTo: null },
+    ])).toEqual(deleted);
+
+    // Derselbe Eintrag mit anderem Namen ist nach einem späteren Update im
+    // selben Batch weiterhin ein No-Op; eine fremde Runtime bleibt ein Konflikt.
+    expect(service.applyOperations(created, [
+      { type: "createEntry", entry: { ...entry, name: "Anders" } },
+    ])).toEqual(created);
+    expect(() => service.applyOperations(created, [
+      { type: "createEntry", entry: { ...entry, runtimeId: "00000000-0000-4000-8000-000000000099" } },
+    ])).toThrowError(/existiert bereits/);
+    expect(service.applyOperations(created, [
+      { type: "createFolder", folder: { id: "leer", parentFolderId: null, name: "Anders", sortOrder: 2, collapsed: false } },
+    ])).toEqual(created);
+  });
+
   it("lehnt Layouts mit unbekannten Runtimes ab", () => {
     const doc = service.applyOperations(baseDocument(), [{
       type: "createEntry",

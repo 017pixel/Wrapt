@@ -5,12 +5,7 @@ import type { TerminalKind } from "@wrapt/contracts";
 import { isDeviceAnswer, shouldForwardTerminalData, touchScrollLines, wheelScrollLines } from "./terminal-utils";
 
 /** Gemeinsame Zustände und Callbacks, die die Eingabe-Handler benötigen. */
-export interface TerminalInputContext {
-  send(message: object): boolean;
-  setError(message: string | null): void;
-  sessionRef: MutableRefObject<string | null>;
-  snapshotReplayRef: MutableRefObject<boolean>;
-  replayBufferRef: MutableRefObject<string[]>;
+export interface TerminalInputContext extends TerminalSequenceSink {
   mouseTrackingRef: MutableRefObject<boolean>;
   kindRef: MutableRefObject<TerminalKind>;
   terminalRef: MutableRefObject<Terminal | null>;
@@ -19,6 +14,68 @@ export interface TerminalInputContext {
   copySelection(): void;
   receivePastedText(text: string): void;
   scrollByLines(lines: number): void;
+}
+
+export interface TerminalSequenceSink {
+  send(message: object): boolean;
+  setError(message: string | null): void;
+  sessionRef: MutableRefObject<string | null>;
+  snapshotReplayRef: MutableRefObject<boolean>;
+  replayBufferRef: MutableRefObject<string[]>;
+}
+
+export const INPUT_NOT_SENT_MESSAGE = "Die Terminaleingabe konnte nicht vollständig gesendet werden.";
+
+/** Sendet eine Nutzereingabe oder puffert sie während des Snapshot-Replays.
+ *  Gepufferte Eingaben wurden nie an den Server geschickt; sie werden nach dem
+ *  Snapshot genau einmal gesendet. Keybar, Pfeile, Alt/Escape und Maus nutzen
+ *  denselben Pfad, damit keine Sequenz still verloren geht. */
+export function sendTerminalSequence(data: string, sink: TerminalSequenceSink): boolean {
+  if (!data) return true;
+  if (sink.snapshotReplayRef.current) {
+    sink.replayBufferRef.current.push(data);
+    return true;
+  }
+  const sessionId = sink.sessionRef.current;
+  if (!sessionId) return false;
+  for (const chunk of splitTerminalInput(data)) {
+    if (!sink.send({ type: "terminal.input", sessionId, data: chunk })) {
+      sink.setError(INPUT_NOT_SENT_MESSAGE);
+      return false;
+    }
+  }
+  return true;
+}
+
+/** Leert den Replay-Puffer geordnet nach dem Snapshot. Bereits gesendete
+ *  Blöcke werden nie wiederholt; bei einem Teilfehler bricht der Lauf ab,
+ *  damit keine möglicherweise ausgeführten Befehle erneut ankommen. */
+/** Verwirft gepufferte Eingaben, die nie an den Server gingen, und meldet den
+ *  Verlust sichtbar, statt ihn stillschweigend zu schlucken. */
+export function discardTerminalReplay(
+  snapshotReplayRef: MutableRefObject<boolean>,
+  replayBufferRef: MutableRefObject<string[]>,
+  setError: (message: string | null) => void,
+): void {
+  const lost = replayBufferRef.current.length > 0;
+  snapshotReplayRef.current = false;
+  replayBufferRef.current = [];
+  if (lost) setError(INPUT_NOT_SENT_MESSAGE);
+}
+
+export function flushTerminalReplay(
+  chunks: readonly string[],
+  send: (data: string) => boolean,
+  remember: (data: string) => void,
+  onError: (message: string) => void,
+): void {
+  for (const chunk of chunks) {
+    if (isDeviceAnswer(chunk)) continue;
+    for (const part of splitTerminalInput(chunk)) {
+      if (!send(part)) { onError(INPUT_NOT_SENT_MESSAGE); return; }
+      remember(part);
+    }
+  }
 }
 
 /**
@@ -43,10 +100,12 @@ export function attachTerminalInput(terminal: Terminal, mount: HTMLElement, cont
       return false;
     }
     if (event.ctrlKey || event.metaKey || event.altKey) return true;
-    const sessionId = sessionRef.current;
-    if (!sessionId) return true;
-    if (event.key === "Backspace") { send({ type: "terminal.input", sessionId, data: "\x7f" }); return false; }
-    if (event.key === "Delete") { send({ type: "terminal.input", sessionId, data: "\x1b[3~" }); return false; }
+    if (!sessionRef.current && !snapshotReplayRef.current) return true;
+    // Backspace und Delete laufen über denselben Replay-Pfad wie alle anderen
+    // Sequenzen: Während eines Snapshots werden sie gepuffert statt am
+    // sichtbaren Bildschirm vorbei direkt an die PTY zu gehen.
+    if (event.key === "Backspace") { sendTerminalSequence("\x7f", context); return false; }
+    if (event.key === "Delete") { sendTerminalSequence("\x1b[3~", context); return false; }
     return true;
   });
 
@@ -129,7 +188,9 @@ export function attachTerminalInput(terminal: Terminal, mount: HTMLElement, cont
     const mouseInput = data.startsWith("\x1b[<") || data.startsWith("\x1b[M");
     const sessionId = sessionRef.current;
     if (snapshotReplayRef.current) {
-      if (mouseInput) return;
+      // Auch Pfeile, Alt/Escape, Mausereignisse und Scroll-Sequenzen wurden
+      // noch nicht gesendet. Sie werden geordnet nach dem Snapshot zugestellt,
+      // statt während der Wiedergabe verloren zu gehen.
       replayBufferRef.current.push(data);
       return;
     }
@@ -137,7 +198,7 @@ export function attachTerminalInput(terminal: Terminal, mount: HTMLElement, cont
     if (!mouseInput) rememberTyping(data);
     for (const chunk of splitTerminalInput(data)) {
       if (!send({ type: "terminal.input", sessionId, data: chunk })) {
-        if (!mouseInput) setError("Die Terminaleingabe konnte nicht vollständig gesendet werden.");
+        if (!mouseInput) setError(INPUT_NOT_SENT_MESSAGE);
         break;
       }
     }

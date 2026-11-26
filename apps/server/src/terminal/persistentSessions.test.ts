@@ -1,8 +1,12 @@
+import { randomUUID } from "node:crypto";
 import { mkdtempSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 import { afterEach, expect, test, vi } from "vitest";
 import { TerminalDatabase } from "./database.js";
+import { restorePersistentSessions } from "./persistentSessions.js";
+import type { TerminalSession } from "./session.js";
 import { TerminalManager } from "./Manager.js";
 import { removeTempTree } from "./terminalTestCleanup.js";
 
@@ -58,4 +62,36 @@ test("lässt einen nicht mehr erlaubten Arbeitsordner unterbrochen", async () =>
   cleanup.push(async () => restored.shutdown());
   expect(spawn).not.toHaveBeenCalled();
   expect(database.findSessionById("owner", persistent.id)?.status).toBe("interrupted");
+});
+
+test("begrenzt parallele Neustarts persistenter Sitzungen", async () => {
+  const root = mkdtempSync(join(tmpdir(), "wrapt-persistent-parallel-"));
+  cleanup.push(async () => removeTempTree(root));
+  const now = Date.now();
+  const rows = Array.from({ length: 5 }, () => ({
+    id: randomUUID(), userId: "owner", runtimeId: randomUUID(), kind: "shell" as const, mode: "agent" as const,
+    projectId: null, profilePath: null, supervisorName: null, cwd: root, pid: 0, cols: 80, rows: 24,
+    status: "interrupted" as const, createdAt: now, updatedAt: now, exitCode: null, exitSignal: null, epoch: 0,
+  }));
+  const sessions = new Map<string, TerminalSession>();
+  let active = 0;
+  let maximum = 0;
+  let started = 0;
+  await restorePersistentSessions({
+    database: { persistentSessions: () => rows } as unknown as TerminalDatabase,
+    owners: ["owner"],
+    allowedRoots: [root],
+    sessions,
+    spawn: async () => {
+      active += 1;
+      maximum = Math.max(maximum, active);
+      await delay(25);
+      started += 1;
+      active -= 1;
+    },
+    persist: () => {},
+  });
+  expect(started).toBe(5);
+  expect(sessions.size).toBe(5);
+  expect(maximum).toBe(2);
 });

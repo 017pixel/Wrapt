@@ -1,5 +1,6 @@
 import { useCallback, type Dispatch, type MutableRefObject, type SetStateAction } from "react";
 import { terminalKeySequence } from "../terminal-utils";
+import { sendTerminalSequence } from "../terminal-input";
 import type { ClientMessage, TerminalMeta, TerminalStatus } from "../terminal-types";
 import type { RendererRefs } from "./rendererTypes";
 import type { RendererCore } from "./rendererCore";
@@ -19,7 +20,7 @@ interface SessionActionsOptions {
 /** Explizite Nutzeraktionen; Wiederverbindung und Render-Lifecycle bleiben im Kern. */
 export function useTerminalSessionActions(options: SessionActionsOptions) {
   const { refs, focusedRef, instanceId, core, sendMessage, setErrorState, setStatus, setPendingPaste, reportMeta } = options;
-  const { terminalRef, sessionRef, closedRef, hasLiveStateRef, fitRef, ownsGeometryRef } = refs;
+  const { terminalRef, sessionRef, closedRef, hasLiveStateRef, fitRef, ownsGeometryRef, snapshotReplayRef, replayBufferRef } = refs;
   const pasteIntoTerminal = useCallback((text: string) => {
     const terminal = terminalRef.current;
     const sessionId = sessionRef.current;
@@ -33,10 +34,14 @@ export function useTerminalSessionActions(options: SessionActionsOptions) {
   }, [sessionRef, setErrorState, terminalRef]);
 
   const sendKey = useCallback((key: string, modifiers: { ctrl?: boolean; alt?: boolean } = {}) => {
-    const sessionId = sessionRef.current;
-    if (!sessionId) return;
-    sendMessage({ type: "terminal.input", sessionId, data: terminalKeySequence(key, modifiers) });
-  }, [sendMessage, sessionRef]);
+    sendTerminalSequence(terminalKeySequence(key, modifiers), {
+      send: (message) => sendMessage(message as ClientMessage),
+      setError: setErrorState,
+      sessionRef,
+      snapshotReplayRef,
+      replayBufferRef,
+    });
+  }, [replayBufferRef, sendMessage, sessionRef, setErrorState, snapshotReplayRef]);
 
   const pasteFromClipboard = useCallback(() => {
     navigator.clipboard.readText()
@@ -51,14 +56,26 @@ export function useTerminalSessionActions(options: SessionActionsOptions) {
   }, [pasteIntoTerminal, setErrorState, setPendingPaste, terminalRef]);
 
   const restart = useCallback(() => {
-    const sessionId = sessionRef.current;
-    if (!sessionId) { setErrorState(null); setStatus("connecting"); core.createSession(); return; }
-    sendMessage({ type: "terminal.restart", sessionId });
-    // Erst der bestätigte Server-Snapshot ersetzt den bisherigen Zustand.
-    // Bei einem Fehler bleibt der noch sichtbare Verlauf erhalten.
+    // Ein bewusster Neustart öffnet auch eine zuvor explizit beendete Sitzung.
+    closedRef.current = false;
+    setErrorState(null);
     setStatus("connecting");
     reportMeta({ status: "connecting" });
-  }, [core, reportMeta, sendMessage, sessionRef, setErrorState, setStatus]);
+    const sessionId = sessionRef.current;
+    if (!sessionId) { core.createSession(); return; }
+    // Erst der bestätigte Server-Snapshot ersetzt den bisherigen Zustand.
+    // Bei einem Fehler bleibt der noch sichtbare Verlauf erhalten.
+    sendMessage({ type: "terminal.restart", sessionId });
+  }, [closedRef, core, reportMeta, sendMessage, sessionRef, setErrorState, setStatus]);
+
+  /** Muss vor einem API-Restart laufen: Der Server broadcastet den Snapshot
+   *  bereits während des HTTP-Aufrufs an den offenen Renderer. */
+  const prepareRestart = useCallback(() => {
+    closedRef.current = false;
+    setErrorState(null);
+    setStatus("connecting");
+    reportMeta({ status: "connecting" });
+  }, [closedRef, reportMeta, setErrorState, setStatus]);
 
   const action = useCallback((type: "terminal.clear" | "terminal.restart" | "terminal.close") => {
     const sessionId = sessionRef.current;
@@ -71,6 +88,18 @@ export function useTerminalSessionActions(options: SessionActionsOptions) {
       setStatus("exited");
     }
   }, [closedRef, hasLiveStateRef, sendMessage, sessionRef, setStatus]);
+
+  /** Wird nach einem erfolgreichen API-Close extern benutzt: Der Renderer
+   *  kennt die Sitzung dann lokal als beendet, ohne ein zweites
+   *  terminal.close zu senden oder per Reconnect neu zu erzeugen. */
+  const markSessionClosed = useCallback(() => {
+    closedRef.current = true;
+    sessionRef.current = null;
+    hasLiveStateRef.current = false;
+    setErrorState(null);
+    setStatus("exited");
+    reportMeta({ status: "exited" });
+  }, [closedRef, hasLiveStateRef, reportMeta, sessionRef, setErrorState, setStatus]);
 
   const resolvePendingPaste = useCallback((confirm: boolean) => {
     setPendingPaste((current) => {
@@ -92,5 +121,5 @@ export function useTerminalSessionActions(options: SessionActionsOptions) {
     }
   }, [fitRef, focusedRef, instanceId, ownsGeometryRef, sendMessage, sessionRef, terminalRef]);
 
-  return { sendKey, pasteFromClipboard, restart, action, focus, resolvePendingPaste };
+  return { sendKey, pasteFromClipboard, restart, prepareRestart, action, focus, markSessionClosed, resolvePendingPaste };
 }

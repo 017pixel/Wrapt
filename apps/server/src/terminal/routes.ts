@@ -115,7 +115,8 @@ export async function registerTerminalRoutes(app: FastifyInstance, options: {
   };
   app.get("/terminal/sessions", async (request) => {
     const userId = httpIdentity(request, identityOptions);
-    return { sessions: (await options.manager.listSessions(userId)).map(sessionResponse), updatedAt: new Date().toISOString() };
+    const refresh = (request.query as { refresh?: string } | undefined)?.refresh === "true";
+    return { sessions: (await options.manager.listSessions(userId, refresh)).map(sessionResponse), updatedAt: new Date().toISOString() };
   });
   app.get("/terminal/workspace", async (request) => {
     const userId = httpIdentity(request, identityOptions);
@@ -129,7 +130,20 @@ export async function registerTerminalRoutes(app: FastifyInstance, options: {
     const document = parsed.document.version === 1
       ? migrateTerminalWorkspaceV1(terminalWorkspaceSchema.parse(parsed.document))
       : terminalWorkspaceV2Schema.parse(parsed.document);
-    return options.database.saveWorkspace(userId, document, parsed.expectedRevision);
+    const saved = options.database.saveWorkspace(userId, document, parsed.expectedRevision);
+    // Entfernte Einträge beenden ihre Sitzung; das Aufräumen läuft über die
+    // Lifecycle-Bereinigung und wird hier abgewartet, damit die Antwort den
+    // Zustand nicht hinterlässt.
+    await options.manager.drainLifecycleCleanups?.();
+    return saved;
+  });
+  // Bewusster Reset: Ein beschädigtes Layout kann nicht dauerhaft blockieren.
+  app.post("/terminal/workspace/reset", async (request) => {
+    const userId = httpIdentity(request, identityOptions);
+    if (!options.database) throw new AppError(500, "INTERNAL_ERROR", "Die Terminal-Registry ist nicht verfügbar.");
+    const reset = options.database.resetWorkspace(userId);
+    await options.manager.drainLifecycleCleanups?.();
+    return reset;
   });
   // Serverseitige Workspace-Operationen: verlustfreie, transaktionale
   // Mutationen statt blindem Überschreiben des ganzen Dokuments.
@@ -146,17 +160,7 @@ export async function registerTerminalRoutes(app: FastifyInstance, options: {
     const saved = options.database.saveWorkspace(userId, updated, parsed.expectedRevision);
     // Ein gelöschter Eintrag beendet seine Sitzung. Nur das Layout zu löschen
     // ließ bislang unsichtbare Prozesse und belegte Quoten zurück.
-    for (const operation of parsed.operations) {
-      if (operation.type !== "deleteEntry") continue;
-      const entry = current.document.entries.find((candidate) => candidate.id === operation.id);
-      if (!entry?.runtimeId || updated.entries.some((candidate) => candidate.runtimeId === entry.runtimeId)) continue;
-      try {
-        const session = options.manager.resolveRuntime(userId, entry.runtimeId);
-        await options.manager.closeSession(userId, session.id);
-      } catch (error) {
-        if (!(error instanceof TerminalFailure && error.code === "SESSION_NOT_FOUND")) throw error;
-      }
-    }
+    await options.manager.drainLifecycleCleanups?.();
     return saved;
   });
   app.post("/terminal/sessions/:sessionId/restart", async (request) => {

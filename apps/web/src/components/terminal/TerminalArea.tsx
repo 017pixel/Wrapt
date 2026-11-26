@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import type { Layout, LayoutChangedMeta } from "react-resizable-panels";
 import type { TerminalKind, TerminalPaneLayout, TerminalSession } from "@wrapt/contracts";
 import { ChevronRightIcon, MonitorOffIcon, PlusIcon, TerminalIcon } from "../icons";
-import { apiClient } from "../../lib/apiClient";
 import { wraptQueries } from "../../lib/queryOptions";
 import { useTerminalResponsiveLayout } from "./useTerminalResponsiveLayout";
 import { usePaneWidth } from "../../lib/usePaneWidth";
@@ -216,21 +215,20 @@ export function TerminalArea({
     if (splitSaveFrame.current !== null) window.cancelAnimationFrame(splitSaveFrame.current);
   }, []);
 
+  const activeHandle = () => (focusedRuntimeId ? handles.current.get(focusedRuntimeId) ?? null : null);
+  const runtimeActions = useTerminalRuntimeActions({ handles, openEntry, refresh: () => { void sessions.refetch(); }, reportError: (runtimeId, error) => {
+    useTerminalNotices.getState().show({ id: `terminal:${runtimeId}:action`, tone: "error", message: error });
+  } });
   const sessionPicker = minimal ? null : (
     <TerminalSessionPicker
       kind={kind}
       sessions={sessions.data?.sessions ?? []}
       openTabIds={panes.map((pane) => pane.runtimeId)}
       onOpen={(session) => openEntry(session.runtimeId)}
-      onRestart={async (session: TerminalSession) => { await apiClient.restartTerminalSession(session.id); void sessions.refetch(); }}
-      onClose={async (session: TerminalSession) => { await apiClient.closeTerminalSession(session.id); void sessions.refetch(); }}
+      onRestart={(session: TerminalSession) => runtimeActions.restart(session.runtimeId)}
+      onClose={(session: TerminalSession) => runtimeActions.close(session)}
     />
   );
-
-  const activeHandle = () => (focusedRuntimeId ? handles.current.get(focusedRuntimeId) ?? null : null);
-  const runtimeActions = useTerminalRuntimeActions({ handles, openEntry, refresh: () => { void sessions.refetch(); }, reportError: (runtimeId, error) => {
-    useTerminalNotices.getState().show({ id: `terminal:${runtimeId}:action`, tone: "error", message: error });
-  } });
   const pressKey = (key: string) => {
     activeHandle()?.sendKey(key, { ctrl: stickyCtrl, alt: stickyAlt });
     setStickyCtrl(false);

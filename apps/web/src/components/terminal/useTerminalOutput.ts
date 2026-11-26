@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type MutableRefObject } from "react";
 import type { Terminal } from "@xterm/xterm";
-import { splitTerminalInput } from "../../lib/clipboard";
 import { maximumParkedOutputBytes } from "./terminal-constants";
+import { flushTerminalReplay } from "./terminal-input";
 
 interface TerminalOutputOptions {
   terminalRef: MutableRefObject<Terminal | null>;
@@ -51,7 +51,11 @@ export function useTerminalOutput(options: TerminalOutputOptions): TerminalOutpu
   const queueOutput = useCallback((data: string) => {
     if (!data) return;
     outputBufferRef.current += data;
-    if (!activeRef.current) {
+    // Ein versteckter Tab bekommt keine Animation-Frames. Er wird deshalb wie
+    // ein geparktes Terminal behandelt und bei Erreichen der Grenze direkt
+    // geschrieben, statt den Puffer unbegrenzt wachsen zu lassen.
+    const parked = !activeRef.current || globalThis.document.visibilityState === "hidden";
+    if (parked) {
       if (outputBufferRef.current.length > maximumParkedOutputBytes) {
         flushOutput(true);
       }
@@ -91,24 +95,30 @@ export function useTerminalOutput(options: TerminalOutputOptions): TerminalOutpu
 
   /**
    * Sendet zwischengespeicherte Nutzereingaben, sobald der Snapshot-Replay
-   * fertig ist. Geräteantworten (Escape-Sequenzen) werden verworfen.
+   * fertig ist. Die Blöcke bleiben in ihrer ursprünglichen Reihenfolge —
+   * Pfeile, Alt/Escape, Keybar und Maus werden nicht mehr verworfen.
    */
   const flushReplayBuffer = useCallback(() => {
-    const buffered = replayBufferRef.current
-      .filter((chunk) => !chunk.includes("\x1b"))
-      .join("");
+    const buffered = replayBufferRef.current;
     replayBufferRef.current = [];
-    if (!buffered) return;
+    if (buffered.length === 0) return;
     const sessionId = sessionRef.current;
     if (sessionId === null) return;
-    rememberTyping(buffered);
-    for (const chunk of splitTerminalInput(buffered)) {
-      if (!send({ type: "terminal.input", sessionId, data: chunk })) {
-        setError("Die Terminaleingabe konnte nicht vollständig gesendet werden.");
-        break;
-      }
-    }
+    flushTerminalReplay(
+      buffered,
+      (data) => send({ type: "terminal.input", sessionId, data }),
+      rememberTyping,
+      setError,
+    );
   }, [rememberTyping, replayBufferRef, send, sessionRef, setError]);
+
+  useEffect(() => {
+    // Beim Verstecken kann der ausstehende Frame nicht mehr feuern. Vorhandene
+    // Ausgabe wird sofort übergeben, damit sie nicht bis zur Rückkehr wartet.
+    const onVisibility = () => flushOutput(true);
+    globalThis.document.addEventListener("visibilitychange", onVisibility);
+    return () => globalThis.document.removeEventListener("visibilitychange", onVisibility);
+  }, [flushOutput]);
 
   useEffect(() => () => {
     if (outputFlushRef.current !== null) window.cancelAnimationFrame(outputFlushRef.current);
