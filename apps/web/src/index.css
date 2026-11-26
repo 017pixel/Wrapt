@@ -1,3 +1,10 @@
+/* Verbindliche Layer-Reihenfolge. `components` muss nach `base` stehen, sonst
+   überschreibt der Browser-Reset aus Tailwind Padding, Margin und Border aller
+   Komponenten. Die Reihenfolge wird beim ersten Vorkommen einer Ebene
+   festgelegt. `index.html` setzt sie zusätzlich vor jedem Stylesheet, weil
+   Vite Komponenten-CSS vor diese Datei einsortieren kann. */
+@layer properties, theme, base, components, utilities;
+
 @import "tailwindcss";
 @import "@fontsource-variable/dm-sans";
 @import "@fontsource/jetbrains-mono/400.css";

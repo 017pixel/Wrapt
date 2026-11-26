@@ -8,6 +8,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="__APP_SHORT_NAME__" />
+    <!-- Die Layer-Reihenfolge muss vor jedem Stylesheet feststehen. Vite kann
+         Komponenten-CSS vor index.css einsortieren; dann würde `components`
+         zuerst registriert und der Reset aus `base` überschreibt das Design. -->
+    <style>@layer properties, theme, base, components, utilities;</style>
     <link rel="manifest" href="/wrapt/manifest.webmanifest?v=8" />
     <link rel="icon" href="/wrapt/favicon.svg?v=8" type="image/svg+xml" />
     <link rel="icon" href="/wrapt/icons/favicon-32.png?v=8" sizes="32x32" type="image/png" />
