@@ -614,18 +614,19 @@ button:hover .app-icon, a:hover .app-icon, [aria-current="page"] .app-icon, .is-
 
 @layer components {
   .app-shell { display: flex; height: 100%; overflow: hidden; background: var(--color-ink-950); }
-  /* Die eingeklappte Toggle-Schaltfläche ragt bewusst in die Content-Spalte.
-     Sie muss deshalb über dem Topbar-Stacking-Context liegen, darf aber nicht
-     die Topbar-Aktionen innerhalb der Content-Spalte abschatten. */
   .sidebar-shell { position: relative; z-index: 50; width: var(--sidebar-width); flex: none; transition: width var(--duration-slow) var(--ease-standard); }
+  /* Während des Ziehens schreibt der Griff die Breite direkt als CSS-Variable.
+     Jede Transition würde den Zeiger überholen und die Leiste nachlaufen lassen. */
+  .sidebar-shell.is-resizing { transition: none !important; }
   .workspace-sidebar { display: flex; width: 100%; height: 100%; flex-direction: column; overflow: hidden; border-right: 1px solid var(--color-line); background: var(--wrapt-surface-sidebar); }
   .sidebar-scroll { overflow-x: hidden; overscroll-behavior: contain; scrollbar-gutter: stable; scrollbar-width: thin; scrollbar-color: var(--color-ink-600) transparent; }
   .sidebar-scroll::-webkit-scrollbar { width: 5px; }
   .sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
   .sidebar-scroll::-webkit-scrollbar-thumb { border-radius: 4px; background: var(--color-ink-600); }
   .sidebar-scroll::-webkit-scrollbar-thumb:hover { background: var(--color-faint); }
-  .sidebar-brand { display: flex; height: 48px; align-items: center; gap: 8px; padding: 0 16px; border-bottom: 1px solid var(--color-line); }
-  .sidebar-mark { display: grid; width: 24px; height: 24px; place-items: center; color: var(--color-muted); }
+  .sidebar-brand { display: flex; height: 48px; align-items: center; gap: 8px; padding: 0 16px; }
+  .sidebar-mark { display: grid; width: 24px; height: 24px; flex: none; place-items: center; color: var(--color-muted); }
+  .sidebar-mark-image { display: block; width: 20px; height: 20px; border-radius: var(--radius-sm); object-fit: contain; }
   .sidebar-label { font-size: 14px; font-weight: 500; letter-spacing: -0.01em; }
   .sidebar-kicker { margin: 24px 12px 6px; color: var(--color-faint); font-family: var(--font-mono); font-size: 10px; font-weight: 500; letter-spacing: .04em; }
   .sidebar-section-header { display: flex; align-items: center; gap: 8px; width: calc(100% - 24px); margin: 24px 12px 6px; padding: 2px 0; border: 0; background: none; color: var(--color-faint); font-size: 11px; font-weight: 500; cursor: pointer; user-select: none; text-align: left; }
@@ -643,18 +644,15 @@ button:hover .app-icon, a:hover .app-icon, [aria-current="page"] .app-icon, .is-
   /* Aktiver Eintrag: nur Text und Icon übernehmen die Akzentfarbe. */
   .sidebar-item[aria-current="page"]:not(.is-touch-reordering) { background: transparent; box-shadow: none; color: var(--color-accent); }
   .sidebar-item[aria-current="page"]:not(.is-touch-reordering) svg { color: var(--color-accent); }
-  .sidebar-toggle { display: inline-flex; width: 28px; height: 28px; flex: none; align-items: center; justify-content: center; margin-left: auto; border: 0; border-radius: 4px; background: transparent; color: var(--color-faint); }
-  .sidebar-toggle:hover { background: var(--color-ink-800); color: var(--color-text); }
-  /* Eingeklappt sind Icons und Logo mittig, Texte blendet sidebar-layout.css
-     per Fade + Slide aus. */
-  .sidebar-shell.is-collapsed .sidebar-brand { justify-content: center; padding: 0; }
-  .sidebar-shell.is-collapsed .sidebar-toggle { position: absolute; inset: 10px -14px auto auto; z-index: 2; width: 28px; background: var(--wrapt-surface-sidebar); border: 1px solid var(--color-line); }
-  .sidebar-resize-handle { position: absolute; z-index: 5; top: 0; right: -4px; bottom: 0; width: 8px; cursor: col-resize; }
-  .sidebar-resize-handle::after { position: absolute; top: 0; bottom: 0; left: 3px; width: 1px; background: transparent; content: ""; transition: background 150ms ease-out; }
-  .sidebar-resize-handle:hover::after { background: var(--color-ink-600); }
-  .sidebar-footer { margin-top: auto; border-top: 1px solid var(--color-line); padding: 8px 0 12px; }
+  /* Kompakt und eingeklappt sind Icons und Logo mittig, Texte blendet
+     sidebar-layout.css per Fade + Slide aus. */
+  .sidebar-shell:is(.is-collapsed, .is-compact) .sidebar-brand { justify-content: flex-start; padding: 0 16px; }
+  /* Unsichtbare, aber gut greifbare Zone am rechten Rand. Sie bleibt auch im
+     eingeklappten Zustand erreichbar und öffnet die Leiste per Zug nach rechts. */
+  .sidebar-resize-handle { position: absolute; z-index: 5; top: 0; right: -5px; bottom: 0; width: 10px; cursor: col-resize; touch-action: none; }
+  .sidebar-resize-handle:focus-visible { outline: 1px solid var(--color-accent); outline-offset: -1px; }
+  .sidebar-footer { margin-top: auto; padding: 8px 0 12px; }
   .sidebar-footer .sidebar-kicker { margin-top: 10px; }
-  .sidebar-shell.is-collapsed .sidebar-footer { border-top-color: transparent; }
 
   .content-column { display: flex; min-width: 0; flex: 1; flex-direction: column; }
   .app-shell[data-terminal-focus="true"] { position: fixed; inset: 0; width: 100%; height: var(--app-viewport-height, 100dvh); overflow: hidden; background: var(--color-ink-950); }
@@ -689,6 +687,9 @@ button:hover .app-icon, a:hover .app-icon, [aria-current="page"] .app-icon, .is-
   .breadcrumb { min-width: 0; color: var(--color-text); font-family: var(--font-mono); font-size: 13px; font-weight: 500; letter-spacing: 0; }
   .mobile-nav-trigger { display: inline-flex; width: 40px; height: 40px; flex: none; align-items: center; justify-content: center; border: 0; border-radius: var(--radius-md); background: transparent; color: var(--color-muted); transition: background var(--duration-base) var(--ease-standard), color var(--duration-base) var(--ease-standard); }
   .mobile-nav-trigger:hover, .mobile-nav-trigger:active { background: var(--color-ink-800); color: var(--color-text); }
+  /* Routen ohne Shell-Topbar behalten auf Touch-Geräten einen schwebenden
+     Einstieg in die Navigation. */
+  .mobile-nav-trigger.is-floating { position: fixed; z-index: 180; top: calc(8px + env(safe-area-inset-top)); left: calc(8px + env(safe-area-inset-left)); border: 1px solid var(--color-line); background: var(--color-ink-900); box-shadow: var(--shadow-raised); }
   .mobile-navigation-page { position: fixed; inset: 0; z-index: 250; isolation: isolate; display: flex; flex-direction: column; overflow: auto; background: var(--wrapt-surface-sidebar); }
   .mobile-navigation-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; padding: calc(32px + env(safe-area-inset-top)) 20px 28px; border-bottom: 1px solid var(--color-line); }
   .mobile-navigation-kicker { margin: 0 0 6px; color: var(--color-faint); font-family: var(--font-mono); font-size: 10px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; }
@@ -1898,10 +1899,7 @@ button:hover .app-icon, a:hover .app-icon, [aria-current="page"] .app-icon, .is-
   .app-shell[data-shell-mode="compact"] .settings-update-row { align-items: stretch; flex-direction: column; }
   .app-shell[data-shell-mode="tablet"] .data-row > a { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius-sm); padding-inline: 6px; }
   /* Dashboard folgt den Shell-Modi, nicht nur der reinen Fensterbreite. */
-  .app-shell[data-shell-mode="compact"] .dash-bento > [class*="is-span-"] { grid-column: span 12; }
-  .app-shell[data-shell-mode="compact"] .dash-grid, .app-shell[data-shell-mode="compact"] .dash-diagnostics-body, .app-shell[data-shell-mode="compact"] .dash-server-body, .app-shell[data-shell-mode="tablet"] .dash-server-body { grid-template-columns: minmax(0, 1fr); }
-  .app-shell[data-shell-mode="compact"] .dash-bento > .dash-server-panel { grid-row: auto; }
-  .app-shell[data-shell-mode="compact"] .dash-head { align-items: flex-start; flex-direction: column; gap: var(--space-4); }
+  .app-shell[data-shell-mode="compact"] .dash-diagnostics-body, .app-shell[data-shell-mode="compact"] .dash-server-body, .app-shell[data-shell-mode="tablet"] .dash-server-body { grid-template-columns: minmax(0, 1fr); }
   .app-shell[data-shell-mode="compact"] .dash-head-side { justify-items: start; text-align: left; }
   .app-shell[data-shell-mode="compact"] .dash-command-list code, .app-shell[data-shell-mode="tablet"] .dash-command-list code { display: none; }
   .app-shell[data-shell-mode="compact"] .dash-command-list .dash-command-view, .app-shell[data-shell-mode="tablet"] .dash-command-list .dash-command-view { display: inline-flex; }
@@ -2605,6 +2603,9 @@ button:hover .app-icon, a:hover .app-icon, [aria-current="page"] .app-icon, .is-
   border-radius: var(--radius-sm);
 }
 .file-manager-alert.is-sync { background: var(--color-warn-soft); color: var(--color-warn); }
+.file-manager-alert.has-actions { flex-wrap: wrap; }
+.file-manager-alert.has-actions button { margin-left: 0; padding: 8px 12px; min-height: 44px; border: 1px solid currentColor; }
+.file-manager-alert.has-actions button:first-of-type { margin-left: auto; }
 
 .file-manager-body {
   position: relative;

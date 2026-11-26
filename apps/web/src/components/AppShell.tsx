@@ -10,6 +10,7 @@ import { Sidebar } from "./Sidebar";
 import { MobileNav } from "./MobileNav";
 import { StatusBar, CompactSystemStatus } from "./StatusBar";
 import { useSidebarLayout } from "../lib/useSidebarLayout";
+import { SIDEBAR_WIDTH_MAX, SIDEBAR_WIDTH_MIN } from "../lib/sidebarSizing";
 import { PersistentOutlet } from "./PersistentOutlet";
 import { useLayoutStore } from "../stores/layout";
 import { wraptQueries } from "../lib/queryOptions";
@@ -188,13 +189,17 @@ export function AppShell() {
   const title = routeTitles[location.pathname] ?? "Wrapt";
   // Shell-Sonderfälle kommen aus der gematchten Route statt aus Pfadabfragen;
   // die Route-Contribution bleibt damit die einzige Quelle für die Darstellung.
-  const activeRouteId = pageRouteRegistry.matchRoute(location.pathname)?.route.contributionId;
+  const activeRoute = pageRouteRegistry.matchRoute(location.pathname);
+  const activeRouteId = activeRoute?.route.contributionId;
   const isProjectDetail = activeRouteId === "wrapt.projects.route.detail";
   const isStandaloneT3 = activeRouteId === "wrapt.t3-code.route.main";
   const isStandaloneOpenCode = activeRouteId === "wrapt.opencode.route.main";
   const isTerminalRoute = ["/terminal", "/codex", "/claude"].includes(location.pathname);
+  // Seiten wie T3 Code bringen ihre eigene Oberfläche mit; dort entfällt die
+  // Shell-Topbar samt Breadcrumb und Werkzeugaktionen.
+  const hidesShellTopbar = activeRoute?.route.value.contribution.topbar === false;
   const hasStandaloneToolMenu =
-    pageRouteRegistry.matchRoute(location.pathname)?.route.value.contribution.standaloneActions === true;
+    activeRoute?.route.value.contribution.standaloneActions === true;
   const [terminalFocus, setTerminalFocus] = useState(false);
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
@@ -304,15 +309,23 @@ export function AppShell() {
       <ViewPresenceReporter />
       {showsNavigationSidebar ? <ErrorBoundary label="Navigation"><Sidebar
         collapsed={sidebar.collapsed}
-        width={hasTabletSidebar ? Math.max(208, Math.min(sidebar.width, Math.round(responsive.width * 0.22))) : sidebar.width}
-        onToggle={sidebar.toggleCollapsed}
-        onResize={sidebar.setWidth}
+        width={hasTabletSidebar ? Math.max(SIDEBAR_WIDTH_MIN, Math.min(sidebar.width, Math.round(responsive.width * 0.22))) : sidebar.width}
+        maxWidth={hasTabletSidebar ? Math.round(responsive.width * 0.22) : SIDEBAR_WIDTH_MAX}
+        onLayoutChange={sidebar.applyLayout}
       /></ErrorBoundary> : null}
       <div
         className="content-column"
         inert={mobileNavigationOpen && !hasTabletSidebar ? true : undefined}
       >
-        <ErrorBoundary label="Kopfbereich"><header className="topbar">
+        {hidesShellTopbar ? (showNavigationTrigger ? <button
+          ref={navigationTriggerRef}
+          type="button"
+          className="mobile-nav-trigger is-floating"
+          onClick={() => setMobileNavigationOpen(true)}
+          aria-label="Navigation öffnen"
+        >
+          <MenuIcon className="h-[18px] w-[18px]" />
+        </button> : null) : <ErrorBoundary label="Kopfbereich"><header className="topbar">
           {showNavigationTrigger ? <button
             ref={navigationTriggerRef}
             type="button"
@@ -342,7 +355,7 @@ export function AppShell() {
             <CodePluginSurface surface="topbar" builtins={[{ id: "wrapt.shell.topbar.plugins", surface: "topbar", title: "Plugin-Aktionen", children: <PluginTopbar /> }]} />
             {(isStandaloneT3 || isStandaloneOpenCode || location.pathname === "/code-editor") ? <div id="topbar-tool-actions" className="topbar-tool-actions" aria-label={`${title} Aktionen`} /> : hasStandaloneToolMenu ? <StandaloneRouteActions terminalFocus={terminalFocus} onTerminalFocusChange={setTerminalFocus} /> : null}
           </div>
-        </header></ErrorBoundary>
+        </header></ErrorBoundary>}
         {!online ? <div className="connection-banner" role="status"><span>Offline</span><strong>Live-Daten und Remote-Werkzeuge sind vorübergehend nicht verfügbar.</strong></div> : null}
         <main ref={mainRef} id="main-content" tabIndex={-1} className="relative min-h-0 flex-1 overflow-hidden">
           <PersistentOutlet />

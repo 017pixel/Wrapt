@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ConfirmDialog } from "../ModalDialog";
 import { wraptQueries } from "../../lib/queryOptions";
 import { isLoopbackWorkspace, normalizeWorkspaceUrl, type WorkspaceEntry } from "./workspaceModel";
+import { visibleWorkspaceEntries } from "./workspaceVisibility";
 import { useWorkspaceRegistry } from "./workspaceRegistryStore";
 import { preconnectWorkspace } from "./workspaceNetwork";
 import { probeWorkspace, type WorkspaceProbeResult, type WorkspaceStatus } from "./workspaceStatus";
@@ -33,16 +34,12 @@ export function WorkspaceRegistryView({ allowAdding = true, onDialogOpenChange }
   const [removing, setRemoving] = useState<WorkspaceEntry | null>(null);
   const selfEntry = entries.find((entry) => entry.url === selfUrl);
   const selfBootId = health.data?.bootId ?? (selfEntry ? bootIds[selfEntry.url] : null) ?? null;
-  const remoteSelf = Boolean(selfUrl && !isLoopbackWorkspace(selfUrl));
-  const visibleEntries = useMemo(() => entries.filter((entry) => {
-    if (entry.url === selfUrl) return true;
-    // Bestaetigter Alias desselben Backends: nur ausblenden wenn beide bootIds bekannt sind.
-    if (selfBootId && bootIds[entry.url] && bootIds[entry.url] === selfBootId) return false;
-    // Loopback ist geraetegebunden. In einer Remote Ansicht zeigt es auf den Betrachter,
-    // nicht auf den Server, daher dort nie als eigenen Eintrag fuehren.
-    if (remoteSelf && isLoopbackWorkspace(entry.url)) return false;
-    return true;
-  }), [bootIds, entries, selfBootId, selfUrl, remoteSelf]);
+  // Bestaetigte Aliase desselben Backends und geraetegebundenes Loopback
+  // werden in einer Remote Ansicht nicht als eigener Workspace gefuehrt.
+  const visibleEntries = useMemo(
+    () => visibleWorkspaceEntries(entries, { selfUrl, selfBootId, bootIds }),
+    [bootIds, entries, selfBootId, selfUrl],
+  );
   const remoteCount = useMemo(() => visibleEntries.filter((entry) => entry.url !== selfUrl).length, [visibleEntries, selfUrl]);
 
   const checkStatuses = useCallback(async (entryUrl?: string) => {

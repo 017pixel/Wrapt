@@ -39,6 +39,23 @@ describe("Workspace-Menüs", () => {
   });
   afterEach(() => { cleanup(); queryClient.clear(); });
 
+  it("bleibt unsichtbar, wenn nur der eigene Server bekannt ist", () => {
+    useWorkspaceRegistry.setState({ entries: [], selfUrl: null, initialized: false, switchingWorkspace: null, changedAt: {}, deletedAt: {} });
+    localStorage.clear();
+    useWorkspaceRegistry.getState().initialize("https://main.example.ts.net", "Main");
+    mount();
+    expect(screen.queryByRole("button", { name: /Aktueller Server/ })).toBeNull();
+  });
+
+  it("bleibt unsichtbar, wenn der Loopback-Alias derselben Instanz in der Liste liegt", () => {
+    useWorkspaceRegistry.setState({ entries: [], selfUrl: null, initialized: false, switchingWorkspace: null, changedAt: {}, deletedAt: {} });
+    localStorage.clear();
+    useWorkspaceRegistry.getState().initialize("https://main.example.ts.net", "Main");
+    useWorkspaceRegistry.getState().add("Lokal", "http://127.0.0.1:3010");
+    mount();
+    expect(screen.queryByRole("button", { name: /Aktueller Server/ })).toBeNull();
+  });
+
   it("bietet Hinzufügen ausschließlich in den Einstellungen an", async () => {
     const view = mount();
     await openSwitcher();

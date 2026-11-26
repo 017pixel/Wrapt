@@ -1,6 +1,5 @@
-import { useMemo } from "react";
-import type { CSSProperties, PointerEvent as ReactPointerEvent, ReactNode } from "react";
-import { ChevronLeftIcon, ChevronRightIcon, WraptIcon } from "./icons";
+import { useMemo, useRef } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import { useNavigationRegistry } from "../extensions/useNavigationRegistry";
 import type { OwnedNavigationItem } from "../extensions/navigationRegistry";
 import { isPageVisibleIn, useSidebarPreferences, type SidebarSectionKey, type PageRouteId } from "../stores/sidebarPreferences";
@@ -8,6 +7,14 @@ import { WorkspaceSwitcher } from "./workspaces/WorkspaceSwitcher";
 import { useShortcutState } from "./shortcuts/shortcutState";
 import { SidebarNavLink } from "./sidebar/SidebarNavLink";
 import { orderNavigation } from "./sidebar/navigationOrdering";
+import { useSidebarResize } from "./sidebar/useSidebarResize";
+import {
+  SIDEBAR_COLLAPSED_WIDTH,
+  SIDEBAR_WIDTH_MAX,
+  SIDEBAR_WIDTH_MIN,
+  sidebarModeClassNames,
+  type SidebarLayoutState,
+} from "../lib/sidebarSizing";
 import "./sidebar/sidebar-layout.css";
 
 function isNavigationItemVisible(item: OwnedNavigationItem, hiddenPages: ReadonlySet<string>): boolean {
@@ -49,11 +56,12 @@ function SectionBody({ collapsed, children }: { collapsed: boolean; children: Re
 interface SidebarProps {
   collapsed: boolean;
   width: number;
-  onToggle: () => void;
-  onResize: (width: number) => void;
+  maxWidth?: number;
+  onLayoutChange: (layout: SidebarLayoutState) => void;
 }
 
-export function Sidebar({ collapsed, width, onToggle, onResize }: SidebarProps) {
+export function Sidebar({ collapsed, width, maxWidth, onLayoutChange }: SidebarProps) {
+  const shellRef = useRef<HTMLDivElement>(null);
   const showingNumbers = useShortcutState((state) => state.showingNumbers);
   // Das Set abonnieren, nicht die (stabile) Methode: sonst rechnen die Memos unten
   // beim Umschalten der Seiten-Sichtbarkeit nie neu.
@@ -68,47 +76,34 @@ export function Sidebar({ collapsed, width, onToggle, onResize }: SidebarProps) 
   const visiblePrimaryNavItems = useMemo(() => orderNavigation(navigation.byGroup.workspace.filter((item) => isNavigationItemVisible(item, hiddenPages)), navigationOrder), [navigation, hiddenPages, navigationOrder]);
   const visibleToolRouteItems = useMemo(() => orderNavigation(navigation.byGroup.tools.filter((item) => isNavigationItemVisible(item, hiddenPages)), navigationOrder), [navigation, hiddenPages, navigationOrder]);
   const visibleFooterNavItems = useMemo(() => orderNavigation(navigation.byGroup.account.filter((item) => isNavigationItemVisible(item, hiddenPages)), navigationOrder), [navigation, hiddenPages, navigationOrder]);
-  const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
-    event.preventDefault();
-    const startX = event.clientX;
-    const startWidth = width;
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-    const handleMove = (moveEvent: globalThis.PointerEvent) => onResize(startWidth + moveEvent.clientX - startX);
-    const handleEnd = () => {
-      window.removeEventListener("pointermove", handleMove);
-      window.removeEventListener("pointerup", handleEnd);
-      window.removeEventListener("pointercancel", handleEnd);
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-    };
-    window.addEventListener("pointermove", handleMove);
-    window.addEventListener("pointerup", handleEnd, { once: true });
-    // pointercancel (Touch-Unterbrechung, Alt-Tab) muss genauso aufräumen,
-    // sonst bleiben cursor/userSelect dauerhaft gesetzt (F04-07).
-    window.addEventListener("pointercancel", handleEnd, { once: true });
-  };
+  const effectiveMaxWidth = Math.min(SIDEBAR_WIDTH_MAX, Math.max(SIDEBAR_WIDTH_MIN, maxWidth ?? SIDEBAR_WIDTH_MAX));
+  const visibleWidth = Math.min(effectiveMaxWidth, Math.max(SIDEBAR_WIDTH_MIN, width));
+  const modeClasses = sidebarModeClassNames(collapsed, visibleWidth);
+  const compact = collapsed || visibleWidth <= SIDEBAR_WIDTH_MIN;
+  const resize = useSidebarResize({ collapsed, width: visibleWidth, maxWidth: effectiveMaxWidth, shellRef, onCommit: onLayoutChange });
 
   return (
     <div
-      className={`sidebar-shell hidden md:flex ${collapsed ? "is-collapsed" : ""}`}
-      style={{ "--sidebar-width": `${collapsed ? 56 : width}px` } as CSSProperties}
+      ref={shellRef}
+      className={`sidebar-shell hidden md:flex ${modeClasses}`.trim()}
+      style={{ "--sidebar-width": `${collapsed ? SIDEBAR_COLLAPSED_WIDTH : visibleWidth}px` } as CSSProperties}
     >
       <aside className="workspace-sidebar flex-col">
         <div className="sidebar-brand">
-          <div className="sidebar-mark"><WraptIcon className="h-[18px] w-[18px]" /></div>
-          <div className="sidebar-label" aria-hidden={collapsed}>Wrapt</div>
-          <button
-            type="button"
-            className="sidebar-toggle"
-            onClick={onToggle}
-            aria-label={collapsed ? "Sidebar ausklappen" : "Sidebar einklappen"}
-            title={collapsed ? "Sidebar ausklappen" : "Sidebar einklappen"}
-          >
-            {collapsed ? <ChevronRightIcon className="h-4 w-4" /> : <ChevronLeftIcon className="h-4 w-4" />}
-          </button>
+          <div className="sidebar-mark">
+            <img
+              className="sidebar-mark-image"
+              src={`${import.meta.env.BASE_URL}favicon.svg`}
+              alt=""
+              width={20}
+              height={20}
+              draggable={false}
+              onError={(event) => { event.currentTarget.style.display = "none"; }}
+            />
+          </div>
+          <div className="sidebar-label" aria-hidden={compact}>Wrapt</div>
         </div>
-        <div className="workspace-switcher-sidebar-slot"><WorkspaceSwitcher compact={collapsed} /></div>
+        <div className="workspace-switcher-sidebar-slot"><WorkspaceSwitcher compact={compact} /></div>
         <nav className="sidebar-scroll sidebar-primary-navigation" aria-label="Seiten und Werkzeuge">
           <div className="sidebar-section">
             <SectionHeader label="Allgemein" sectionKey="workspace" />
@@ -136,9 +131,19 @@ export function Sidebar({ collapsed, width, onToggle, onResize }: SidebarProps) 
           </SectionBody>
         </nav>
       </aside>
-      {!collapsed ? (
-        <div className="sidebar-resize-handle" role="separator" aria-orientation="vertical" onPointerDown={startResize} />
-      ) : null}
+      <div
+        className="sidebar-resize-handle"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Breite der Seitennavigation ändern"
+        aria-valuemin={SIDEBAR_WIDTH_MIN}
+        aria-valuemax={effectiveMaxWidth}
+        aria-valuenow={collapsed ? SIDEBAR_WIDTH_MIN : visibleWidth}
+        aria-valuetext={collapsed ? "Eingeklappt" : `${visibleWidth} Pixel`}
+        tabIndex={0}
+        onPointerDown={resize.onPointerDown}
+        onKeyDown={resize.onKeyDown}
+      />
     </div>
   );
 }

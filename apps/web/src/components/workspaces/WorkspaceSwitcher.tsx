@@ -1,16 +1,23 @@
 import { shortcutEvents } from "../shortcuts/shortcutEvents";
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import serverArtwork from "../../assets/dashboard-artwork/hero-arbeitsbereich-surface.webp";
 import { preloadArtwork } from "../../lib/artworkPreload";
 import { PopupArtwork } from "../PopupArtwork";
 import { ChevronDownIcon, CloseIcon } from "../icons";
 import { useWorkspaceRegistry } from "./workspaceRegistryStore";
+import { visibleWorkspaceEntries } from "./workspaceVisibility";
 import { WorkspaceRegistryView } from "./WorkspaceRegistryView";
 
 interface WorkspaceSwitcherProps {
   compact?: boolean;
   mobile?: boolean;
+}
+
+/** Kürzel für den Kompaktmodus: die ersten ein bis zwei Zeichen des Namens. */
+function workspaceInitials(name: string): string {
+  const characters = Array.from(name.trim());
+  return characters.slice(0, 2).join("") || "?";
 }
 
 export function WorkspaceSwitcher({ compact = false, mobile = false }: WorkspaceSwitcherProps) {
@@ -23,10 +30,17 @@ export function WorkspaceSwitcher({ compact = false, mobile = false }: Workspace
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<CSSProperties>({ top: 12, left: 12 });
   const active = entries.find((entry) => entry.url === selfUrl);
+  const activeName = active?.name ?? "Dieses Gerät";
+  // Nur tatsächlich wählbare Workspaces zählen: Loopback-Aliase und Origins
+  // desselben Backends sollen den Switcher nicht erscheinen lassen.
+  const visibleCount = useMemo(
+    () => visibleWorkspaceEntries(entries, { selfUrl }).length,
+    [entries, selfUrl],
+  );
 
   useEffect(() => {
-    if (entries.length >= 2) preloadArtwork(serverArtwork);
-  }, [entries.length]);
+    if (visibleCount >= 2) preloadArtwork(serverArtwork);
+  }, [visibleCount]);
 
   const toggle = () => {
     if (open) {
@@ -72,15 +86,15 @@ export function WorkspaceSwitcher({ compact = false, mobile = false }: Workspace
 
   useEffect(() => {
     const handleShortcut = (event: Event) => {
-      if (event.defaultPrevented || entries.length < 2 || !triggerRef.current?.getClientRects().length) return;
+      if (event.defaultPrevented || visibleCount < 2 || !triggerRef.current?.getClientRects().length) return;
       event.preventDefault();
       triggerRef.current.click();
     };
     window.addEventListener(shortcutEvents.server, handleShortcut);
     return () => window.removeEventListener(shortcutEvents.server, handleShortcut);
-  }, [entries.length]);
+  }, [visibleCount]);
 
-  if (entries.length < 2) return null;
+  if (visibleCount < 2) return null;
 
   return (
     <>
@@ -91,14 +105,15 @@ export function WorkspaceSwitcher({ compact = false, mobile = false }: Workspace
         onPointerEnter={() => preloadArtwork(serverArtwork)}
         onFocus={() => preloadArtwork(serverArtwork)}
         onClick={toggle}
-        aria-label={`Aktueller Server: ${active?.name ?? "Dieses Gerät"}. Server wechseln`}
+        aria-label={`Aktueller Server: ${activeName}. Workspace wechseln`}
         aria-expanded={open}
-        title={active?.name ?? "Server wechseln"}
+        title={`${activeName} · Workspace wechseln`}
       >
-        {/* Der Name bleibt immer eingehängt und wird eingeklappt per CSS
-            ausgeblendet (Fade), damit der Switcher nicht springt. */}
-        <strong className="workspace-switcher-name">{active?.name ?? "Dieses Gerät"}</strong>
-        <span className="workspace-switcher-chevron"><ChevronDownIcon className="h-4 w-4" /></span>
+        {/* Der Name bleibt für den ausgeklappten Zustand eingehängt; im
+            Kompaktmodus übernimmt das Kürzel-Badge die Orientierung. */}
+        <span className="workspace-switcher-badge" aria-hidden="true">{workspaceInitials(activeName)}</span>
+        <strong className="workspace-switcher-name">{activeName}</strong>
+        <span className="workspace-switcher-chevron" aria-hidden="true"><ChevronDownIcon className="h-4 w-4" /></span>
       </button>
 
       {open && typeof document !== "undefined" ? createPortal(

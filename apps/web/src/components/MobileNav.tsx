@@ -12,6 +12,7 @@ import { useSidebarNavigationReorder } from "./sidebar/useSidebarNavigationReord
 import { orderNavigation } from "./sidebar/navigationOrdering";
 import { WorkspaceSwitcher } from "./workspaces/WorkspaceSwitcher";
 import { useWorkspaceRegistry } from "./workspaces/workspaceRegistryStore";
+import { visibleWorkspaceEntries } from "./workspaces/workspaceVisibility";
 
 const navigationGroupKickers: ReadonlyArray<{ group: "workspace" | "tools" | "account"; kicker: string }> = [
   { group: "workspace", kicker: "Allgemein" },
@@ -54,7 +55,12 @@ export function MobileNav({ open, onClose, triggerRef }: MobileNavProps) {
   // Abonniert statt einmalig gelesen — Änderungen in den Einstellungen greifen sofort.
   const hiddenPages = useSidebarPreferences((state) => state.hiddenPages);
   const navigationOrder = useSidebarPreferences((state) => state.navigationOrder);
-  const connectedWorkspaceCount = useWorkspaceRegistry((state) => state.entries.length);
+  const workspaceEntries = useWorkspaceRegistry((state) => state.entries);
+  const selfUrl = useWorkspaceRegistry((state) => state.selfUrl);
+  const connectedWorkspaceCount = useMemo(
+    () => visibleWorkspaceEntries(workspaceEntries, { selfUrl }).length,
+    [workspaceEntries, selfUrl],
+  );
   const navigation = useNavigationRegistry();
   const filteredSections = useMemo(() => navigationGroupKickers.map(({ group, kicker }) => ({
     kicker,
