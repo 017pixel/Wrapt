@@ -66,8 +66,8 @@ const settingsSchema = z.object({
   PROJECT_BROWSER_PAGE_SIZE: boundedIntegerFromEnvironment(300, 1, 500),
   METRICS_CACHE_MS: integerFromEnvironment(5_000),
   SUMMARY_CACHE_MS: integerFromEnvironment(30_000),
-  SERVICE_CACHE_MS: integerFromEnvironment(10_000),
-  LOCAL_PORT_CACHE_MS: integerFromEnvironment(5_000),
+  SERVICE_CACHE_MS: integerFromEnvironment(30_000),
+  LOCAL_PORT_CACHE_MS: integerFromEnvironment(15_000),
   AUDIT_VERIFY_CACHE_MS: boundedIntegerFromEnvironment(5_000, 1_000, 60_000),
   ...performanceSettingsShape,
   LOCAL_PORT_PROBE_TIMEOUT_MS: boundedIntegerFromEnvironment(450, 100, 3_000),
@@ -102,8 +102,9 @@ const settingsSchema = z.object({
   TERMINAL_SHELL_PATH: z.string().min(1).optional(),
   TMUX_PATH: absoluteFilesystemPathSchema.default(wb.cli.tmux),
   PREVIEW_TMUX_SOCKET: z.string().min(1).default("wrapt-previews"),
-  // Optional: dedizierter tmux-Socket unter $XDG_RUNTIME_DIR/wrapt.
-  // Ohne Wert berechnet der Server den Pfad selbst (siehe dependencies.ts).
+  // Optional: dedizierter tmux-Socket aus terminal.socketPath. Die Env-Variable
+  // bleibt als kompatible Überschreibung aktiv; ohne Wert berechnet der Server
+  // den Pfad aus XDG_RUNTIME_DIR beziehungsweise dem Datenverzeichnis.
   TMUX_SOCKET_PATH: absoluteFilesystemPathSchema.optional(),
   CODEX_CLI_PATH: z.string().min(1).default(wb.cli.codex),
   OPENCODE_CLI_PATH: z.string().min(1).default(wb.cli.opencode),
@@ -136,6 +137,9 @@ const settingsSchema = z.object({
   T3_SERVICE_UNIT: z.string().min(1).default(wb.t3.serviceUnit),
   T3_WEBSOCKET_PENDING_BYTES: boundedIntegerFromEnvironment(wb.t3.websocketPendingBytes, 65_536, 268_435_456),
   T3_WEBSOCKET_BUFFERED_BYTES: boundedIntegerFromEnvironment(wb.t3.websocketBufferedBytes, 131_072, 536_870_912),
+  // Schalter für die optionale Web-UI. Env schlägt Config, damit die Funktion
+  // ohne Edit der lokalen Datei getestet oder abgeschaltet werden kann.
+  OPENCODE_WEB_ENABLED: booleanFromEnvironment(wb.opencodeWeb.enabled),
   OPENCODE_WEB_CLI_PATH: absoluteFilesystemPathSchema.default(wb.opencodeWeb.cliPath ?? wb.cli.opencode),
   OPENCODE_WEB_HOST: z.string().min(1).default(wb.opencodeWeb.host),
   OPENCODE_WEB_PORT: integerFromEnvironment(wb.opencodeWeb.port),
@@ -313,7 +317,7 @@ export const settings = Object.freeze({
   terminalShell: { ...wb.terminal.shell, ...(environment.TERMINAL_SHELL_PATH ? { file: environment.TERMINAL_SHELL_PATH } : {}) },
   tmuxPath: resolveTmuxExecutable(environment.TMUX_PATH),
   previewTmuxSocket: environment.PREVIEW_TMUX_SOCKET,
-  tmuxSocketPath: environment.TMUX_SOCKET_PATH,
+  tmuxSocketPath: environment.TMUX_SOCKET_PATH ?? wb.terminal.socketPath,
   codexCliPath: environment.CODEX_CLI_PATH,
   opencodeCliPath: environment.OPENCODE_CLI_PATH,
   claudeCliPath: environment.CLAUDE_CLI_PATH,
@@ -340,6 +344,7 @@ export const settings = Object.freeze({
   t3WebSocketBufferedBytes: environment.T3_WEBSOCKET_BUFFERED_BYTES,
   // Kanal beim Serverstart. Nur Ausgangswert — der aktuelle Wert kommt aus der Config.
   t3BootChannel: wb.t3.channel,
+  opencodeWebEnabled: environment.OPENCODE_WEB_ENABLED,
   opencodeWebCliPath: environment.OPENCODE_WEB_CLI_PATH,
   opencodeWebHost: environment.OPENCODE_WEB_HOST,
   opencodeWebPort: environment.OPENCODE_WEB_PORT,

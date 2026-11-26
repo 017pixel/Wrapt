@@ -68,6 +68,8 @@ export const wraptConfigSchema = z.object({
   }),
   terminal: z.object({
     shell: z.object({ file: z.string().min(1).optional(), args: z.array(z.string()).optional() }).prefault({}),
+    // Optional; ohne Angabe gilt das private Runtime-Verzeichnis. Env kann überschreiben.
+    socketPath: absolutePath.optional(),
   }).prefault({}),
   codexbar: z.object({
     configPath: absolutePath,
@@ -221,8 +223,11 @@ export const wraptConfigSchema = z.object({
   }).prefault({}),
   // Offizielle OpenCode-Web-UI als eigene Loopback-Instanz hinter /opencode.
   // Die Web-UI nutzt dasselbe OpenCode-Home wie die CLI und benötigt kein Passwort,
-  // weil der Dienst ausschließlich an Loopback gebunden wird.
+  // weil der Dienst ausschließlich an Loopback gebunden wird. Die Funktion ist
+  // optional und standardmäßig aus; erst `enabled: true` registriert Proxy,
+  // Navigation und systemd-Unit.
   opencodeWeb: z.object({
+    enabled: z.boolean().default(false),
     port: z.number().int().positive().default(3774),
     host: z.string().min(1).default("127.0.0.1"),
     cliPath: absolutePath.optional(),

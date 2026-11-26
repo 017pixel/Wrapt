@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { applyHostCapabilities } from "../lib/hostCapabilities";
 import { registerLegacyPageRoutes } from "./legacyPageRoutes";
 import { registerLegacyNavigation, legacyNavigationOwners } from "./legacyNavigation";
 import { NavigationRegistry } from "./navigationRegistry";
@@ -60,6 +61,8 @@ function buildIsolatedRegistry(): { registry: NavigationRegistry; routes: PageRo
 }
 
 describe("legacyNavigation", () => {
+  beforeEach(() => applyHostCapabilities({ opencodeWeb: true }));
+
   it("registriert genau einen Built-in pro bisheriger Navigationsfläche", () => {
     expect(legacyNavigationOwners).toHaveLength(15);
   });
@@ -132,5 +135,14 @@ describe("legacyNavigation", () => {
       expect(item.value.route.prefetch).toBe(route?.value.contribution.prefetch);
       expect(item.value.route.mobileNavigation).toBe(true);
     }
+  });
+
+  it("registriert OpenCode Web ohne Serverfreigabe weder Navigation noch Route", () => {
+    applyHostCapabilities({ opencodeWeb: false });
+    const { registry, routes } = buildIsolatedRegistry();
+    registerLegacyNavigation(registry);
+
+    expect(registry.getSnapshot().items.some((item) => item.ownerId === "wrapt.opencode")).toBe(false);
+    expect(routes.matchRoute("/opencode")).toBeUndefined();
   });
 });

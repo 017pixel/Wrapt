@@ -1,10 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { clientMessage as message, securityFixture, type SecurityFixture } from "./security-test.fixture.js";
-import { eventSchema } from "./upstream-schemas.js";
 
-const globalEvents = ["sessions.changed", "skin.changed", "pet.changed", "cron.changed", "platforms.changed", "projects.changed",
-  "pairing.changed", "bot_relay.outbox.pending", "session.reclaimed", "approval.cancelled", "display.status", "display.lease",
-  "display.install.log", "display.install.done", "connection.update"];
+const globalEvents = ["sessions.changed", "skills.changed", "groups.changed", "onboarding.ended", "skin.changed", "pet.changed",
+  "cron.changed", "platforms.changed", "projects.changed", "pairing.changed", "bot_relay.outbox.pending", "session.reclaimed",
+  "approval.cancelled", "display.status", "display.lease", "display.install.log", "display.install.done", "connection.update"];
 
 describe("Globale Core-Ereignisse und geschützter Protokollfehler", () => {
   let f: SecurityFixture;
@@ -34,9 +33,22 @@ describe("Globale Core-Ereignisse und geschützter Protokollfehler", () => {
     if (type === "sessions.changed") expect(f.messages.slice(before).some((entry) => entry.type === "event" && entry.event.type === "sessions.invalidated")).toBe(true);
   });
 
-  it.each(["message.delta", "message.complete", "tool.start", "subagent.complete", "error"])("verlangt für %s eine echte Session-ID", (type) => {
-    expect(eventSchema.safeParse({ type, session_id: "" }).success).toBe(false);
-    expect(eventSchema.safeParse({ type, session_id: "live-valid" }).success).toBe(true);
+  it.each(["message.delta", "message.complete", "tool.start", "subagent.complete", "error"])("ignoriert %s ohne Session-ID statt den Transport zu sperren", async (type) => {
+    const session = await foreignRunning();
+    send(JSON.stringify({ jsonrpc: "2.0", method: "event", params: { type, session_id: "", payload: { text: "Sessionlos" } } }));
+    f.gateway.event(session, "message.complete", { text: "Unverlorener Abschluss" });
+    await expect.poll(() => f.messages.some((entry) => entry.type === "event" && entry.event.type === "message.completed")).toBe(true);
+    expect(f.manager.upstream.state).toBe("online");
+    expect(f.manager.upstream.quarantined).toBe(false);
+  });
+
+  it("ignoriert die native Segmentgrenze text=null vor Werkzeugzeilen", async () => {
+    const session = await foreignRunning();
+    f.gateway.event(session, "message.delta", { text: null });
+    f.gateway.event(session, "message.complete", { text: "Fertig" });
+    await expect.poll(() => f.messages.some((entry) => entry.type === "event" && entry.event.type === "message.completed")).toBe(true);
+    expect(f.manager.upstream.state).toBe("online");
+    expect(f.manager.upstream.quarantined).toBe(false);
   });
 
   it.each(["json", "envelope", "normalizer"] as const)("schützt fremde Arbeit nach %s-Fehler und entsorgt erst nach Settlement", async (kind) => {
@@ -44,7 +56,7 @@ describe("Globale Core-Ereignisse und geschützter Protokollfehler", () => {
     f.gateway.request(session, "approval", { choices: ["once", "deny"] });
     await expect.poll(() => f.manager.sessions.records.get(session.id)?.snapshot.requests.length).toBe(1);
     if (kind === "json") send("{invalid-json");
-    if (kind === "envelope") send(JSON.stringify({ jsonrpc: "2.0", method: "event", params: { type: "message.delta", session_id: "", payload: { text: "Invalid" } } }));
+    if (kind === "envelope") send(JSON.stringify({ jsonrpc: "2.0", method: "event", params: "kein Objekt" }));
     if (kind === "normalizer") f.gateway.event(session, "tool.start", { name: "terminal" });
     await expect.poll(() => f.manager.upstream.state).toBe("incompatible");
     expect(f.manager.upstream.quarantined).toBe(true);
@@ -81,6 +93,19 @@ describe("Globale Core-Ereignisse und geschützter Protokollfehler", () => {
     send(JSON.stringify({ jsonrpc: "2.0", id: "srq-unknown", method: "preview.act", params: {} }));
     await expect.poll(() => f.gateway.responses.some((entry) => entry.id === "srq-unknown")).toBe(true);
     expect(f.gateway.responses.find((entry) => entry.id === "srq-unknown")).toMatchObject({ error: { code: -32601 } });
+  });
+
+  it("verhandelt nach einem Vertragsfehler bei einem neu geöffneten Browser neu", async () => {
+    await f.manager.handle("tab", message({ op: "sessions.list" }));
+    send("{invalid-json");
+    await expect.poll(() => f.manager.upstream.state).toBe("incompatible");
+    f.manager.release("tab", "navigation");
+    f.manager.add({ id: "tab-neu", send: (value) => f.messages.push(value) });
+    await expect.poll(() => f.manager.upstream.state).toBe("online");
+    expect(f.manager.upstream.quarantined).toBe(false);
+    const before = f.messages.length;
+    await f.manager.handle("tab-neu", message({ op: "sessions.list" }));
+    expect(f.messages.slice(before).some((entry) => entry.type === "error")).toBe(false);
   });
 
   it("beendet eine fehlerhafte Verbindung ohne möglicherweise laufende Runtime", async () => {

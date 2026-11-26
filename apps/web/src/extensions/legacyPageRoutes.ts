@@ -13,6 +13,7 @@ import {
   loadUsage,
 } from "../lib/routeModules";
 import { pageRouteRegistry, type PageRouteRegistry } from "./pageRouteRegistry";
+import { hasHostCapability } from "../lib/hostCapabilities";
 import { eagerPageRuntime, lazyPageRuntime, routeRuntime, standardRoute, standaloneRoute, owner, type LegacyPageRouteOwner, registerLegacyPageRoutes as registerPageOwners } from "./legacyRouteBindings";
 export { legacyHostRoutes, type LegacyHostRouteDefinition, type LegacyPageRouteOwner, registerLegacyPageRoutes as registerPageOwners } from "./legacyRouteBindings";
 
@@ -206,7 +207,7 @@ export const legacyPageRouteOwners: readonly LegacyPageRouteOwner[] =
           "wrapt.t3-code.route.main",
           "wrapt.t3-code.page.main",
           "/t3-code",
-          { mobileNavigation: true },
+          { mobileNavigation: true, topbar: false, breadcrumbs: false },
         ),
         pageRuntime: lazyPageRuntime("tool-route", "T3Code", loadToolRoute),
         routeRuntime: routeRuntime("/t3-code"),
@@ -334,7 +335,11 @@ export const legacyPageRouteOwners: readonly LegacyPageRouteOwner[] =
 export { pagePreferenceAliases as legacyPageAliases } from "./pagePreferenceAliases";
 
 export function registerLegacyPageRoutes(registry: PageRouteRegistry): void {
-  registerPageOwners(registry, legacyPageRouteOwners);
+  for (const routeOwner of legacyPageRouteOwners) {
+    // Optionale Werkzeuge bekommen ohne Serverfreigabe weder Page noch Route.
+    if (routeOwner.requiresCapability !== undefined && !hasHostCapability(routeOwner.requiresCapability)) continue;
+    registerPageOwners(registry, [routeOwner]);
+  }
 }
 
 let defaultRegistryBootstrapped = false;

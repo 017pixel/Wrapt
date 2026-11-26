@@ -21,6 +21,8 @@ export function normalizeEvent(event: UpstreamEvent, record: SessionRecord, secr
     return output("message.started", { turnId: record.turnId });
   }
   if (["message.delta", "thinking.delta", "reasoning.delta"].includes(event.type)) {
+    // Der native Vertrag erlaubt text=null als Segmentgrenze vor Werkzeugzeilen.
+    if (raw.text === null || raw.text === undefined) return null;
     parse(z.object({ text: z.string() }), raw);
     // Der vollständige validierte Rawchunk geht separat bis zum verbindungseigenen Streamabgleich.
     return output(event.type === "message.delta" ? "message.delta" : "reasoning.delta", { turnId: record.turnId, text: text(raw.text) });

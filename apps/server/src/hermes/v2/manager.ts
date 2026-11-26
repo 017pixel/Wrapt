@@ -65,6 +65,9 @@ export class GatewayManager {
     if (this.disposed) throw new GatewayError("GATEWAY_OFFLINE", "Die Gateway-Verbindung wurde geschlossen.");
     if (!this.deps.enabled()) throw new GatewayError("FORBIDDEN", "Der Hermes-V2-Gateway ist deaktiviert.");
     if (this.connections.size >= this.policy.maxPending) throw new GatewayError("RATE_LIMITED", "Zu viele Browser-Verbindungen.");
+    // Ein neu geöffneter Browser ist der ausdrückliche neue Abgleich: Ein früherer
+    // Vertragsfehler darf die Oberfläche nicht dauerhaft sperren.
+    if (this.incompatible) this.recoverProtocol();
     this.connections.set(connection.id, connection);
     this.organization?.attach(this.principal, connection.id);
     this.send(connection, { v: 1, type: "connection", state: this.upstream.state, epoch: this.upstream.epoch });
@@ -263,6 +266,12 @@ export class GatewayManager {
       for (const connection of this.connections.values()) this.send(connection, errorMessage(protocolError(), null));
       this.upstream.protocolFault();
     }
+  }
+
+  private recoverProtocol(): void {
+    this.incompatible = false;
+    this.lastRelease = "navigation";
+    this.upstream.resetProtocol();
   }
 
   private protectProtocolFault(): boolean {

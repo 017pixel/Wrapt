@@ -52,6 +52,9 @@ export class HermesStatusService {
   private readonly commitCache: AsyncCache<string | null>;
   private readonly statusCache: AsyncCache<Awaited<ReturnType<HermesStatusService["loadFacts"]>>>;
   private updateVersion: string | undefined;
+  private lastStatus: HermesStatus | null = null;
+  private lastStatusAt = 0;
+  private refreshPending: Promise<void> | null = null;
 
   constructor(private readonly client: HermesDashboardClient, private readonly manager: HermesAcpManager,
     private readonly sources = { serviceState, checkoutCommit, readUpdateState: readHermesUpdateState,
@@ -64,6 +67,9 @@ export class HermesStatusService {
   invalidate(commit = false): void {
     this.statusCache.clear();
     if (commit) this.commitCache.clear();
+    // Aktionen (Start/Stop/Update) dürfen nicht den alten Stand ausliefern.
+    this.lastStatus = null;
+    this.lastStatusAt = 0;
   }
 
   private async loadFacts() {
@@ -100,6 +106,34 @@ export class HermesStatusService {
     const update = this.sources.readUpdateState();
     const updateVersion = `${update.phase}:${update.previousCommit}:${update.newCommit}:${update.lastFinishedAt}`;
     if (this.updateVersion !== updateVersion) { this.invalidate(true); this.updateVersion = updateVersion; }
+
+    // Stale-While-Revalidate: Ein langsames Hermes-Dashboard blockiert die
+    // Oberfläche nicht. Bis zu 5 s gilt der letzte Stand als frisch, danach
+    // wird er sofort ausgeliefert und im Hintergrund aktualisiert.
+    if (this.lastStatus && Date.now() - this.lastStatusAt < 5_000) return this.withLiveChat(this.lastStatus);
+    if (this.lastStatus) {
+      if (!this.refreshPending) {
+        this.refreshPending = this.loadStatus()
+          .then((status) => { this.lastStatus = status; this.lastStatusAt = Date.now(); })
+          .catch(() => undefined)
+          .finally(() => { this.refreshPending = null; });
+      }
+      return this.withLiveChat(this.lastStatus);
+    }
+    const status = await this.loadStatus();
+    this.lastStatus = status;
+    this.lastStatusAt = Date.now();
+    return this.withLiveChat(status);
+  }
+
+  /** ACP-Zustand ändert sich unabhängig vom Upstream und bleibt immer live. */
+  private withLiveChat(status: HermesStatus): HermesStatus {
+    return { ...status, chat: { transport: status.installed ? "acp" : "unavailable", ready: status.installed && this.manager.ready, activeSessions: this.manager.activeSessionCount() } };
+  }
+
+  private async loadStatus(): Promise<HermesStatus> {
+    const checkedAt = new Date().toISOString();
+    const update = this.sources.readUpdateState();
     const [facts, commit] = await Promise.all([this.statusCache.get(), this.commitCache.get()]);
     const { installed, reachable, version, provider, model, dashboardState, gatewayState, gatewayTelegram, gatewayError } = facts;
     return hermesStatusSchema.parse({

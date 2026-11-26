@@ -51,7 +51,7 @@ export const legacyCliPageRouteOwners = [
         ),
         routeRuntime: routeRuntime("/opencode"),
       },
-    ]),
+    ], "opencodeWeb"),
     owner("wrapt.claude", [
       {
         page: {

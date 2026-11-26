@@ -50,10 +50,12 @@
     "oauthProfileHomes": []
   },
   "dashboard": {
+    "historyMilliseconds": 3600000,
     "sections": {
       "quickActions": true,
       "server": true,
       "metrics": true,
+      "wrapt": true,
       "services": true,
       "runtime": true,
       "diagnostics": true,
@@ -64,8 +66,8 @@
       "healthMilliseconds": 5000,
       "summaryMilliseconds": 30000,
       "metricsMilliseconds": 5000,
-      "servicesMilliseconds": 5000,
-      "localPortsMilliseconds": 5000,
+      "servicesMilliseconds": 15000,
+      "localPortsMilliseconds": 15000,
       "terminalSessionsMilliseconds": 3000,
       "operationalMetricsMilliseconds": 5000,
       "usageMilliseconds": 60000
@@ -193,6 +195,7 @@
     "localStorageMaxKeys": 1000
   },
   "opencodeWeb": {
+    "enabled": false,
     "port": 3774,
     "host": "127.0.0.1",
     "cliPath": "/home/your-user/.npm-global/bin/opencode",

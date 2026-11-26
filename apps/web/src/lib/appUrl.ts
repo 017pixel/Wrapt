@@ -17,3 +17,14 @@ export function codeEditorUrl(folder: string | null): string {
   const query = folder ? `?${new URLSearchParams({ folder }).toString()}` : "";
   return `${appBase()}/code-editor/${query}`;
 }
+
+/**
+ * Entfernt den Router-Basename. Server-Links (etwa aus Benachrichtigungen)
+ * enthalten ihn bereits, `Link` hängt ihn beim Rendern erneut an.
+ */
+export function stripAppBase(pathname: string): string {
+  const base = appBase();
+  if (pathname === base) return "/";
+  if (pathname.startsWith(`${base}/`)) return pathname.slice(base.length) || "/";
+  return pathname;
+}

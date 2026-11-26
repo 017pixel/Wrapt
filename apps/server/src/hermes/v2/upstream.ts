@@ -128,6 +128,23 @@ export class GatewayUpstream {
     if (!this.options.onProtocolError()) this.socket?.terminate();
   }
 
+  /** Ein ausdrücklich neuer Browserabgleich darf nach einem Vertragsfehler neu verhandeln. */
+  resetProtocol(): void {
+    this.quarantined = false;
+    this.wanted = true;
+    this.attempts = 0;
+    clearTimeout(this.retry);
+    this.retry = undefined;
+    clearInterval(this.heartbeat);
+    this.heartbeat = undefined;
+    const socket = this.socket;
+    this.socket = null;
+    this.endTransport();
+    this.rejectPending();
+    if (socket) socket.terminate();
+    if (this.state !== "offline") this.setState("offline");
+  }
+
   dispose(): void {
     this.disposed = true;
     this.wanted = false;

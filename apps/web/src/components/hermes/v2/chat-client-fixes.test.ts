@@ -17,6 +17,16 @@ describe("Phase-3-Vertragskorrekturen", () => {
   async function acquire() { runtime.acquire(options); await settle(); return runtime.actionsFor("owner"); }
   const users = () => runtime.store.get("a").messages.filter((message) => message.role === "user");
 
+  it("verhandelt bei einem ausdrücklichen neuen Abgleich nach Vertragsfehler neu", async () => {
+    const actions = await acquire();
+    gateway.socket.receive({ v: 1, type: "connection", state: "incompatible", epoch: null });
+    expect(runtime.client.getSnapshot().state).toBe("incompatible");
+    const sockets = gateway.sockets.length;
+    await actions.resync();
+    await settle();
+    expect(gateway.sockets.length).toBe(sockets + 1);
+    expect(runtime.client.getSnapshot().state).toBe("online");
+  });
   it("bindet Submit-Rowreceipt vor dem History-Read ohne doppelte Userrow", async () => {
     gateway.handle = (frame, socket) => {
       if (frame.op !== "message.submit") return false;

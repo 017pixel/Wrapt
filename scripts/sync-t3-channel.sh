@@ -94,6 +94,13 @@ esac
 
 health_url="http://${t3_host}:${t3_port}/"
 
+# Projektbasis vor dem Kanalcheck angleichen. Der Wert wirkt sofort, weil T3
+# seine settings.json beobachtet — auch wenn Kanal und Instanz schon stimmen.
+if [[ -r "$repo_root/scripts/sync-t3-project-settings.mjs" ]]; then
+  node "$repo_root/scripts/sync-t3-project-settings.mjs" \
+    || warn "T3-Projektbasis konnte nicht abgeglichen werden."
+fi
+
 # --- Hilfsfunktionen ----------------------------------------------------------
 # Leere Ausgabe bedeutet "nicht installiert" oder "nicht lauffähig" — beides ist ein
 # gültiger Zustand, deshalb darf die Funktion nie mit einem Fehler abbrechen.

@@ -6,14 +6,14 @@ const id = hermesV2IdSchema;
 export const readySchema = z.object({
   replay_epoch: z.string().min(1).max(200), heartbeat: z.literal(true), change_events: z.boolean().optional(),
 });
-// server._broadcast_global_event sendet für diese Core-Ereignisse session_id="".
-const globalEvents = new Set(["gateway.ready", "sessions.changed", "skin.changed", "session.reclaimed", "approval.cancelled",
-  "display.status", "display.lease", "display.install.log", "display.install.done", "connection.update", "pet.changed",
-  "cron.changed", "platforms.changed", "projects.changed", "pairing.changed", "bot_relay.outbox.pending"]);
+// server._broadcast_global_event sendet für globale Ereignisse session_id="". Die Menge
+// wächst mit jeder Hermes-Version (z. B. skills.changed, groups.changed). Unbekannte
+// sessionlose Ereignisse werden vom Manager ohnehin keiner Session zugeordnet; sie dürfen
+// deshalb den Transport nicht sperren.
 export const eventSchema = z.object({
   type: z.string().min(1).max(100), session_id: z.union([id, z.literal("")]).optional(),
   seq: z.number().int().positive().optional(), payload: z.record(z.string(), z.unknown()).optional(),
-}).refine((event) => event.session_id !== "" || globalEvents.has(event.type));
+});
 export const requestFrameSchema = z.object({
   jsonrpc: z.literal("2.0"), id: z.string().regex(/^srq-[A-Za-z0-9-]+$/).max(200),
   method: z.string().min(1).max(100), params: z.record(z.string(), z.unknown()),

@@ -203,6 +203,9 @@ export class ChatRuntime {
     return syncing;
   }
   async resync(owner: OwnerRecord): Promise<void> {
+    // Ein Vertragsfehler sperrt den Transport. Der ausdrückliche neue Abgleich
+    // verhandelt deshalb zuerst eine frische Gateway-Verbindung.
+    if (this.client.getSnapshot().state === "incompatible") this.client.reconnect();
     const capture = this.owners.capture(owner.id);
     const previousError = capture.draft.error;
     if (!capture.sessionId) throw new ChatError("SESSION_NOT_FOUND", "Bitte zuerst eine Sitzung auswählen.");

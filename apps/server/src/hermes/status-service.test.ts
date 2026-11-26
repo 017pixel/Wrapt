@@ -65,7 +65,9 @@ it("trennt Teilfehler und invalidiert Status und Commit passend zu Aktionen/Upda
   await f.service.get();
   expect(f.sources.checkoutCommit).toHaveBeenCalledTimes(2);
   f.get.mockRejectedValue(new HermesClientError("DASHBOARD_UNREACHABLE", "offline", 502, true));
-  vi.advanceTimersByTime(2_000);
+  vi.advanceTimersByTime(6_000);
+  await f.service.get();
+  await vi.advanceTimersByTimeAsync(0);
   expect(await f.service.get()).toMatchObject({ reachable: false, model: null });
   expect(f.sources.checkoutCommit).toHaveBeenCalledTimes(2);
   f.service.invalidate(true);

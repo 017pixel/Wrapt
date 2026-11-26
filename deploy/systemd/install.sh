@@ -12,6 +12,26 @@ units=("wrapt.service")
 installed_units=()
 code_server_config="$repo_root/config/code-server.yaml"
 
+# OpenCode Web ist optional und standardmäßig aus. Der Zustand wird vor dem
+# Unit-Schritt gelesen, damit ohne Freigabe weder installiert noch aktiviert wird.
+# shellcheck disable=SC2016 # Das ist JavaScript — ${...} darf die Shell nicht ersetzen.
+opencode_web_state="$(
+  node -e '
+const { readFileSync } = require("node:fs");
+const { join } = require("node:path");
+const dir = process.argv[1];
+let config = {};
+for (const name of ["wrapt.local.json", "wrapt.example.json", "workbench.local.json"]) {
+  try { config = JSON.parse(readFileSync(join(dir, name), "utf8")); break; } catch { /* nächster Kandidat */ }
+}
+const web = config.opencodeWeb ?? {};
+console.log(web.enabled === true ? "1" : "0");
+console.log(web.serviceUnit ?? "opencode-web.service");
+' "$repo_root/config"
+)"
+opencode_web_enabled="$(printf '%s\n' "$opencode_web_state" | sed -n '1p')"
+opencode_web_unit="$(printf '%s\n' "$opencode_web_state" | sed -n '2p')"
+
 if [[ -z "$pnpm_binary" ]]; then
   echo "pnpm wurde nicht im PATH gefunden. Bitte zuerst scripts/install-deps.sh ausführen." >&2
   exit 1
@@ -58,21 +78,26 @@ for unit in "${units[@]}"; do
 done
 
 systemctl --user daemon-reload
+# Der Terminal-Supervisor muss bereit sein, bevor Wrapt startet. Andernfalls
+# findet der Backend-Start keinen tmux-Server und muss nachträglich abbrechen.
+if [[ -r "$repo_root/scripts/install-terminal-supervisor-unit.sh" ]]; then
+  bash "$repo_root/scripts/install-terminal-supervisor-unit.sh"
+fi
 systemctl --user enable --now "${units[@]}"
 
 if [[ -r "$repo_root/scripts/install-t3-unit.sh" ]]; then
   bash "$repo_root/scripts/install-t3-unit.sh"
 fi
-if [[ -r "$repo_root/scripts/install-opencode-web-unit.sh" ]]; then
-  bash "$repo_root/scripts/install-opencode-web-unit.sh"
+if [[ "$opencode_web_enabled" == "1" ]]; then
+  if [[ -r "$repo_root/scripts/install-opencode-web-unit.sh" ]]; then
+    bash "$repo_root/scripts/install-opencode-web-unit.sh"
+  fi
+else
+  echo "OpenCode Web ist deaktiviert — ${opencode_web_unit} wird nicht installiert oder aktiviert."
+  # Eine Unit aus einem früheren Lauf darf nicht weiterlaufen. Ohne systemd --user
+  # ist der Befehl wirkungslos; der Installationslauf soll daran nicht scheitern.
+  systemctl --user disable --now "$opencode_web_unit" >/dev/null 2>&1 || true
 fi
-# Eigene tmux-Supervisor-Unit: Sie hält die Terminal-Sitzungen unabhängig vom
-# Backend-Neustart. Ohne sie fällt der Server auf einen tmux-Server im eigenen
-# Prozess zurück und Terminal-Prozesse enden mit dem Backend.
-if [[ -r "$repo_root/scripts/install-terminal-supervisor-unit.sh" ]]; then
-  bash "$repo_root/scripts/install-terminal-supervisor-unit.sh"
-fi
-
 ready=false
 health_url="${WRAPT_HEALTH_URL:-${WORKBENCH_HEALTH_URL:-http://127.0.0.1:3010}}/api/v1/health"
 for _ in {1..30}; do

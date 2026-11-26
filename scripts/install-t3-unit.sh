@@ -62,3 +62,11 @@ if ! systemctl --user is-enabled "$unit_name" >/dev/null 2>&1; then
     warn "$unit_name konnte nicht aktiviert werden — läuft hier systemd --user?"
   fi
 fi
+
+# Neue T3-Projekte gehören unter den Wrapt-Projektroot, sonst entstehen zwei
+# Klone (Agent und Preview). Der Abgleich ist idempotent und ändert nur diesen
+# einen T3-Schlüssel; T3 übernimmt ihn ohne Neustart.
+if [[ -r "$repo_root/scripts/sync-t3-project-settings.mjs" ]]; then
+  node "$repo_root/scripts/sync-t3-project-settings.mjs" \
+    || warn "T3-Projektbasis konnte nicht abgeglichen werden."
+fi

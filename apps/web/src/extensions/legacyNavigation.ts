@@ -1,5 +1,6 @@
 import type { ComponentType } from "react";
 import { navigationContributionSchema } from "@wrapt/extension-contracts";
+import type { HostCapabilities } from "@wrapt/contracts";
 import {
   ClaudeCodeIcon,
   CodeServerIcon,
@@ -23,6 +24,7 @@ import {
   type NavigationRegistration,
   type NavigationRegistry,
 } from "./navigationRegistry";
+import { hasHostCapability } from "../lib/hostCapabilities";
 
 interface LegacyNavigationDefinition {
   readonly ownerId: string;
@@ -34,10 +36,13 @@ interface LegacyNavigationDefinition {
   readonly order: number;
   readonly visibleByDefault: boolean;
   readonly legacyVisibilityKey: PageRouteId;
+  /** Optionale Serverfunktion; ohne sie wird der Eintrag gar nicht registriert. */
+  readonly requiresCapability?: keyof HostCapabilities;
 }
 
 export interface LegacyNavigationOwner {
   readonly ownerId: string;
+  readonly requiresCapability?: keyof HostCapabilities;
   readonly registrations: readonly NavigationRegistration[];
 }
 
@@ -128,6 +133,7 @@ const legacyNavigationDefinitions: readonly LegacyNavigationDefinition[] =
       order: 50,
       visibleByDefault: true,
       legacyVisibilityKey: "opencode",
+      requiresCapability: "opencodeWeb",
     },
     {
       ownerId: "wrapt.codex",
@@ -224,6 +230,9 @@ export const legacyNavigationOwners: readonly LegacyNavigationOwner[] =
     legacyNavigationDefinitions.map((definition) =>
       Object.freeze({
         ownerId: definition.ownerId,
+        ...(definition.requiresCapability === undefined
+          ? {}
+          : { requiresCapability: definition.requiresCapability }),
         registrations: Object.freeze([
           Object.freeze({
             contribution: navigationContributionSchema.parse({
@@ -250,6 +259,8 @@ export const legacyNavigationOwners: readonly LegacyNavigationOwner[] =
 
 export function registerLegacyNavigation(registry: NavigationRegistry): void {
   for (const builtIn of legacyNavigationOwners) {
+    // Optionale Werkzeuge erscheinen nur, wenn der Server sie freigeschaltet hat.
+    if (builtIn.requiresCapability !== undefined && !hasHostCapability(builtIn.requiresCapability)) continue;
     registry.replaceOwner(builtIn.ownerId, builtIn.registrations);
   }
 }

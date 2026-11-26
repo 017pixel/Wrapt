@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { applyHostCapabilities } from "../lib/hostCapabilities";
 import { PageRouteRegistry } from "./pageRouteRegistry";
 import {
   legacyHostRoutes,
@@ -39,6 +40,8 @@ function createRegistry(): PageRouteRegistry {
 }
 
 describe("Legacy Page-/Route-Built-ins", () => {
+  beforeEach(() => applyHostCapabilities({ opencodeWeb: true }));
+
   it("registriert 15 Owner, 20 Pages und 20 Routes", () => {
     const registry = createRegistry();
     const snapshot = registry.getSnapshot();
@@ -47,6 +50,14 @@ describe("Legacy Page-/Route-Built-ins", () => {
     expect(snapshot.pages).toHaveLength(20);
     expect(snapshot.routes).toHaveLength(20);
     expect(new Set(snapshot.pages.map((page) => page.ownerId)).size).toBe(15);
+  });
+
+  it("lässt OpenCode Web ohne Serverfreigabe aus den Routen", () => {
+    applyHostCapabilities({ opencodeWeb: false });
+    const registry = createRegistry();
+
+    expect(registry.matchRoute("/opencode")).toBeUndefined();
+    expect(registry.getSnapshot().routes).toHaveLength(19);
   });
 
   it("bildet alle öffentlichen URL-Muster ohne Host-Wildcard ab", () => {

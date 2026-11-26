@@ -1,10 +1,5 @@
 import { expect, test } from "@playwright/test";
 
-const channel = process.env.WRAPT_E2E_T3_CHANNEL === "nightly" ? "nightly" : "stable";
-const expectedOrigin = channel === "nightly"
-  ? "https://nightly.app.t3.codes"
-  : "https://app.t3.codes";
-
 test.use({
   extraHTTPHeaders: { "tailscale-user-login": process.env.WRAPT_E2E_USER ?? "user@example.com" },
   serviceWorkers: "block",
@@ -38,8 +33,9 @@ test("bettet T3 same-origin über den /t3-Proxy ein", async ({ page }) => {
   await expect(proxiedApp.locator("body")).toContainText(/T3 Code|Connect an environment/i, { timeout: 30_000 });
 });
 
-test("öffnet Extern auf der gehosteten App des konfigurierten Kanals", async ({ page }) => {
+test("zeigt T3 Code ohne Shell-Topbar über die volle Höhe", async ({ page }) => {
   await page.goto("/wrapt/t3-code");
-  await page.locator("#topbar-tool-actions button[aria-label='Werkzeugaktionen']").click();
-  await expect(page.getByRole("menuitem", { name: "In neuem Tab öffnen" })).toHaveAttribute("href", expectedOrigin);
+  await expect(page.locator(".topbar")).toHaveCount(0);
+  await expect(page.locator("#topbar-tool-actions")).toHaveCount(0);
+  await expect(page.locator(".status-bar")).toBeVisible();
 });

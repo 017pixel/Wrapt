@@ -10,6 +10,7 @@ import { AppError } from "../utils/errors.js";
 import { isSameOriginRequest } from "../security/same-origin.js";
 import { resolveWorkbenchUser, type WorkbenchIdentityOptions } from "../security/workbench-identity.js";
 import { createWebSocketSendQueue } from "../utils/websocketSendQueue.js";
+import { createOrderedMessageHandler } from "./socketQueue.js";
 import { HermesClientError } from "./client.js";
 import type { HermesDashboardClient } from "./client.js";
 import type { HermesAcpManager } from "./acp/Manager.js";
@@ -93,7 +94,7 @@ export async function registerHermesRoutes(app: FastifyInstance, options: {
   app.post("/hermes/update/check", async () => { ensureEnabled(); try { return await checkUpdate(); } finally { options.status.invalidate(true); } });
   app.post("/hermes/update/run", async () => { ensureEnabled(); try { await startUpdateService(true); } finally { options.status.invalidate(true); } return readHermesUpdateState(); });
   app.get("/hermes/diagnostics", async () => { ensureEnabled(); return diagnostics(options); });
-  app.post("/hermes/diagnostics/run", async () => { ensureEnabled(); return diagnostics(options); });
+  app.post("/hermes/diagnostics/run", async () => { ensureEnabled(); return diagnostics(options, true); });
 
   app.get("/hermes/chat", { websocket: true }, (socket, request) => {
     try {
@@ -113,8 +114,10 @@ export async function registerHermesRoutes(app: FastifyInstance, options: {
       const messageSessionId = message.type === "approval.requested" ? message.request.sessionId : message.type === "session.ready" ? message.session.id : "sessionId" in message ? message.sessionId : null;
       if (sessionId && messageSessionId === sessionId) send(message);
     });
-    socket.on("message", (raw: unknown) => {
-      void (async () => {
+    // Ein Socket ist ein geordneter Kanal: Nachrichten werden erst verarbeitet,
+    // wenn die vorherige abgeschlossen ist. Sonst kann ein `message.send` einen
+    // noch laufenden `session.attach` überholen.
+    const handleMessage = createOrderedMessageHandler(async (raw: unknown) => {
         try {
           const value = typeof raw === "string" || Buffer.isBuffer(raw) ? JSON.parse(raw.toString()) as unknown : null;
           const message = hermesClientMessageSchema.parse(value);
@@ -164,8 +167,8 @@ export async function registerHermesRoutes(app: FastifyInstance, options: {
         } catch (error) {
           send({ v: 1, type: "error", code: errorCode(error), message: errorText(error), sessionId });
         }
-      })();
     });
+    socket.on("message", handleMessage);
     socket.on("close", () => { unsubscribe(); queue.dispose(); options.manager.closeConnection(); });
   });
 }
@@ -180,10 +183,22 @@ async function checkUpdate() {
   }
 }
 
-async function diagnostics(options: { client: HermesDashboardClient; manager: HermesAcpManager; status: HermesStatusService }) {
+type DiagnosticItem = { id: string; label: string; status: "ok" | "warn" | "fail" | "skipped"; detail: string; hint: string };
+let diagnosticsCache: { at: number; value: { checkedAt: string; items: DiagnosticItem[] } } | null = null;
+
+/** Diagnose mit 60-Sekunden-Cache; der explizite Lauf über `POST .../run` leert ihn. */
+async function diagnostics(
+  options: { client: HermesDashboardClient; manager: HermesAcpManager; status: HermesStatusService },
+  force = false,
+) {
+  if (!force && diagnosticsCache && Date.now() - diagnosticsCache.at < 60_000) return diagnosticsCache.value;
+  const value = await computeDiagnostics(options);
+  diagnosticsCache = { at: Date.now(), value };
+  return value;
+}
+
+async function computeDiagnostics(options: { client: HermesDashboardClient; manager: HermesAcpManager; status: HermesStatusService }) {
   const status = await options.status.get();
-  type DiagnosticStatus = "ok" | "warn" | "fail" | "skipped";
-  type DiagnosticItem = { id: string; label: string; status: DiagnosticStatus; detail: string; hint: string };
   const passed = (id: string, label: string, detail = "Prüfung erfolgreich."): DiagnosticItem => ({ id, label, status: "ok", detail, hint: "Keine Aktion erforderlich." });
   const warned = (id: string, label: string, hint: string, detail = "Prüfung benötigt Aufmerksamkeit."): DiagnosticItem => ({ id, label, status: "warn", detail, hint });
   const skipped = (id: string, label: string, hint: string): DiagnosticItem => ({ id, label, status: "skipped", detail: "Prüfung wurde übersprungen.", hint });
@@ -191,52 +206,54 @@ async function diagnostics(options: { client: HermesDashboardClient; manager: He
     try { return await action() ? passed(id, label) : warned(id, label, hint); }
     catch { return warned(id, label, hint, "Die Prüfung konnte nicht abgeschlossen werden."); }
   };
-  const items: DiagnosticItem[] = [];
-  items.push(existsSync(settings.hermes.cliPath) ? passed("cli", "Hermes-CLI gefunden") : warned("cli", "Hermes-CLI gefunden", "Hermes installieren oder HERMES_CLI_PATH prüfen."));
-  items.push(existsSync(settings.hermes.checkoutDirectory) && existsSync(settings.hermes.pythonPath) ? passed("checkout", "Hermes-Checkout und Python-Umgebung") : warned("checkout", "Hermes-Checkout und Python-Umgebung", "Die Hermes-Umgebung neu installieren."));
-  items.push(await safe("home", "HERMES_HOME erkannt und beschreibbar", async () => { await new Promise<void>((resolvePromise, reject) => access(settings.hermes.homeDirectory, fsConstants.R_OK | fsConstants.W_OK, (error) => error ? reject(error) : resolvePromise())); return true; }, "HERMES_HOME prüfen und Schreibrechte wiederherstellen."));
-  items.push(await safe("git", "Checkout und Git-Zustand sauber", async () => {
-    const result = await execFileAsync("git", ["-C", settings.hermes.checkoutDirectory, "status", "--short"], { timeout: 5_000, maxBuffer: 64 * 1024 });
-    return result.stdout.trim().length === 0;
-  }, "Lokale Hermes-Änderungen prüfen, bevor ein Update ausgeführt wird."));
-  items.push(status.dashboard.state === "active" ? passed("dashboard-unit", "Dashboard-Unit aktiv") : warned("dashboard-unit", "Dashboard-Unit aktiv", "Dashboard starten oder Diagnose öffnen."));
-  items.push(status.dashboard.reachable ? passed("dashboard-http", "Dashboard-HTTP erreichbar") : warned("dashboard-http", "Dashboard-HTTP erreichbar", "Dashboard neu starten."));
-  items.push(existsSync(join(settings.hermes.checkoutDirectory, "hermes_cli/web_dist/index.html")) ? passed("dashboard-spa", "Dashboard-SPA gebaut") : warned("dashboard-spa", "Dashboard-SPA gebaut", "Dashboard neu bauen und den Update-Lauf erneut ausführen."));
-  items.push(await safe("token", "Session-Token abrufbar", async () => { await options.client.get("/api/config"); return true; }, "Dashboard neu starten und Token-Diagnose wiederholen."));
-  items.push(await safe("proxy", "Proxy-Präfix erreichbar", async () => {
-    const identity = settings.terminalAllowedUsers[0] ?? settings.developmentTailscaleUser ?? "";
-    if (!identity) return false;
-    const response = await fetch(`http://127.0.0.1:${settings.port}${settings.hermes.proxyPrefix}/`, { headers: { "tailscale-user-login": identity } });
-    return response.ok;
-  }, "Workbench-Proxy und Hermes-Host-Header prüfen."));
-  items.push(status.chat.transport === "acp" ? passed("chat-transport", "Chat-Transport ACP verfügbar") : skipped("chat-transport", "Chat-Transport ACP verfügbar", "Hermes-ACP installieren oder prüfen."));
-  items.push(status.chat.ready ? passed("acp-process", "ACP-Prozess läuft") : warned("acp-process", "ACP-Prozess läuft", "Im Chat erneut verbinden oder Hermes-ACP prüfen."));
-  items.push(await safe("acp-check", "ACP-Abhängigkeiten", async () => {
-    await execFileAsync(settings.hermes.cliPath, ["acp", "--check"], { cwd: settings.hermes.checkoutDirectory, env: { ...process.env, HERMES_HOME: settings.hermes.homeDirectory }, timeout: 15_000, maxBuffer: 128 * 1024 });
-    return true;
-  }, "Hermes-ACP-Abhängigkeiten reparieren."));
-  items.push(status.gateway.state === "active" ? passed("gateway-unit", "Gateway-Unit aktiv") : warned("gateway-unit", "Gateway-Unit aktiv", "Gateway starten."));
-  items.push(status.gateway.telegramConnected === true ? passed("telegram", "Telegram verbunden") : status.gateway.telegramConnected === null ? warned("telegram", "Telegram verbunden", "Gateway-Status und Telegram-Konfiguration prüfen.") : warned("telegram", "Telegram verbunden", "Gateway neu starten und Telegram-Verbindung prüfen."));
-  items.push(status.provider && status.model ? passed("model", "Anbieter und Modell gesetzt") : warned("model", "Anbieter und Modell gesetzt", "In der Verwaltung ein Modell auswählen."));
-  items.push(await safe("sessions", "Sessions-Datenbank erreichbar", async () => { await options.client.get("/api/sessions?limit=1"); return true; }, "Dashboard-Sessions-API prüfen."));
-  items.push(await safe("cron", "Cron-Scheduler erreichbar", async () => { await options.client.get("/api/cron/jobs"); return true; }, "Cron-Verwaltung und Dashboard-Token prüfen."));
-  items.push(await safe("skills", "Skills erreichbar", async () => { await options.client.get("/api/skills"); return true; }, "Skills-Seite in der offiziellen Verwaltung öffnen."));
-  const update = readHermesUpdateState();
-  items.push(update.lastResult === "failed" ? warned("update", "Update-Zustand", "Update-Logs prüfen und bei Bedarf den Rollback ausführen.", "Der letzte Hermes-Update-Lauf ist fehlgeschlagen.") : passed("update", "Update-Zustand"));
-  items.push(update.logTail.length > 0 ? passed("update-logs", "Letzte Update-Logs vorhanden") : skipped("update-logs", "Letzte Update-Logs vorhanden", "Nach dem nächsten Update-Lauf stehen redigierte Logs bereit."));
-  items.push(await safe("doctor", "Hermes Doctor", async () => {
-    await execFileAsync(settings.hermes.cliPath, ["doctor"], { cwd: settings.hermes.checkoutDirectory, env: { ...process.env, HERMES_HOME: settings.hermes.homeDirectory }, timeout: 30_000, maxBuffer: 256 * 1024 });
-    return true;
-  }, "Hermes Doctor ausführen und die Konfiguration prüfen."));
-  items.push(await safe("cursor", "Ergebnis-Synchronisierung aktuell", async () => {
-    const cursorPath = join(settings.dataDirectory, "hermes/result-cursor.json");
-    if (!existsSync(cursorPath)) return true;
-    const cursor = JSON.parse(readFileSync(cursorPath, "utf8")) as { initialized?: unknown };
-    return cursor.initialized === true;
-  }, "Ergebnis-Synchronisierung starten oder Dashboard-Erreichbarkeit prüfen."));
-  items.push(await safe("approvals", "Approval-Konfiguration", async () => {
-    const yaml = readFileSync(join(settings.hermes.homeDirectory, "config.yaml"), "utf8");
-    return /(^|\n)\s*mode:\s*ask\s*(?:\n|$)/.test(yaml) && !/command_allowlist:\s*\n\s+-/.test(yaml);
-  }, "approvals.mode auf ask setzen und dauerhafte gefährliche Freigaben entfernen."));
+  // Unabhängige Prüfungen laufen gleichzeitig. Jede hat ihr eigenes Timeout;
+  // ein einzelner Ausfall blockiert die übrigen Ergebnisse nicht.
+  const items = await Promise.all<DiagnosticItem>([
+    Promise.resolve(existsSync(settings.hermes.cliPath) ? passed("cli", "Hermes-CLI gefunden") : warned("cli", "Hermes-CLI gefunden", "Hermes installieren oder HERMES_CLI_PATH prüfen.")),
+    Promise.resolve(existsSync(settings.hermes.checkoutDirectory) && existsSync(settings.hermes.pythonPath) ? passed("checkout", "Hermes-Checkout und Python-Umgebung") : warned("checkout", "Hermes-Checkout und Python-Umgebung", "Die Hermes-Umgebung neu installieren.")),
+    safe("home", "HERMES_HOME erkannt und beschreibbar", async () => { await new Promise<void>((resolvePromise, reject) => access(settings.hermes.homeDirectory, fsConstants.R_OK | fsConstants.W_OK, (error) => error ? reject(error) : resolvePromise())); return true; }, "HERMES_HOME prüfen und Schreibrechte wiederherstellen."),
+    safe("git", "Checkout und Git-Zustand sauber", async () => {
+      const result = await execFileAsync("git", ["-C", settings.hermes.checkoutDirectory, "status", "--short"], { timeout: 5_000, maxBuffer: 64 * 1024 });
+      return result.stdout.trim().length === 0;
+    }, "Lokale Hermes-Änderungen prüfen, bevor ein Update ausgeführt wird."),
+    Promise.resolve(status.dashboard.state === "active" ? passed("dashboard-unit", "Dashboard-Unit aktiv") : warned("dashboard-unit", "Dashboard-Unit aktiv", "Dashboard starten oder Diagnose öffnen.")),
+    Promise.resolve(status.dashboard.reachable ? passed("dashboard-http", "Dashboard-HTTP erreichbar") : warned("dashboard-http", "Dashboard-HTTP erreichbar", "Dashboard neu starten.")),
+    Promise.resolve(existsSync(join(settings.hermes.checkoutDirectory, "hermes_cli/web_dist/index.html")) ? passed("dashboard-spa", "Dashboard-SPA gebaut") : warned("dashboard-spa", "Dashboard-SPA gebaut", "Dashboard neu bauen und den Update-Lauf erneut ausführen.")),
+    safe("token", "Session-Token abrufbar", async () => { await options.client.get("/api/config"); return true; }, "Dashboard neu starten und Token-Diagnose wiederholen."),
+    safe("proxy", "Proxy-Präfix erreichbar", async () => {
+      const identity = settings.terminalAllowedUsers[0] ?? settings.developmentTailscaleUser ?? "";
+      if (!identity) return false;
+      const response = await fetch(`http://127.0.0.1:${settings.port}${settings.hermes.proxyPrefix}/`, { headers: { "tailscale-user-login": identity } });
+      return response.ok;
+    }, "Workbench-Proxy und Hermes-Host-Header prüfen."),
+    Promise.resolve(status.chat.transport === "acp" ? passed("chat-transport", "Chat-Transport ACP verfügbar") : skipped("chat-transport", "Chat-Transport ACP verfügbar", "Hermes-ACP installieren oder prüfen.")),
+    Promise.resolve(status.chat.ready ? passed("acp-process", "ACP-Prozess läuft") : warned("acp-process", "ACP-Prozess läuft", "Im Chat erneut verbinden oder Hermes-ACP prüfen.")),
+    safe("acp-check", "ACP-Abhängigkeiten", async () => {
+      await execFileAsync(settings.hermes.cliPath, ["acp", "--check"], { cwd: settings.hermes.checkoutDirectory, env: { ...process.env, HERMES_HOME: settings.hermes.homeDirectory }, timeout: 15_000, maxBuffer: 128 * 1024 });
+      return true;
+    }, "Hermes-ACP-Abhängigkeiten reparieren."),
+    Promise.resolve(status.gateway.state === "active" ? passed("gateway-unit", "Gateway-Unit aktiv") : warned("gateway-unit", "Gateway-Unit aktiv", "Gateway starten.")),
+    Promise.resolve(status.gateway.telegramConnected === true ? passed("telegram", "Telegram verbunden") : status.gateway.telegramConnected === null ? warned("telegram", "Telegram verbunden", "Gateway-Status und Telegram-Konfiguration prüfen.") : warned("telegram", "Telegram verbunden", "Gateway neu starten und Telegram-Verbindung prüfen.")),
+    Promise.resolve(status.provider && status.model ? passed("model", "Anbieter und Modell gesetzt") : warned("model", "Anbieter und Modell gesetzt", "In der Verwaltung ein Modell auswählen.")),
+    safe("sessions", "Sessions-Datenbank erreichbar", async () => { await options.client.get("/api/sessions?limit=1"); return true; }, "Dashboard-Sessions-API prüfen."),
+    safe("cron", "Cron-Scheduler erreichbar", async () => { await options.client.get("/api/cron/jobs"); return true; }, "Cron-Verwaltung und Dashboard-Token prüfen."),
+    safe("skills", "Skills erreichbar", async () => { await options.client.get("/api/skills"); return true; }, "Skills-Seite in der offiziellen Verwaltung öffnen."),
+    Promise.resolve(readHermesUpdateState().lastResult === "failed" ? warned("update", "Update-Zustand", "Update-Logs prüfen und bei Bedarf den Rollback ausführen.", "Der letzte Hermes-Update-Lauf ist fehlgeschlagen.") : passed("update", "Update-Zustand")),
+    Promise.resolve(readHermesUpdateState().logTail.length > 0 ? passed("update-logs", "Letzte Update-Logs vorhanden") : skipped("update-logs", "Letzte Update-Logs vorhanden", "Nach dem nächsten Update-Lauf stehen redigierte Logs bereit.")),
+    safe("doctor", "Hermes Doctor", async () => {
+      await execFileAsync(settings.hermes.cliPath, ["doctor"], { cwd: settings.hermes.checkoutDirectory, env: { ...process.env, HERMES_HOME: settings.hermes.homeDirectory }, timeout: 30_000, maxBuffer: 256 * 1024 });
+      return true;
+    }, "Hermes Doctor ausführen und die Konfiguration prüfen."),
+    safe("cursor", "Ergebnis-Synchronisierung aktuell", async () => {
+      const cursorPath = join(settings.dataDirectory, "hermes/result-cursor.json");
+      if (!existsSync(cursorPath)) return true;
+      const cursor = JSON.parse(readFileSync(cursorPath, "utf8")) as { initialized?: unknown };
+      return cursor.initialized === true;
+    }, "Ergebnis-Synchronisierung starten oder Dashboard-Erreichbarkeit prüfen."),
+    safe("approvals", "Approval-Konfiguration", async () => {
+      const yaml = readFileSync(join(settings.hermes.homeDirectory, "config.yaml"), "utf8");
+      return /(^|\n)\s*mode:\s*ask\s*(?:\n|$)/.test(yaml) && !/command_allowlist:\s*\n\s+-/.test(yaml);
+    }, "approvals.mode auf ask setzen und dauerhafte gefährliche Freigaben entfernen."),
+  ]);
   return { checkedAt: new Date().toISOString(), items };
 }

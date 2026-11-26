@@ -31,6 +31,7 @@ const values = [
   String(web.stopTimeoutSeconds ?? 20),
   String(web.portTimeoutSeconds ?? 30),
   String(web.healthTimeoutSeconds ?? 60),
+  web.enabled === true ? "1" : "0",
 ];
 process.stdout.write(values.join("\n") + "\n");
 ' "$repo_root/config"
@@ -45,7 +46,22 @@ config_lines="$(read_config)" || fail "config/wrapt.local.json konnte nicht gele
   read -r stop_timeout
   read -r port_timeout
   read -r health_timeout
+  read -r opencode_web_enabled
 } <<< "$config_lines"
+
+# Optional und standardmäßig aus: Bei deaktivierter Funktion wird nichts
+# gestartet; eine vorhandene Unit wird gestoppt und aus dem Autostart genommen.
+if [[ "$opencode_web_enabled" != "1" ]]; then
+  log "OpenCode Web ist in der Konfiguration deaktiviert — nichts zu tun."
+  if systemctl --user is-enabled "$service_unit" >/dev/null 2>&1 || systemctl --user is-active "$service_unit" >/dev/null 2>&1; then
+    if systemctl --user disable --now "$service_unit" >/dev/null 2>&1; then
+      log "$service_unit wurde deaktiviert und gestoppt."
+    else
+      warn "$service_unit konnte nicht deaktiviert werden — läuft hier systemd --user?"
+    fi
+  fi
+  exit 0
+fi
 
 [[ -x "$cli_path" ]] || fail "OpenCode-Binary fehlt oder ist nicht ausführbar: $cli_path"
 health_url="http://${web_host}:${web_port}/"

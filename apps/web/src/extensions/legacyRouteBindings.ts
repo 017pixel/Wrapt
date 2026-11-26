@@ -1,4 +1,5 @@
 import { pageContributionSchema, routeContributionSchema, type RouteContribution } from "@wrapt/extension-contracts";
+import type { HostCapabilities } from "@wrapt/contracts";
 import { Dashboard } from "../views/Dashboard";
 import { loadRouteWithRecovery } from "../lib/routeModules";
 import type { PageRouteRegistry, PageModuleLoader, PageRouteOwnerBatch, PageRuntimeBinding, RouteRuntimeBinding } from "./pageRouteRegistry";
@@ -16,6 +17,8 @@ interface LegacyPageRouteDefinition {
 
 export interface LegacyPageRouteOwner {
   readonly ownerId: string;
+  /** Optionale Serverfunktion; ohne sie werden Page und Route nicht registriert. */
+  readonly requiresCapability?: keyof HostCapabilities;
   readonly batch: PageRouteOwnerBatch;
 }
 
@@ -111,9 +114,11 @@ export function standaloneRoute(
 export function owner(
   ownerId: string,
   definitions: readonly LegacyPageRouteDefinition[],
+  requiresCapability?: keyof HostCapabilities,
 ): LegacyPageRouteOwner {
   return Object.freeze({
     ownerId,
+    ...(requiresCapability === undefined ? {} : { requiresCapability }),
     batch: Object.freeze({
       pages: Object.freeze(
         definitions.map((definition) =>

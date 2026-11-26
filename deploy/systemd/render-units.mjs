@@ -6,7 +6,7 @@
 import { execSync } from "node:child_process";
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { userInfo } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -45,8 +45,15 @@ const hermesPort = config.hermes?.port || 9119;
 const t3Binary = config.t3?.cliPath || which("t3", `${home}/.npm-global/bin/t3`);
 const opencodeWebBinary = config.opencodeWeb?.cliPath || config.cli?.opencode || which("opencode", `${home}/.npm-global/bin/opencode`);
 const nodeBinary = which("node", "/usr/bin/node");
-const tmuxBinary = which("tmux", "/usr/bin/tmux");
-const terminalSocket = `/run/user/${uid}/wrapt/tmux.sock`;
+const tmuxBinary = config.cli?.tmux || which("tmux", "/usr/bin/tmux");
+// Env bleibt kompatibel, die zentrale Config ist der neue Standard. Der Server
+// verwendet dieselbe Reihenfolge; ein relativer Pfad wäre dort ungültig und
+// würde Backend und Unit auseinanderlaufen lassen.
+const configuredTerminalSocket = process.env.TMUX_SOCKET_PATH || config.terminal?.socketPath;
+if (configuredTerminalSocket && !isAbsolute(configuredTerminalSocket)) {
+  throw new Error(`terminal.socketPath muss absolut sein: ${configuredTerminalSocket}`);
+}
+const terminalSocket = configuredTerminalSocket || `/run/user/${uid}/wrapt/tmux.sock`;
 
 const tokens = {
   __USER__: user,

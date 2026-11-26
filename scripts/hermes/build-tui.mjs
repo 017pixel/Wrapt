@@ -17,7 +17,7 @@ export async function buildHermesTui({ checkout, out }) {
   try {
     await mkdir(source);
     for (const relative of [
-      "ui-tui/src", "ui-tui/package.json", "ui-tui/tsconfig.json",
+      "ui-tui/src", "ui-tui/package.json", "ui-tui/scripts", "ui-tui/tsconfig.json",
       "ui-tui/packages/hermes-ink", "apps/shared/src", "apps/shared/package.json",
       "apps/shared/tsconfig.json", "scripts/build", "package.json", "tsconfig.json",
       "package-lock.json", ".npmrc", "pm/lock.json",

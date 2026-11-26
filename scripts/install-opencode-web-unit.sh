@@ -23,11 +23,28 @@ const web = config.opencodeWeb ?? {};
 console.log(web.serviceUnit ?? "opencode-web.service");
 console.log(web.cliPath ?? config.cli?.opencode ?? "");
 console.log(`${home}/.npm-global/bin/opencode`);
+console.log(web.enabled === true ? "1" : "0");
 ' "$repo_root/config"
 )"
 unit_name="$(printf '%s\n' "$read_config" | sed -n '1p')"
 configured_cli="$(printf '%s\n' "$read_config" | sed -n '2p')"
 fallback_cli="$(printf '%s\n' "$read_config" | sed -n '3p')"
+enabled="$(printf '%s\n' "$read_config" | sed -n '4p')"
+
+# OpenCode Web ist optional und standardmäßig aus. Bei deaktivierter Funktion
+# wird keine Unit geschrieben oder aktiviert; eine aus früheren Läufen
+# vorhandene Unit wird gestoppt und aus dem Autostart genommen.
+if [[ "$enabled" != "1" ]]; then
+  log "OpenCode Web ist in der Konfiguration deaktiviert."
+  if systemctl --user is-enabled "$unit_name" >/dev/null 2>&1 || systemctl --user is-active "$unit_name" >/dev/null 2>&1; then
+    if systemctl --user disable --now "$unit_name" >/dev/null 2>&1; then
+      log "$unit_name wurde deaktiviert und gestoppt."
+    else
+      warn "$unit_name konnte nicht deaktiviert werden — läuft hier systemd --user?"
+    fi
+  fi
+  exit 0
+fi
 # Reihenfolge wie in deploy/systemd/render-units.mjs: Config, dann PATH, dann Home-Fallback.
 if [[ -n "$configured_cli" ]]; then
   cli_path="$configured_cli"

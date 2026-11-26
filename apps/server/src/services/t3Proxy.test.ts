@@ -1,7 +1,61 @@
-import { describe, expect, it } from "vitest";
-import { injectT3HtmlBridge, remoteEditorFallbackScript, t3HttpRoutes, t3IsEditorOpenButton, t3OpenInCwdFromFiber, t3WebSocketRoutes } from "./t3Proxy.js";
+import { createServer, type Server } from "node:http";
+import Fastify from "fastify";
+import { afterEach, describe, expect, it } from "vitest";
+import { injectT3HtmlBridge, registerT3Proxy, remoteEditorFallbackScript, t3AttachmentUploadBodyLimit, t3HttpRoutes, t3IsEditorOpenButton, t3OpenInCwdFromFiber, t3WebSocketRoutes } from "./t3Proxy.js";
+
+const apps: ReturnType<typeof Fastify>[] = [];
+const servers: Server[] = [];
+
+afterEach(async () => {
+  await Promise.all(apps.splice(0).map((app) => app.close()));
+  await Promise.all(servers.splice(0).map((server) => new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()))));
+});
+
+function listen(server: Server): Promise<number> {
+  return new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen({ host: "127.0.0.1", port: 0 }, () => {
+      const address = server.address();
+      if (address === null || typeof address === "string") return reject(new Error("Upstream-Port fehlt."));
+      resolve(address.port);
+    });
+  });
+}
 
 describe("T3-Proxy", () => {
+  it("reicht Bild-Uploads über dem globalen 1-MiB-Limit bytegenau an T3 weiter", async () => {
+    // Regression: Wrapt parst T3s Bild-Uploads als Buffer. Mit Fastifys
+    // globalem 1-MiB-Limit endeten 2,1-MB-Screenshots im Proxy mit 413.
+    expect(t3AttachmentUploadBodyLimit).toBeGreaterThan(50 * 1024 * 1024);
+    let receivedBytes = 0;
+    const upstream = createServer((request, response) => {
+      request.on("data", (chunk: Buffer) => {
+        receivedBytes += chunk.length;
+      });
+      request.on("end", () => {
+        response.writeHead(204);
+        response.end();
+      });
+    });
+    servers.push(upstream);
+    const port = await listen(upstream);
+    const app = Fastify({ logger: { level: "silent" }, bodyLimit: 1_048_576 });
+    apps.push(app);
+    await registerT3Proxy(app, undefined, `http://127.0.0.1:${port}`);
+    await app.ready();
+
+    const body = Buffer.alloc(2 * 1024 * 1024 + 100_000, 7);
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/attachments/upload/token.png",
+      headers: { "content-type": "image/png" },
+      payload: body,
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(receivedBytes).toBe(body.length);
+  });
+
   it("leitet gespeicherte Bildanhänge an T3 weiter", () => {
     expect(t3HttpRoutes).toContain("/api/assets/*");
   });

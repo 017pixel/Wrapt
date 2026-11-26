@@ -1,19 +1,29 @@
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, type ComponentType } from "react";
 import { navigationContributionSchema, pageContributionSchema, routeContributionSchema } from "@wrapt/extension-contracts";
 import { resolvePluginIcon } from "../components/plugins/pluginIcons";
-import { createPluginToolPage } from "../views/PluginRuntime";
 import { wraptQueries } from "../lib/queryOptions";
 import { navigationRegistry } from "./navigationRegistry";
 import { pageRouteRegistry } from "./pageRouteRegistry";
 import { pluginRuntimeOwnerId, pluginToolRoutePath } from "./pluginRuntime";
 
+// Der Plugin-Runtime-Chunk wird erst beim ersten Öffnen einer Plugin-Seite
+// geladen. Der Loader bleibt pro Slug stabil, damit die Lazy-Bindung nicht bei
+// jedem Registry-Refresh neu entsteht.
+const toolLoaders = new Map<string, () => Promise<{ PluginToolPage: ComponentType }>>();
+function toolLoader(slug: string): () => Promise<{ PluginToolPage: ComponentType }> {
+  let loader = toolLoaders.get(slug);
+  if (!loader) {
+    loader = () => import("../views/PluginRuntime").then((module) => ({ PluginToolPage: module.createPluginToolPage(slug) }));
+    toolLoaders.set(slug, loader);
+  }
+  return loader;
+}
+
 function registerToolPage(slug: string, name: string, description: string, icon: string): void {
   const ownerId = pluginRuntimeOwnerId(slug);
   const pageId = `${ownerId}.page.main`;
   const routeId = `${ownerId}.route.main`;
-  const ToolPage = createPluginToolPage(slug);
-  const module = Object.freeze({ PluginToolPage: ToolPage });
   const page = pageContributionSchema.parse({ id: pageId, title: name, description });
   const route = routeContributionSchema.parse({
     id: routeId,
@@ -32,10 +42,9 @@ function registerToolPage(slug: string, name: string, description: string, icon:
     pages: [{ contribution: page, runtime: {
       chunkId: `plugin-${slug}`,
       exportName: "PluginToolPage",
-      loading: "eager",
-      recovery: "none",
-      load: () => Promise.resolve(module),
-      eagerModule: module,
+      loading: "lazy",
+      recovery: "stale-chunk",
+      load: toolLoader(slug),
     } }],
     routes: [{ contribution: route, runtime: {
       boundary: "deferred-route",

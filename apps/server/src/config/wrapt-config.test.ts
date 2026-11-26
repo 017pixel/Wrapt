@@ -54,13 +54,24 @@ describe("Workbench-Preview-Konfiguration", () => {
     expect(() => wraptConfigSchema.parse({ ...config, plugins: { wraptPluginsSkillPath: "relativ/SKILL.md" } })).toThrowError();
   });
 
+  it("hält den Terminal-Socket optional und verlangt einen absoluten Pfad", () => {
+    expect(exampleConfig().terminal.socketPath).toBeUndefined();
+    const config = exampleConfig();
+    config.terminal.socketPath = "/run/user/1000/wrapt/tmux.sock";
+    expect(wraptConfigSchema.parse(config).terminal.socketPath).toBe("/run/user/1000/wrapt/tmux.sock");
+    config.terminal.socketPath = "relativ/tmux.sock";
+    expect(() => wraptConfigSchema.parse(config)).toThrowError();
+  });
+
   it("lädt fehlende Hermes- und OpenCode-Web-Konfiguration mit sicheren Defaults", () => {
+    expect(exampleConfig().opencodeWeb.enabled).toBe(false);
+
     const config = exampleConfig() as unknown as Record<string, unknown>;
     delete config.hermes;
     delete config.opencodeWeb;
     const parsed = wraptConfigSchema.parse(config);
     expect(parsed.hermes).toMatchObject({ enabled: true, host: "127.0.0.1", port: 9119, proxyPrefix: "/hermes" });
-    expect(parsed.opencodeWeb).toMatchObject({ host: "127.0.0.1", port: 3774, serviceUnit: "opencode-web.service" });
+    expect(parsed.opencodeWeb).toMatchObject({ enabled: false, host: "127.0.0.1", port: 3774, serviceUnit: "opencode-web.service" });
   });
 
   it("erzwingt Loopback und einen freien Hermes-Port", () => {
