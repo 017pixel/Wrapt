@@ -51,6 +51,16 @@ describe("queryErrorGuide", () => {
     expect(valid.docsHinweis).toContain("preview.config.json");
   });
 
+  it("erklärt die Wirkung des deaktivierten Slot-Resets und fremder Affinitäten", () => {
+    const disabled = queryErrorGuide(new ApiClientError(409, "PREVIEW_RESET_DISABLED", "Der Storage-Reset ist deaktiviert."), "Fallback");
+    expect(disabled.titel).toContain("deaktiviert");
+    expect(disabled.aktion).toContain("slotResetEnabled");
+    expect(disabled.retryable).toBe(false);
+    const foreign = queryErrorGuide(new ApiClientError(409, "PREVIEW_SLOT_NOT_OWNED", "Slot gehört einem anderen Projekt."), "Fallback");
+    expect(foreign.titel).toContain("anderen Projekt");
+    expect(foreign.aktion).toContain("nicht geleert");
+  });
+
   it("reicht die Anfrage-ID durch (bei Meldung angeben)", () => {
     const guide = queryErrorGuide(
       new ApiClientError(500, "REQUEST_FAILED", "Interner Fehler", "req-123", true),

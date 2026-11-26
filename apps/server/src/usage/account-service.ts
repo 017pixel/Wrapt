@@ -275,6 +275,13 @@ export class AccountService {
   async remove(id: string) {
     let account: ManagedAccount; try { account = this.options.database.getAccount(id); } catch { throw new AppError(404, "ACCOUNT_NOT_FOUND", "Der Account wurde nicht gefunden."); }
     return this.serialized(account.provider, async () => {
+      // Die Oberfläche sperrt den aktiven Account bereits; die API muss das
+      // ebenfalls tun, sonst zeigt der Symlink im gemeinsamen Home weiter auf
+      // die Zugangsdaten eines gelöschten Profils.
+      const activePath = await this.switcher.activeProfilePath(account.provider);
+      if (activePath !== null && activePath === resolve(account.profilePath)) {
+        throw new AppError(409, "ACCOUNT_ACTIVE", "Der aktive Account kann nicht gelöscht werden. Wechsle zuerst zu einem anderen Account.");
+      }
       if (account.provider === "codex") await this.setCodexProfile(account.profilePath, false);
       if (account.provider === "claude" && this.list().filter((item) => item.provider === "claude" && item.id !== id).length === 0) await this.setProviderEnabled("claude", false);
       this.options.database.deleteAccount(id);

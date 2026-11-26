@@ -1,6 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { safeJsonRow } from "../utils/jsonQuarantine.js";
 
 export type SkillEditorJobOperation = "create" | "rename" | "delete" | "create-hermes" | "rename-hermes" | "delete-hermes";
 export type SkillEditorJobState = "running" | "completed" | "failed" | "needs-recovery";
@@ -27,17 +28,23 @@ interface JobRow {
   updatedAt: number;
 }
 
-function toJob(row: JobRow): SkillEditorJob {
+function toJob(db: DatabaseSync, row: JobRow): SkillEditorJob {
+  const payload = safeJsonRow(db, "skill_editor_jobs", row.key, row.payloadJson, asJsonObject);
   return {
     key: row.key,
     operation: row.operation as SkillEditorJobOperation,
     state: row.state as SkillEditorJobState,
-    payload: JSON.parse(row.payloadJson) as Record<string, unknown>,
-    result: row.resultJson === null ? null : JSON.parse(row.resultJson),
+    payload: payload ?? {},
+    result: row.resultJson === null ? null : safeJsonRow(db, "skill_editor_jobs", `${row.key}/result`, row.resultJson, (value) => value),
     error: row.error,
     progress: row.progress,
     updatedAt: row.updatedAt,
   };
+}
+
+function asJsonObject(value: unknown): Record<string, unknown> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error("Auftragsdaten sind kein Objekt.");
+  return value as Record<string, unknown>;
 }
 
 /**
@@ -69,12 +76,12 @@ export class SkillEditorJobStore {
 
   find(key: string): SkillEditorJob | undefined {
     const row = this.db.prepare("SELECT key, operation, state, payload_json payloadJson, result_json resultJson, error, progress, updated_at updatedAt FROM skill_editor_jobs WHERE key = ?").get(key) as JobRow | undefined;
-    return row ? toJob(row) : undefined;
+    return row ? toJob(this.db, row) : undefined;
   }
 
   unfinished(): SkillEditorJob[] {
     const rows = this.db.prepare("SELECT key, operation, state, payload_json payloadJson, result_json resultJson, error, progress, updated_at updatedAt FROM skill_editor_jobs WHERE state IN ('running', 'needs-recovery') ORDER BY updated_at").all() as unknown as JobRow[];
-    return rows.map(toJob);
+    return rows.map((row) => toJob(this.db, row));
   }
 
   start(key: string, operation: SkillEditorJobOperation, payload: Record<string, unknown>) {

@@ -314,3 +314,16 @@ describe("Hermes-Skills", () => {
       .rejects.toMatchObject({ statusCode: 400, code: "SKILLS_HERMES_MISSING" });
   });
 });
+
+describe("Größenlimit des Skill-Editors", () => {
+  it("zählt Bytes statt Zeichen, damit gespeicherte Dateien wieder lesbar bleiben", async () => {
+    const { service, root } = await fixture();
+    const path = join(root, "skills/alpha/SKILL.md");
+    const before = await service.readFile({ path });
+    await expect(service.writeFile({ path, content: "ä".repeat(3_000), expectedRevision: before.revisionToken }))
+      .rejects.toMatchObject({ statusCode: 413, code: "SKILLS_FILE_TOO_LARGE" });
+    const saved = await service.writeFile({ path, content: "a".repeat(3_000), expectedRevision: before.revisionToken });
+    expect(saved.sizeBytes).toBe(3_000);
+    await expect(service.readFile({ path })).resolves.toMatchObject({ sizeBytes: 3_000 });
+  });
+});

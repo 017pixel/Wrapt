@@ -38,9 +38,9 @@ it("prüft 10k vollständig ohne den Mainthread zu blockieren und dedupliziert z
     const reads = Array.from({ length: 10 }, () => audit.verifyAsync());
     const results = await Promise.all(reads);
     expect(timer).toHaveBeenCalledOnce();
-    expect(results[0]).toEqual({ valid: true, entries: 10_000, latestAt: "2026-01-01T00:00:00Z", checkedSequence: 10_000 });
+    expect(results[0]).toEqual({ valid: true, entries: 10_000, latestAt: "2026-01-01T00:00:00Z", checkedSequence: 10_000, truncated: false, retainedFromSequence: 1 });
     expect(results.every((result) => result === results[0])).toBe(true);
-    expect(audit.verify()).toEqual({ valid: true, entries: results[0]!.entries, latestAt: results[0]!.latestAt });
+    expect(audit.verify()).toEqual({ valid: true, entries: results[0]!.entries, latestAt: results[0]!.latestAt, checkedSequence: results[0]!.checkedSequence, truncated: false, retainedFromSequence: 1 });
   } finally { db.close(); await audit.close(); }
 });
 

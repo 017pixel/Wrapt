@@ -2,6 +2,7 @@ import { settings } from "../config/settings.js";
 import type { TerminalDatabase } from "../terminal/database.js";
 import { TerminalManager } from "../terminal/Manager.js";
 import { defaultTerminalSocketPath, TmuxSupervisor } from "../terminal/TmuxSupervisor.js";
+import { ensureSupervisorOnStartup } from "../terminal/supervisorStartup.js";
 import type { TerminalStatusSync } from "../notifications/terminal-status-sync.js";
 import type { UsageDatabase } from "../usage/database.js";
 
@@ -9,16 +10,31 @@ interface RuntimeDependencyOptions {
   terminalDatabase: TerminalDatabase;
   terminalStatusSync: TerminalStatusSync;
   usageDatabase: UsageDatabase;
+  warn?: (message: string, error?: unknown) => void;
 }
 
 export async function createRuntimeDependencies(options: RuntimeDependencyOptions) {
   const terminalSupervisor = settings.terminalSupervisor === "tmux"
-    ? new TmuxSupervisor(settings.tmuxPath, settings.tmuxSocketPath ?? defaultTerminalSocketPath(settings.dataDirectory))
+    ? new TmuxSupervisor(
+      settings.tmuxPath,
+      settings.tmuxSocketPath ?? defaultTerminalSocketPath(settings.dataDirectory),
+      undefined,
+      undefined,
+      settings.runtimeMode === "production",
+    )
     : null;
-  await terminalSupervisor?.ready();
-  if (settings.runtimeMode !== "test" && (settings.runtimeMode === "production" || process.platform === "darwin")) {
-    await terminalSupervisor?.ensureSupervisorUnit();
+  try {
+    await terminalSupervisor?.ready();
+  } catch (error) {
+    // Ein transienter tmux-Timeout darf den Backend-Start nicht verhindern.
+    options.warn?.("tmux ist beim Start nicht erreichbar. Terminals versuchen es beim ersten Öffnen erneut.", error);
   }
+  // In Produktion und auf macOS wird der Supervisor angestoßen, ein false
+  // blockiert den Start aber nicht. Die Terminals bleiben lazy.
+  await ensureSupervisorOnStartup(terminalSupervisor, {
+    runtimeMode: settings.runtimeMode,
+    ...(options.warn ? { warn: options.warn } : {}),
+  });
 
   const terminals = new TerminalManager({
     allowedRoots: settings.terminalAllowedRoots,

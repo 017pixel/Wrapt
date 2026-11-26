@@ -36,7 +36,9 @@ export async function buildApp(options: BuildAppOptions = {}) {
       },
     },
     genReqId: () => randomUUID(),
-    bodyLimit: Math.max(settings.fileGalleryMaxFileBytes, settings.fileManagerMaxUploadBytes) + 1_048_576,
+    // JSON ist klein. Die großen Uploads laufen über Multipart beziehungsweise
+    // über ausdrücklich begrenzte Routen (Notizinhalt, Notiz-Import).
+    bodyLimit: 1_048_576,
     trustProxy: ["127.0.0.1", "::1"],
   });
 
@@ -58,9 +60,14 @@ export async function buildApp(options: BuildAppOptions = {}) {
   await registerT3Proxy(app, {
     onEvent: (event) => dependencies.operationalMetrics.recordWebSocket("T3 Code", event),
   });
-  await registerOpenCodeWebProxy(app, {
-    onEvent: (event) => dependencies.operationalMetrics.recordWebSocket("OpenCode", event),
-  });
+  // OpenCode Web ist optional und standardmäßig aus. Ohne den Schalter
+  // existiert weder der /opencode-Proxy noch ein WebSocket-Handler; Anfragen
+  // fallen auf den normalen 404-Pfad.
+  if (settings.opencodeWebEnabled) {
+    await registerOpenCodeWebProxy(app, {
+      onEvent: (event) => dependencies.operationalMetrics.recordWebSocket("OpenCode", event),
+    });
+  }
   await registerHermesDashboardProxy(app, { onEvent: (event) => dependencies.operationalMetrics.recordWebSocket("Hermes", event) });
 
   const t3ClientUrl = dependencies.servicesConfig.services

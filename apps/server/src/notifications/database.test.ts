@@ -229,3 +229,23 @@ describe("Benachrichtigungsdatenbank", () => {
   }, 30_000);
 
 });
+
+describe("Presence pro Sicht und Client", () => {
+  it("überschreibt die Sicht eines anderen Tabs nicht und ein leerer Report löscht nur den eigenen Client", () => {
+    const directory = mkdtempSync(join(tmpdir(), "wrapt-notifications-"));
+    temporaryDirectories.push(directory);
+    const database = new NotificationDatabase(join(directory, "wrapt.sqlite"));
+    database.setPresence([{ source: "t3", threadId: "thread-a" }], "tab-a");
+    database.setPresence([], "tab-b");
+    const visible = database.create({ source: "t3", category: "coding-agent", sourceIcon: "t3", kind: "agent.completed", severity: "success", title: "Fertig", body: "fertig", meta: { threadId: "thread-a" } });
+    expect(visible.readAt).not.toBeNull();
+
+    database.setPresence([{ source: "opencode", sessionId: "laufzeit-1" }], "tab-b");
+    const second = database.create({ source: "opencode", category: "coding-agent", sourceIcon: "opencode", kind: "agent.completed", severity: "success", title: "Fertig", body: "fertig", meta: { sessionId: "laufzeit-1" } });
+    expect(second.readAt).not.toBeNull();
+    database.setPresence(null, "tab-c");
+    const stillVisible = database.create({ source: "t3", category: "coding-agent", sourceIcon: "t3", kind: "agent.completed", severity: "success", title: "Fertig", body: "fertig", meta: { threadId: "thread-a" } });
+    expect(stillVisible.readAt).not.toBeNull();
+    database.close();
+  });
+});

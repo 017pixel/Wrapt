@@ -53,9 +53,31 @@ export function classifyQueryError(error: unknown): QueryErrorKind {
 }
 
 export function queryErrorGuide(error: unknown, fallback: string): QueryErrorGuide {
+  const requestId = extractRequestId(error);
+  if (error instanceof ApiClientError && error.code === "PREVIEW_RESET_DISABLED") {
+    return {
+      kind: "quarantaene",
+      ursache: error.message,
+      requestId,
+      titel: "Slot-Wiederherstellung ist deaktiviert",
+      aktion: "In der Serverkonfiguration ist previews.slotResetEnabled aus. Dann wird kein Browser-Storage geleert. Gib einen Slot im Preview-Hub frei oder aktiviere den Schalter bewusst.",
+      docsHinweis: "Hilfe: previews.slotResetEnabled in config/wrapt.local.json",
+      retryable: false,
+    };
+  }
+  if (error instanceof ApiClientError && error.code === "PREVIEW_SLOT_NOT_OWNED") {
+    return {
+      kind: "unbekannt",
+      ursache: error.message,
+      requestId,
+      titel: "Slot gehört einem anderen Projekt",
+      aktion: "Der freie Slot trägt den Storage eines anderen Projekts und wird nicht geleert. Gib im Preview-Hub einen Slot des eigenen Projekts frei.",
+      docsHinweis: null,
+      retryable: false,
+    };
+  }
   const kind = classifyQueryError(error);
   const ursache = error instanceof Error && error.message ? error.message : fallback;
-  const requestId = extractRequestId(error);
   const retryable = error instanceof ApiClientError ? error.retryable : kind === "netzwerk" || kind === "timeout";
   switch (kind) {
     case "zugriff":

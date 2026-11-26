@@ -38,7 +38,8 @@ it("migriert die Indizes additiv und erhält Forecasts, Providergrenzen und das 
     const migrated = new UsageDatabase(path);
     migrated.close();
     expect(db.prepare("SELECT COUNT(*) count FROM usage_snapshots").get()?.count).toBe(450);
-    expect(db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'usage_snapshot%'").all()).toHaveLength(3);
+    expect(db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name LIKE 'usage_snapshot%'").all()).toHaveLength(2);
+    expect(db.prepare("SELECT name FROM sqlite_master WHERE type='index' AND name = 'usage_snapshot_lookup'").get()).toBeUndefined();
   } finally {
     db.close();
     usage.close();

@@ -39,6 +39,16 @@ describe("Wrapt API", () => {
     expect(health.webBuildId === null || Number.isInteger(health.webBuildId)).toBe(true);
   });
 
+  it("registriert den OpenCode-Web-Proxy nur bei aktivierter Funktion", async () => {
+    const app = await buildApp({ startBackgroundServices: false });
+    apps.push(app);
+    expect(app.hasRoute({ method: "GET", url: "/opencode" })).toBe(settings.opencodeWebEnabled);
+    expect(app.hasRoute({ method: "GET", url: "/opencode/*" })).toBe(settings.opencodeWebEnabled);
+    const capabilities = await app.inject({ method: "GET", url: "/api/v1/system/capabilities", headers: authenticatedHeaders });
+    expect(capabilities.statusCode).toBe(200);
+    expect(capabilities.json()).toEqual({ opencodeWeb: settings.opencodeWebEnabled });
+  });
+
   it("sendet kein Wildcard-CORS für Health und beantwortet GET-Preflights", async () => {
     const app = await buildApp({ startBackgroundServices: false });
     apps.push(app);
@@ -84,7 +94,7 @@ describe("Wrapt API", () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.json()).toMatchObject({
-      error: { code: "VALIDATION_ERROR", retryable: false },
+      error: { code: "INVALID_JSON", retryable: false },
     });
   });
 

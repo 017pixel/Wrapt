@@ -23,7 +23,7 @@ export const notificationsApi = {
     return request(`/notifications${query.size ? `?${query}` : ""}`, notificationListResponseSchema, signal);
   },
   patchNotification: (id: string, body: { read?: boolean; acknowledged?: boolean }) => mutate(`/notifications/${encodeURIComponent(id)}`, "PATCH", notificationSchema.nullable(), body),
-  updatePresence: (presence: NotificationPresenceItem | NotificationPresenceItem[] | null) => mutate("/notifications/presence", "PUT", z.object({ updated: z.number().int().nonnegative() }), presence),
+  updatePresence: (presence: NotificationPresenceItem | NotificationPresenceItem[] | null, clientId?: string) => mutate("/notifications/presence", "PUT", z.object({ updated: z.number().int().nonnegative() }), presence, clientId ? { "X-Wrapt-Presence-Client": clientId } : undefined),
   notificationSettings: (signal?: AbortSignal) => request("/notifications/settings", notificationSettingsResponseSchema, signal),
   saveNotificationSettings: (preferences: unknown) => mutate("/notifications/settings", "PUT", notificationSettingsResponseSchema, notificationPreferencesSchema.parse(preferences)),
   subscribePush: (subscription: unknown) => mutate("/notifications/push-subscription", "POST", pushSubscriptionResponseSchema, pushSubscriptionRegistrationSchema.parse(subscription)),

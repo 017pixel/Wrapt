@@ -303,6 +303,7 @@ export async function createAppDependencies(app: FastifyInstance) {
     terminalDatabase,
     terminalStatusSync,
     usageDatabase,
+    warn: (message, error) => app.log.warn({ err: error, component: "terminal-supervisor" }, message),
   });
   const editorOpenSecrets = new EditorOpenSecrets(settings.dataDirectory);
   registerNotesPluginApi(pluginCode.api, notesDatabase);

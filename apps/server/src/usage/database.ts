@@ -7,11 +7,17 @@ import type { CodexbarCostPayload, CodexbarPayload } from "../adapters/codexbar/
 
 const rangeDays: Record<Exclude<UsageRange, "all">, number> = { "7d": 7, "30d": 30, "90d": 90, "365d": 365 };
 
-/** Normiert den Projekt-Schlüssel: Pfad-Einträge auf den Ordnernamen kürzen. */
-function projectKeyBasename(key: string): string {
-  const trimmed = key.trim();
-  const slash = trimmed.lastIndexOf("/");
-  return slash >= 0 ? trimmed.slice(slash + 1) || trimmed : trimmed;
+/** Kanonischer Projektschlüssel: vollständiger Pfad, plattformneutral getrennt. */
+function projectKeyCanonical(key: string): string {
+  const normalized = key.trim().replaceAll("\\", "/").replace(/\/+$/, "");
+  return normalized === "" ? "unbekannt" : normalized;
+}
+
+/** Kollisionssichere Beschriftung: bei gleichem Namen den Elternordner ergänzen. */
+function projectDisplayLabel(key: string, fallback: string, collides: boolean): string {
+  if (!collides) return fallback;
+  const parts = key.split("/").filter(Boolean);
+  return parts.length >= 2 ? `${parts[parts.length - 2]}/${parts[parts.length - 1]}` : fallback;
 }
 
 export class UsageDatabase {
@@ -42,7 +48,6 @@ export class UsageDatabase {
         resets_at TEXT, captured_at TEXT NOT NULL,
         UNIQUE(account_key, provider, window_id, captured_at)
       );
-      CREATE INDEX IF NOT EXISTS usage_snapshot_lookup ON usage_snapshots(account_key, window_id, resets_at, captured_at);
       CREATE INDEX IF NOT EXISTS usage_snapshots_captured ON usage_snapshots(captured_at);
       CREATE INDEX IF NOT EXISTS usage_snapshots_resets ON usage_snapshots(resets_at) WHERE resets_at IS NOT NULL;
       CREATE TABLE IF NOT EXISTS daily_usage (
@@ -86,6 +91,9 @@ export class UsageDatabase {
       `);
     }
     this.db.exec("INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (2, datetime('now'))");
+    // Der Lookup-Index wurde von keiner Query referenziert; Forecasts nutzen
+    // usage_snapshots_resets. Additive Migration, keine Datenänderung.
+    this.db.exec("DROP INDEX IF EXISTS usage_snapshot_lookup; INSERT OR IGNORE INTO schema_migrations(version, applied_at) VALUES (3, datetime('now'))");
     // Zuletzt aktivierter Account je Werkzeug. Die Wahrheit über den tatsächlich aktiven Account
     // steht im Symlink des gemeinsamen Homes; dieser Eintrag sagt nur, wohin er zeigen soll —
     // nötig, um den Symlink zu reparieren, wenn ein CLI ihn durch eine reguläre Datei ersetzt.
@@ -196,15 +204,14 @@ export class UsageDatabase {
     const projects = this.db.prepare(`SELECT project_key id, provider, label, total_tokens totalTokens,
       total_cost totalCost, quality FROM project_usage`).all() as Array<UsageBreakdown & { provider: string }>;
     // CodexBar und die lokale OpenCode-Datenbank führen dasselbe Projekt als
-    // getrennte Zeilen je Provider. Für die Übersicht werden sie über den
-    // Projektnamen zusammengefasst: Der Schlüssel ist der Basisname des Pfads,
-    // falls der Eintrag einen Pfad trägt, sonst der Name selbst.
-    const projectsByName = new Map<string, { entry: UsageBreakdown; labelTokens: number }>();
+    // getrennte Zeilen je Provider. Zusammengeführt wird nur bei exakt gleichem
+    // Pfad; zwei Projekte mit gleichem Ordnernamen bleiben getrennt.
+    const projectsByPath = new Map<string, { entry: UsageBreakdown; labelTokens: number }>();
     for (const row of projects) {
-      const key = projectKeyBasename(row.id);
-      const existing = projectsByName.get(key);
+      const key = projectKeyCanonical(row.id);
+      const existing = projectsByPath.get(key);
       if (!existing) {
-        projectsByName.set(key, { entry: { id: key, label: row.label, totalTokens: row.totalTokens, totalCost: row.totalCost, quality: row.quality }, labelTokens: row.totalTokens });
+        projectsByPath.set(key, { entry: { id: key, label: row.label, totalTokens: row.totalTokens, totalCost: row.totalCost, quality: row.quality }, labelTokens: row.totalTokens });
         continue;
       }
       existing.entry.totalTokens += row.totalTokens;
@@ -215,8 +222,10 @@ export class UsageDatabase {
       }
       if (existing.entry.quality === "exact" && row.quality !== "exact") existing.entry.quality = "derived";
     }
-    const aggregatedProjects = [...projectsByName.values()]
-      .map(({ entry }) => entry)
+    const labelCounts = new Map<string, number>();
+    for (const { entry } of projectsByPath.values()) labelCounts.set(entry.label, (labelCounts.get(entry.label) ?? 0) + 1);
+    const aggregatedProjects = [...projectsByPath.entries()]
+      .map(([key, { entry }]) => ({ ...entry, label: projectDisplayLabel(key, entry.label, (labelCounts.get(entry.label) ?? 0) > 1) }))
       .sort((a, b) => b.totalTokens - a.totalTokens)
       .slice(0, 20);
     const modelsFilter = cutoff === null ? "" : "WHERE date >= date('now', ?) ";

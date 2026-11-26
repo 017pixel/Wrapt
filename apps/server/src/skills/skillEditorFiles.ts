@@ -204,8 +204,11 @@ export class SkillFileStore {
    */
   async writeFile(input: { path: string; content: string; expectedRevision?: string | null | undefined; expectedModifiedAt?: string | null | undefined }): Promise<SkillEditorReadResponse> {
     const { requested, canonical, details } = await this.resolveExisting(input.path, "file");
-    if (input.content.length > this.access.maxFileBytes) {
-      throw new AppError(413, "SKILLS_FILE_TOO_LARGE", "Der Inhalt überschreitet das Größenlimit.", { limitBytes: this.access.maxFileBytes });
+    // Byte-Länge, nicht Zeichenzahl: Ein Text mit Umlauten oder Emojis darf
+    // nicht schreibbar sein, wenn er anschließend nicht mehr gelesen werden kann.
+    const contentBytes = Buffer.byteLength(input.content, "utf8");
+    if (contentBytes > this.access.maxFileBytes) {
+      throw new AppError(413, "SKILLS_FILE_TOO_LARGE", "Der Inhalt überschreitet das Größenlimit.", { limitBytes: this.access.maxFileBytes, sizeBytes: contentBytes });
     }
     const currentBuffer = await readFile(canonical).catch(filesystemFailure);
     const current = { token: revisionTokenOf(details, currentBuffer), modifiedAt: details.mtime.toISOString() };

@@ -17,7 +17,6 @@ import { registerPluginRoutes } from "../plugins/routes.js";
 import { registerCodePluginRoutes } from "../plugins/code-routes.js";
 import { registerPreviewRoutes } from "../previews/routes.js";
 import { registerUiSettingsRoutes } from "../settings/routes.js";
-import { registerDevServerConfirmationRoutes } from "../previews/devServerConfirmations.js";
 import { registerEditorOpenRoutes } from "../services/editorOpen.js";
 import { createCommandService } from "../services/commandService.js";
 import { createServiceStatusService } from "../services/serviceStatusService.js";
@@ -79,6 +78,7 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
     push: deps.notificationPush.metrics(),
     build,
     audit: { ...audit, outboxPending: deps.operationalAudit.outboxPending() },
+    notes: deps.notesDatabase.storageBytes(),
     preview: (() => {
       const slots = deps.previewSlots.list().slots;
       return {
@@ -109,12 +109,6 @@ export async function registerApplicationRoutes(app: FastifyInstance, deps: AppD
     diagnosticMaxBatchBytes: settings.previews.diagnosticMaxBatchBytes,
     diagnosticRetentionDays: settings.previews.diagnosticRetentionDays,
     devServers: deps.previewDevServers,
-  });
-  await app.register(registerDevServerConfirmationRoutes, {
-    prefix: "/api/v1",
-    devServers: deps.previewDevServers,
-    database: deps.previewDevServerDatabase,
-    identity: deps.identityOptions,
   });
   const resolveHermesProjectCwd = async (projectId: string | null) => {
     if (projectId === null) return settings.terminalDefaultCwd;

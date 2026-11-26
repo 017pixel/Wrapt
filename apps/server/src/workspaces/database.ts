@@ -6,6 +6,7 @@ import {
   type WorkspaceRegistrySnapshot,
 } from "@wrapt/contracts";
 import { AppError } from "../utils/errors.js";
+import { safeJsonDocument } from "../utils/jsonQuarantine.js";
 
 interface RegistryRow { documentJson: string; revision: number; updatedAt: string; }
 
@@ -42,8 +43,9 @@ export class WorkspaceRegistryDatabase {
       "SELECT document_json documentJson, revision, updated_at updatedAt FROM workspace_registries WHERE owner_id = ?",
     ).get(userId) as RegistryRow | undefined;
     if (!row) return { document: EMPTY_REGISTRY, revision: 0, updatedAt: new Date(0).toISOString() };
+    const document = safeJsonDocument(this.db, "workspace_registries", userId, row.documentJson, (value) => workspaceRegistrySnapshotSchema.parse(value), EMPTY_REGISTRY);
     return {
-      document: workspaceRegistrySnapshotSchema.parse(JSON.parse(row.documentJson) as unknown),
+      document,
       revision: row.revision,
       updatedAt: row.updatedAt,
     };

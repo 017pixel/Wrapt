@@ -53,7 +53,9 @@ export async function registerNotificationRoutes(app: FastifyInstance, options: 
   });
   app.put("/notifications/presence", async (request) => {
     const presence = notificationPresenceInputSchema.parse(request.body);
-    return { updated: database.setPresence(presence) };
+    const header = request.headers["x-wrapt-presence-client"];
+    const clientId = typeof header === "string" && header.length > 0 ? header.slice(0, 128) : "default";
+    return { updated: database.setPresence(presence, clientId) };
   });
   // S-009: Crash-Reports schreiben DB + Diagnose und dürfen nicht als Spam-Kanal dienen.
   app.post("/notifications/report", { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } }, async (request, reply) => {

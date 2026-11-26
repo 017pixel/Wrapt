@@ -21,19 +21,25 @@ export function verifyAuditDatabase(database) {
     let entries = 0;
     let latestAt = null;
     let checkedSequence = 0;
+    let firstSequence = null;
+    let firstPreviousHash = null;
     for (const raw of rows) {
       const row = /** @type {AuditRow} */ (/** @type {unknown} */ (raw));
       const canonical = JSON.stringify({ id: row.id, at: row.at, requestId: row.requestId,
         actor: row.actor, action: row.action, target: row.target, statusCode: row.statusCode, previousHash: row.previousHash });
       if (createHash("sha256").update(canonical).digest("hex") !== row.entryHash) valid = false;
       if (entries > 0 && row.previousHash !== previous) valid = false;
+      if (entries === 0) { firstSequence = row.sequence; firstPreviousHash = row.previousHash; }
       previous = row.entryHash;
       entries += 1;
       latestAt = row.at;
       checkedSequence = row.sequence;
     }
     database.exec("COMMIT");
-    return { valid, entries, latestAt, checkedSequence };
+    // Eine gelöschte Vorgeschichte ist keine volle Gültigkeit: Der erste
+    // vorhandene Eintrag zeigt per previousHash auf einen entfernten Vorgänger.
+    const truncated = entries > 0 && (firstPreviousHash !== null || (firstSequence ?? 0) > 1);
+    return { valid, entries, latestAt, checkedSequence, truncated, retainedFromSequence: entries > 0 ? firstSequence : null };
   } catch (error) {
     if (database.isTransaction) database.exec("ROLLBACK");
     throw error;

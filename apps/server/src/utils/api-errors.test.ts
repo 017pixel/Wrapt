@@ -84,3 +84,14 @@ describe("toTerminalError", () => {
     });
   });
 });
+
+describe("Fastify-Fehlercodes", () => {
+  const frameworkError = (code: string) => Object.assign(new Error(code), { code, statusCode: 413 });
+  it("übersetzt Größen-, Typ- und JSON-Fehler statt sie zu verdecken", () => {
+    expect(toApiError(frameworkError("FST_ERR_CTP_BODY_TOO_LARGE"))).toMatchObject({ status: 413, code: "PAYLOAD_TOO_LARGE" });
+    expect(toApiError(frameworkError("FST_REQ_FILE_TOO_LARGE"))).toMatchObject({ status: 413, code: "FILE_TOO_LARGE" });
+    expect(toApiError(frameworkError("FST_FILES_LIMIT"))).toMatchObject({ status: 413, code: "FILE_TOO_LARGE" });
+    expect(toApiError(frameworkError("FST_ERR_CTP_INVALID_MEDIA_TYPE"))).toMatchObject({ status: 415, code: "UNSUPPORTED_MEDIA_TYPE" });
+    expect(toApiError(frameworkError("FST_ERR_CTP_INVALID_JSON_BODY"))).toMatchObject({ status: 400, code: "INVALID_JSON" });
+  });
+});

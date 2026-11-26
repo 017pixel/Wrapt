@@ -27,6 +27,11 @@ interface PresenceEntry extends NotificationPresenceItem {
   lastSeenAt: number;
 }
 
+interface PresenceClient {
+  items: PresenceEntry[];
+  lastSeenAt: number;
+}
+
 export interface NotificationInput {
   source: NotificationSource; category: NotificationCategory; sourceIcon: NotificationSourceIcon;
   kind: string; severity: NotificationSeverity; title: string; body: string;
@@ -78,7 +83,9 @@ export class NotificationDatabase {
   private readonly listeners = new Set<(event: NotificationEvent) => void>();
   private readonly retentionMilliseconds: number;
   private readonly presenceTtlMilliseconds: number;
-  private presence: PresenceEntry[] = [];
+  // Presence ist pro Sicht und Client getrennt. Ein Tab oder Gerät darf die
+  // Sicht eines anderen nicht überschreiben; der Gelesen-Status bleibt global.
+  private presence = new Map<string, PresenceClient>();
 
   constructor(path: string, retentionHours = 48, presenceTtlMilliseconds = 90_000) {
     mkdirSync(dirname(path), { recursive: true });
@@ -218,15 +225,19 @@ export class NotificationDatabase {
    * Der Heartbeat erneuert nur die gemeldeten Ansichten. Nach
    * `presenceTtlMilliseconds` ohne Meldung gilt die Ansicht als verlassen.
    */
-  setPresence(input: NotificationPresenceItem | NotificationPresenceItem[] | null): number {
+  setPresence(input: NotificationPresenceItem | NotificationPresenceItem[] | null, clientId = "default"): number {
     const items = Array.isArray(input) ? input : input ? [input] : [];
-    this.presence = items.map((item) => ({ ...item, lastSeenAt: Date.now() }));
-    if (this.presence.length === 0) return 0;
+    const now = Date.now();
+    if (items.length === 0) this.presence.delete(clientId);
+    else this.presence.set(clientId, { items: items.map((item) => ({ ...item, lastSeenAt: now })), lastSeenAt: now });
+    this.prunePresence(now);
+    const active = this.activePresence();
+    if (active.length === 0) return 0;
     const at = new Date().toISOString();
     // Batches statt eines unbegrenzten IN(...): Jede Abfrage und jedes Update
     // bleibt auf PRESENCE_BATCH_SIZE begrenzt (Index notifications_presence_lookup).
     let total = 0;
-    const sources = [...new Set(this.presence.map((entry) => entry.source))];
+    const sources = [...new Set(active.map((entry) => entry.source))];
     for (const source of sources) {
       let cursorAt: string | null = null;
       let cursorId: string | null = null;
@@ -331,10 +342,22 @@ export class NotificationDatabase {
     return this.presenceMatchesMeta(notification.source, notification.meta as Record<string, unknown>);
   }
 
+  private prunePresence(now = Date.now()): void {
+    const cutoff = now - this.presenceTtlMilliseconds;
+    for (const [clientId, client] of this.presence) {
+      if (client.lastSeenAt < cutoff) this.presence.delete(clientId);
+    }
+  }
+
+  private activePresence(): PresenceEntry[] {
+    this.prunePresence();
+    return [...this.presence.values()].flatMap((client) => client.items);
+  }
+
   /** Meta-Variante für den Batch-Abgleich ohne volles Row-Parsing. */
   private presenceMatchesMeta(source: NotificationSource, meta: Record<string, unknown>): boolean {
     const cutoff = Date.now() - this.presenceTtlMilliseconds;
-    for (const entry of this.presence) {
+    for (const entry of this.activePresence()) {
       if (entry.lastSeenAt < cutoff || entry.source !== source) continue;
       if (entry.threadId && meta.threadId === entry.threadId) return true;
       if (entry.sessionId && (meta.sessionId === entry.sessionId || meta.runtimeId === entry.sessionId)) return true;

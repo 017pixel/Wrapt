@@ -35,7 +35,7 @@ export class OperationalAuditDatabase {
   private readonly outboxPath: string;
   private readonly pruneEntries: StatementSync;
   private verifiedAt = 0;
-  private verifiedValue: { valid: boolean; entries: number; latestAt: string | null } | null = null;
+  private verifiedValue: AuditVerification | null = null;
   private readonly verifier: AuditVerifier;
   private verificationGeneration = 0;
   private asyncVerified: { value: AuditVerification; at: number; generation: number } | null = null;
@@ -175,10 +175,9 @@ export class OperationalAuditDatabase {
     else writeFileSync(this.outboxPath, `${remaining.join("\n")}\n`, { mode: 0o600 });
   }
 
-  verify(): { valid: boolean; entries: number; latestAt: string | null } {
+  verify(): AuditVerification {
     if (this.verifiedValue && Date.now() - this.verifiedAt < this.verifyCacheMilliseconds) return this.verifiedValue;
-    const { valid, entries, latestAt } = verifyAuditDatabase(this.database);
-    const result = { valid, entries, latestAt };
+    const result = verifyAuditDatabase(this.database);
     this.verifiedValue = result;
     this.verifiedAt = Date.now();
     return result;

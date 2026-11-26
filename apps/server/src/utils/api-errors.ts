@@ -140,6 +140,23 @@ export function toApiError(error: unknown): MappedApiError {
   if (typeof error === "object" && error !== null && "statusCode" in error && error.statusCode === 429) {
     return { status: 429, code: "RATE_LIMITED", message: "Zu viele Anfragen. Bitte kurz warten.", details: null, retryable: true, logAsUnhandled: false };
   }
+  // Framework-Fehler behalten ihre Bedeutung, statt als generische
+  // „Anfrage ungültig"-Meldung zu enden.
+  const fastifyCode = typeof error === "object" && error !== null && "code" in error && typeof error.code === "string"
+    ? error.code
+    : null;
+  if (fastifyCode === "FST_ERR_CTP_BODY_TOO_LARGE") {
+    return { status: 413, code: "PAYLOAD_TOO_LARGE", message: "Die Anfrage ist größer als erlaubt.", details: null, retryable: false, logAsUnhandled: false };
+  }
+  if (fastifyCode === "FST_REQ_FILE_TOO_LARGE" || fastifyCode === "FST_FILES_LIMIT" || fastifyCode === "FST_FIELDS_LIMIT" || fastifyCode === "FST_PARTS_LIMIT") {
+    return { status: 413, code: "FILE_TOO_LARGE", message: "Die Datei oder das Formular überschreitet das erlaubte Limit.", details: null, retryable: false, logAsUnhandled: false };
+  }
+  if (fastifyCode === "FST_ERR_CTP_INVALID_MEDIA_TYPE") {
+    return { status: 415, code: "UNSUPPORTED_MEDIA_TYPE", message: "Dieser Inhaltstyp wird an dieser Stelle nicht unterstützt.", details: null, retryable: false, logAsUnhandled: false };
+  }
+  if (fastifyCode === "FST_ERR_CTP_INVALID_JSON_BODY" || fastifyCode === "FST_ERR_CTP_EMPTY_JSON_BODY") {
+    return { status: 400, code: "INVALID_JSON", message: "Der JSON-Inhalt konnte nicht gelesen werden.", details: null, retryable: false, logAsUnhandled: false };
+  }
   if (
     typeof error === "object"
     && error !== null
