@@ -26,9 +26,7 @@ fi
 step "Installiere Abhängigkeiten (pnpm install) …"
 run_pnpm install
 
-step "Baue @wrapt/extension-contracts …"
-run_pnpm --filter @wrapt/extension-contracts build
-build_contracts
+build_workspace_dependencies
 build_frontend
 build_backend
 sync_t3_channel

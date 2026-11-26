@@ -208,11 +208,23 @@ log "pnpm: $pnpm_cmd — node: $(command -v node || echo 'nicht gefunden') $(nod
 # Reihenfolge wie im Root-build: erst Extension-Contracts, dann Haupt-Contracts.
 # Sonst ist ein Restart nach einer Extension-Schema-Änderung „succeeded", baut aber
 # gegen veraltete Schemas und scheitert erst zur Laufzeit mit ZodError (A-009).
-build_contracts() {
+# Gemeinsamer Build-Graph vor Server und Web. Die Reihenfolge entspricht dem
+# Root-Build; plugin-sdk und Icons werden zur Laufzeit gebraucht und dürfen
+# deshalb nicht veralten.
+build_workspace_dependencies() {
   step "Baue @wrapt/extension-contracts …"
   run_pnpm --filter @wrapt/extension-contracts build
+  step "Baue @wrapt/plugin-sdk …"
+  run_pnpm --filter @wrapt/plugin-sdk build
   step "Baue @wrapt/contracts …"
   run_pnpm --filter @wrapt/contracts build
+  step "Baue App-Icons …"
+  run_pnpm build:icons
+}
+
+# Rückwärtskompatibler Name für vorhandene Aufrufer.
+build_contracts() {
+  build_workspace_dependencies
 }
 
 build_frontend() {
@@ -248,7 +260,14 @@ sync_t3_channel() {
   bash "$repo_root/scripts/sync-t3-channel.sh"
 }
 
+# Optionaler OpenCode-Web-Schalter; ohne explizites `true` in der Config gilt: aus.
+opencode_web_enabled() { node -e 'const {readFileSync}=require("node:fs");const {join}=require("node:path");const dir=process.argv[1];for(const name of ["wrapt.local.json","wrapt.example.json","workbench.local.json"]){try{const c=JSON.parse(readFileSync(join(dir,name),"utf8"));process.stdout.write(c.opencodeWeb?.enabled===true?"1":"0");return}catch{/* nächster Kandidat */}}process.stdout.write("0")' "$repo_root/config" 2>/dev/null || printf '0'; }
+
 sync_opencode_web() {
+  if [[ "$(opencode_web_enabled)" != "1" ]]; then
+    step "OpenCode Web ist deaktiviert — wird übersprungen."
+    return 0
+  fi
   if ! is_linux_platform; then
     warn "OpenCode Web wird außerhalb von Linux mit systemd nicht synchronisiert."
     return 0
@@ -359,11 +378,17 @@ verify_backend_marker() {
 verify_frontend_marker() {
   local baseline="${RESTART_BASELINE_WEB_BUILD_ID:-}" current
   local deadline=$((SECONDS + 30))
+  local base_url="${WRAPT_HEALTH_URL:-http://127.0.0.1:3010}"
   step "Prüfe den neuen Frontend-Build …"
   while (( SECONDS < deadline )); do
     current="$(health_value webBuildId || true)"
     if [[ -n "$current" && ( -z "$baseline" || "$current" != "$baseline" ) ]]; then
-      return 0
+      # Der Marker allein beweist nur die Datei-mtime, nicht die Auslieferung.
+      if curl -fsS --max-time 5 -H "Accept: text/html" -o /dev/null "${base_url}/wrapt/"; then
+        return 0
+      fi
+      err "Der Build ist vorhanden, aber ${base_url}/wrapt/ liefert kein Frontend. Prüfe den Dienst mit: bash scripts/restart-backend.sh"
+      return 1
     fi
     sleep 1
   done

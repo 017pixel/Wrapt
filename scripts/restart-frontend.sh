@@ -6,11 +6,7 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib-restart.sh"
 restart_begin frontend
 
-build_contracts
+build_workspace_dependencies
 build_frontend
-if is_linux_platform; then
-  verify_frontend_marker
-  log "Frontend neu gebaut. Lade die Seite neu, um die Änderungen zu sehen."
-else
-  log "Frontend neu gebaut. Der laufende Server liefert das neue dist/ sofort aus; lade die Seite neu."
-fi
+verify_frontend_marker
+log "Frontend neu gebaut und ausgeliefert. Lade die Seite neu, um die Änderungen zu sehen."

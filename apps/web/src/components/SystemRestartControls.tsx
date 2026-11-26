@@ -29,7 +29,7 @@ const RESTART_POLL_MS = 1_500;
 /** Testnaht: Im Browser window-APIs, im Test stubbar — Verhalten unverändert. */
 export const restartEnv = {
   reload: () => window.location.reload(),
-  confirmDirty: () => window.confirm("Es gibt ungespeicherte Änderungen in einem Editor. Trotzdem neu laden?"),
+  confirmDirty: () => window.confirm("Es gibt ungespeicherte Änderungen in einem Editor. Der Neustart beendet laufende KI-Sitzungen und kann ungespeicherte Änderungen verlieren. Trotzdem neu starten?"),
 };
 
 export interface SystemRestartOptions {
@@ -81,6 +81,9 @@ export function useSystemRestart(options: SystemRestartOptions = {}) {
   }
 
   async function run(target: RestartTarget, trigger: () => ReturnType<typeof apiClient.restartSystem>) {
+    // Die Prüfung muss vor der destruktiven Aktion laufen. Nach dem Neustart
+    // sind laufende KI-Sitzungen bereits beendet; ein Abbruch käme zu spät.
+    if (editorsHaveUnsavedChanges() && !restartEnv.confirmDirty()) return;
     const generation = ++generationRef.current;
     setPhase({ status: "working", target, step: "Neustart wird angestoßen …" });
     try {
@@ -90,12 +93,6 @@ export function useSystemRestart(options: SystemRestartOptions = {}) {
       const result = await waitForResult(target, response, generation);
       if (generationRef.current !== generation) return;
       if (result.ok) {
-        // Dirty-Guard (U-002): Der Neustart killt auch laufende KI-Sitzungen und
-        // Verwirft Filter-/Scroll-Kontext; ungespeicherte Editor-Inhalte vorher bestätigen.
-        if (editorsHaveUnsavedChanges() && !restartEnv.confirmDirty()) {
-          setPhase({ status: "idle" });
-          return;
-        }
         restartEnv.reload();
         return;
       }

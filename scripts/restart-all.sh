@@ -5,7 +5,7 @@ set -euo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/lib-restart.sh"
 restart_begin both
 
-build_contracts
+build_workspace_dependencies
 build_frontend
 build_backend
 sync_t3_channel

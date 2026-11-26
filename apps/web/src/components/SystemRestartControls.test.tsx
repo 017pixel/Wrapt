@@ -100,6 +100,8 @@ describe("useSystemRestart", () => {
       const { result } = renderHook(() => useSystemRestart({ deadlineMs: 1_000, pollMs: 5 }));
       await act(async () => { await result.current.restart("backend"); });
       expect(restartEnv.confirmDirty).toHaveBeenCalledTimes(1);
+      expect(apiClient.restartSystem).not.toHaveBeenCalled();
+      expect(apiClient.restartStatus).not.toHaveBeenCalled();
       expect(restartEnv.reload).not.toHaveBeenCalled();
     } finally { unregister(); }
   });
