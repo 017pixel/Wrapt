@@ -1,6 +1,6 @@
 {
   "name": "@wrapt/server",
-  "version": "3.1.4",
+  "version": "3.4.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,7 +17,7 @@
     "@fastify/multipart": "^10.1.1",
     "@fastify/rate-limit": "11.2.0",
     "@fastify/reply-from": "12.6.5",
-    "@fastify/static": "10.1.4",
+    "@fastify/static": "11.0.0",
     "@fastify/websocket": "^11.3.0",
     "@wrapt/contracts": "workspace:*",
     "@wrapt/extension-contracts": "workspace:*",
@@ -30,7 +30,7 @@
     "fuse.js": "^7.5.0",
     "node-pty": "^1.1.0",
     "parse5": "8.0.1",
-    "systeminformation": "5.33.11",
+    "systeminformation": "5.33.26",
     "typescript": "6.0.3",
     "undici": "8.12.3",
     "web-push": "^3.6.7",
@@ -42,6 +42,6 @@
     "@types/web-push": "^3.6.4",
     "@types/ws": "8.18.1",
     "tsx": "4.23.15",
-    "vitest": "5.0.1"
+    "vitest": "5.0.5"
   }
 }

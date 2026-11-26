@@ -1,6 +1,6 @@
 {
   "name": "@wrapt/contracts",
-  "version": "0.27.0",
+  "version": "0.28.0",
   "private": true,
   "type": "module",
   "exports": {
@@ -24,6 +24,6 @@
   },
   "devDependencies": {
     "typescript": "6.0.3",
-    "vitest": "5.0.1"
+    "vitest": "5.0.5"
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "wrapt",
-  "version": "3.1.4",
+  "version": "3.4.0",
   "license": "MIT",
   "type": "module",
   "packageManager": "pnpm@10.29.2",
@@ -42,12 +42,18 @@
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.63.0",
     "@types/ws": "8.18.1",
-    "@vitest/coverage-v8": "5.0.1",
+    "@vitest/coverage-v8": "5.0.5",
     "eslint": "10.11.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "globals": "17.12.0",
     "typescript": "6.0.3",
     "typescript-eslint": "8.70.0",
     "ws": "8.21.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "decode-uri-component": ">=0.5.1",
+      "katex": "0.18.7"
+    }
   }
 }

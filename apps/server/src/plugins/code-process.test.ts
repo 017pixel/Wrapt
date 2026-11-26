@@ -43,7 +43,9 @@ describe("ausführbare Plugin-Prozesse", () => {
   });
 
   it("beendet endlos laufenden Plugin-Code nach dem Zeitlimit", async () => {
-    const instance = runtime("export default { setup(ctx) { ctx.rpc.register('hang', { handler() { while (true) {} } }); } };", 1500);
+    // Der Standardwert gilt auch für den Start. Unter Last darf der Handshake
+    // länger dauern; der hängende Aufruf wird separat auf 100 ms begrenzt.
+    const instance = runtime("export default { setup(ctx) { ctx.rpc.register('hang', { handler() { while (true) {} } }); } };", 5000);
     await instance.start();
     await instance.call("activate");
     await expect(instance.call("rpc", { name: "hang" }, 100)).rejects.toThrow("Zeitlimit");

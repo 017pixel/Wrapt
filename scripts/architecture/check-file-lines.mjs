@@ -27,7 +27,7 @@ const SOURCE_EXTENSIONS = new Set([
 const IGNORED_DIRECTORIES = new Set([
   "node_modules", "dist", "coverage", ".git", ".next", ".turbo",
   "playwright-report", "test-results", "data", "plans", "memory", "handoffs",
-  ".playwright-mcp", ".proxy", ".opencode", "backups", "generated",
+  ".playwright-mcp", ".proxy", ".opencode", "backups", "generated", "audits",
 ]);
 const GENERATED_PROJECT_DIRECTORIES = new Set([
   // Tauri kompiliert hier Cargo-Artefakte und seine Konfigurationsschemas.
@@ -99,7 +99,11 @@ function isIgnoredPath(path) {
   const normalized = path.replaceAll("\\", "/");
   const rootPrefix = `${root.replaceAll("\\", "/")}/`;
   const relativePath = normalized.startsWith(rootPrefix) ? normalized.slice(rootPrefix.length) : normalized;
-  return relativePath.split("/").some((segment) => IGNORED_DIRECTORIES.has(segment))
+  // Gitignorierte lokale Konfiguration ist kein Projektcode und darf den
+  // lokalen Gate nicht gegen einen frischen Checkout unterscheiden.
+  const localConfig = relativePath.startsWith("config/") && relativePath.endsWith(".local.json");
+  return localConfig
+    || relativePath.split("/").some((segment) => IGNORED_DIRECTORIES.has(segment))
     || [...GENERATED_PROJECT_DIRECTORIES].some((directory) => relativePath === directory || relativePath.startsWith(`${directory}/`));
 }
 

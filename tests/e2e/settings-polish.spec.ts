@@ -33,24 +33,33 @@ test("wählt Hintergründe mit Buttons, Tastatur und Wischen und behält die Aus
   await expect(page.getByRole("radio", { name: "Zugriff & Sicherheit", exact: true })).toBeChecked();
 });
 
-test("hält die Füße in der Statusleiste bei jeder Größe oberhalb der Fensterkante", async ({ page }) => {
+test("hält die Füße in Statusleiste und Vorschau bei jeder Größe auf der Unterkante", async ({ page }) => {
   await page.goto("/wrapt/settings#einstellungen:easter-eggs");
   const toggle = page.getByRole("switch", { name: /Maskottchen anzeigen/ });
   if (await toggle.getAttribute("aria-checked") === "false") await toggle.click();
   const slider = page.getByRole("slider", { name: "Größe", exact: true });
+  // Ruhige Pose verhindert zeitabhängige Messwerte während des Laufens.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const feet = (selector: string) => page.locator(selector).evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    // Alle 64px-Sprites enden spätestens in Pixelzeile 55.
+    return { bottom: bounds.top + bounds.height * 55 / 64, floor: innerHeight };
+  });
   for (const value of ["50", "100", "200"]) {
     await slider.fill(value);
     await slider.blur();
     await expect(page.locator(".status-mascot")).toHaveAttribute("data-scale", String(Number(value) / 100));
-    const sprite = page.locator(".status-mascot .capy-sprite");
-    // Ruhige Pose verhindert zeitabhängige Messwerte während des Laufens.
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    const feet = await sprite.evaluate((element) => {
+    const statusFeet = await feet(".status-mascot .capy-sprite");
+    expect(statusFeet.bottom).toBeGreaterThanOrEqual(statusFeet.floor - 1);
+    expect(statusFeet.bottom).toBeLessThanOrEqual(statusFeet.floor + 1);
+    const previewFeet = await page.locator(".mascot-preview .capy-sprite").evaluate((element) => {
       const bounds = element.getBoundingClientRect();
-      // Alle 64px-Sprites enden spätestens in Pixelzeile 55.
-      return { bottom: bounds.top + bounds.height * 55 / 64, viewport: innerHeight };
+      const panel = element.closest(".mascot-preview")!.getBoundingClientRect();
+      return { bottom: bounds.top + bounds.height * 55 / 64, floor: panel.bottom };
     });
-    expect(feet.bottom).toBeLessThanOrEqual(feet.viewport - 1);
+    // Der Rahmen der Vorschau ist die Unterkante; die Füße stehen direkt darauf.
+    expect(previewFeet.bottom).toBeGreaterThanOrEqual(previewFeet.floor - 2);
+    expect(previewFeet.bottom).toBeLessThanOrEqual(previewFeet.floor);
     await expect(page.getByRole("button", { name: "Capybara testen" })).toHaveAttribute("data-scale", String(Number(value) / 100));
   }
   await toggle.click();

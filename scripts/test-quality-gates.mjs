@@ -43,6 +43,11 @@ try {
     env: { ...process.env, WRAPT_FILE_LINES_ROOT: lineRoot, WRAPT_FILE_LINES_BASELINE: join(lineRoot, "file-line-baseline.json") },
   });
   await writeFile(join(lineRoot, "fixture.ts"), `${"export const line = 1;\n".repeat(400)}`);
+  // Auditberichte und gitignorierte lokale Konfiguration sind kein Projektcode.
+  await mkdir(join(lineRoot, "audits/overall"), { recursive: true });
+  await writeFile(join(lineRoot, "audits/overall/bericht.md"), "Zeile\n".repeat(500));
+  await mkdir(join(lineRoot, "config"), { recursive: true });
+  await writeFile(join(lineRoot, "config/wrapt.local.json"), "{}\n".repeat(500));
   await run(process.execPath, [checker], {
     cwd: repositoryRoot,
     env: { ...process.env, WRAPT_FILE_LINES_ROOT: lineRoot, WRAPT_FILE_LINES_BASELINE: join(lineRoot, "file-line-baseline.json") },

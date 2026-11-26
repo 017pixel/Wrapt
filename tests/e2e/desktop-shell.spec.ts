@@ -18,21 +18,20 @@ test("keeps the information-dense desktop shell", async ({ page }) => {
   }
 });
 
-test("moves standalone T3 Code actions into the topbar", async ({ page }) => {
+test("renders T3 Code without the shell topbar", async ({ page }) => {
   await page.goto("/wrapt/t3-code");
-  const actions = page.locator("#topbar-tool-actions");
-  await expect(actions).toBeVisible();
+  await expect(page.locator(".topbar")).toHaveCount(0);
+  await expect(page.locator("#topbar-tool-actions")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Quick Note öffnen" })).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Projekt auswählen" })).toHaveCount(0);
-  await actions.getByRole("button", { name: "Werkzeugaktionen" }).click();
-  const menu = actions.getByRole("menu", { name: "Werkzeugaktionen" });
-  await expect(menu.getByRole("menuitem", { name: "Neu laden" })).toBeVisible();
-  await expect(menu.getByRole("menuitem", { name: "In neuem Tab öffnen" })).toBeVisible();
-  await expect(menu.getByRole("menuitem", { name: "Vollbild" })).toBeVisible();
-  await expect(page.locator(".standalone-tool-content .panel-island")).toHaveCount(0);
-  await menu.getByRole("menuitem", { name: "Vollbild" }).click();
-  await expect(page.locator(".tool-surface-maximized")).toBeVisible();
-  // Im Vollbild steht die Wiederherstellen-Aktion direkt in den Topbar-Aktionen.
-  await expect(page.locator("#topbar-tool-actions").getByRole("button", { name: "Wiederherstellen" })).toBeVisible();
+
+  // Der Inhalt beginnt direkt am oberen Rand der Hauptfläche.
+  const mainBox = await page.locator("#main-content").boundingBox();
+  const contentBox = await page.locator(".standalone-tool-content").boundingBox();
+  expect(mainBox).not.toBeNull();
+  expect(contentBox).not.toBeNull();
+  expect(contentBox!.y).toBeCloseTo(mainBox!.y, 0);
+  expect(contentBox!.height).toBeCloseTo(mainBox!.height, 0);
 });
 
 test("öffnet Schnellaktionen auf freien Bereichen der Shell", async ({ page }) => {
@@ -106,8 +105,7 @@ test("keeps one standalone tool menu after switching between tool routes", async
   const editorRunning = services.services.some((service) => service.id === "code-server" && service.state === "active");
 
   await page.goto("/wrapt/t3-code");
-  const actions = page.locator("#topbar-tool-actions");
-  await expect(actions.getByRole("button", { name: "Werkzeugaktionen" })).toHaveCount(1);
+  await expect(page.locator("#topbar-tool-actions")).toHaveCount(0);
 
   await page.getByRole("link", { name: "Code-Server" }).click();
   await expect(page).toHaveURL(/\/wrapt\/code-editor$/);
@@ -121,5 +119,6 @@ test("keeps one standalone tool menu after switching between tool routes", async
 
   await page.getByRole("link", { name: "T3 Code" }).click();
   await expect(page).toHaveURL(/\/wrapt\/t3-code$/);
-  await expect(page.locator("#topbar-tool-actions").getByRole("button", { name: "Werkzeugaktionen" })).toHaveCount(1);
+  await expect(page.locator(".topbar")).toHaveCount(0);
+  await expect(page.locator("#topbar-tool-actions")).toHaveCount(0);
 });
