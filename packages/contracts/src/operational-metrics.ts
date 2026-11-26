@@ -74,7 +74,14 @@ export const operationalMetricsSchema = z.object({
     latestAt: isoDateSchema.nullable(),
     outboxPending: z.number().int().nonnegative().default(0),
     checkedSequence: z.number().int().nonnegative().optional(),
+    /** Nach der 10.000er-Retention ist die ältere Kette bewusst nicht geprüft. */
+    truncated: z.boolean().default(false),
+    retainedFromSequence: z.number().int().nonnegative().nullable().default(null),
   }),
+  notes: z.object({
+    historyBytes: z.number().int().nonnegative(),
+    conflictBackupBytes: z.number().int().nonnegative(),
+  }).default({ historyBytes: 0, conflictBackupBytes: 0 }),
   preview: z.object({
     totalSlots: z.number().int().nonnegative(),
     freeSlots: z.number().int().nonnegative(),

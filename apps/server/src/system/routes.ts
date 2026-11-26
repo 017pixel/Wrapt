@@ -5,6 +5,7 @@ import {
   contextMenuConfigResponseSchema,
   dashboardConfigSchema,
   healthResponseSchema,
+  hostCapabilitiesSchema,
   localPortsResponseSchema,
   mascotConfigResponseSchema,
   restartRequestSchema,
@@ -57,6 +58,11 @@ export async function registerSystemRoutes(app: FastifyInstance, services: Route
       .send();
   });
   app.get("/system/dashboard-config", async () => dashboardConfigSchema.parse(settings.dashboard));
+  // Optionale Werkzeuge werden beim Start registriert; die Oberfläche braucht
+  // denselben Stand, um Navigationseinträge und Routen nicht tot anzuzeigen.
+  app.get("/system/capabilities", async () => hostCapabilitiesSchema.parse({
+    opencodeWeb: settings.opencodeWebEnabled,
+  }));
   app.get("/system/appearance", async () => appearanceResponseSchema.parse({ theme: readAppearanceTheme(settings.configDirectory), source: "project" }));
   app.put("/system/appearance", async (request) => {
     requireWorkbenchAdmin(request, services.identity);
@@ -153,7 +159,11 @@ export async function registerSystemRoutes(app: FastifyInstance, services: Route
     return usageMonitoringResponseSchema.parse({ monitoring: result });
   });
   app.get("/server/summary", async () => serverSummarySchema.parse(await systemService.getSummary()));
-  app.get("/server/metrics", async () => serverMetricsSchema.parse(await systemService.getMetrics()));
+  app.get("/server/metrics", async (request) => {
+    const refresh = (request.query as { refresh?: string } | undefined)?.refresh === "true";
+    if (refresh) systemService.invalidateMetrics();
+    return serverMetricsSchema.parse(await systemService.getMetrics());
+  });
   app.get("/services", async () => servicesResponseSchema.parse(await services.statuses.list()));
   app.get("/local-ports", async () => localPortsResponseSchema.parse(await services.localPorts.list()));
 }

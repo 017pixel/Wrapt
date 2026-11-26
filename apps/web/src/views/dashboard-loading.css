@@ -5,7 +5,7 @@
   font-size: inherit;
 }
 
-/* Neue Dienstdaten verändern die Rasterhöhe, nicht die Position des Charts. */
+/* Neue Dienstdaten verändern die Rasterhöhe, nicht die Position der Kacheln. */
 .dash-server-body,
 .dash-recent-project-list {
   align-self: start;

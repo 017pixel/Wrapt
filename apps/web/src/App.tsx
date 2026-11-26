@@ -15,7 +15,6 @@ import { resolveCodePageRoutes } from "./extensions/code-routes";
 import { WorkbenchShortcuts } from "./components/shortcuts/WorkbenchShortcuts";
 import { SettingsSync } from "./components/SettingsSync";
 import { ContextMenuProvider } from "./components/context-menu/ContextMenuProvider";
-import { DashboardMetricsRuntime } from "./views/DashboardMetricsRuntime";
 import { RoutePrefetchHost } from "./components/RoutePrefetchHost";
 import { WorkspaceSwitchLanding } from "./components/workspaces/WorkspaceSwitchLanding";
 
@@ -51,7 +50,6 @@ export function App() {
           <PluginRuntimeSync onReady={markPluginRoutesReady} />
           <CodePluginSync onReady={markCodeRoutesReady} />
           <CodePluginNotifications />
-          <DashboardMetricsRuntime />
           <RoutePrefetchHost />
           <WorkspaceSwitchLanding pluginRoutesReady={pluginRoutesReady && codeRoutesReady}>
             <HomeRedirect />

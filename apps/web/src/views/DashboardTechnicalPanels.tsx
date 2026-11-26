@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { OperationalMetricsResponse, ReadinessResponse, CommandsResponse } from "@wrapt/contracts";
 import { CheckIcon, CopyIcon, ShieldIcon, WarningIcon, CommandIcon, ChevronDownIcon } from "../components/icons";
-import { Badge, StateDot } from "../components/primitives";
+import { Badge } from "../components/primitives";
 import { Meter, loadTone } from "../components/charts";
 import { formatBytes } from "../lib/format";
 import { writeClipboardText } from "../lib/clipboard";
@@ -14,22 +14,38 @@ const readinessCheckLabels: Record<string, string> = {
   "data-directory": "Datenverzeichnis",
 };
 
+function countLabel(count: number, singular: string, plural: string): string {
+  return `${integer.format(count)} ${count === 1 ? singular : plural}`;
+}
+
 function ReadinessList({ readiness }: { readiness: Query<ReadinessResponse> }) {
   if (readiness.isPending) return <PanelSkeleton label="Bereitschaft wird geprüft" rows={2} />;
-  if (readiness.isError) {
-    return <PanelError message={queryMessage(readiness.error, "Die Bereitschaftsprüfung antwortet nicht. Das Backend meldet sich als eingeschränkt.")} />;
+  if (readiness.isError && !readiness.data) {
+    return <PanelError
+      message={queryMessage(readiness.error, "Die Bereitschaftsprüfung antwortet nicht. Das Backend meldet sich als eingeschränkt.")}
+      error={readiness.error}
+      onRetry={() => void readiness.refetch()}
+    />;
   }
   return (
-    <ul className="dash-check-list">
+    <>
+      {readiness.isError && readiness.data ? (
+        <div className="dash-notice is-warn" role="status">
+          <WarningIcon className="h-4 w-4 shrink-0" />
+          <span>Letzte Bereitschaftsprüfung nicht erreichbar. Angezeigt werden gespeicherte Werte.</span>
+          <button type="button" className="quiet-button min-h-11 px-4" onClick={() => void readiness.refetch()}>Erneut versuchen</button>
+        </div>
+      ) : null}
+      <ul className="dash-check-list">
       {readiness.data.checks.map((check) => (
         <li key={check.name}>
-          <StateDot state={check.status === "ok" ? "active" : "error"} />
           <span className="dash-check-name">{readinessCheckLabels[check.name] ?? check.name}</span>
           <strong className={check.status === "ok" ? "is-ok" : "is-bad"}>{check.status === "ok" ? "in Ordnung" : "fehlgeschlagen"}</strong>
         </li>
       ))}
       {readiness.data.checks.length === 0 ? <li className="dash-muted">Keine Prüfungen konfiguriert.</li> : null}
-    </ul>
+      </ul>
+    </>
   );
 }
 
@@ -41,7 +57,9 @@ function WorkbenchDiagnosticsPanel({
   readiness: Query<ReadinessResponse>;
 }) {
   const data = diagnostics.data;
-  const routes = data?.http.routes.slice(0, 6) ?? [];
+  const routes = [...(data?.http.routes ?? [])]
+    .sort((left, right) => right.p99Milliseconds - left.p99Milliseconds)
+    .slice(0, 6);
   const slowestRoute = Math.max(1, ...routes.map((route) => route.p99Milliseconds));
 
   return (
@@ -50,21 +68,31 @@ function WorkbenchDiagnosticsPanel({
       subtitle="Technische Messwerte und Systemhinweise"
       icon={<ShieldIcon className="h-4 w-4" />}
       name="workbench"
-      className="is-span-12"
       meta={
         data ? (
           <Badge tone={data.degradedReasons.length ? "warn" : "ok"}>
-            {data.degradedReasons.length ? `${data.degradedReasons.length} Hinweise` : "Betrieb unauffällig"}
+            {data.degradedReasons.length ? countLabel(data.degradedReasons.length, "Hinweis", "Hinweise") : "Betrieb unauffällig"}
           </Badge>
         ) : null
       }
     >
-      {diagnostics.isError ? (
-        <PanelError message={queryMessage(diagnostics.error, "Diagnosedaten konnten nicht geladen werden.")} />
+      {diagnostics.isError && !data ? (
+        <PanelError
+          message={queryMessage(diagnostics.error, "Diagnosedaten konnten nicht geladen werden.")}
+          error={diagnostics.error}
+          onRetry={() => void diagnostics.refetch()}
+        />
       ) : diagnostics.isPending ? (
         <PanelSkeleton label="Diagnose lädt" rows={4} />
       ) : (
         <div className="dash-diagnostics-body">
+          {diagnostics.isError && data ? (
+            <div className="dash-notice is-warn" role="status">
+              <WarningIcon className="h-4 w-4 shrink-0" />
+              <span>Letzte Diagnose nicht erreichbar. Angezeigt werden gespeicherte Werte.</span>
+              <button type="button" className="quiet-button min-h-11 px-4" onClick={() => void diagnostics.refetch()}>Erneut versuchen</button>
+            </div>
+          ) : null}
           <div>
             <p className="dash-subheading">Bereitschaft</p>
             <ReadinessList readiness={readiness} />
@@ -87,7 +115,11 @@ function WorkbenchDiagnosticsPanel({
             <Facts
               min="100%"
               items={[
-                { label: "Audit", value: data!.audit.valid ? `gültig · ${integer.format(data!.audit.entries)} Einträge` : "Prüfung erforderlich" },
+                { label: "Audit", value: !data!.audit.valid
+                  ? "Prüfung erforderlich"
+                  : data!.audit.truncated
+                    ? `gültig im Retentionbereich · ${countLabel(data!.audit.entries, "jüngster Eintrag", "jüngste Einträge")}`
+                    : `gültig · ${countLabel(data!.audit.entries, "Eintrag", "Einträge")}` },
                 { label: "Letzter Audit-Eintrag", value: data!.audit.latestAt ? formatDateTime(data!.audit.latestAt) : "keiner" },
               ]}
             />
@@ -152,7 +184,7 @@ function WorkbenchDiagnosticsPanel({
                       label={`P99 von ${route.method} ${route.route}`}
                     />
                     <small className="font-mono">
-                      {integer.format(route.count)} Aufrufe · P95 {decimal.format(route.p95Milliseconds)} ms · {integer.format(route.errorCount)} Fehler
+                      {countLabel(route.count, "Aufruf", "Aufrufe")} · P95 {decimal.format(route.p95Milliseconds)} ms · {integer.format(route.errorCount)} Fehler
                     </small>
                   </li>
                 ))}
@@ -199,8 +231,10 @@ function CommandsPanel({
   onSelect: (command: { name: string; description: string; command: string }) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const listId = useId();
   const all = commands.data?.commands ?? [];
   const visible = expanded ? all : all.slice(0, 4);
+  const hiddenCount = Math.max(0, all.length - 4);
 
   return (
     <Panel
@@ -208,15 +242,25 @@ function CommandsPanel({
       subtitle="Nachschlagen und kopieren, keine Ausführung"
       icon={<CommandIcon className="h-4 w-4" />}
       name="commands"
-      className="is-span-8"
     >
-      {commands.isError ? (
-        <PanelError message={queryMessage(commands.error, "Befehle konnten nicht geladen werden.")} />
+      {commands.isError && !commands.data ? (
+        <PanelError
+          message={queryMessage(commands.error, "Befehle konnten nicht geladen werden.")}
+          error={commands.error}
+          onRetry={() => void commands.refetch()}
+        />
       ) : commands.isPending ? (
         <PanelSkeleton label="Befehle laden" rows={2} />
       ) : (
         <>
-          <ul className="dash-command-list">
+          {commands.isError && commands.data ? (
+            <div className="dash-notice is-warn" role="status">
+              <WarningIcon className="h-4 w-4 shrink-0" />
+              <span>Befehle konnten nicht aktualisiert werden. Angezeigt werden gespeicherte Werte.</span>
+              <button type="button" className="quiet-button min-h-11 px-4" onClick={() => void commands.refetch()}>Erneut versuchen</button>
+            </div>
+          ) : null}
+          <ul id={listId} className="dash-command-list">
             {visible.map((command) => (
               <li key={command.id}>
                 <div>
@@ -231,9 +275,15 @@ function CommandsPanel({
               </li>
             ))}
           </ul>
-          {all.length > 4 ? (
-            <button type="button" className="dash-more" onClick={() => runWithViewTransition(() => setExpanded((value) => !value))}>
-              {expanded ? "Weniger anzeigen" : `${all.length - 4} weitere Befehle anzeigen`}
+          {hiddenCount > 0 ? (
+            <button
+              type="button"
+              className="dash-more"
+              aria-expanded={expanded}
+              aria-controls={listId}
+              onClick={() => runWithViewTransition(() => setExpanded((value) => !value))}
+            >
+              {expanded ? "Weniger anzeigen" : hiddenCount === 1 ? "1 weiterer Befehl anzeigen" : `${hiddenCount} weitere Befehle anzeigen`}
             </button>
           ) : null}
         </>
@@ -262,12 +312,12 @@ export function AdvancedDashboardPanel({
   const issueCount = diagnosticsVisible ? diagnostics.data?.degradedReasons.length ?? 0 : 0;
 
   return (
-    <details className="dash-panel dash-advanced-panel is-span-12">
+    <details className="dash-panel dash-advanced-panel">
       <summary className="dash-advanced-summary">
         <span className="dash-panel-icon"><ShieldIcon className="h-4 w-4" /></span>
         <span className="dash-advanced-copy">
           <strong>Technische Details</strong>
-          <small>{issueCount ? `${issueCount} Betriebshinweise` : description}</small>
+          <small>{issueCount ? countLabel(issueCount, "Betriebshinweis", "Betriebshinweise") : description}</small>
         </span>
         <ChevronDownIcon className="dash-advanced-chevron h-4 w-4" aria-hidden="true" />
       </summary>

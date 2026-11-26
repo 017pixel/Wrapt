@@ -24,6 +24,11 @@ interface Bounds {
   max: number;
 }
 
+interface TimeDomain {
+  start: number;
+  end: number;
+}
+
 function bounds(values: readonly number[], fixed?: Bounds): Bounds {
   if (fixed) return fixed;
   const max = Math.max(...values);
@@ -33,18 +38,67 @@ function bounds(values: readonly number[], fixed?: Bounds): Bounds {
   return { min: min - padding, max: max + padding };
 }
 
-function toPath(values: readonly number[], height: number, range: Bounds): string {
+/**
+ * Gemeinsame Zeitdomain über alle Serien. So liegen Reihen mit Lücken auf
+ * derselben x-Achse statt jede Serie ihr eigenes Zeitfenster aufzuspannen.
+ */
+function sharedTimeDomain(series: readonly ChartSeries[]): TimeDomain | null {
+  let start = Infinity;
+  let end = -Infinity;
+  for (const item of series) {
+    for (const timestamp of item.timestamps ?? []) {
+      if (!Number.isFinite(timestamp)) continue;
+      start = Math.min(start, timestamp);
+      end = Math.max(end, timestamp);
+    }
+  }
+  return Number.isFinite(start) && Number.isFinite(end) && end > start
+    ? { start, end }
+    : null;
+}
+
+function toPath(
+  values: readonly number[],
+  height: number,
+  range: Bounds,
+  timestamps?: readonly number[],
+  domain?: TimeDomain | null,
+): string {
   return values
     .map((value, index) => {
-      const point = chartPoint(value, index, values.length, height, range);
+      const point = chartPoint(value, index, values.length, height, range, timestamps, domain);
       return `${index === 0 ? "M" : "L"}${point.x.toFixed(2)},${point.y.toFixed(2)}`;
     })
     .join(" ");
 }
 
-function chartPoint(value: number, index: number, count: number, height: number, range: Bounds) {
+function chartPoint(
+  value: number,
+  index: number,
+  count: number,
+  height: number,
+  range: Bounds,
+  timestamps?: readonly number[],
+  domain?: TimeDomain | null,
+) {
   const span = range.max - range.min || 1;
-  const x = count === 1 ? VIEW_WIDTH : (index / (count - 1)) * VIEW_WIDTH;
+  const hasTimestamps = timestamps?.length === count;
+  let x: number;
+  if (domain && hasTimestamps) {
+    const timestamp = timestamps[index];
+    x = typeof timestamp === "number" && Number.isFinite(timestamp)
+      ? ((timestamp - domain.start) / (domain.end - domain.start)) * VIEW_WIDTH
+      : VIEW_WIDTH;
+  } else if (hasTimestamps && count > 1) {
+    const start = timestamps[0] ?? 0;
+    const timeSpan = (timestamps[count - 1] ?? start) - start;
+    x = timeSpan > 0
+      ? (((timestamps[index] ?? start) - start) / timeSpan) * VIEW_WIDTH
+      : (index / (count - 1)) * VIEW_WIDTH;
+  } else {
+    x = count === 1 ? VIEW_WIDTH : (index / (count - 1)) * VIEW_WIDTH;
+  }
+  x = Math.max(0, Math.min(VIEW_WIDTH, x));
   const y = height - ((value - range.min) / span) * height;
   return { x, y: Math.max(0, Math.min(height, y)) };
 }
@@ -87,6 +141,8 @@ export interface ChartSeries {
   id: string;
   label: string;
   values: readonly number[];
+  /** Optional echte Zeitstempel, damit die x-Achse Lücken abbildet. */
+  timestamps?: readonly number[];
   tone: ChartTone;
   /** Formatierter Momentanwert für die Legende. */
   readout?: string;
@@ -117,6 +173,7 @@ export function TrendChart({
   const hasData = series.some((item) => item.values.length >= 2);
   const allValues = series.flatMap((item) => [...item.values]);
   const range = bounds(allValues.length ? allValues : [0, 1], fixedBounds);
+  const domain = sharedTimeDomain(series);
 
   return (
     <figure className="chart">
@@ -147,16 +204,20 @@ export function TrendChart({
             );
           })}
           {hasData
-            ? series.map((item) =>
-                item.values.length < 2 ? null : (
+            ? series.map((item) => {
+                if (item.values.length < 2) return null;
+                const line = toPath(item.values, height, range, item.timestamps, domain);
+                const first = chartPoint(item.values[0]!, 0, item.values.length, height, range, item.timestamps, domain);
+                const last = chartPoint(item.values[item.values.length - 1]!, item.values.length - 1, item.values.length, height, range, item.timestamps, domain);
+                return (
                   <g key={item.id}>
                     <path
-                      d={`${toPath(item.values, height, range)} L${VIEW_WIDTH},${height} L0,${height} Z`}
+                      d={`${line} L${last.x.toFixed(2)},${height} L${first.x.toFixed(2)},${height} Z`}
                       fill={toneColors[item.tone]}
                       opacity=".08"
                     />
                     <path
-                      d={toPath(item.values, height, range)}
+                      d={line}
                       fill="none"
                       stroke={toneColors[item.tone]}
                       strokeWidth="1.5"
@@ -164,14 +225,14 @@ export function TrendChart({
                       vectorEffect="non-scaling-stroke"
                     />
                   </g>
-              ),
-            )
+                );
+              })
             : null}
-          {hasSamples
+          {hasSamples && series.every((item) => item.values.length <= 120)
             ? series.map((item) => (
                 <g key={`${item.id}-samples`}>
                   {item.values.map((value, index) => {
-                    const point = chartPoint(value, index, item.values.length, height, range);
+                    const point = chartPoint(value, index, item.values.length, height, range, item.timestamps, domain);
                     return (
                       <circle
                         key={`${item.id}-${index}`}

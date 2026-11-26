@@ -36,10 +36,18 @@ export const healthResponseSchema = z.object({
   webBuildId: z.number().int().nullable(),
 });
 
+// Optionale Host-Funktionen, die der Server freischaltet. Die Oberfläche
+// leitet daraus ab, welche Routen und Navigationseinträge registriert werden.
+// Ein fehlendes Feld gilt bewusst als "nicht verfügbar".
+export const hostCapabilitiesSchema = z.object({
+  opencodeWeb: z.boolean().default(false),
+});
+
 export const dashboardSectionSchema = z.enum([
   "quickActions",
   "server",
   "metrics",
+  "wrapt",
   "services",
   "runtime",
   "diagnostics",
@@ -48,10 +56,14 @@ export const dashboardSectionSchema = z.enum([
 ]);
 
 export const dashboardConfigSchema = z.object({
+  // Zeitfenster des serverseitigen Verlaufs. Die Anzahl der Punkte ergibt sich
+  // aus dem Messintervall und ist auf 720 begrenzt.
+  historyMilliseconds: z.number().int().min(60_000).max(86_400_000).default(3_600_000),
   sections: z.object({
     quickActions: z.boolean().default(true),
     server: z.boolean().default(true),
     metrics: z.boolean().default(true),
+    wrapt: z.boolean().default(true),
     services: z.boolean().default(true),
     runtime: z.boolean().default(true),
     diagnostics: z.boolean().default(true),
@@ -144,10 +156,50 @@ export const serverSummarySchema = z.object({
   lastUpdated: isoDateSchema,
 });
 
+// CPU-Metadaten und Kernwerte. Marke und Kernanzahl sind statisch, die Last-
+// und Temperaturreihen folgen der jeweiligen Messung. Ältere Server liefern
+// das Feld nicht; Clients müssen es daher als optional behandeln.
+export const serverCpuMetricsSchema = z.object({
+  brand: z.string(),
+  cores: z.number().int().nonnegative(),
+  physicalCores: z.number().int().nonnegative(),
+  coreLoadPercent: z.array(z.number().min(0).max(100)),
+  coreTemperatures: z.array(z.number().nullable()),
+});
+
+export const serverNetworkInterfaceMetricsSchema = z.object({
+  name: z.string().min(1),
+  receivedBytesPerSecond: z.number().nonnegative().nullable(),
+  transmittedBytesPerSecond: z.number().nonnegative().nullable(),
+});
+
+export const serverNetworkMetricsSchema = z.object({
+  receivedBytesPerSecond: z.number().nonnegative().nullable(),
+  transmittedBytesPerSecond: z.number().nonnegative().nullable(),
+  interfaces: z.array(serverNetworkInterfaceMetricsSchema).default([]),
+});
+
+export const serverDiskIoMetricsSchema = z.object({
+  readBytesPerSecond: z.number().nonnegative().nullable(),
+  writeBytesPerSecond: z.number().nonnegative().nullable(),
+});
+
+export const serverTopProcessSchema = z.object({
+  pid: z.number().int().positive(),
+  name: z.string().min(1),
+  cpuPercent: z.number().nonnegative(),
+  memoryBytes: z.number().nonnegative(),
+});
+
 export const serverMetricHistorySampleSchema = z.object({
   timestamp: isoDateSchema,
   cpuPercent: z.number().min(0).max(100),
   memoryPercent: z.number().min(0).max(100),
+  networkReceivedBytesPerSecond: z.number().nonnegative().nullable().optional(),
+  networkTransmittedBytesPerSecond: z.number().nonnegative().nullable().optional(),
+  diskReadBytesPerSecond: z.number().nonnegative().nullable().optional(),
+  diskWriteBytesPerSecond: z.number().nonnegative().nullable().optional(),
+  temperatureCelsius: z.number().nullable().optional(),
 });
 
 export const serverMetricsSchema = z.object({
@@ -168,7 +220,15 @@ export const serverMetricsSchema = z.object({
   ),
   loadAverage: z.tuple([z.number(), z.number(), z.number()]),
   temperatureCelsius: z.number().nullable(),
+  // Optionale Erweiterungen; fehlen sie, stammt die Antwort von einem älteren Server.
+  cpu: serverCpuMetricsSchema.optional(),
+  network: serverNetworkMetricsSchema.optional(),
+  diskIo: serverDiskIoMetricsSchema.optional(),
+  topProcesses: z.array(serverTopProcessSchema).max(5).default([]),
+  // Alte Browser validieren `history` noch mit max(25). Der lange Verlauf für
+  // neue Clients liegt deshalb in einem eigenen Feld.
   history: z.array(serverMetricHistorySampleSchema).max(25).default([]),
+  historyExtended: z.array(serverMetricHistorySampleSchema).max(720).default([]),
   lastUpdated: isoDateSchema,
 });
 
@@ -214,6 +274,8 @@ export type ApiError = z.infer<typeof apiErrorSchema>;
 
 export type HealthResponse = z.infer<typeof healthResponseSchema>;
 
+export type HostCapabilities = z.infer<typeof hostCapabilitiesSchema>;
+
 export type DashboardSection = z.infer<typeof dashboardSectionSchema>;
 
 export type DashboardConfig = z.infer<typeof dashboardConfigSchema>;
@@ -227,6 +289,16 @@ export type T3ChannelRequest = z.infer<typeof t3ChannelRequestSchema>;
 export type T3ChannelStatusResponse = z.infer<typeof t3ChannelStatusResponseSchema>;
 
 export type ServerSummary = z.infer<typeof serverSummarySchema>;
+
+export type ServerCpuMetrics = z.infer<typeof serverCpuMetricsSchema>;
+
+export type ServerNetworkInterfaceMetrics = z.infer<typeof serverNetworkInterfaceMetricsSchema>;
+
+export type ServerNetworkMetrics = z.infer<typeof serverNetworkMetricsSchema>;
+
+export type ServerDiskIoMetrics = z.infer<typeof serverDiskIoMetricsSchema>;
+
+export type ServerTopProcess = z.infer<typeof serverTopProcessSchema>;
 
 export type ServerMetricHistorySample = z.infer<typeof serverMetricHistorySampleSchema>;
 

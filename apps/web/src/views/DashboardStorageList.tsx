@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import type { ServerMetrics } from "@wrapt/contracts";
 import { Meter, loadTone } from "../components/charts";
 import { formatBytes } from "../lib/format";
@@ -33,6 +33,7 @@ function diskLabel(mount: string): string {
 
 export function DashboardStorageList({ disks, isPending }: { disks: Disk[]; isPending: boolean }) {
   const [expanded, setExpanded] = useState(false);
+  const listId = useId();
   const ordered = [...disks].sort((left, right) =>
     diskPriority(left.mount) - diskPriority(right.mount) || right.usedPercent - left.usedPercent,
   );
@@ -56,7 +57,7 @@ export function DashboardStorageList({ disks, isPending }: { disks: Disk[]; isPe
         </ul>
       ) : ordered.length ? (
         <>
-          <ul className="dash-disk-list">
+          <ul id={listId} className="dash-disk-list">
             {visible.map((disk) => (
               <li key={disk.mount}>
                 <div className="dash-disk-summary">
@@ -74,6 +75,7 @@ export function DashboardStorageList({ disks, isPending }: { disks: Disk[]; isPe
               type="button"
               className="dash-disk-expand"
               aria-expanded={expanded}
+              aria-controls={listId}
               onClick={() => setExpanded((value) => !value)}
             >
               {expanded ? "Weniger anzeigen" : `${ordered.length - VISIBLE_DISKS} weitere anzeigen`}

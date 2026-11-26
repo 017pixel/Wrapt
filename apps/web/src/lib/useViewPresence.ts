@@ -136,11 +136,12 @@ export function useViewPresence() {
   );
   presenceRef.current = presence;
 
+  const clientIdRef = useRef(typeof crypto !== "undefined" && typeof crypto.randomUUID === "function" ? crypto.randomUUID() : `presence-${Math.random().toString(36).slice(2)}`);
   const report = useCallback((force = false) => {
     const serialized = JSON.stringify(presenceRef.current);
     if (!force && serialized === sentRef.current) return;
     sentRef.current = serialized;
-    void apiClient.updatePresence(presenceRef.current).catch(() => {
+    void apiClient.updatePresence(presenceRef.current, clientIdRef.current).catch(() => {
       // Presence ist Best Effort. Der nächste Heartbeat oder Ansichtswechsel meldet erneut.
       sentRef.current = null;
     });

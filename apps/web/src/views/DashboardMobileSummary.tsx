@@ -16,11 +16,10 @@ export function DashboardMobileSummary({ state, serverName, liveLabel }: Dashboa
   return (
     <section className={`dash-mobile-summary is-${state.tone}`} aria-label="Dashboard">
       <div className="dash-mobile-summary-main">
-        {state.tone !== "ok" ? <span className="dash-mobile-summary-dot" aria-hidden /> : null}
         <div>
-          <p>Dashboard</p>
-          <h2>{serverName}</h2>
-          {state.tone !== "ok" ? <span>{state.label}{state.detail ? ` · ${state.detail}` : ""}</span> : null}
+          <h1>Dashboard</h1>
+          <p className="dash-mobile-summary-server">{serverName}</p>
+          <span aria-live="polite">{state.label}{state.detail ? ` · ${state.detail}` : ""}</span>
         </div>
       </div>
       <div className="dash-mobile-summary-meta">

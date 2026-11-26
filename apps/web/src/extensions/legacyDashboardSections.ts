@@ -23,21 +23,21 @@ export interface LegacyDashboardSectionOwner {
 }
 
 /**
- * Die neun bisherigen Dashboard-Bereiche als Legacy Built-ins. Reihenfolge,
- * Titel und Beschreibungen entsprechen exakt der bisherigen statischen
- * Quelle; Sichtbarkeit läuft über den Legacy-Alias auf Config und
- * LocalStorage unverändert weiter.
+ * Die Dashboard-Bereiche als Legacy Built-ins. Der wrapt-Bereich ergänzt
+ * die bisherige Liste. Sichtbarkeit läuft über den Legacy-Alias auf Config
+ * und LocalStorage unverändert weiter.
  */
 const legacyDashboardSectionDefinitions: readonly LegacyDashboardSectionDefinition[] =
   Object.freeze([
-    { id: "wrapt.dashboard.section.quick-actions", title: "Projektaktivität", description: "Zuletzt verwendete Arbeitsbereiche", order: 10, legacySectionId: "quickActions" },
-    { id: "wrapt.dashboard.section.server", title: "Serverstatus", description: "Status, Version, Uptime, Betriebssystem und Tailscale", order: 20, legacySectionId: "server" },
-    { id: "wrapt.dashboard.section.metrics", title: "Systemmetriken", description: "CPU, RAM, Speicher, Last und Temperatur", order: 30, legacySectionId: "metrics" },
-    { id: "wrapt.dashboard.section.services", title: "Dienste", description: "Konfigurierte Dienste und ihre Erreichbarkeit", order: 40, legacySectionId: "services" },
-    { id: "wrapt.dashboard.section.runtime", title: "Laufzeit", description: "Projekte, Ports, Prozesse und Terminal-Sessions", order: 50, legacySectionId: "runtime" },
-    { id: "wrapt.dashboard.section.diagnostics", title: "Diagnose", description: "HTTP, Event Loop, Prozessspeicher und Betriebszustand", order: 60, legacySectionId: "diagnostics" },
-    { id: "wrapt.dashboard.section.usage", title: "Nutzung und Limits", description: "Aktuelle Codex-, OpenCode- und Claude-Limits", order: 70, legacySectionId: "usage" },
-    { id: "wrapt.dashboard.section.commands", title: "Command Reference", description: "Konfigurierte Befehle zum Kopieren", order: 90, legacySectionId: "commands" },
+    { id: "wrapt.dashboard.section.quick-actions", title: "Zuletzt aktiv", description: "Zuletzt verwendete Arbeitsbereiche", order: 10, legacySectionId: "quickActions" },
+    { id: "wrapt.dashboard.section.server", title: "Server", description: "Status, Version, Uptime, Betriebssystem und Tailscale", order: 20, legacySectionId: "server" },
+    { id: "wrapt.dashboard.section.metrics", title: "Kennzahlen", description: "CPU, RAM, Speicher, Last und Temperatur", order: 30, legacySectionId: "metrics" },
+    { id: "wrapt.dashboard.section.wrapt", title: "Wrapt im Überblick", description: "Version, Update, T3 Code, Hermes, Dienste, Build und Ereignisse", order: 40, legacySectionId: "wrapt" },
+    { id: "wrapt.dashboard.section.services", title: "Dienste", description: "Konfigurierte Dienste und ihre Erreichbarkeit", order: 50, legacySectionId: "services" },
+    { id: "wrapt.dashboard.section.runtime", title: "Laufende Arbeit", description: "Projekte, Ports, Prozesse und Terminal-Sessions", order: 60, legacySectionId: "runtime" },
+    { id: "wrapt.dashboard.section.diagnostics", title: "Technische Diagnose", description: "HTTP, Event Loop, Prozessspeicher und Betriebszustand", order: 70, legacySectionId: "diagnostics" },
+    { id: "wrapt.dashboard.section.usage", title: "Nutzung und Limits", description: "Aktuelle Codex-, OpenCode- und Claude-Limits", order: 80, legacySectionId: "usage" },
+    { id: "wrapt.dashboard.section.commands", title: "Befehle", description: "Konfigurierte Befehle zum Kopieren", order: 90, legacySectionId: "commands" },
   ]);
 
 export const legacyDashboardSectionOwners: readonly LegacyDashboardSectionOwner[] =

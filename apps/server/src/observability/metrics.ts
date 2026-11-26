@@ -27,7 +27,9 @@ function percentile(values: number[], percentileValue: number): number {
 }
 
 export class OperationalMetrics {
-  private readonly eventLoop = monitorEventLoopDelay({ resolution: 20 });
+  /** 1 ms statt 20 ms: Die Auflösung selbst erzeugte sonst einen Schein-Lag. */
+  private static readonly EVENT_LOOP_RESOLUTION_MS = 1;
+  private readonly eventLoop = monitorEventLoopDelay({ resolution: OperationalMetrics.EVENT_LOOP_RESOLUTION_MS });
   private readonly starts = new WeakMap<object, bigint>();
   private readonly routes = new Map<string, RouteMetric>();
   private readonly websockets = new Map<string, WebSocketMetric>();

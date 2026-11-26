@@ -8,24 +8,34 @@ import { legacySettingsCards, registerLegacySettingsCards } from "./legacySettin
 import { SettingsCardRegistry } from "./settingsCardRegistry";
 
 describe("legacyDashboardSections", () => {
-  it("registriert die acht Bereiche in fester Reihenfolge mit Legacy-Aliasen", () => {
+  it("registriert die neun Bereiche in fester Reihenfolge mit Legacy-Aliasen", () => {
     const registry = new DashboardSectionRegistry();
     registerLegacyDashboardSections(registry);
 
     const snapshot = registry.getSnapshot();
-    expect(snapshot.sections).toHaveLength(8);
+    expect(snapshot.sections).toHaveLength(9);
     expect(snapshot.sections.map((section) => section.value.runtime.legacySectionId)).toEqual([
       "quickActions",
       "server",
       "metrics",
+      "wrapt",
       "services",
       "runtime",
       "diagnostics",
       "usage",
       "commands",
     ]);
-    expect(snapshot.sections[0]?.value.contribution.title).toBe("Projektaktivität");
-    expect(snapshot.sections[7]?.value.contribution.title).toBe("Command Reference");
+    expect(snapshot.sections.map((section) => section.value.contribution.title)).toEqual([
+      "Zuletzt aktiv",
+      "Server",
+      "Kennzahlen",
+      "Wrapt im Überblick",
+      "Dienste",
+      "Laufende Arbeit",
+      "Technische Diagnose",
+      "Nutzung und Limits",
+      "Befehle",
+    ]);
   });
 
   it("verwendet stabile Contribution-IDs im Owner-Namespace", () => {

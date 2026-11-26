@@ -3,6 +3,7 @@ import { wraptQueries } from "./queryOptions";
 import { prefetchRoute } from "./routeModules";
 import { pageRouteRegistry } from "../extensions/pageRouteRegistry";
 import { preloadRouteArtwork } from "./routeArtworkPreload";
+import { stripAppBase } from "./appUrl";
 
 /**
  * Zu einer Route gehört nicht nur ihr JavaScript-Bündel, sondern auch ihr
@@ -55,13 +56,6 @@ const dataLoaders: Array<[prefix: string, warm: WarmRoute]> = [
   ["/", (client) => client.prefetchQuery(wraptQueries.dashboardConfig())],
 ];
 
-/** Entfernt den Router Basename, damit Hover Pfade in Dev und Prod gleich matchen. */
-function stripBasename(pathname: string): string {
-  if (pathname === "/wrapt") return "/";
-  if (pathname.startsWith("/wrapt/")) return pathname.slice("/wrapt".length) || "/";
-  return pathname;
-}
-
 function prefetchRegistryPage(pathname: string): void {
   const match = pageRouteRegistry.matchRoute(pathname);
   if (!match) return;
@@ -80,7 +74,7 @@ function prefetchRegistryPage(pathname: string): void {
 /** Lädt Bündel und Startdaten der Zielroute vor. Fehler bleiben absichtlich still. */
 export function prefetchRouteTarget(client: QueryClient, href: string): void {
   const rawPath = href.startsWith("/") ? href.split(/[?#]/)[0]! : `/${href.split(/[?#]/)[0]}`;
-  const pathname = stripBasename(rawPath);
+  const pathname = stripAppBase(rawPath);
   preloadRouteArtwork(pathname);
   prefetchRoute(pathname);
   if (pathname === "/terminal" || pathname === "/codex" || pathname === "/claude") {

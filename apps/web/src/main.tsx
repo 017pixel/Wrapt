@@ -1,13 +1,14 @@
 import "./lib/zodConfig";
+import "./lib/startupErrors";
+import "./lib/startupArtwork";
 
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { bootstrapBuiltinContributions } from "./extensions/builtinContributions";
-import { migrateLegacyBrowserStorage } from "./lib/legacyStorageMigration";
-import { addBreadcrumb, formatQueryErrorBreadcrumb, installGlobalErrorHandlers, subscribeToCrash } from "./lib/crashReport";
+import { addBreadcrumb, formatQueryErrorBreadcrumb, subscribeToCrash } from "./lib/crashReport";
 import { apiClient } from "./lib/apiClient";
-import { preloadDashboardArtwork } from "./lib/dashboardArtworkPreload";
+import { loadHostCapabilities } from "./lib/hostCapabilities";
 import { initializeOverlayTransparency } from "./lib/overlayTransparency";
 import { synchronizeExistingPushDevice } from "./lib/webPushDevice";
 import { retryQuery, queryRetryDelay } from "./lib/queryPolicy";
@@ -24,27 +25,30 @@ import "./components/usage/account-list.css";
 import "./components/mobile/mobile-experience.css";
 import "./components/overlay-glass.css";
 
-// Muss vor dem ersten Render stehen, sonst gehen frühe Fehler verloren.
-installGlobalErrorHandlers();
-try {
-  migrateLegacyBrowserStorage();
-} catch {
-  // Gesperrter Browser-Storage darf den App-Start nicht verhindern.
-}
-
-// Vor dem awaited Import-Block und nicht im Dashboard-Render: dort hing der
-// Preload am React-Mount und startete erst bei rund 510 ms, nach dem ersten
-// sichtbaren Inhalt. Hier startet er bei rund 240 ms, das Bild ist rund 200 ms
-// vor dem ersten Paint fertig. Früher geht es nicht ohne Server-Endpunkt, weil
-// die Auswahl im localStorage steht und nur JS sie lesen kann.
-if (["/", "/wrapt", "/wrapt/"].includes(window.location.pathname)) preloadDashboardArtwork();
 initializeOverlayTransparency();
 
+// Der alte Browser-Verlauf des Dashboards wird nicht mehr gelesen. Alte
+// Messpunkte aus vorherigen Versionen können entfernt werden.
+try {
+  window.localStorage.removeItem("wrapt.dashboard.metrics-history.v1");
+} catch {
+  // Privater Modus oder blockierter Speicher dürfen den Start nicht stoppen.
+}
+
+// App, Crash-Dialog und ErrorBoundary bleiben dynamisch. Ein statischer Import
+// zieht die von ihnen importierten CSS-Dateien vor `index.css` in den Graph.
+// Dann registriert sich `@layer components` vor `theme` und `base`, und der
+// Browser-Reset (padding, margin, border) überschreibt das komplette Design.
+// Der zusätzliche Roundtrip wird über den modulepreload-Link aus
+// `wraptAppPreloadPlugin` in index.html abgefangen.
 const [{ App }, { CrashReportDialog, CrashToastRegion }, { ErrorBoundary }] = await Promise.all([
   import("./App"),
   import("./components/CrashReportDialog"),
   import("./components/ErrorBoundary"),
 ]);
+// Vor dem Registrieren der Built-ins klären, welche optionalen Werkzeuge der
+// Server überhaupt anbietet. Ohne Antwort bleibt OpenCode Web aus.
+await loadHostCapabilities();
 bootstrapBuiltinContributions();
 
 const root = document.querySelector<HTMLDivElement>("#root");
