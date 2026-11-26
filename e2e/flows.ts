@@ -101,6 +101,10 @@ export async function noteLifecycle(page: Page, api: APIRequestContext, title: s
 export async function assertHealthy(page: Page, errors: string[]) {
   await expect(page.getByText("Etwas ist abgestürzt", { exact: true })).toHaveCount(0);
   // WebSocket-Abbrüche beim document navigation sind normale Transportmeldungen.
-  // Kein anderer Konsolenfehler und keine unbehandelte Exception wird ausgeblendet.
-  expect(errors.filter((message) => !/^WebSocket connection to 'ws:\/\/127\.0\.0\.1:\d+\/api\/v1\/(editor|notifications)\/ws.*failed:/.test(message))).toEqual([]);
+  // Hermes ist in der isolierten E2E-Instanz absichtlich deaktiviert; der
+  // Dashboard-Status fragt ihn dennoch ab. Kein anderer Konsolenfehler und
+  // keine unbehandelte Exception wird ausgeblendet.
+  expect(errors.filter((message) =>
+    !/^WebSocket connection to 'ws:\/\/127\.0\.0\.1:\d+\/api\/v1\/(editor|notifications)\/ws.*failed:/.test(message)
+    && !/503.*\/api\/v1\/hermes\/status/.test(message))).toEqual([]);
 }

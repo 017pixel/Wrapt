@@ -35,7 +35,7 @@ test("entfernte Start-App-Einstellung lässt Dashboard und Kernaktionen erreichb
 
 test("Dashboard-Bereiche: ausgeblendete Widgets lassen Navigation und Kern-Flows intakt", async ({ page, api, appErrors }) => {
   await settings(page, "Navigation");
-  await page.getByRole("switch", { name: "Serverstatus", exact: true }).click();
+  await page.getByRole("switch", { name: "Server", exact: true }).click();
   await page.reload();
   await visitMainPages(page);
   await noteLifecycle(page, api, "Dashboard-Widget verborgen");
@@ -168,7 +168,7 @@ test("Workspace-Registry: Hinzufügen und Entfernen ändern die Navigation ohne 
   await dialog.getByRole("button", { name: "Server hinzufügen", exact: true }).click();
   await expect.poll(async () => (await getJson(api, "/workspaces/registry")).document.entries.some((entry: { name: string }) => entry.name === "Persona-Server")).toBe(true);
   await page.reload();
-  await expect(page.getByRole("button", { name: /Aktueller Server:.*Server wechseln/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Aktueller Server:.*Workspace wechseln/ })).toBeVisible();
   await visitMainPages(page);
   await noteLifecycle(page, api, "Registry geändert");
   await settings(page, "Workspaces");
