@@ -4,7 +4,8 @@
 
 .note-slash-menu {
   position: fixed;
-  z-index: 70;
+  /* Auch über dem Quick-Note-Fenster (85) und der Befehlspalette (90). */
+  z-index: 95;
   width: 416px;
   max-height: 442px;
   border: 1px solid var(--color-line);
