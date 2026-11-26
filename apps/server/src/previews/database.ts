@@ -5,8 +5,10 @@ import type {
   PreviewDependency,
   PreviewServiceCandidate,
   PreviewServiceEdge,
-  PreviewSlotState,
 } from "@wrapt/contracts";
+import { previewServiceCandidateSchema, previewServiceEdgeSchema } from "@wrapt/contracts";
+import { PreviewAffinityStore, type AffinityRow } from "./previewAffinityStore.js";
+import { safeJsonRow } from "../utils/jsonQuarantine.js";
 
 export interface SlotRow {
   slotId: number;
@@ -36,16 +38,7 @@ export interface BindingRow {
   label: string;
 }
 
-export interface AffinityRow {
-  slotId: number;
-  storageOwnerKey: string | null;
-  storageProfileId: string | null;
-  generation: number;
-  state: PreviewSlotState;
-  lastVerifiedResetAt: string | null;
-  resetNonce: string | null;
-  resetStartedAt: string | null;
-}
+export type { AffinityRow } from "./previewAffinityStore.js";
 
 export interface DevicePreferenceRow {
   deviceId: string;
@@ -89,12 +82,14 @@ export interface RepairAuditEntry {
  */
 export class PreviewSlotDatabase {
   private readonly db: DatabaseSync;
+  private readonly affinityStore: PreviewAffinityStore;
 
   constructor(path: string) {
     mkdirSync(dirname(path), { recursive: true });
     this.db = new DatabaseSync(path);
     this.db.exec("PRAGMA journal_mode=WAL; PRAGMA synchronous=NORMAL; PRAGMA busy_timeout=5000; PRAGMA foreign_keys=ON");
     this.migrate();
+    this.affinityStore = new PreviewAffinityStore(this.db);
   }
 
   private appliedVersions(): Set<number> {
@@ -279,6 +274,10 @@ export class PreviewSlotDatabase {
             WHERE idempotency_key IS NOT NULL;
         `,
       },
+      {
+        version: 5,
+        sql: `ALTER TABLE preview_slot_affinities ADD COLUMN storage_project_id TEXT;`,
+      },
     ];
 
     for (const step of steps) {
@@ -457,31 +456,11 @@ export class PreviewSlotDatabase {
 
   // ── Slot-Affinität ───────────────────────────────────────────────────────────
 
-  affinity(slotId: number): AffinityRow | null {
-    return (this.db.prepare(`SELECT slot_id slotId, storage_owner_key storageOwnerKey,
-      storage_profile_id storageProfileId, generation, state, last_verified_reset_at lastVerifiedResetAt,
-      reset_nonce resetNonce, reset_started_at resetStartedAt
-      FROM preview_slot_affinities WHERE slot_id = ?`).get(slotId) as AffinityRow | undefined) ?? null;
-  }
+  affinity(slotId: number): AffinityRow | null { return this.affinityStore.affinity(slotId); }
 
-  affinities(): AffinityRow[] {
-    return this.db.prepare(`SELECT slot_id slotId, storage_owner_key storageOwnerKey,
-      storage_profile_id storageProfileId, generation, state, last_verified_reset_at lastVerifiedResetAt,
-      reset_nonce resetNonce, reset_started_at resetStartedAt
-      FROM preview_slot_affinities ORDER BY slot_id`).all() as unknown as AffinityRow[];
-  }
+  affinities(): AffinityRow[] { return this.affinityStore.affinities(); }
 
-  writeAffinity(row: AffinityRow): void {
-    this.db.prepare(`INSERT INTO preview_slot_affinities
-      (slot_id, storage_owner_key, storage_profile_id, generation, state, last_verified_reset_at, reset_nonce, reset_started_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      ON CONFLICT(slot_id) DO UPDATE SET storage_owner_key=excluded.storage_owner_key,
-        storage_profile_id=excluded.storage_profile_id, generation=excluded.generation, state=excluded.state,
-        last_verified_reset_at=excluded.last_verified_reset_at, reset_nonce=excluded.reset_nonce,
-        reset_started_at=excluded.reset_started_at, updated_at=excluded.updated_at`)
-      .run(row.slotId, row.storageOwnerKey, row.storageProfileId, row.generation, row.state,
-        row.lastVerifiedResetAt, row.resetNonce, row.resetStartedAt, new Date().toISOString());
-  }
+  writeAffinity(row: AffinityRow): void { this.affinityStore.writeAffinity(row); }
 
   // ── Gerätepräferenz ──────────────────────────────────────────────────────────
 
@@ -515,14 +494,18 @@ export class PreviewSlotDatabase {
     const rows = projectId === null
       ? this.db.prepare("SELECT payload FROM preview_service_candidates ORDER BY port").all()
       : this.db.prepare("SELECT payload FROM preview_service_candidates WHERE project_id = ? ORDER BY port").all(projectId);
-    return (rows as unknown as Array<{ payload: string }>).map((row) => JSON.parse(row.payload) as PreviewServiceCandidate);
+    return (rows as unknown as Array<{ payload: string }>).flatMap((row) => {
+      const candidate = safeJsonRow(this.db, "preview_service_candidates", projectId ?? "alle", row.payload, (value) => previewServiceCandidateSchema.parse(value));
+      return candidate ? [candidate] : [];
+    });
   }
 
   serviceGraph(projectId: string, primaryServiceId: string): { edges: PreviewServiceEdge[]; updatedAt: string } | null {
     const row = this.db.prepare(`SELECT edges, updated_at updatedAt FROM preview_service_graphs
       WHERE project_id = ? AND primary_service_id = ?`).get(projectId, primaryServiceId) as { edges: string; updatedAt: string } | undefined;
     if (!row) return null;
-    return { edges: JSON.parse(row.edges) as PreviewServiceEdge[], updatedAt: row.updatedAt };
+    const edges = safeJsonRow(this.db, "preview_service_graphs", `${projectId}/${primaryServiceId}`, row.edges, (value) => previewServiceEdgeSchema.array().parse(value));
+    return edges ? { edges, updatedAt: row.updatedAt } : null;
   }
 
   saveServiceGraph(projectId: string, primaryServiceId: string, edges: PreviewServiceEdge[]): string {

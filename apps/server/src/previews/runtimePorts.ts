@@ -5,8 +5,10 @@ export function selectedRuntimeMainPort(database: PreviewDevServerDatabase, allo
   userId: string, projectId: string, profile: RuntimeProfileResult): number | null {
     const stored = database.projectPreference(userId, projectId);
     if (stored?.mainServiceId) {
+      // `port` ist `number | null`: Ein gespeicherter Hauptdienst ohne Port
+      // (Rollenwechsel oder Port auf null) darf den Fallback nicht blockieren.
       const servicePort = profile.services.find((service) => service.id === stored.mainServiceId)?.port;
-      if (servicePort !== undefined) return servicePort;
+      if (typeof servicePort === "number") return servicePort;
     }
     if (stored?.mainPort !== null && stored?.mainPort !== undefined && allowedPorts.includes(stored.mainPort) && profile.services.some((service) => service.port === stored.mainPort)) return stored.mainPort;
     return profile.services.find((service) => service.id === profile.mainServiceId)?.port ?? null;

@@ -49,8 +49,8 @@ export async function runPreviewSlotReset(resetUrl: string, nonce: string): Prom
   }
 }
 
-async function recoverOnePreviewSlot(): Promise<void> {
-  const started = await apiClient.reclaimPreviewSlot();
+async function recoverOnePreviewSlot(projectId: string | null): Promise<void> {
+  const started = await apiClient.reclaimPreviewSlot(projectId);
   if (!started) throw new Error("Der Preview-Slot konnte nicht vorbereitet werden.");
   const report = await runPreviewSlotReset(started.resetUrl, started.nonce);
   const verification = await apiClient.verifyPreviewSlotReset(started.slotId, report ?? unverifiableReport(started.nonce));
@@ -67,6 +67,7 @@ async function recoverOnePreviewSlot(): Promise<void> {
 export async function withPreviewSlotRecovery<T>(
   operation: () => Promise<T>,
   onPhase?: (phase: PreviewSlotRecoveryPhase) => void,
+  projectId: string | null = null,
 ): Promise<T> {
   onPhase?.("launching");
   for (let attempt = 0; attempt <= maximumRecoveryAttempts; attempt += 1) {
@@ -75,7 +76,7 @@ export async function withPreviewSlotRecovery<T>(
     } catch (error) {
       if (!(error instanceof ApiClientError) || error.code !== "PREVIEW_SLOTS_EXHAUSTED" || attempt === maximumRecoveryAttempts) throw error;
       onPhase?.("resetting-slot");
-      await recoverOnePreviewSlot();
+      await recoverOnePreviewSlot(projectId);
       onPhase?.("retrying");
     }
   }

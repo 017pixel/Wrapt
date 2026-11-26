@@ -120,7 +120,9 @@ export function buildRoutingSnapshot(
       targetProtocol: current.targetProtocol,
       role: current.role,
       label: current.label,
-      sessionId: unambiguous && slotSessions.length === 1 ? chosenId : null,
+      // Identische Fingerprints sind ein geteilter Kontext; die Session-ID
+      // bleibt dann stabil, statt die Token-Prüfung still zu überspringen.
+      sessionId: unambiguous ? chosenId : null,
       storageProfileId: session?.storageProfileId ?? affinity?.storageProfileId ?? null,
       state: slotState(affinity, true),
       mapping: Object.fromEntries(bindings.map((binding) => [String(binding.targetPort), publicUrlForSlot(binding.slotId)])),

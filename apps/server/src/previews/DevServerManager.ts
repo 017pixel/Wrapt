@@ -1,5 +1,6 @@
-import { serviceState } from "./runtimeStatus.js";
 import { PreviewRuntimePublications, type PreviewRuntimePublication } from "./runtimePublications.js";
+import { PreviewStatusCache } from "./statusCache.js";
+import { buildDevServerStatus } from "./devServerStatus.js";
 export type { PreviewRuntimePublication } from "./runtimePublications.js";
 import { createHash } from "node:crypto";
 import type {
@@ -11,7 +12,6 @@ import type {
   Project,
 } from "@wrapt/contracts";
 import { AppError } from "../utils/errors.js";
-import { assertDevServerCommandConfirmed, devServerCommandPreview, type DevServerCommandPreview } from "./devServerConfirmations.js";
 import { detectRuntimeProfile, type RuntimeProfileResult } from "./runtimeProfiles.js";
 
 import { PreviewRuntimeSupervisor, cleanOutput, RUNTIME_PORTS_OPTION, type RuntimeSessionSnapshot } from "./runtimeSupervisor.js";
@@ -21,19 +21,13 @@ import type { PreviewDevServerManagerOptions } from "./runtimeManagerOptions.js"
 export type { PreviewDevServerManagerOptions } from "./runtimeManagerOptions.js";
 export { sanitizeDevServerPath } from "./runtimeSupervisor.js";
 
-// S-006: Projekt-Code läuft als Server-Benutzer (gleiche UID) und kann die
-// Workbench-API erreichen. Dieser Hinweis steht in jeder Statusantwort, damit
-// die Oberfläche ihn beim Start bestätigen kann.
-export const PREVIEW_TRUST_HINT =
-  "Nur vertrauenswürdige Repos starten: Preview-Befehle laufen als Server-Benutzer.";
-
-
 export class PreviewDevServerManager {
   private readonly supervisor: PreviewRuntimeSupervisor;
   private readonly watchdogIntervalMilliseconds: number;
   private readonly watchdogMaxAttemptsPerWindow: number;
   private readonly watchdogWindowMilliseconds: number;
   private readonly restartHistory = new Map<string, number[]>();
+  private readonly statusCache = new PreviewStatusCache<PreviewDevServerStatus>();
   private readonly publications = new PreviewRuntimePublications();
   private startQueue: Promise<void> = Promise.resolve();
   private watchdogTimer: ReturnType<typeof setInterval> | null = null;
@@ -54,54 +48,44 @@ export class PreviewDevServerManager {
     }
   }
 
-  /** S-013: Aktuelle Befehls-Vorschau mit Hash für die explizite Bestätigung. */
-  async commandPreview(projectId: string): Promise<DevServerCommandPreview> {
-    const project = await this.resolveProject(projectId);
-    return devServerCommandPreview(projectId, project.path, await this.profile(projectId));
+  /** Statusabfrage mit kurzem Single-Flight-Cache: `status` liest das Profil und
+   * startet mehrere tmux-Abfragen. Der 2-Sekunden-Poll profitiert, Mutationen
+   * invalidieren den Cache.
+   */
+  async status(userId: string, projectId: string, force = false): Promise<PreviewDevServerStatus> {
+    const key = this.runtimeKey(userId, projectId);
+    return this.statusCache.get(key, () => this.loadStatus(userId, projectId), force);
   }
 
-  async status(userId: string, projectId: string): Promise<PreviewDevServerStatus> {
-    let detectedProfile: RuntimeProfileResult;
+  private invalidateStatus(): void { this.statusCache.clear(); }
+
+  private async loadStatus(userId: string, projectId: string): Promise<PreviewDevServerStatus> {
     try {
-      detectedProfile = await this.profile(projectId);
+      return await buildDevServerStatus({
+        userId,
+        projectId,
+        profile: (id) => this.profile(id),
+        profileForSession: (owner, project, profile) => this.profileForSession(owner, project, profile),
+        sessionName: (owner, project) => this.sessionName(owner, project),
+        panes: (name) => this.supervisor.panes(name),
+        selectedMainPort: (owner, project, profile) => this.selectedMainPort(owner, project, profile),
+        allowedProjectPorts: this.options.allowedProjectPorts,
+        publicationUrl: () => this.publications.get(this.runtimeKey(userId, projectId))?.url ?? null,
+      });
     } catch (error) {
       if (!(error instanceof AppError) || error.code !== "PREVIEW_RUNTIME_PROFILE_INVALID") throw error;
       return {
         projectId, state: "stopped", command: "Keine startbare Projektlaufzeit", mainPort: null,
-        mainServiceId: null, profileSource: "detected", services: [],
-        allowedPorts: [...this.options.allowedProjectPorts], warnings: [], publicUrl: null,
-        pid: null, startedAt: null, updatedAt: new Date().toISOString(), exitCode: null,
+        mainServiceId: null, profileSource: "detected", services: [], allowedPorts: [...this.options.allowedProjectPorts],
+        warnings: [], publicUrl: null, pid: null, startedAt: null, updatedAt: new Date().toISOString(), exitCode: null,
         message: error.message,
       };
     }
-    const profile = await this.profileForSession(userId, projectId, detectedProfile);
-    const name = this.sessionName(userId, projectId);
-    const panes = new Map((await this.supervisor.panes(name)).map((pane) => [pane.serviceId, pane]));
-    const services = profile.services.map((service) => serviceState(service, panes.get(service.id)));
-    const running = services.filter((service) => service.state === "running");
-    const failed = services.filter((service) => service.state === "failed");
-    const aggregate = failed.length > 0 ? "failed" : running.length > 0 ? "running" : "stopped";
-    const mainPort = this.selectedMainPort(userId, projectId, profile);
-    const mainServiceId = profile.services.find((service) => service.port === mainPort)?.id ?? profile.mainServiceId;
-    const publication = this.publications.get(this.runtimeKey(userId, projectId));
-    return {
-      projectId, state: aggregate,
-      command: services.length === 1 ? services[0]!.command : `${services.length} Dienste gemeinsam`,
-      mainPort, mainServiceId, profileSource: profile.source, services,
-      allowedPorts: [...this.options.allowedProjectPorts],
-      warnings: profile.warnings.includes(PREVIEW_TRUST_HINT) ? profile.warnings : [...profile.warnings, PREVIEW_TRUST_HINT],
-      publicUrl: publication?.url ?? null,
-      pid: running[0]?.pid ?? null,
-      startedAt: running.map((service) => service.startedAt).filter((value): value is string => value !== null).sort()[0] ?? null,
-      updatedAt: new Date().toISOString(),
-      exitCode: failed[0]?.exitCode ?? null,
-      message: failed.length > 0 ? `${failed.length} ${failed.length === 1 ? "Dienst ist" : "Dienste sind"} fehlgeschlagen.` : null,
-    };
   }
 
   async statuses(userId: string): Promise<PreviewDevServerStatus[]> {
     const projectIds = (await this.supervisor.snapshot()).filter((session) => session.userId === userId && session.projectId).map((session) => session.projectId);
-    const statuses = await Promise.all([...new Set(projectIds)].map((projectId) => this.status(userId, projectId).catch(() => null)));
+    const statuses = await Promise.all([...new Set(projectIds)].map((projectId) => this.status(userId, projectId, true).catch(() => null)));
     return statuses.filter((status): status is PreviewDevServerStatus => status !== null);
   }
 
@@ -112,9 +96,6 @@ export class PreviewDevServerManager {
   private async startUnlocked(userId: string, projectId: string): Promise<PreviewDevServerStatus> {
     const project = await this.resolveProject(projectId);
     const detectedProfile = await this.profile(projectId);
-    // S-013: Unbestätigte Projekt-Befehle starten nicht — weder manuell noch
-    // über den Watchdog (autoRestart nutzt denselben Pfad).
-    assertDevServerCommandConfirmed(this.options.database, userId, devServerCommandPreview(projectId, project.path, detectedProfile));
     const name = this.sessionName(userId, projectId);
     const panes = await this.supervisor.panes(name);
     if (panes.length > 0 && !panes.some((pane) => pane.dead)) return this.status(userId, projectId);
@@ -135,6 +116,7 @@ export class PreviewDevServerManager {
         throw new AppError(500, "DEV_SERVER_START_FAILED", cleanOutput(created.stderr).trim() || `${service.name} konnte nicht gestartet werden.`);
       }
     }
+    this.invalidateStatus();
     await this.supervisor.execute(["set-option", "-t", name, "remain-on-exit", "on"]);
     await this.supervisor.execute(["set-option", "-t", name, "history-limit", "100000"]);
     await this.supervisor.execute(["set-option", "-t", name, "@wrapt_kind", "preview-dev-server"]);
@@ -147,6 +129,7 @@ export class PreviewDevServerManager {
   }
 
   async launch(userId: string, projectId: string): Promise<{ status: PreviewDevServerStatus; publication: PreviewRuntimePublication }> {
+    this.invalidateStatus();
     const key = this.runtimeKey(userId, projectId);
     const revision = this.publications.revision(key);
     await this.start(userId, projectId);
@@ -155,6 +138,7 @@ export class PreviewDevServerManager {
     const profile = await this.profileForSession(userId, projectId, await this.profile(projectId));
     const publication = await this.publish(userId, profile, true);
     if (!publication) throw new AppError(409, "PREVIEW_RUNTIME_NO_PUBLIC_URL", "Die Projektlaufzeit besitzt keinen veröffentlichbaren Hauptdienst.");
+    this.invalidateStatus();
     return { status: await this.status(userId, projectId), publication };
   }
 
@@ -163,6 +147,7 @@ export class PreviewDevServerManager {
     const name = this.sessionName(userId, projectId);
     if ((await this.supervisor.panes(name)).length) await this.supervisor.execute(["set-option", "-t", name, "@wrapt_preview_publication_requested", "0"]);
     await this.publications.forget(this.runtimeKey(userId, projectId));
+    this.invalidateStatus();
   }
 
   async stop(userId: string, projectId: string): Promise<PreviewDevServerStatus> {
@@ -170,6 +155,7 @@ export class PreviewDevServerManager {
   }
 
   private async stopUnlocked(userId: string, projectId: string): Promise<PreviewDevServerStatus> {
+    this.invalidateStatus();
     await this.resolveProject(projectId);
     const name = this.sessionName(userId, projectId);
     if ((await this.supervisor.panes(name)).length > 0) await this.supervisor.execute(["kill-session", "-t", name]);
@@ -189,6 +175,7 @@ export class PreviewDevServerManager {
   }
 
   async saveMainPort(userId: string, projectId: string, mainPort: number | null): Promise<PreviewDevServerStatus> {
+    this.invalidateStatus();
     const profile = await this.profileForSession(userId, projectId, await this.profile(projectId));
     if (mainPort !== null && (!this.options.allowedProjectPorts.includes(mainPort) || !profile.services.some((service) => service.port === mainPort))) {
       throw new AppError(400, "DEV_SERVER_PORT_NOT_OWNED", "Der Hauptport muss zu einem erkannten Dienst gehören und aus der erlaubten Projektport-Palette stammen.");

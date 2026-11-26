@@ -14,6 +14,7 @@ import {
   type PreviewSlot,
   type PreviewSlotAssignmentRequest,
   type PreviewSlotsResponse,
+  previewRequestFingerprintFields,
 } from "@wrapt/contracts";
 import { AppError } from "../utils/errors.js";
 import type { PreviewSlotDatabase, BindingRow, SessionRow } from "./database.js";
@@ -31,6 +32,7 @@ import {
   type RoutingSnapshot,
 } from "./routing.js";
 import { PreviewResetService, mayReuseSlot, storageOwnerKey } from "./reset.js";
+import { beginPreviewSlotReclaim } from "./reclaim.js";
 import { expirePreviewSessions, renewOwnedPreviewLease } from "./sessionLifecycle.js";
 
 export { PreviewSlotDatabase } from "./database.js";
@@ -180,7 +182,7 @@ export class PreviewSlotService {
         busy: Boolean(route) && !own,
       };
     });
-    return previewSlotsResponseSchema.parse({ slots, assignedSlotId, routingRevision: this.snapshot.revision });
+    return previewSlotsResponseSchema.parse({ slots, assignedSlotId, routingRevision: this.snapshot.revision, unavailableSlots: this.gateway.unavailableSlots() });
   }
 
   // ── Direktzuweisung (Bestandspfad) ───────────────────────────────────────────
@@ -295,8 +297,15 @@ export class PreviewSlotService {
     const requiredSlots = input.edges.length + 1;
     const slots = this.list().slots;
     const desiredPorts = new Set([input.primaryPort, ...input.edges.map((edge) => edge.port)]);
-    const reusableSlots = slots.filter((slot) => slot.targetPort !== null && desiredPorts.has(slot.targetPort) && slot.state !== "quarantined").length;
-    const freeSlots = slots.filter((slot) => slot.targetPort === null && slot.state === "free").length;
+    // Dieselbe Eigentümerregel wie die Allokation: Fremde Storage-Affinitäten
+    // sind weder wiederverwendbar noch frei, auch wenn der Port passt.
+    const usable = (slotId: number) => {
+      const affinity = this.database.affinity(slotId);
+      return affinity === null || affinity.storageOwnerKey === null
+        || (input.projectId !== null && affinity.storageProjectId === input.projectId);
+    };
+    const reusableSlots = slots.filter((slot) => slot.targetPort !== null && desiredPorts.has(slot.targetPort) && slot.state !== "quarantined" && usable(slot.id)).length;
+    const freeSlots = slots.filter((slot) => slot.targetPort === null && slot.state === "free" && usable(slot.id)).length;
     const limitations: PreviewLimitation[] = ["cookies-share-host"];
     return {
       requiredSlots,
@@ -373,13 +382,7 @@ export class PreviewSlotService {
       // denselben Slot noch denselben (User, sessionKey)-Datensatz erobern.
       const desired = this.desiredBindings(input);
       const requestFingerprint = createHash("sha256").update(JSON.stringify({
-        sessionKey: input.sessionKey,
-        projectId: input.projectId,
-        primaryPort: input.primaryPort,
-        primaryProtocol: input.primaryProtocol,
-        isolate: input.isolate,
-        storageProfileId: input.storageProfileId,
-        requestedSlotId: input.requestedSlotId ?? null,
+        ...previewRequestFingerprintFields(input),
         desired,
       })).digest("hex");
       for (const item of desired) if (item.role === "dependency") this.assertAllowedTarget(item.targetPort);
@@ -433,7 +436,7 @@ export class PreviewSlotService {
       this.database.writeSession(row, bindings);
       for (const binding of bindings) {
         this.database.assign(binding.slotId, binding.targetPort);
-        this.reset.claim(binding.slotId, ownerKey, input.storageProfileId);
+        this.reset.claim(binding.slotId, ownerKey, input.storageProfileId, input.projectId);
       }
       const reserved = new Set(bindings.map((binding) => binding.slotId));
       this.releaseUnusedSlots(previousBindings.filter((old) => !reserved.has(old.slotId)).map((old) => old.slotId));
@@ -482,7 +485,10 @@ export class PreviewSlotService {
         const slot = slots.find((candidate) => candidate.id === requested)!;
         const free = slot.targetPort === null || slot.targetPort === item.targetPort
           || input.previousBindings.some((old) => old.slotId === slot.id);
-        if (!free || !usable(requested)) {
+        // Ein expliziter Slotwunsch darf keine fremde Session mitbenutzen.
+        // Teilbare Sessions wurden oben bereits gefunden und zurückgegeben.
+        const foreignSession = this.database.sessionsForSlot(requested).some((session) => session.id !== input.sessionId);
+        if (!free || foreignSession || !usable(requested)) {
           throw new AppError(409, "PREVIEW_SLOT_CHANGED", "Der gewünschte Preview-Slot ist inzwischen belegt.");
         }
         slotId = requested;
@@ -574,24 +580,13 @@ export class PreviewSlotService {
     return session;
   }
 
-  beginReclaim(): { slotId: number; nonce: string; affinity: ReturnType<PreviewResetService["affinity"]> } {
-    const result = this.database.transaction(() => {
-      expirePreviewSessions(this.database, (slots) => this.releaseUnusedSlots(slots));
-      const persisted = new Map(this.database.list().map((slot) => [slot.slotId, slot]));
-      const candidates = this.definitions.flatMap((definition) => {
-        const affinity = this.reset.affinity(definition.id);
-        const targetPort = persisted.get(definition.id)?.targetPort ?? null;
-        if (targetPort !== null || this.database.bindingCount(definition.id) > 0) return [];
-        if (affinity.state === "free" && affinity.storageOwnerKey !== null) return [{ definition, affinity, priority: 0 }];
-        if (affinity.state === "quarantined") return [{ definition, affinity, priority: 1 }];
-        return [];
-      }).sort((left, right) => left.priority - right.priority || left.definition.id - right.definition.id);
-      for (const { definition, affinity } of candidates) {
-        const started = this.reset.begin(definition.id, affinity.generation, affinity.storageProfileId);
-        return { slotId: definition.id, ...started };
-      }
-      throw new AppError(409, "PREVIEW_SLOTS_EXHAUSTED", "Es ist kein ungebundener Preview-Slot verfügbar, der im Browser sicher zurückgesetzt werden kann.");
-    });
+  beginReclaim(projectId: string | null): { slotId: number; nonce: string; affinity: ReturnType<PreviewResetService["affinity"]> } {
+    const result = beginPreviewSlotReclaim({
+      database: this.database,
+      reset: this.reset,
+      definitions: this.definitions,
+      releaseUnusedSlots: (slots) => this.releaseUnusedSlots(slots),
+    }, projectId);
     this.publish();
     return result;
   }
@@ -633,6 +628,11 @@ export class PreviewSlotService {
   async startListeners() {
     this.publish();
     await this.gateway.start();
+  }
+
+  /** Diagnose: Slots, deren Listener beim Start nicht gebunden werden konnten. */
+  unavailableSlots() {
+    return this.gateway.unavailableSlots();
   }
 
   async stopListeners() {

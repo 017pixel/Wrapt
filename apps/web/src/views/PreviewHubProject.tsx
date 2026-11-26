@@ -6,9 +6,9 @@ import {
   ActivityIcon, CopyIcon, DatabaseIcon, ExternalLinkIcon,
   MoreIcon, PlayIcon, RefreshIcon, ServerIcon, ServicesIcon, TerminalIcon, WarningIcon,
 } from "../components/icons";
-import { apiClient, ApiClientError } from "../lib/apiClient";
+import { apiClient } from "../lib/apiClient";
 import { writeClipboardText } from "../lib/clipboard";
-import { openPreviewLiveWindow, openPreviewWindow } from "../lib/previewExternalOpen";
+import { openPreviewLiveWindow, openPreviewWindow, previewLiveWindowUrl } from "../lib/previewExternalOpen";
 import { previewSessionKey } from "../lib/previewWindow";
 import { previewSlotUrl } from "../lib/previewTargets";
 import { wraptQueries } from "../lib/queryOptions";
@@ -16,7 +16,6 @@ import { formatRequestId, queryErrorGuide } from "../lib/queryErrorGuide";
 import { withPreviewSlotRecovery, type PreviewSlotRecoveryPhase } from "../lib/previewSlotRecovery";
 
 import { PreviewTargetMenu } from "./PreviewTargetMenu";
-import { ConfirmDialog } from "../components/ModalDialog";
 
 type LogFilter = "all" | PreviewRuntimeLogLevel;
 type DirectOpenMode = "tab" | "window";
@@ -75,14 +74,6 @@ export function PreviewHubProject({ project, routeActive }: { project: Project; 
   const [copied, setCopied] = useState(false);
   const [actionError, setActionError] = useState<unknown>(null);
   const [launchPhase, setLaunchPhase] = useState<PreviewSlotRecoveryPhase | null>(null);
-  const [confirmOffer, setConfirmOffer] = useState<{
-    action: "start" | "restart";
-    commandHash: string;
-    commandPreview: string;
-    projectPath: string;
-  } | null>(null);
-  const [confirmError, setConfirmError] = useState<string | null>(null);
-  const configuredPreviewApplied = useRef<string | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
 
   const selectedLogs = useMemo(() => {
@@ -91,18 +82,6 @@ export function PreviewHubProject({ project, routeActive }: { project: Project; 
     return chosen.flatMap((service) => service.lines.map((line) => ({ ...line, serviceName: service.name })))
       .filter((line) => filter === "all" || line.level === filter);
   }, [filter, logsQuery.data?.services, serviceFilter]);
-
-  useEffect(() => {
-    const selectionKey = `${project.id}:${previewParam ?? "default"}`;
-    if (!routeActive || !status || configuredPreviewApplied.current === selectionKey) return;
-    configuredPreviewApplied.current = selectionKey;
-    const selectedPort = requestedPreview?.targetPort;
-    if (selectedPort && status.services.some((service) => service.port === selectedPort) && selectedPort !== status.mainPort) {
-      void apiClient.savePreviewDevServerMainPort(project.id, selectedPort).then(() => {
-        void queryClient.invalidateQueries({ queryKey: ["preview-dev-server", project.id] });
-      });
-    }
-  }, [previewParam, project.id, queryClient, requestedPreview, routeActive, status]);
 
   useEffect(() => {
     const node = logRef.current;
@@ -125,36 +104,9 @@ export function PreviewHubProject({ project, routeActive }: { project: Project; 
       return apiClient.restartPreviewDevServer(projectId);
     },
     onSuccess: async (nextStatus) => { queryClient.setQueryData(["preview-dev-server", projectId], nextStatus); await refresh(); },
-    onError: (error, action) => {
-      // S-013: Unbestätigte Befehle öffnen den Freigabe-Dialog statt einer
-      // Fehlermeldung. Der Hash kommt aus den Fehlerdetails der 409-Antwort.
-      if (error instanceof ApiClientError && error.code === "PREVIEW_COMMAND_UNCONFIRMED" && action !== "stop") {
-        const details = error.details ?? {};
-        const commandHash = typeof details.commandHash === "string" ? details.commandHash : null;
-        const commandPreview = typeof details.commandPreview === "string" ? details.commandPreview : null;
-        const projectPath = typeof details.projectPath === "string" ? details.projectPath : null;
-        if (commandHash && commandPreview && projectPath) {
-          setActionError(null);
-          setConfirmError(null);
-          setConfirmOffer({ action, commandHash, commandPreview, projectPath });
-          return;
-        }
-      }
+    onError: (error) => {
       setActionError(error instanceof Error ? error.message : "Die Aktion ist fehlgeschlagen.");
     },
-  });
-  const confirmMutation = useMutation({
-    mutationFn: async () => {
-      if (!confirmOffer) throw new Error("Kein Befehl zur Bestätigung.");
-      await apiClient.confirmPreviewDevServer(projectId, confirmOffer.commandHash);
-      return confirmOffer.action;
-    },
-    onSuccess: (action) => {
-      setConfirmOffer(null);
-      setConfirmError(null);
-      processMutation.mutate(action);
-    },
-    onError: (error) => setConfirmError(error instanceof Error ? error.message : "Die Bestätigung ist fehlgeschlagen."),
   });
   const savePort = useMutation({
     mutationFn: async (port: number) => apiClient.savePreviewDevServerMainPort(projectId, port),
@@ -168,6 +120,19 @@ export function PreviewHubProject({ project, routeActive }: { project: Project; 
   const targetServiceRunning = targetPort !== null && targetPort !== undefined
     && status?.services.some((service) => service.port === targetPort && service.state === "running") === true;
   const existingPublicUrl = status?.mainPort === targetPort && targetServiceRunning ? status.publicUrl : null;
+  // Ein anderes Preview-Ziel wird als eigene Live-Session geöffnet. Die globale
+  // Hauptport-Präferenz darf ein Deeplink nicht verändern.
+  const isMainTarget = targetPort !== null && targetPort === mainPort;
+  const liveTarget = () => targetPort === null || targetPort === undefined ? null : {
+    projectId,
+    port: targetPort,
+    path: targetPath,
+    title: selectedPreview?.name ?? project.name,
+    sessionKey: previewSessionKey({ projectId, previewTarget: `${targetPort}${targetPath}`, storageProfileId: null }),
+    isolate: false,
+    storageProfileId: null,
+    requestedSlotId: null,
+  };
 
   const openDirect = async (mode: DirectOpenMode) => {
     setActionError(null);
@@ -176,6 +141,10 @@ export function PreviewHubProject({ project, routeActive }: { project: Project; 
       return;
     }
     if (!targetPort) return;
+    if (!isMainTarget) {
+      openPreviewTools(mode);
+      return;
+    }
     const opened = openPlaceholder(mode, projectId);
     if (!opened) {
       setActionError(mode === "tab" ? "Der neue Tab wurde blockiert. Erlaube Popups für Wrapt." : "Das Browserfenster wurde blockiert. Erlaube Popups für Wrapt.");
@@ -183,7 +152,7 @@ export function PreviewHubProject({ project, routeActive }: { project: Project; 
     }
     try {
       const existingUrl = existingPublicUrl;
-      const launch = existingUrl ? null : await withPreviewSlotRecovery(() => apiClient.launchPreviewRuntime(projectId), setLaunchPhase);
+      const launch = existingUrl ? null : await withPreviewSlotRecovery(() => apiClient.launchPreviewRuntime(projectId), setLaunchPhase, projectId);
       const baseUrl = existingUrl ?? launch?.url;
       if (!baseUrl) throw new Error("Die Preview-URL wurde nicht bereitgestellt.");
       const url = selectedPreview ? previewSlotUrl(baseUrl, targetPath) : baseUrl;
@@ -205,8 +174,16 @@ export function PreviewHubProject({ project, routeActive }: { project: Project; 
         return;
       }
       if (!targetPort) return;
+      if (!isMainTarget) {
+        const target = liveTarget();
+        if (!target) throw new Error("Das Preview-Ziel ist ungültig.");
+        await writeClipboardText(previewLiveWindowUrl(target));
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1_500);
+        return;
+      }
       const existingUrl = existingPublicUrl;
-      const launch = existingUrl ? null : await withPreviewSlotRecovery(() => apiClient.launchPreviewRuntime(projectId), setLaunchPhase);
+      const launch = existingUrl ? null : await withPreviewSlotRecovery(() => apiClient.launchPreviewRuntime(projectId), setLaunchPhase, projectId);
       const baseUrl = existingUrl ?? launch?.url;
       if (!baseUrl) throw new Error("Die Preview-URL wurde nicht bereitgestellt.");
       const url = selectedPreview ? previewSlotUrl(baseUrl, targetPath) : baseUrl;
@@ -280,7 +257,7 @@ export function PreviewHubProject({ project, routeActive }: { project: Project; 
             {status?.services.map((service) => <article className="preview-hub-service" key={service.id} data-state={service.state}>
               <div className="preview-hub-service-icon">{serviceIcon(service.role)}</div><div className="preview-hub-service-main">
                 <div><strong>{service.name}</strong>{service.name.toLocaleLowerCase("de-DE") !== roleLabels[service.role].toLocaleLowerCase("de-DE") ? <span>{roleLabels[service.role]}</span> : null}</div>
-                <code title={service.command}>{service.command}</code>{service.frameworkHints.length ? <small>{service.frameworkHints.join(" · ")}</small> : null}
+                <code title={service.command}>{service.command}</code><small title={service.workingDirectory}>{service.frameworkHints.length ? `${service.frameworkHints.join(" · ")} · ` : ""}{service.workingDirectory}</small>
               </div><div className="preview-hub-service-status">{service.state !== "running" ? <span className={`preview-hub-state is-${service.state}`}><i />{stateLabels[service.state]}</span> : null}{service.port ? <code>:{service.port}</code> : <span>Kein Port</span>}</div>
             </article>)}
             {!statusQuery.isLoading && !status?.services.length ? <div className="preview-hub-services-empty"><WarningIcon /><strong>Keine startbare Projektlaufzeit erkannt</strong><span>Lege bei Bedarf eine preview.config.json im Projekt an.</span></div> : null}
@@ -322,15 +299,5 @@ export function PreviewHubProject({ project, routeActive }: { project: Project; 
         <div className="preview-hub-log-output" ref={logRef} role="log" aria-live="polite">{selectedLogs.map((line, index) => <div className="preview-hub-log-line" data-level={line.level} key={`${line.serviceId}-${index}-${line.text}`}><span>{line.serviceName}</span><code>{line.text}</code></div>)}{!selectedLogs.length ? <div className="preview-hub-log-empty">{visibleState === "starting" ? <><ActivityIcon /><strong>Dev-Server werden gestartet</strong><span>Die erste Ausgabe erscheint automatisch, sobald der Prozess antwortet.</span></> : status?.state === "running" ? <><ActivityIcon /><strong>Dev-Server läuft</strong><span>Der gewählte Dienst oder Filter hat momentan keine passenden Einträge.</span></> : <><TerminalIcon /><strong>Die Projektlaufzeit ist nicht aktiv</strong><span>Nach dem Start erscheinen die Ausgaben hier getrennt nach Dienst und Log-Level.</span></>}</div> : null}</div>
       </section>
     </div>
-    <ConfirmDialog
-      open={confirmOffer !== null}
-      title="Befehl bestätigen"
-      description={confirmOffer ? `Nur vertrauenswürdige Repos starten. Pfad: ${confirmOffer.projectPath} — Befehle: ${confirmOffer.commandPreview}` : ""}
-      confirmLabel={confirmMutation.isPending ? "Wird bestätigt …" : "Bestätigen & starten"}
-      confirmPending={confirmMutation.isPending}
-      error={confirmError}
-      onConfirm={() => { if (!confirmMutation.isPending) confirmMutation.mutate(); }}
-      onClose={() => { confirmMutation.reset(); setConfirmError(null); setConfirmOffer(null); }}
-    />
   </>;
 }

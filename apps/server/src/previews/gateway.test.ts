@@ -1,5 +1,7 @@
+import { createServer, type Server } from "node:net";
 import { describe, expect, it } from "vitest";
 import {
+  PreviewGateway,
   adjustEmbeddingPolicy,
   cookieDomainWarnings,
   proxyRequestHeaders,
@@ -83,5 +85,70 @@ describe("Gateway-Header", () => {
     const result = adjustEmbeddingPolicy({ "x-frame-options": "SAMEORIGIN" }, { workbenchOrigins: ["https://server.test:8443"], allowBridgeScript: false });
     expect(result.headers["x-frame-options"]).toBeUndefined();
     expect(result.headers["content-security-policy"]).toBe("frame-ancestors https://server.test:8443");
+  });
+});
+
+function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      const port = typeof address === "object" && address ? address.port : 0;
+      server.close(() => resolve(port));
+    });
+  });
+}
+
+function occupiedPort(): Promise<{ port: number; server: Server }> {
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      resolve({ port: typeof address === "object" && address ? address.port : 0, server });
+    });
+  });
+}
+
+describe("Preview-Gateway-Start", () => {
+  it("startet die übrigen Listener, wenn ein Slot-Port belegt ist", async () => {
+    const occupied = await occupiedPort();
+    const free = await freePort();
+    const gateway = new PreviewGateway({
+      definitions: [
+        { id: 1, internalPort: occupied.port, publicPort: 3901 },
+        { id: 2, internalPort: free, publicPort: 3902 },
+      ],
+      route: () => null,
+      routingRevision: () => 0,
+      publicUrlForSlot: (slotId) => `https://server.test:${8450 + slotId}/`,
+      workbenchOrigins: ["https://server.test:8443"],
+      flags: { gatewayV2Enabled: true, bridgeEnabled: false, diagnosticsEnabled: false, storageSyncEnabled: false, maxInjectableHtmlBytes: 1_000, maxStorageBytes: 1_000, maxStorageKeys: 10 },
+    });
+    try {
+      await gateway.start();
+      expect(gateway.unavailableSlots()).toEqual([{ slotId: 1, error: expect.stringContaining("EADDRINUSE") }]);
+    } finally {
+      await gateway.stop();
+      await new Promise<void>((resolve) => occupied.server.close(() => resolve()));
+    }
+  });
+
+  it("meldet einen harten Fehler, wenn kein Listener gebunden werden kann", async () => {
+    const occupied = await occupiedPort();
+    const gateway = new PreviewGateway({
+      definitions: [{ id: 1, internalPort: occupied.port, publicPort: 3901 }],
+      route: () => null,
+      routingRevision: () => 0,
+      publicUrlForSlot: () => "https://server.test:8451/",
+      workbenchOrigins: ["https://server.test:8443"],
+      flags: { gatewayV2Enabled: true, bridgeEnabled: false, diagnosticsEnabled: false, storageSyncEnabled: false, maxInjectableHtmlBytes: 1_000, maxStorageBytes: 1_000, maxStorageKeys: 10 },
+    });
+    try {
+      await expect(gateway.start()).rejects.toThrow(/Kein Preview-Slot-Listener/);
+    } finally {
+      await new Promise<void>((resolve) => occupied.server.close(() => resolve()));
+    }
   });
 });

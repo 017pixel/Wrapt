@@ -265,10 +265,6 @@ createServer((_request, response) => {
         // dann startet die Laufzeit.
         await expect(page.locator(".preview-hub-urlbar code")).toContainText(/Port \d+ wird beim Öffnen über einen sicheren Slot veröffentlicht/);
         await page.locator(".preview-hub-command").getByRole("button", { name: "Alles starten" }).click();
-        // S-013: Der erste Start verlangt die explizite Befehlsfreigabe.
-        const confirm = page.getByRole("dialog", { name: "Befehl bestätigen" });
-        await expect(confirm).toBeVisible();
-        await confirm.getByRole("button", { name: "Bestätigen & starten" }).click();
         await expect(page.locator(".preview-hub-command .preview-hub-state.is-running")).toBeVisible({ timeout: 30_000 });
         await expect(page.getByRole("button", { name: "Im neuen Tab öffnen" })).toBeEnabled();
       });

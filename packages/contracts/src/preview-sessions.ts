@@ -31,6 +31,11 @@ export const previewSlotsResponseSchema = z.object({
   slots: z.array(previewSlotSchema).max(128),
   assignedSlotId: z.number().int().min(1).max(128).nullable().default(null),
   routingRevision: z.number().int().nonnegative().default(0),
+  /** Slots, deren Listener beim Start nicht gebunden werden konnten. */
+  unavailableSlots: z.array(z.object({
+    slotId: z.number().int().min(1).max(128),
+    error: z.string().max(500),
+  })).default([]),
 });
 
 export const previewDependencySchema = z.object({
@@ -150,6 +155,38 @@ export const previewRuntimeLaunchSchema = z.object({
 export const previewSlotResetRequestSchema = z.object({
   expectedGeneration: z.number().int().nonnegative(),
   storageProfileId: z.string().uuid().nullable(),
+});
+
+/**
+ * Gemeinsame Felder des Idempotenz-Fingerprints von Client und Server.
+ * Weicht eine dieser Angaben ab, ist es eine andere Anfrage und der Client
+ * muss einen neuen Idempotenzschlüssel erzeugen.
+ */
+export interface PreviewRequestFingerprintInput {
+  sessionKey: string;
+  projectId: string | null;
+  primaryPort: number;
+  primaryProtocol: "http" | "https";
+  isolate: boolean;
+  storageProfileId: string | null;
+  requestedSlotId?: number | null | undefined;
+}
+
+export function previewRequestFingerprintFields(input: PreviewRequestFingerprintInput) {
+  return {
+    sessionKey: input.sessionKey,
+    projectId: input.projectId,
+    primaryPort: input.primaryPort,
+    primaryProtocol: input.primaryProtocol,
+    isolate: input.isolate,
+    storageProfileId: input.storageProfileId,
+    requestedSlotId: input.requestedSlotId ?? null,
+  };
+}
+
+export const reclaimPreviewSlotRequestSchema = z.object({
+  /** Begrenzt die Wiederherstellung auf den Storage dieses Projekts. */
+  projectId: z.string().trim().min(1).max(160).optional(),
 });
 
 export const previewSlotResetResponseSchema = z.object({

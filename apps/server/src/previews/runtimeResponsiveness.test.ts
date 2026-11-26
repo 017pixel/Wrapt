@@ -6,7 +6,7 @@ import { expect, it, vi } from "vitest";
 import { harness } from "./testing/devServerHarness.js";
 
 it("bedient Health und WS-Echo während fünf Sekunden Fake-Setup ohne einen Devserver zu starten", async () => {
-  const { create, database, project, runner } = await harness();
+  const { create, project, runner } = await harness();
   await writeFile(join(project.path, "preview.config.json"), JSON.stringify({
     version: 2, setupCommand: "echo Dummy", mainService: "web",
     services: [{ id: "web", name: "Web", role: "frontend", command: "echo Dummy", port: "auto", portMode: "argument" }],
@@ -15,8 +15,6 @@ it("bedient Health und WS-Echo während fünf Sekunden Fake-Setup ohne einen Dev
     if (args[0] === "wait-for") await new Promise((resolve) => setTimeout(resolve, 5_000));
     return runner(args);
   } });
-  const preview = await manager.commandPreview(project.id);
-  database.saveCommandConfirmation("fixture", project.id, preview.commandHash, preview.commandPreview, project.path);
   const app = Fastify();
   await app.register(websocket);
   app.get("/health", async () => ({ ok: true }));
@@ -39,13 +37,11 @@ it("bedient Health und WS-Echo während fünf Sekunden Fake-Setup ohne einen Dev
 }, 10_000);
 
 it.each([1, 4, 12])("fragt bei %i laufenden Fake-Sessions den Watchdogzustand genau einmal ab", async (count) => {
-  const { create, database, addProject, supervisor } = await harness();
+  const { create, addProject, supervisor } = await harness();
   const manager = create(undefined, { allowedProjectPorts: Array.from({ length: 16 }, (_, index) => 24_000 + index) });
   try {
     for (let index = 0; index < count; index += 1) {
       const project = await addProject(`fixture-${index}`);
-      const preview = await manager.commandPreview(project.id);
-      database.saveCommandConfirmation("fixture", project.id, preview.commandHash, preview.commandPreview, project.path);
       await manager.start("fixture", project.id);
     }
     supervisor.commands.length = 0;

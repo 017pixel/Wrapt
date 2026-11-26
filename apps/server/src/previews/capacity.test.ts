@@ -44,3 +44,17 @@ it("erweitert eine bestehende Datenbank von zwölf auf 60 Slots ohne bestehende 
     primaryPort: 12001, primaryProtocol: "http", isolate: true, storageProfileId: null, requestedSlotId: 60 });
   expect(next.bindings[0]?.slotId).toBe(60);
 });
+
+it("zählt fremde Storage-Affinitäten nicht als wiederverwendbar oder frei", () => {
+  const root = mkdtempSync(join(tmpdir(), "wrapt-preview-capacity-own-"));
+  cleanups.push(() => rmSync(root, { recursive: true, force: true }));
+  const database = new PreviewSlotDatabase(join(root, "slots.sqlite"));
+  cleanups.push(() => database.close());
+  const slots = new PreviewSlotService({ database, hostname: "preview.test.ts.net", slotPorts: [3901], publicPorts: [8451] });
+  const opened = slots.openSession("test@example.com", { sessionKey: "a", projectId: "projekt-a", primaryPort: 5173, primaryProtocol: "http", isolate: true, storageProfileId: null });
+  slots.closeSessionById("test@example.com", opened.id);
+  const foreign = slots.capacity({ projectId: "projekt-b", primaryPort: 5173, edges: [] });
+  expect(foreign).toMatchObject({ reusableSlots: 0, freeSlots: 0, fits: false });
+  const own = slots.capacity({ projectId: "projekt-a", primaryPort: 5173, edges: [] });
+  expect(own).toMatchObject({ reusableSlots: 0, freeSlots: 1, fits: true });
+});

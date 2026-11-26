@@ -14,13 +14,6 @@ interface UserPreferenceRow {
   updatedAt: string;
 }
 
-export interface DevServerCommandConfirmation {
-  commandHash: string;
-  commandPreview: string;
-  projectPath: string;
-  confirmedAt: string;
-}
-
 export class PreviewDevServerDatabase {
   private readonly db: DatabaseSync;
 
@@ -42,15 +35,6 @@ export class PreviewDevServerDatabase {
         user_id TEXT PRIMARY KEY,
         external_open_mode TEXT NOT NULL CHECK(external_open_mode IN ('window','tab')) DEFAULT 'window',
         updated_at TEXT NOT NULL
-      ) STRICT;
-      CREATE TABLE IF NOT EXISTS preview_dev_server_confirmations (
-        user_id TEXT NOT NULL,
-        project_id TEXT NOT NULL,
-        command_hash TEXT NOT NULL,
-        command_preview TEXT NOT NULL,
-        project_path TEXT NOT NULL,
-        confirmed_at TEXT NOT NULL,
-        PRIMARY KEY(user_id, project_id)
       ) STRICT;
     `);
     const columns = this.db.prepare("PRAGMA table_info(preview_dev_server_preferences)").all() as Array<{ name: string }>;
@@ -85,27 +69,6 @@ export class PreviewDevServerDatabase {
       external_open_mode=excluded.external_open_mode, updated_at=excluded.updated_at`)
       .run(userId, externalOpenMode, updatedAt);
     return { externalOpenMode, updatedAt };
-  }
-
-  /**
-   * S-013: Bestätigter Befehls-Hash je Benutzer und Projekt. Ein neuer oder
-   * geänderter Befehl verlangt eine erneute explizite Bestätigung.
-   */
-  commandConfirmation(userId: string, projectId: string): DevServerCommandConfirmation | undefined {
-    return this.db.prepare(`SELECT command_hash commandHash, command_preview commandPreview,
-      project_path projectPath, confirmed_at confirmedAt
-      FROM preview_dev_server_confirmations WHERE user_id = ? AND project_id = ?`)
-      .get(userId, projectId) as DevServerCommandConfirmation | undefined;
-  }
-
-  saveCommandConfirmation(userId: string, projectId: string, commandHash: string, commandPreview: string, projectPath: string): DevServerCommandConfirmation {
-    const confirmedAt = new Date().toISOString();
-    this.db.prepare(`INSERT INTO preview_dev_server_confirmations(user_id, project_id, command_hash, command_preview, project_path, confirmed_at)
-      VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(user_id, project_id) DO UPDATE SET
-      command_hash=excluded.command_hash, command_preview=excluded.command_preview,
-      project_path=excluded.project_path, confirmed_at=excluded.confirmed_at`)
-      .run(userId, projectId, commandHash, commandPreview, projectPath, confirmedAt);
-    return { commandHash, commandPreview, projectPath, confirmedAt };
   }
 
   close() { this.db.close(); }

@@ -4,11 +4,9 @@ import type { PreviewDevServerStatus } from "@wrapt/contracts";
 import type { PreviewDevServerManager } from "./DevServerManager.js";
 
 it("ein Tab-Close während des Watchdog-Neustarts verwirft den alten Veröffentlichungswunsch", async () => {
-  const { create, database, supervisor } = await harness();
+  const { create, supervisor } = await harness();
   const publish = vi.fn(async () => ({ url: "https://test.example", sessionId: "test" }));
   const manager = create(publish);
-  const preview = await manager.commandPreview("projekt");
-  database.saveCommandConfirmation("user@example.test", "projekt", preview.commandHash, preview.commandPreview, preview.projectPath);
   await manager.launch("user@example.test", "projekt");
   const name = [...supervisor.sessions.keys()][0]!;
   supervisor.sessions.get(name)!.panes[0]!.dead = true;
@@ -32,11 +30,9 @@ it("ein Tab-Close während des Watchdog-Neustarts verwirft den alten Veröffentl
 });
 
 it("eine Freigabe während des Laufzeitstarts verhindert die verspätete Veröffentlichung", async () => {
-  const { create, database } = await harness();
+  const { create } = await harness();
   const publish = vi.fn(async () => ({ url: "https://test.example", sessionId: "test" }));
   const manager = create(publish);
-  const preview = await manager.commandPreview("projekt");
-  database.saveCommandConfirmation("user@example.test", "projekt", preview.commandHash, preview.commandPreview, preview.projectPath);
   const originalStart = manager.start.bind(manager);
   let entered!: () => void;
   let release!: () => void;

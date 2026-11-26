@@ -212,7 +212,7 @@ export async function registerPreviewRoutes(app: FastifyInstance, options: Previ
   // ── Slot-Reset ─────────────────────────────────────────────────────────────
   app.post("/previews/slots/reclaim", async (request) => {
     mutating(request);
-    const { slotId, nonce, affinity } = options.slots.beginReclaim();
+    const { slotId, nonce, affinity } = options.slots.beginReclaim(z.object({ projectId: z.string().min(1).max(160).optional() }).parse(request.body ?? {}).projectId ?? null);
     return previewSlotResetResponseSchema.parse({
       slotId,
       nonce,

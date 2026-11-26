@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { PreviewDiagnosticEvent, PreviewSessionResponse } from "@wrapt/contracts";
+import { previewRequestFingerprintFields, type PreviewDiagnosticEvent, type PreviewSessionResponse } from "@wrapt/contracts";
 import { ApiClientError, apiClient } from "../../lib/apiClient";
 import { previewSlotUrl } from "../../lib/previewTargets";
 import { PreviewBridgeClient, type BridgeStatus } from "../../lib/previewBridgeClient";
@@ -100,13 +100,15 @@ export function usePreviewRuntimeSession(input: UsePreviewRuntimeSessionInput) {
 
   useEffect(() => {
     if (!routeActive || !input.visible) return;
-    const requestFingerprint = JSON.stringify({
+    const requestFingerprint = JSON.stringify(previewRequestFingerprintFields({
       sessionKey: effectiveSessionKey,
       projectId: input.projectId,
-      targetPort: input.targetPort,
+      primaryPort: input.targetPort,
+      primaryProtocol: "http",
       isolate: input.isolate,
       storageProfileId: input.storageProfileId,
-    });
+      requestedSlotId: input.requestedSlotId,
+    }));
     const current = assignmentRef.current;
     if (current && current.requestFingerprint === requestFingerprint
       && (input.requestedSlotId === null || input.requestedSlotId === current.slotId)) {
@@ -119,25 +121,32 @@ export function usePreviewRuntimeSession(input: UsePreviewRuntimeSessionInput) {
     const idempotencyKey = idempotencyRequestRef.current.key;
     let active = true;
     setError(null);
-    const open = (slotId: number | null) => apiClient.openPreviewSession({
+    const open = (slotId: number | null, key: string) => apiClient.openPreviewSession({
       sessionKey: effectiveSessionKey,
       projectId: input.projectId,
       primaryPort: input.targetPort,
       primaryProtocol: "http",
       isolate: input.isolate,
       storageProfileId: input.storageProfileId,
-      idempotencyKey,
+      idempotencyKey: key,
       ...(slotId === null ? {} : { requestedSlotId: slotId }),
     });
     const openWithRecovery = async () => {
       try {
-        return await open(input.requestedSlotId);
+        return await open(input.requestedSlotId, idempotencyKey);
       } catch (reason) {
+        if (reason instanceof ApiClientError && reason.code === "PREVIEW_IDEMPOTENCY_CONFLICT") {
+          // Der Fingerprint hat sich geändert (z. B. neuer Slotwunsch). Einmalig
+          // mit neuem Schlüssel wiederholen, statt in einem 409 stehen zu bleiben.
+          const key = generateId();
+          idempotencyRequestRef.current = { fingerprint: requestFingerprint, key };
+          return await open(input.requestedSlotId, key);
+        }
         if (input.requestedSlotId !== null && reason instanceof ApiClientError && reason.code === "PREVIEW_SLOT_CHANGED") {
-          return withPreviewSlotRecovery(() => open(null));
+          return withPreviewSlotRecovery(() => open(null, idempotencyKey), undefined, input.projectId);
         }
         if (!(reason instanceof ApiClientError) || reason.code !== "PREVIEW_SLOTS_EXHAUSTED") throw reason;
-        return withPreviewSlotRecovery(() => open(null));
+        return withPreviewSlotRecovery(() => open(null, idempotencyKey), undefined, input.projectId);
       }
     };
     const applyResponse = (response: PreviewSessionResponse | undefined) => {

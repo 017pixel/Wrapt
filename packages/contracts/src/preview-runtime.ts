@@ -92,17 +92,6 @@ export const previewDevServerLogsSchema = z.object({
 export const previewDevServerMainPortRequestSchema = z.object({
   mainPort: z.number().int().min(1).max(65_535).nullable(),
 });
-export const previewDevServerConfirmRequestSchema = z.object({
-  commandHash: z.string().trim().min(4).max(64),
-});
-export const previewDevServerConfirmResponseSchema = z.object({
-  confirmed: z.literal(true),
-  projectId: z.string().min(1).max(160),
-  projectPath: z.string().min(1),
-  commandHash: z.string().min(4).max(64),
-  commandPreview: z.string().min(1),
-  confirmedAt: isoDateSchema,
-});
 
 export type PreviewDevServerState = z.infer<typeof previewDevServerStateSchema>;
 export type PreviewExternalOpenMode = z.infer<typeof previewExternalOpenModeSchema>;
@@ -119,4 +108,3 @@ export type PreviewDevServerStatus = z.infer<typeof previewDevServerStatusSchema
 export type PreviewDevServersResponse = z.infer<typeof previewDevServersResponseSchema>;
 export type PreviewDevServerLogs = z.infer<typeof previewDevServerLogsSchema>;
 export type PreviewDevServerMainPortRequest = z.infer<typeof previewDevServerMainPortRequestSchema>;
-export type PreviewDevServerConfirmResponse = z.infer<typeof previewDevServerConfirmResponseSchema>;
